@@ -23,3 +23,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI Service & Model Weights (>50MB, avoids GitHub 100MB limit)
+ai-service/pretrained_models/
+ai-service/**/*.pth
+ai-service/**/*.pth.tar
+ai-service/**/*.ckpt
+ai-service/**/*.bin
+ai-service/**/*.npz
+ai-service/output/
+ai-service/output_measurements.json
+ai-service/*.obj
+ai-service/*.ply
+ai-service/**/__pycache__/
