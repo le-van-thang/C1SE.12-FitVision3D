@@ -12,6 +12,8 @@ import cv2
 import torch
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
@@ -30,6 +32,10 @@ app = FastAPI(
     description="Hệ thống AI trích xuất số đo cơ thể 3D cho may mặc và tư vấn chọn size quần áo tự động theo tiêu chuẩn ISO 8559.",
     version="1.0.0"
 )
+
+STATIC_DIR = os.path.join(CURRENT_DIR, "static")
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Kích hoạt CORS để cho phép các ứng dụng Web/Mobile (React, Flutter, Vue) gọi API
 app.add_middleware(
@@ -110,8 +116,19 @@ def startup_event():
         print(f"[!] Cảnh báo nạp mô hình lúc khởi động: {e}")
 
 
-@app.get("/")
-def root():
+@app.get("/", response_class=HTMLResponse)
+def root_web():
+    """Giao diện Web trực quan để tải ảnh và xem số đo 3D tức thì."""
+    index_file = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_file):
+        with open(index_file, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse("<h2>AI-Tailor REST API đang hoạt động!</h2><p>Xem Swagger UI tại: <a href='/docs'>/docs</a></p>")
+
+
+@app.get("/api/v1/info")
+def root_info():
+    """Thông tin trạng thái dịch vụ và tài liệu."""
     return {
         "system": "AI-Tailor 3D Measurement Extraction API",
         "status": "online",
@@ -119,6 +136,15 @@ def root():
         "docs_url": "/docs",
         "iso_standard": "ISO 8559-1 (Clothing Anthropometry)"
     }
+
+
+@app.get("/api/v1/demo-image")
+def get_demo_image():
+    """Cung cấp file ảnh mẫu A-pose (demo_sample.jpg) để người dùng thử nghiệm nhanh."""
+    demo_path = os.path.join(CURRENT_DIR, "demo_sample.jpg")
+    if os.path.exists(demo_path):
+        return FileResponse(demo_path, media_type="image/jpeg")
+    raise HTTPException(status_code=404, detail="Ảnh mẫu demo_sample.jpg không tồn tại trên server.")
 
 
 @app.post("/api/v1/measure")
@@ -156,17 +182,34 @@ async def extract_measurements(
     # 2. Cắt ảnh và hồi quy vector 3D betas
     betas, _ = extract_3d_mesh(demoer, img, box_xywh, device)
 
-    # 3. Tính toán toàn bộ 8 số đo may mặc ISO 8559
+    # Tạo thư mục lưu trữ avatar 3D
+    avatars_dir = os.path.join(CURRENT_DIR, "output", "avatars")
+    os.makedirs(avatars_dir, exist_ok=True)
+    avatar_filename = f"avatar_{int(time.time() * 1000)}.obj"
+    avatar_filepath = os.path.join(avatars_dir, avatar_filename)
+
+    # 3. Tính toán toàn bộ 8 số đo may mặc ISO 8559 và xuất lưới 3D (.obj)
     results = compute_measurements(
         betas=betas,
         height_cm_input=height_cm,
         weight_kg_input=weight_kg,
         gender=gender or "neutral",
-        device=device
+        device=device,
+        save_mesh_path=avatar_filepath
     )
 
     elapsed_sec = round(time.time() - start_time, 2)
     garment_sizes = recommend_garment_sizes(results, gender=gender)
+
+    has_mesh = os.path.exists(avatar_filepath)
+    avatar_info = {
+        "available": has_mesh,
+        "filename": avatar_filename if has_mesh else None,
+        "mesh_url": f"/api/v1/avatar/{avatar_filename}" if has_mesh else None,
+        "download_url": f"/api/v1/avatar/{avatar_filename}?download=true" if has_mesh else None,
+        "format": "Wavefront OBJ (.obj)",
+        "standard": "SMPL-X 3D Mesh (10,475 Vertices / 20,908 Faces)"
+    }
 
     return {
         "status": "success",
@@ -177,8 +220,48 @@ async def extract_measurements(
         },
         "iso_8559_measurements": results,
         "garment_size_recommendations": garment_sizes,
+        "avatar_3d": avatar_info,
         "execution_time_seconds": elapsed_sec
     }
+
+
+@app.get("/api/v1/avatar/{filename}")
+def get_avatar_file(filename: str, download: bool = False):
+    """Cung cấp file 3D avatar (.obj) để Three.js render hoặc người dùng tải về máy."""
+    safe_name = os.path.basename(filename)
+    if safe_name in ["sample", "demo", "avatar_sample.obj", "sample.obj"]:
+        file_path = os.path.join(CURRENT_DIR, "avatar_sample.obj")
+        safe_name = "avatar_sample.obj"
+    else:
+        file_path = os.path.join(CURRENT_DIR, "output", "avatars", safe_name)
+
+    if not os.path.exists(file_path):
+        # Fallback về avatar_sample.obj nếu file không tồn tại
+        fallback = os.path.join(CURRENT_DIR, "avatar_sample.obj")
+        if os.path.exists(fallback):
+            file_path = fallback
+            safe_name = "avatar_sample.obj"
+        else:
+            raise HTTPException(status_code=404, detail="File 3D avatar không tồn tại trên server.")
+
+    headers = {}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="{safe_name}"'
+        return FileResponse(file_path, media_type="application/octet-stream", headers=headers)
+    return FileResponse(file_path, media_type="model/obj", headers=headers)
+
+
+@app.get("/api/v1/avatar-sample")
+def get_avatar_sample(download: bool = False):
+    """Cung cấp file 3D avatar mẫu (avatar_sample.obj) để trải nghiệm nhanh 3D Viewer."""
+    sample_path = os.path.join(CURRENT_DIR, "avatar_sample.obj")
+    if not os.path.exists(sample_path):
+        raise HTTPException(status_code=404, detail="Không tìm thấy file avatar_sample.obj")
+    headers = {}
+    if download:
+        headers["Content-Disposition"] = 'attachment; filename="avatar_sample.obj"'
+        return FileResponse(sample_path, media_type="application/octet-stream", headers=headers)
+    return FileResponse(sample_path, media_type="model/obj", headers=headers)
 
 
 if __name__ == "__main__":
