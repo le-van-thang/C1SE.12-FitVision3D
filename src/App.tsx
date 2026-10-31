@@ -1,33 +1,31 @@
-import React, { useState } from 'react';
-import { Layout } from '@/components/Layout';
-import { CameraFeed } from '@/features/capture/CameraFeed';
-import { CVMonitorCard } from '@/features/cv/CVMonitorCard';
+import React, { useState, useEffect } from 'react';
+import { I18nProvider, useTranslation } from '@/i18n';
+import { ToastProvider } from '@/components/ui/Toast';
+import { LandingPage } from '@/features/landing/LandingPage';
+import { KitPage } from '@/features/kit/KitPage';
+import { AppShell } from '@/components/layout/AppShell';
 import { AnthropometryDisplay } from '@/features/anthropometry/AnthropometryDisplay';
 import { MannequinViewer } from '@/features/avatar3d/MannequinViewer';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { measurementService, isSupabaseConfigured } from '@/services/supabase';
+import { CVMonitorCard } from '@/features/cv/CVMonitorCard';
+import { CameraFeed } from '@/features/capture/CameraFeed';
+import { Button, Badge, Card, FitRuler } from '@/components/ui';
 import type { BodyMeasurements } from '@/types';
 import {
-  Scan,
-  Cpu,
+  Camera,
+  Layers,
   Ruler,
-  Box,
-  Database,
+  CheckCircle2,
   Sliders,
-  CheckCircle,
-  Save,
-  ArrowRight,
+  History,
+  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 
-export function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'capture' | 'avatar'>('overview');
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+function AppContent() {
+  const { t } = useTranslation();
+  const [currentPath, setCurrentPath] = useState(() => window.location.pathname || '/');
 
-  // Dynamic interactive body measurements state
+  // Interactive measurements state
   const [measurements, setMeasurements] = useState<BodyMeasurements>({
     height: 172.5,
     chestGirth: 94.0,
@@ -37,341 +35,294 @@ export function App() {
     armLength: 61.0,
     insideLegLength: 79.5,
     unit: 'cm',
-    confidenceScore: 0.95,
+    confidenceScore: 0.96,
   });
 
-  const handleMeasurementChange = (key: keyof BodyMeasurements, value: number) => {
-    setMeasurements((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+  const navigate = (path: string) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSaveToSupabase = async () => {
-    setIsSaving(true);
-    setSaveSuccess(false);
-    try {
-      await measurementService.saveMeasurements(measurements);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
-  return (
-    <Layout activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as any)}>
-      {/* Hero Welcome Banner */}
-      <div className="relative mb-8 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-cyan-950/40 via-slate-900 to-indigo-950/30 border border-white/10 overflow-hidden shadow-2xl">
-        <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 mb-3">
-            <Badge variant="cyan" dot>Hệ Thống Trực Tuyến v1.0.0</Badge>
-            <Badge variant="violet">Capstone C1SE.12</Badge>
+  // 1. Landing Page Route
+  if (currentPath === '/') {
+    return (
+      <LandingPage
+        onStartScan={() => navigate('/app/scan')}
+        onExploreDemo={() => navigate('/_kit')}
+      />
+    );
+  }
+
+  // 2. Storybook-lite / UI Kit Route
+  if (currentPath === '/_kit') {
+    return <KitPage />;
+  }
+
+  // 3. Shopper Scan Wizard Route
+  if (currentPath === '/app/scan') {
+    return (
+      <AppShell
+        currentPath={currentPath}
+        pageTitle={t('scan.title')}
+        pageSubtitle="Quy trình 7 bước đo nhân trắc học không tiếp xúc"
+        onNavigate={navigate}
+        primaryAction={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/app')}
+          >
+            {t('common.cancel')}
+          </Button>
+        }
+      >
+        <div className="space-y-6">
+          <CameraFeed
+            onCaptureCompleted={() => {
+              navigate('/app/results');
+            }}
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
+  // 4. Shopper Results & 3D Mannequin Route
+  if (currentPath === '/app/results') {
+    return (
+      <AppShell
+        currentPath={currentPath}
+        pageTitle={t('nav.results')}
+        pageSubtitle="Hồ sơ nhân trắc học giải phẫu theo tiêu chuẩn quốc tế ISO 8559-1"
+        onNavigate={navigate}
+        primaryAction={
+          <Button
+            variant="accent"
+            size="sm"
+            onClick={() => navigate('/app/scan')}
+            icon={<Camera className="w-4 h-4" />}
+          >
+            {t('scan.retake')}
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 space-y-6">
+            <AnthropometryDisplay measurements={measurements} />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-            FitVision <span className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">3D</span>: Đo Nhân Trắc Học & Thử Đồ Ảo
-          </h1>
-          <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-2xl">
-            Giải pháp đo đạc không tiếp xúc ứng dụng MediaPipe Pose, xử lý ảnh OpenCV.js WASM, trích xuất số đo theo tiêu chuẩn quốc tế ISO 8559 và tái tạo Mannequin 3D trên WebGL Three.js.
-          </p>
-
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => setActiveTab('capture')}
-              icon={<Scan className="w-4 h-4" />}
-            >
-              Bắt đầu quét ảnh (Pose Guide)
-            </Button>
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => setActiveTab('avatar')}
-              icon={<Box className="w-4 h-4" />}
-            >
-              Xem Mannequin 3D
-            </Button>
-            <Button
-              variant="outline"
-              size="md"
-              onClick={handleSaveToSupabase}
-              disabled={isSaving}
-              icon={saveSuccess ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <Save className="w-4 h-4" />}
-            >
-              {isSaving ? 'Đang lưu...' : saveSuccess ? 'Đã lưu Supabase!' : 'Lưu số đo vào Cloud'}
-            </Button>
+          <div className="lg:col-span-5 space-y-6">
+            <MannequinViewer measurements={measurements} />
           </div>
         </div>
+      </AppShell>
+    );
+  }
 
-        {/* Ambient decorative element */}
-        <div className="absolute right-[-40px] -bottom-10 opacity-15 pointer-events-none hidden md:block">
-          <Box className="w-72 h-72 text-cyan-400 transform rotate-12" />
+  // 5. Shopper Fit Guide Route
+  if (currentPath === '/app/fit') {
+    return (
+      <AppShell
+        currentPath={currentPath}
+        pageTitle={t('fit.title')}
+        pageSubtitle="So khớp số đo với bảng kích cỡ thương hiệu"
+        onNavigate={navigate}
+      >
+        <div className="space-y-6 max-w-3xl">
+          <Card>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-kraft/40">
+                <div>
+                  <h3 className="font-sans text-base font-semibold text-ink">
+                    Kích cỡ đề xuất: <span className="text-indigo font-bold">M (Medium)</span>
+                  </h3>
+                  <p className="text-xs text-ink-2 mt-0.5">Dựa trên vòng ngực 94.0 cm và vòng eo 78.5 cm</p>
+                </div>
+                <Badge variant="moss" dot>Đạt chuẩn</Badge>
+              </div>
+
+              <div className="space-y-3">
+                <FitRuler
+                  label={t('measurements.chest')}
+                  userValue={measurements.chestGirth}
+                  minRange={92.0}
+                  maxRange={96.0}
+                />
+                <FitRuler
+                  label={t('measurements.waist')}
+                  userValue={measurements.waistGirth}
+                  minRange={76.0}
+                  maxRange={80.0}
+                />
+                <FitRuler
+                  label={t('measurements.hips')}
+                  userValue={measurements.hipGirth}
+                  minRange={94.0}
+                  maxRange={98.0}
+                />
+              </div>
+            </div>
+          </Card>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // 6. Tailor Studio Route
+  if (currentPath.startsWith('/studio')) {
+    return (
+      <AppShell
+        currentPath={currentPath}
+        pageTitle="Xưởng May Đo (Tailor Studio)"
+        pageSubtitle="Quản lý hồ sơ khách hàng, bảng kích cỡ thương hiệu và độ rộng thoải mái"
+        onNavigate={navigate}
+        primaryAction={
+          <Button variant="primary" size="sm">
+            Tạo bảng kích cỡ mới
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <span className="text-xs text-ink-2 block">Tổng hồ sơ khách</span>
+            <span className="font-mono text-2xl font-semibold text-ink block mt-1">24</span>
+            <span className="text-[11px] text-moss mt-1 block">8 hồ sơ mới trong tuần</span>
+          </Card>
+          <Card>
+            <span className="text-xs text-ink-2 block">Bảng kích cỡ hoạt động</span>
+            <span className="font-mono text-2xl font-semibold text-ink block mt-1">6</span>
+            <span className="text-[11px] text-ink-2 mt-1 block">Tops & Bottoms (US/EU/TCVN)</span>
+          </Card>
+          <Card>
+            <span className="text-xs text-ink-2 block">Dung sai độ rộng (Ease)</span>
+            <span className="font-mono text-2xl font-semibold text-indigo block mt-1">± 2.0 cm</span>
+            <span className="text-[11px] text-ink-2 mt-1 block">Đã hiệu chỉnh theo kiểu dáng</span>
+          </Card>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // 7. Admin Console Route
+  if (currentPath.startsWith('/admin')) {
+    return (
+      <AppShell
+        currentPath={currentPath}
+        pageTitle="Bảng Điều Khiển Quản Trị"
+        pageSubtitle="Giám sát bảo mật Zero-Retention, độ trễ và số lượt quét toàn hệ thống"
+        onNavigate={navigate}
+        primaryAction={
+          <Button variant="secondary" size="sm">
+            Xuất báo cáo tuân thủ
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <span className="text-xs text-ink-2 block">Tổng phiên quét</span>
+            <span className="font-mono text-2xl font-semibold text-ink block mt-1">1,482</span>
+            <span className="text-[11px] text-moss mt-1 block">100% tuân thủ Zero-Retention</span>
+          </Card>
+          <Card>
+            <span className="text-xs text-ink-2 block">Độ trễ trung vị p50</span>
+            <span className="font-mono text-2xl font-semibold text-indigo block mt-1">1.82 s</span>
+            <span className="text-[11px] text-ink-2 mt-1 block">Mục tiêu SLA &lt; 3.0s</span>
+          </Card>
+          <Card>
+            <span className="text-xs text-ink-2 block">Trạng thái máy chủ</span>
+            <span className="font-mono text-2xl font-semibold text-moss block mt-1">Bình thường</span>
+            <span className="text-[11px] text-ink-2 mt-1 block">WASM client active</span>
+          </Card>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // 8. Default: Shopper Overview (`/app`)
+  return (
+    <AppShell
+      currentPath="/app"
+      pageTitle={t('nav.overview')}
+      pageSubtitle="Tổng quan số đo nhân trắc học và gợi ý kích cỡ gần nhất"
+      onNavigate={navigate}
+      primaryAction={
+        <Button
+          variant="accent"
+          size="sm"
+          onClick={() => navigate('/app/scan')}
+          icon={<Camera className="w-4 h-4" />}
+        >
+          {t('nav.scan')}
+        </Button>
+      }
+    >
+      <div className="space-y-8">
+        {/* Quick Highlights Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Card>
+            <span className="text-xs text-ink-2 block">{t('measurements.stature')}</span>
+            <span className="font-mono text-xl font-semibold text-ink block mt-1">
+              {measurements.height} cm
+            </span>
+            <span className="text-[11px] text-ink-2/70 font-mono mt-0.5 block">ISO 8559-1</span>
+          </Card>
+
+          <Card>
+            <span className="text-xs text-ink-2 block">{t('measurements.chest')}</span>
+            <span className="font-mono text-xl font-semibold text-ink block mt-1">
+              {measurements.chestGirth} cm
+            </span>
+            <span className="text-[11px] text-ink-2/70 font-mono mt-0.5 block">Vòng ngực</span>
+          </Card>
+
+          <Card>
+            <span className="text-xs text-ink-2 block">{t('measurements.waist')}</span>
+            <span className="font-mono text-xl font-semibold text-ink block mt-1">
+              {measurements.waistGirth} cm
+            </span>
+            <span className="text-[11px] text-ink-2/70 font-mono mt-0.5 block">Vòng eo</span>
+          </Card>
+
+          <Card>
+            <span className="text-xs text-ink-2 block">{t('measurements.hips')}</span>
+            <span className="font-mono text-xl font-semibold text-ink block mt-1">
+              {measurements.hipGirth} cm
+            </span>
+            <span className="text-[11px] text-ink-2/70 font-mono mt-0.5 block">Vòng mông</span>
+          </Card>
+        </div>
+
+        {/* Interactive Mannequin 3D & Pipeline Display */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 space-y-6">
+            <AnthropometryDisplay measurements={measurements} />
+            <CVMonitorCard />
+          </div>
+
+          <div className="lg:col-span-5 space-y-6 sticky top-20">
+            <MannequinViewer measurements={measurements} />
+          </div>
         </div>
       </div>
+    </AppShell>
+  );
+}
 
-      {/* Main Tab Content Switching */}
-      {activeTab === 'overview' && (
-        <div className="space-y-8">
-          {/* Architecture Modules Showcase Grid */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-cyan-400" /> Cấu Trúc Khối Module Kiến Trúc Hệ Thống
-                </h2>
-                <p className="text-xs text-slate-400">Các khối tính năng cốt lõi theo tài liệu System Architecture</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* Module 1: Capture */}
-              <div
-                onClick={() => setActiveTab('capture')}
-                className="p-4 rounded-2xl glass-panel hover:border-cyan-500/40 cursor-pointer transition-all hover:-translate-y-1 group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500/20 mb-3">
-                  <Scan className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-100 group-hover:text-cyan-300 transition-colors">1. Module Capture</h3>
-                <p className="text-xs text-slate-400 mt-1">Chụp 2 góc (Chính diện & Nghiêng), kiểm tra A-pose và ánh sáng.</p>
-                <span className="text-[10px] font-mono text-cyan-400 mt-3 inline-flex items-center gap-1">
-                  Mở camera <ArrowRight className="w-3 h-3" />
-                </span>
-              </div>
-
-              {/* Module 2: Computer Vision */}
-              <div className="p-4 rounded-2xl glass-panel border-white/5">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-3">
-                  <Cpu className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-100">2. CV Pipeline</h3>
-                <p className="text-xs text-slate-400 mt-1">MediaPipe 33 điểm xương & OpenCV WASM trích xuất đường biên.</p>
-                <span className="text-[10px] font-mono text-emerald-400 mt-3 inline-flex items-center gap-1">
-                  WASM Active ✓
-                </span>
-              </div>
-
-              {/* Module 3: Anthropometry */}
-              <div className="p-4 rounded-2xl glass-panel border-white/5">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3">
-                  <Ruler className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-100">3. Anthropometry</h3>
-                <p className="text-xs text-slate-400 mt-1">Tính số đo chuẩn ISO 8559 qua công thức elip Ramanujan.</p>
-                <span className="text-[10px] font-mono text-cyan-400 mt-3 inline-flex items-center gap-1">
-                  ISO 8559-1/2
-                </span>
-              </div>
-
-              {/* Module 4: 3D Avatar */}
-              <div
-                onClick={() => setActiveTab('avatar')}
-                className="p-4 rounded-2xl glass-panel hover:border-purple-500/40 cursor-pointer transition-all hover:-translate-y-1 group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:bg-purple-500/20 mb-3">
-                  <Box className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-100 group-hover:text-purple-300 transition-colors">4. 3D Avatar WebGL</h3>
-                <p className="text-xs text-slate-400 mt-1">Three.js render mannequin tham số theo thời gian thực.</p>
-                <span className="text-[10px] font-mono text-purple-400 mt-3 inline-flex items-center gap-1">
-                  Tương tác 3D <ArrowRight className="w-3 h-3" />
-                </span>
-              </div>
-
-              {/* Module 5: Cloud Services */}
-              <div className="p-4 rounded-2xl glass-panel border-white/5">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-3">
-                  <Database className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-100">5. Cloud & DB</h3>
-                <p className="text-xs text-slate-400 mt-1">Supabase PostgreSQL lưu trữ hồ sơ người dùng & lịch sử số đo.</p>
-                <span className="text-[10px] font-mono text-amber-400 mt-3 inline-flex items-center gap-1">
-                  {isSupabaseConfigured ? 'Connected' : 'Mock/Demo'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Split View: CV Pipeline & ISO 8559 Measurements */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <CVMonitorCard />
-            <AnthropometryDisplay measurements={measurements} />
-          </div>
-
-          {/* 3D Mannequin Quick Preview */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Box className="w-4 h-4 text-cyan-400" /> Tái Tạo Mannequin 3D (WebGL Three.js)
-                </h2>
-                <p className="text-xs text-slate-400">Hình thái học 3D thay đổi theo các thông số đo ISO 8559</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab('avatar')}
-                icon={<Sliders className="w-3.5 h-3.5" />}
-              >
-                Chỉnh sửa số đo tương tác
-              </Button>
-            </div>
-            <MannequinViewer measurements={measurements} />
-          </div>
-        </div>
-      )}
-
-      {/* Capture Module Tab */}
-      {activeTab === 'capture' && (
-        <div className="space-y-6">
-          <CameraFeed />
-        </div>
-      )}
-
-      {/* 3D Avatar & Interactive Morphing Sliders Tab */}
-      {activeTab === 'avatar' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 3D Canvas Area */}
-          <div className="lg:col-span-2">
-            <MannequinViewer measurements={measurements} />
-          </div>
-
-          {/* Parametric Adjustment Sidebar */}
-          <div className="space-y-4">
-            <Card glow>
-              <CardHeader
-                title="Tham Số Đo Cơ Thể (Morphing)"
-                subtitle="Kéo thanh trượt để thay đổi hình dạng mannequin 3D tức thì"
-                icon={<Sliders className="w-4 h-4 text-cyan-400" />}
-              />
-              <CardBody className="space-y-4">
-                {/* Height Slider */}
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-300">Chiều cao (Height)</span>
-                    <span className="font-mono text-cyan-400 font-bold">{measurements.height} cm</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="150"
-                    max="195"
-                    step="0.5"
-                    value={measurements.height}
-                    onChange={(e) => handleMeasurementChange('height', parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 bg-slate-800 rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Chest Girth Slider */}
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-300">Vòng ngực (Chest Girth)</span>
-                    <span className="font-mono text-cyan-400 font-bold">{measurements.chestGirth} cm</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="75"
-                    max="125"
-                    step="0.5"
-                    value={measurements.chestGirth}
-                    onChange={(e) => handleMeasurementChange('chestGirth', parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 bg-slate-800 rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Waist Girth Slider */}
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-300">Vòng eo (Waist Girth)</span>
-                    <span className="font-mono text-cyan-400 font-bold">{measurements.waistGirth} cm</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="60"
-                    max="115"
-                    step="0.5"
-                    value={measurements.waistGirth}
-                    onChange={(e) => handleMeasurementChange('waistGirth', parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 bg-slate-800 rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Hip Girth Slider */}
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-300">Vòng mông (Hip Girth)</span>
-                    <span className="font-mono text-cyan-400 font-bold">{measurements.hipGirth} cm</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="80"
-                    max="125"
-                    step="0.5"
-                    value={measurements.hipGirth}
-                    onChange={(e) => handleMeasurementChange('hipGirth', parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 bg-slate-800 rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Shoulder Breadth */}
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-300">Rộng vai (Shoulder Breadth)</span>
-                    <span className="font-mono text-cyan-400 font-bold">{measurements.shoulderBreadth} cm</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="36"
-                    max="55"
-                    step="0.5"
-                    value={measurements.shoulderBreadth}
-                    onChange={(e) => handleMeasurementChange('shoulderBreadth', parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 bg-slate-800 rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="pt-3 border-t border-white/10 flex flex-col gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleSaveToSupabase}
-                    disabled={isSaving}
-                    icon={<Save className="w-3.5 h-3.5" />}
-                  >
-                    {isSaving ? 'Đang lưu Cloud...' : 'Lưu thông số mới'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setMeasurements({
-                        height: 172.5,
-                        chestGirth: 94.0,
-                        waistGirth: 78.5,
-                        hipGirth: 96.0,
-                        shoulderBreadth: 43.5,
-                        armLength: 61.0,
-                        insideLegLength: 79.5,
-                        unit: 'cm',
-                        confidenceScore: 0.95,
-                      })
-                    }
-                  >
-                    Khôi phục mặc định
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
-
-            <AnthropometryDisplay measurements={measurements} />
-          </div>
-        </div>
-      )}
-    </Layout>
+export function App() {
+  return (
+    <I18nProvider>
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
+    </I18nProvider>
   );
 }
 

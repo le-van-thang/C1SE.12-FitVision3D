@@ -178,7 +178,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ onCaptureCompleted }) =>
                 Bật webcam để tự động căn chỉnh tư thế theo thời gian thực hoặc dùng dữ liệu mẫu.
               </p>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={startCamera}
                 className="mt-4"
@@ -203,15 +203,15 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ onCaptureCompleted }) =>
 
           {/* Viewfinder Status Overlay Bar */}
           <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
-            <Badge variant="cyan" dot>
+            <Badge variant="indigo" dot>
               {activeView === 'front' ? 'Góc chụp: Chính diện (Front)' : 'Góc chụp: Bên hông (Side)'}
             </Badge>
 
             <div className="flex items-center gap-2">
-              <Badge variant={feedback.lightingQuality === 'good' ? 'emerald' : 'amber'}>
+              <Badge variant={feedback.lightingQuality === 'good' ? 'moss' : 'ochre'}>
                 <Sun className="w-3 h-3 mr-1 inline" /> Ánh sáng: Tốt
               </Badge>
-              <Badge variant="violet">
+              <Badge variant="indigo">
                 <UserCheck className="w-3 h-3 mr-1 inline" /> Toàn thân: Đạt
               </Badge>
             </div>

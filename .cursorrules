@@ -13,16 +13,15 @@ Project: FitVision 3D | Team: C1SE.12 | Advisor: TS. Le Minh Thai
 - Phía Cloud/Backend CHỈ nhận các thông số số học (Metadata dạng số: chiều cao, cân nặng, ngực, eo, mông...).
 - Supabase Storage chỉ lưu trữ duy nhất tệp PDF hồ sơ kỹ thuật số (Tailor Dossier PDF).
 
-## 3. UI/UX DESIGN SYSTEM (CYBER-TAILOR AESTHETIC)
-- Bảng màu chủ đạo:
-  - Nền chính: Deep Space Black (#0a0d14), Slate Dark (#0f172a).
-  - Điểm nhấn thị giác (Accent): Laser Cyan (#06b6d4) và Cyber Violet (#8b5cf6).
-  - Trạng thái: Neon Emerald (#10b981), Warning Amber (#f59e0b).
-  - Bề mặt (Surface): Kính mờ frosted glassmorphism (backdrop-filter blur 12px, viền mỏng mạ kim loại 1px border-slate-700/50).
-- Bố cục 3 phân vùng tương tác độc lập:
-  - Vùng 1 (Camera Guide HUD): Khung ngắm định vị cơ thể trực quan, hiển thị đường viền phát sáng đổi màu từ Cam sang Xanh lá khi tư thế đứng đạt chuẩn.
-  - Vùng 2 (Center 3D Viewport): Canvas Three.js chiếm vị trí trung tâm, hiển thị mô hình Mannequin 3D tương tác xoay 360 độ, có các vòng tròn laser phát sáng bao quanh các vị trí đo ngực, eo, mông.
-  - Vùng 3 (Biometric Metrics): Bảng hiển thị thông số cơ thể dạng số lật cơ học (odometer style), bộ so khớp kích cỡ thương hiệu (US, EU, TCVN) và nút bấm xuất file hồ sơ may đo (Tailor Dossier PDF).
+## 3. UI/UX DESIGN SYSTEM (ATELIER – BÀN VẼ RẬP AESTHETIC)
+- Triết lý: Xưởng may đo cao cấp kết hợp bàn vẽ rập kỹ thuật. CẤM TUYỆT ĐỐI phong cách AI rập khuôn (nền đen neon, glow cyan/violet, glassmorphism backdrop-blur, gradient tím-xanh, cyber-grid).
+- Bảng màu:
+  - Light (mặc định): paper (#F1ECE2), paper-2 (#E8E1D3), kraft (#D8CBB1), ink (#17150F), ink-2 (#4A463C), indigo (#26356B), vermilion (#D8452A), moss (#3F6B4E), ochre (#C98A1B).
+  - Dark (len than): nền #14130F, bề mặt #1D1B16, viền #3A362D, chữ #EDE7DA, indigo #7F93E0, vermilion #F26B4D.
+  - Không gradient nền. Chiều sâu tạo bằng viền 1px, đường may nét đứt (stitch line), đổ bóng cứng offset (hard shadow 3px 3px 0 var(--ink)).
+- Kiểu chữ: Display "Fraunces" (serif), Body/UI "Instrument Sans", Dữ liệu số đo "JetBrains Mono" (tabular-nums). Cài qua @fontsource.
+- Họa tiết đặc trưng: Thước dây đo (tape-measure), đường may nét đứt (stitch line), mép giấy răng cưa (deckle edge), leader line bản vẽ kỹ thuật, dấu phấn thợ may (vermilion chalk), texture giấy SVG mộc (<2KB).
+- Mannequin 3D Three.js: Dạng cốt ma-nơ-canh thợ may (vải calico be, dải thước dây quanh thân có số đọc, mốc ghim đỏ), 3 chế độ Shaded / Wireframe / Contour.
 
 ## 4. ANTHROPOMETRIC ALGORITHMIC PIPELINE REFERENCE
 - Bước 1: Metric Scale Calibration (OpenCV.js Gaussian -> Canny -> approxPolyDP với thẻ ID 85.60x53.98mm hoặc A4 210x297mm).

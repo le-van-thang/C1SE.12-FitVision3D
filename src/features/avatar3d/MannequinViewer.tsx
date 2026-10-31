@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { RotateCw, Eye, Grid3X3, Maximize2, Sparkles, Layers } from 'lucide-react';
+import { RotateCw, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { createMannequinMesh, createMeasurementRings } from './meshGenerator';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { createMannequinMesh, createMeasurementRings, RenderMode } from './meshGenerator';
 import type { BodyMeasurements } from '@/types';
 
 interface MannequinViewerProps {
@@ -24,7 +25,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   },
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [wireframe, setWireframe] = useState(false);
+  const [renderMode, setRenderMode] = useState<RenderMode>('shaded');
   const [showRings, setShowRings] = useState(true);
   const [autoRotate, setAutoRotate] = useState(true);
 
@@ -49,42 +50,36 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.set(0, 1.1, 3.6);
 
-    // 3. Renderer
+    // 3. Renderer with antialiasing
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
 
-    // Clear previous children
     while (container.firstChild) {
       container.removeChild(container.firstChild);
     }
     container.appendChild(renderer.domElement);
 
-    // 4. Cyber Grid Floor
-    const gridHelper = new THREE.GridHelper(4, 20, 0x06b6d4, 0x1e293b);
+    // 4. Subtle Minimal Workshop Circular Grid Floor
+    const gridHelper = new THREE.GridHelper(3, 12, 0xD8CBB1, 0xE8E1D3);
     gridHelper.position.y = 0;
     scene.add(gridHelper);
 
-    // 5. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // 5. Lighting: Natural Studio Ambient + Directional Light
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
     scene.add(ambientLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0x06b6d4, 2.0);
-    dirLight1.position.set(3, 4, 3);
+    const dirLight1 = new THREE.DirectionalLight(0xfff7ed, 1.4);
+    dirLight1.position.set(2, 4, 3);
     scene.add(dirLight1);
 
-    const dirLight2 = new THREE.DirectionalLight(0x8b5cf6, 1.8);
-    dirLight2.position.set(-3, 3, -2);
+    const dirLight2 = new THREE.DirectionalLight(0xf1f5f9, 0.8);
+    dirLight2.position.set(-2, 3, -2);
     scene.add(dirLight2);
 
-    const pointLight = new THREE.PointLight(0x22d3ee, 2.5, 10);
-    pointLight.position.set(0, 1.5, 2);
-    scene.add(pointLight);
-
     // 6. Add Mannequin Mesh & Rings
-    const mannequin = createMannequinMesh(measurements, wireframe);
+    const mannequin = createMannequinMesh(measurements, renderMode);
     mannequinGroupRef.current = mannequin;
     scene.add(mannequin);
 
@@ -124,7 +119,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       animationFrameId = requestAnimationFrame(animate);
 
       if (autoRotate && !isDraggingRef.current && mannequinGroupRef.current) {
-        mannequinGroupRef.current.rotation.y += 0.008;
+        mannequinGroupRef.current.rotation.y += 0.006;
         if (ringsGroupRef.current) {
           ringsGroupRef.current.rotation.y = mannequinGroupRef.current.rotation.y;
         }
@@ -155,7 +150,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     };
   }, []);
 
-  // Update mannequin when measurements or wireframe changes
+  // Update mannequin when measurements, renderMode, or showRings changes
   useEffect(() => {
     if (!sceneRef.current) return;
     const scene = sceneRef.current;
@@ -167,7 +162,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       scene.remove(ringsGroupRef.current);
     }
 
-    const newMannequin = createMannequinMesh(measurements, wireframe);
+    const newMannequin = createMannequinMesh(measurements, renderMode);
     mannequinGroupRef.current = newMannequin;
     scene.add(newMannequin);
 
@@ -175,47 +170,49 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     ringsGroupRef.current = newRings;
     newRings.visible = showRings;
     scene.add(newRings);
-  }, [measurements, wireframe, showRings]);
+  }, [measurements, renderMode, showRings]);
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden glass-panel border border-white/10 shadow-2xl flex flex-col">
-      {/* 3D Canvas Viewport Header */}
+    <div className="relative w-full rounded-card overflow-hidden border border-kraft/60 bg-paper-2 shadow-card flex flex-col">
+      {/* 3D Canvas Header */}
       <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
         <div className="flex items-center gap-2">
-          <Badge variant="cyan" dot>
-            Three.js WebGL Engine
+          <Badge variant="indigo" dot>
+            Three.js WebGL
           </Badge>
-          <Badge variant="violet">
-            Parametric Mannequin 3D
+          <Badge variant="kraft">
+            Đồ gá may đo (Atelier)
           </Badge>
         </div>
 
-        {/* Floating status */}
-        <span className="hidden sm:inline-flex text-[11px] font-mono text-cyan-300 bg-slate-900/80 px-2.5 py-1 rounded-md border border-white/10">
-          Height: {measurements.height}cm • Chest: {measurements.chestGirth}cm
+        <span className="font-mono text-xs text-ink-2 bg-paper/90 px-2.5 py-1 rounded-control border border-kraft/60 shadow-subtle">
+          172.5 cm • 94.0 cm
         </span>
       </div>
 
-      {/* Three.js Canvas Container */}
+      {/* Canvas Viewport */}
       <div
         ref={containerRef}
-        className="w-full h-[460px] sm:h-[520px] cursor-grab active:cursor-grabbing bg-gradient-to-b from-[#0b1120] to-[#080c14]"
+        className="w-full h-[440px] sm:h-[480px] cursor-grab active:cursor-grabbing bg-paper"
       />
 
-      {/* Floating Toolbar Controls */}
-      <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 bg-slate-900/85 backdrop-blur-md px-4 py-3 rounded-xl border border-white/10">
+      {/* Clean Floating Toolbar */}
+      <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 bg-paper-2/95 backdrop-blur-sm px-4 py-2.5 rounded-card border border-kraft/60 shadow-subtle">
         <div className="flex items-center gap-2">
-          <Button
-            variant={wireframe ? 'primary' : 'secondary'}
+          {/* Shaded / Wireframe / Contour Segmented Control */}
+          <SegmentedControl
             size="sm"
-            onClick={() => setWireframe(!wireframe)}
-            icon={<Grid3X3 className="w-3.5 h-3.5" />}
-          >
-            {wireframe ? 'Mesh: Wireframe' : 'Mesh: Shaded'}
-          </Button>
+            options={[
+              { value: 'shaded', label: 'Vải mộc (Shaded)' },
+              { value: 'wireframe', label: 'Lưới (Wireframe)' },
+              { value: 'contour', label: 'Đồng mức (Contour)' },
+            ]}
+            value={renderMode}
+            onChange={(val) => setRenderMode(val as RenderMode)}
+          />
 
           <Button
-            variant={showRings ? 'primary' : 'secondary'}
+            variant="secondary"
             size="sm"
             onClick={() => setShowRings(!showRings)}
             icon={<Layers className="w-3.5 h-3.5" />}
@@ -224,19 +221,20 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           </Button>
 
           <Button
-            variant={autoRotate ? 'primary' : 'secondary'}
+            variant="ghost"
             size="sm"
             onClick={() => setAutoRotate(!autoRotate)}
             icon={<RotateCw className="w-3.5 h-3.5" />}
           >
-            {autoRotate ? 'Tự xoay' : 'Dừng xoay'}
+            {autoRotate ? 'Dừng' : 'Xoay'}
           </Button>
         </div>
 
-        <div className="text-[11px] text-slate-400 font-medium hidden sm:block">
-          Kéo chuột để xoay 360° • Zoom bằng lăn chuột
-        </div>
+        <span className="text-[11px] text-ink-2 hidden sm:block font-sans">
+          Kéo chuột xoay 360°
+        </span>
       </div>
     </div>
   );
 };
+export default MannequinViewer;

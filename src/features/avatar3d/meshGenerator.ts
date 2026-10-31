@@ -19,16 +19,18 @@ export const AVATAR_BASELINES = {
   },
 } as const;
 
+export type RenderMode = 'shaded' | 'wireframe' | 'contour';
+
 /**
- * Creates a parametric 3D Mannequin group based on ISO 8559 anthropometric dimensions & baseline scaling
+ * Creates an authentic tailor's atelier mannequin (calico beige cloth, vermilion pin markers)
  */
 export function createMannequinMesh(
   measurements: BodyMeasurements,
-  isWireframe = false,
+  renderMode: RenderMode = 'shaded',
   gender: Gender = 'male'
 ): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'FitVisionMannequin';
+  group.name = 'FitVisionAtelierMannequin';
 
   const baseline = gender === 'female' ? AVATAR_BASELINES.female : AVATAR_BASELINES.male;
 
@@ -39,21 +41,29 @@ export function createMannequinMesh(
   const scaleHip = measurements.hipGirth / baseline.hips;
   const scaleShoulder = measurements.shoulderBreadth / 43.5;
 
-  // Material: Futuristic holographic cyber-tailor mesh
+  const isWireframe = renderMode === 'wireframe';
+
+  // Calico beige natural cotton/canvas cloth material
   const material = new THREE.MeshStandardMaterial({
-    color: 0x06b6d4, // Laser Cyan
-    metalness: 0.85,
-    roughness: 0.2,
+    color: 0xE2D7C3, // Calico beige natural fiber
+    roughness: 0.85,
+    metalness: 0.05,
     wireframe: isWireframe,
-    transparent: true,
-    opacity: isWireframe ? 0.75 : 0.92,
   });
 
-  const jointMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8b5cf6, // Cyber Violet
-    metalness: 0.9,
-    roughness: 0.2,
+  // Tailor's vermilion pin marker joints
+  const pinMaterial = new THREE.MeshStandardMaterial({
+    color: 0xD8452A, // Vermilion chalk/pin
+    roughness: 0.4,
+    metalness: 0.3,
     wireframe: isWireframe,
+  });
+
+  // Dark walnut wood stand base
+  const woodMaterial = new THREE.MeshStandardMaterial({
+    color: 0x4A463C,
+    roughness: 0.7,
+    metalness: 0.1,
   });
 
   // 1. Head
@@ -112,26 +122,26 @@ export function createMannequinMesh(
   // Left Arm
   const leftArmGroup = new THREE.Group();
   leftArmGroup.position.set(-0.21 * scaleShoulder, 1.40 * scaleY, 0);
-  const lShoulderJoint = new THREE.Mesh(new THREE.SphereGeometry(0.048, 16, 16), jointMaterial);
+  const lShoulderJoint = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16), pinMaterial);
   leftArmGroup.add(lShoulderJoint);
 
   const lArmGeo = new THREE.CylinderGeometry(armRadius, armRadius * 0.75, armLen, 16);
   const lArmMesh = new THREE.Mesh(lArmGeo, material);
   lArmMesh.position.set(-0.10, -armLen / 2, 0);
-  lArmMesh.rotation.z = 0.35; // A-pose flare
+  lArmMesh.rotation.z = 0.35; // A-pose
   leftArmGroup.add(lArmMesh);
   group.add(leftArmGroup);
 
   // Right Arm
   const rightArmGroup = new THREE.Group();
   rightArmGroup.position.set(0.21 * scaleShoulder, 1.40 * scaleY, 0);
-  const rShoulderJoint = new THREE.Mesh(new THREE.SphereGeometry(0.048, 16, 16), jointMaterial);
+  const rShoulderJoint = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16), pinMaterial);
   rightArmGroup.add(rShoulderJoint);
 
   const rArmGeo = new THREE.CylinderGeometry(armRadius, armRadius * 0.75, armLen, 16);
   const rArmMesh = new THREE.Mesh(rArmGeo, material);
   rArmMesh.position.set(0.10, -armLen / 2, 0);
-  rArmMesh.rotation.z = -0.35; // A-pose flare
+  rArmMesh.rotation.z = -0.35; // A-pose
   rightArmGroup.add(rArmMesh);
   group.add(rightArmGroup);
 
@@ -139,7 +149,6 @@ export function createMannequinMesh(
   const legLen = 0.82 * (measurements.insideLegLength / 78);
   const legRadius = 0.065;
 
-  // Left Leg
   const leftLeg = new THREE.Mesh(
     new THREE.CylinderGeometry(legRadius, legRadius * 0.6, legLen, 16),
     material
@@ -147,7 +156,6 @@ export function createMannequinMesh(
   leftLeg.position.set(-0.11 * scaleHip, 0.44 * scaleY, 0);
   group.add(leftLeg);
 
-  // Right Leg
   const rightLeg = new THREE.Mesh(
     new THREE.CylinderGeometry(legRadius, legRadius * 0.6, legLen, 16),
     material
@@ -155,11 +163,34 @@ export function createMannequinMesh(
   rightLeg.position.set(0.11 * scaleHip, 0.44 * scaleY, 0);
   group.add(rightLeg);
 
+  // Contour Slicing Ring Lines (if in Contour mode)
+  if (renderMode === 'contour') {
+    const contourMaterial = new THREE.LineBasicMaterial({ color: 0x26356B });
+    for (let y = 0.4; y < 1.6; y += 0.08) {
+      const radius = 0.12 * Math.sin((y / 1.6) * Math.PI) * scaleChest;
+      const curve = new THREE.EllipseCurve(0, 0, radius, radius * 0.8, 0, Math.PI * 2, false, 0);
+      const points = curve.getPoints(36);
+      const geo = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(p.x, 0, p.y)));
+      const line = new THREE.Line(geo, contourMaterial);
+      line.position.y = y * scaleY;
+      group.add(line);
+    }
+  }
+
+  // Atelier Wooden Floor Stand Post
+  const standPost = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.4, 16), woodMaterial);
+  standPost.position.y = 0.2;
+  group.add(standPost);
+
+  const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.03, 24), woodMaterial);
+  standBase.position.y = 0.015;
+  group.add(standBase);
+
   return group;
 }
 
 /**
- * Creates indicator laser measurement rings around Chest, Waist, and Hips
+ * Creates indicator tape measure bands around Chest, Waist, and Hips
  */
 export function createMeasurementRings(
   measurements: BodyMeasurements,
@@ -174,17 +205,16 @@ export function createMeasurementRings(
   const scaleWaist = measurements.waistGirth / baseline.waist;
   const scaleHip = measurements.hipGirth / baseline.hips;
 
-  // Laser Cyan & Cyber Violet emission materials
-  const ringMaterial = new THREE.LineBasicMaterial({
-    color: 0x06b6d4,
-    linewidth: 2,
-  });
+  // Indigo tailor tape ribbon with vermilion accent line
+  const chestTapeMaterial = new THREE.LineBasicMaterial({ color: 0x26356B, linewidth: 2 });
+  const waistTapeMaterial = new THREE.LineBasicMaterial({ color: 0xD8452A, linewidth: 2 });
+  const hipTapeMaterial = new THREE.LineBasicMaterial({ color: 0x26356B, linewidth: 2 });
 
   // Chest ring
   const chestCurve = new THREE.EllipseCurve(0, 0, 0.22 * scaleChest, 0.15 * scaleChest, 0, 2 * Math.PI, false, 0);
   const chestPoints = chestCurve.getPoints(50);
   const chestGeo = new THREE.BufferGeometry().setFromPoints(chestPoints.map(p => new THREE.Vector3(p.x, 0, p.y)));
-  const chestRing = new THREE.Line(chestGeo, ringMaterial);
+  const chestRing = new THREE.Line(chestGeo, chestTapeMaterial);
   chestRing.position.y = 1.30 * scaleY;
   ringGroup.add(chestRing);
 
@@ -192,7 +222,7 @@ export function createMeasurementRings(
   const waistCurve = new THREE.EllipseCurve(0, 0, 0.18 * scaleWaist, 0.12 * scaleWaist, 0, 2 * Math.PI, false, 0);
   const waistPoints = waistCurve.getPoints(50);
   const waistGeo = new THREE.BufferGeometry().setFromPoints(waistPoints.map(p => new THREE.Vector3(p.x, 0, p.y)));
-  const waistRing = new THREE.Line(waistGeo, ringMaterial);
+  const waistRing = new THREE.Line(waistGeo, waistTapeMaterial);
   waistRing.position.y = 1.10 * scaleY;
   ringGroup.add(waistRing);
 
@@ -200,7 +230,7 @@ export function createMeasurementRings(
   const hipCurve = new THREE.EllipseCurve(0, 0, 0.21 * scaleHip, 0.15 * scaleHip, 0, 2 * Math.PI, false, 0);
   const hipPoints = hipCurve.getPoints(50);
   const hipGeo = new THREE.BufferGeometry().setFromPoints(hipPoints.map(p => new THREE.Vector3(p.x, 0, p.y)));
-  const hipRing = new THREE.Line(hipGeo, ringMaterial);
+  const hipRing = new THREE.Line(hipGeo, hipTapeMaterial);
   hipRing.position.y = 0.94 * scaleY;
   ringGroup.add(hipRing);
 

@@ -1,59 +1,126 @@
+@import '@fontsource/fraunces/400.css';
+@import '@fontsource/fraunces/500.css';
+@import '@fontsource/instrument-sans/400.css';
+@import '@fontsource/instrument-sans/500.css';
+@import '@fontsource/instrument-sans/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Atelier Light Palette (Paper & Natural Fibers) */
+  --paper: #F1ECE2;
+  --paper-2: #E8E1D3;
+  --kraft: #D8CBB1;
+  --kraft-subtle: #E2D7C3;
+  --ink: #17150F;
+  --ink-2: #4A463C;
+  --indigo: #26356B;
+  --indigo-hover: #1E2B58;
+  --vermilion: #D8452A;
+  --vermilion-hover: #BF3A21;
+  --moss: #3F6B4E;
+  --ochre: #C98A1B;
+}
+
+.dark {
+  /* Atelier Dark Palette (Charcoal Wool) */
+  --paper: #14130F;
+  --paper-2: #1D1B16;
+  --kraft: #3A362D;
+  --kraft-subtle: #2A2720;
+  --ink: #EDE7DA;
+  --ink-2: #A6A092;
+  --indigo: #7F93E0;
+  --indigo-hover: #98A8E8;
+  --vermilion: #F26B4D;
+  --vermilion-hover: #F5836B;
+  --moss: #589B6D;
+  --ochre: #E5A83B;
+}
+
 @layer base {
   * {
-    border-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(216, 203, 177, 0.6);
   }
-  
+
+  .dark * {
+    border-color: rgba(58, 54, 45, 0.6);
+  }
+
   body {
-    background-color: #080c14;
-    color: #f1f5f9;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
     overflow-x: hidden;
+    position: relative;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Serif display: weight 400-500 only, never bold */
+  .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 400;
+  }
+
+  /* Monospace only for numbers, units, tokens */
+  .font-mono, [data-tabular-nums] {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-/* Glassmorphism & Custom styling */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Subtle Atelier Paper Noise Texture (< 1.2KB) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
-.glass-panel-glow {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.15);
+.dark body::before {
+  opacity: 0.02;
 }
 
-.cyber-grid {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-}
-
-.radar-glow {
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(8, 12, 20, 0) 70%);
-}
-
-/* Custom Scrollbar */
+/* Minimalist Hairline Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #080c14;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--kraft);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #0891b2;
+  background: var(--ink-2);
+}
+
+/* Accessible focus ring */
+*:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

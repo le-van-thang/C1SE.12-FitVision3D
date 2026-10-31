@@ -17,12 +17,15 @@ PART 1: AGENT PERSONA & OPERATING GUARDRAILS
 - Phía Cloud/Backend CHỈ nhận các thông số số học (Metadata dạng số: chiều cao, cân nặng, ngực, eo, mông...).
 - Supabase Storage CHỈ ĐƯỢC PHÉP lưu trữ file PDF hồ sơ may đo (Tailor Dossier PDF).
 
-3. UI/UX CYBER-TAILOR DESIGN SYSTEM:
-- Color Tokens: Deep Space Black (#0a0d14), Slate Dark (#0f172a), Laser Cyan (#06b6d4), Cyber Violet (#8b5cf6), Neon Emerald (#10b981), Warning Amber (#f59e0b).
-- Layout: 3 phân vùng tương tác độc lập:
-  * Vùng 1: Camera Guide HUD (Định vị cơ thể, đổi màu Cam -> Xanh lá khi đạt chuẩn).
-  * Vùng 2: Center 3D Three.js Viewport (Mannequin 3D tương tác 360°, vòng laser đo ngực, eo, mông).
-  * Vùng 3: Biometrics Odometer & Sizing (Số lật cơ học, so khớp size US/EU/TCVN, xuất PDF Dossier).
+3. UI/UX ATELIER – BÀN VẼ RẬP DESIGN SYSTEM:
+- Triết lý: Xưởng may đo cao cấp kết hợp bàn vẽ rập kỹ thuật CAD/Blueprint. Cấm tuyệt đối phong cách AI rập khuôn (nền đen neon, glassmorphism, gradient cyber).
+- Bảng màu:
+  * Light Mode (Mặc định): Nền paper (#F1ECE2), paper-2 (#E8E1D3), viền kraft (#D8CBB1), mực ink (#17150F), chữ phụ ink-2 (#4A463C), lam indigo (#26356B), phấn đỏ vermilion (#D8452A), rêu moss (#3F6B4E), đất son ochre (#C98A1B).
+  * Dark Mode: Nền len than (#14130F), bề mặt (#1D1B16), viền (#3A362D), mực sáng (#EDE7DA), lam sáng (#7F93E0), phấn đỏ (#F26B4D).
+  * Đổ bóng & Đường nét: Viền 1px cứng cáp, đường may nét đứt (stitch line), đổ bóng offset khối hộp (hard shadow 3px 3px 0 var(--ink)), không dùng gradient màu nền.
+- Kiểu chữ: Display "Fraunces" (serif), Body/UI "Instrument Sans", Dữ liệu số đo "JetBrains Mono" (luôn bật tabular-nums).
+- Họa tiết đặc trưng: Thước dây đo tiến trình (tape-measure), mép giấy răng cưa (deckle/sawtooth), leader line bản vẽ kỹ thuật kèm mũi tên hai đầu, dấu phấn thợ may (vermilion chalk markers), texture giấy mộc SVG (<2KB).
+- Mannequin 3D WebGL: Tái tạo dạng cốt ma-nơ-canh thợ may (vải calico be, dải thước dây bao quanh ngực/eo/mông, mốc ghim đỏ), hỗ trợ 3 chế độ Shaded / Wireframe / Contour (đường đồng mức rập).
 
 ================================================================================
 PART 2: TOÀN BỘ THUẬT TOÁN NHÂN TRẮC HỌC CHI TIẾT (ALGORITHMIC PIPELINE)

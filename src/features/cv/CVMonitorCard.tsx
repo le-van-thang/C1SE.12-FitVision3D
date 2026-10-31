@@ -3,29 +3,28 @@ import { Cpu, Eye, Zap, Layers } from 'lucide-react';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { POSE_CONNECTIONS, mediaPipeService } from './mediapipe';
-import { openCVService } from './opencv';
+import { useTranslation } from '@/i18n';
 
 export const CVMonitorCard: React.FC = () => {
+  const { t } = useTranslation();
   const landmarks = mediaPipeService.getSimulatedLandmarks();
 
   return (
-    <Card className="overflow-hidden">
+    <Card>
       <CardHeader
-        title="Computer Vision Pipeline (MediaPipe & OpenCV WASM)"
-        subtitle="Mô hình BlazePose 33 điểm xương & Trích xuất đường bao pixel qua WebAssembly"
-        icon={<Cpu className="w-4 h-4 text-cyan-400" />}
+        title="Trích Xuất Thị Giác Máy Tính (MediaPipe & OpenCV)"
+        subtitle="Mô hình BlazePose 33 điểm xương & Trích xuất đường bao qua WebAssembly"
+        icon={<Cpu className="w-4 h-4 text-indigo" />}
         action={
           <div className="flex gap-2">
-            <Badge variant="cyan" dot>MediaPipe: Ready</Badge>
-            <Badge variant="violet" dot>OpenCV.js: WASM Active</Badge>
+            <Badge variant="indigo" dot>MediaPipe</Badge>
+            <Badge variant="moss" dot>WASM</Badge>
           </div>
         }
       />
       <CardBody className="space-y-4">
         {/* Visual Skeleton Viewport */}
-        <div className="relative h-64 bg-slate-950 rounded-xl border border-white/5 overflow-hidden flex items-center justify-center">
-          <div className="absolute inset-0 cyber-grid opacity-20" />
-          
+        <div className="relative h-64 bg-paper rounded-control border border-kraft/60 overflow-hidden flex items-center justify-center shadow-subtle">
           {/* 2D Pose Skeleton SVG */}
           <svg className="w-full h-full p-4" viewBox="0 0 100 100">
             {/* Draw Bone Connections */}
@@ -40,10 +39,10 @@ export const CVMonitorCard: React.FC = () => {
                   y1={p1.y * 100}
                   x2={p2.x * 100}
                   y2={p2.y * 100}
-                  stroke="#06b6d4"
-                  strokeWidth="1.5"
+                  stroke="#26356B"
+                  strokeWidth="1.2"
                   strokeLinecap="round"
-                  opacity="0.8"
+                  opacity="0.75"
                 />
               );
             })}
@@ -54,9 +53,9 @@ export const CVMonitorCard: React.FC = () => {
                 <circle
                   cx={lm.x * 100}
                   cy={lm.y * 100}
-                  r="2"
-                  fill="#6366f1"
-                  stroke="#ffffff"
+                  r="1.8"
+                  fill="#D8452A"
+                  stroke="#F1ECE2"
                   strokeWidth="0.8"
                 />
               </g>
@@ -64,35 +63,36 @@ export const CVMonitorCard: React.FC = () => {
           </svg>
 
           {/* Real-time stats overlay */}
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[11px] font-mono text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-white/5">
+          <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between text-[11px] font-mono text-ink-2 bg-paper-2/90 px-3 py-1.5 rounded-control border border-kraft/60">
             <span className="flex items-center gap-1.5">
-              <Eye className="w-3 h-3 text-cyan-400" /> Keypoints: 33/33
+              <Eye className="w-3 h-3 text-indigo" /> 33/33 Điểm mốc
             </span>
             <span className="flex items-center gap-1.5">
-              <Zap className="w-3 h-3 text-emerald-400" /> Latency: 14ms (GPU WASM)
+              <Zap className="w-3 h-3 text-moss" /> 14ms (WASM)
             </span>
             <span className="flex items-center gap-1.5">
-              <Layers className="w-3 h-3 text-indigo-400" /> Calibration: Card 8.56cm
+              <Layers className="w-3 h-3 text-ink" /> Thẻ chuẩn: 85.6 mm
             </span>
           </div>
         </div>
 
         {/* Pipeline Steps Indicator */}
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
-          <div className="p-2.5 rounded-lg bg-slate-900/60 border border-white/5">
-            <span className="text-slate-400 block text-[10px] uppercase tracking-wider">1. Preprocessing</span>
-            <span className="font-semibold text-slate-200 mt-0.5 block">Otsu & Canny Edge</span>
+          <div className="p-2.5 rounded-control bg-paper border border-kraft/60">
+            <span className="text-ink-2 block text-[10px] font-mono">01. TIỀN XỬ LÝ</span>
+            <span className="font-medium text-ink mt-0.5 block">Tách biên Canny</span>
           </div>
-          <div className="p-2.5 rounded-lg bg-slate-900/60 border border-white/5">
-            <span className="text-slate-400 block text-[10px] uppercase tracking-wider">2. Landmark Pose</span>
-            <span className="font-semibold text-slate-200 mt-0.5 block">MediaPipe BlazePose</span>
+          <div className="p-2.5 rounded-control bg-paper border border-kraft/60">
+            <span className="text-ink-2 block text-[10px] font-mono">02. KHUNG XƯƠNG</span>
+            <span className="font-medium text-ink mt-0.5 block">MediaPipe Pose</span>
           </div>
-          <div className="p-2.5 rounded-lg bg-slate-900/60 border border-white/5">
-            <span className="text-slate-400 block text-[10px] uppercase tracking-wider">3. Scale Calibrate</span>
-            <span className="font-semibold text-slate-200 mt-0.5 block">Px to Metric (cm)</span>
+          <div className="p-2.5 rounded-control bg-paper border border-kraft/60">
+            <span className="text-ink-2 block text-[10px] font-mono">03. ĐỊNH CỠ</span>
+            <span className="font-medium text-ink mt-0.5 block">Tỷ lệ mm/pixel</span>
           </div>
         </div>
       </CardBody>
     </Card>
   );
 };
+export default CVMonitorCard;
