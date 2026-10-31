@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // FITVISION 3D - RAMANUJAN ELLIPSE CIRCUMFERENCE ALGORITHM
 // Buoc 3: Cat lat truc giao va tich phan chu vi elip Ramanujan
 // Tham chieu: Srinivasa Ramanujan (1914) - Approximation formula
@@ -142,7 +142,7 @@ export function computeRamanujanSlice(
  */
 export function computeAllRamanujanSlices(
   frontLandmarks: PoseLandmarks,
-  sideLandmarks: PoseLandmarks,
+  _sideLandmarks: PoseLandmarks,
   imageWidth: number,
   imageHeight: number,
   ratioMmPerPx: number

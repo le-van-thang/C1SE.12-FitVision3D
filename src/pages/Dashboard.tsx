@@ -1,371 +1,223 @@
 // ============================================================
-// FITVISION 3D - MAIN DASHBOARD (PRODUCTION-READY UI/UX)
-// Responsive Adaptive 3-Zone Architecture (100% English)
-// Zone 1: Camera Guide HUD
-// Zone 2: 3D Biometric Viewport
-// Zone 3: Metrics & Size Advisor
+// DASHBOARD STUDIO
+// Left: capture Â· Center: mesh Â· Right: measurements + recommendation
 // ============================================================
 import React, { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { Camera, Ruler, RotateCcw, FileText, Table2, ScanLine, Box, ListChecks, ShieldCheck } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
-import { CameraGuideHUD } from "../components/hud/CameraGuideHUD";
-import { Center3DViewport } from "../components/viewport/Center3DViewport";
-import { BiometricMetrics } from "../components/metrics/BiometricMetrics";
-import { SizeAdvisorCard } from "../components/metrics/SizeAdvisorCard";
-import type { CameraState, PoseQuality, ExtractedMeasurements } from "../types/biometrics.types";
-import type { MeshParameter } from "../types/database.types";
+import { CameraViewfinder } from "../features/capture/CameraViewfinder";
+import { MannequinViewer, type MetricKey } from "../features/avatar3d/MannequinViewer";
+import { MeasurementsPanel } from "../features/anthropometry/MeasurementsPanel";
+import { RecommendationCard } from "../features/anthropometry/RecommendationCard";
+import {
+  DEMO_BIOMETRIC, DEMO_MEASUREMENT, DEMO_MESH, DEMO_RECOMMENDATION, bmi,
+} from "../data/mockData";
+import type { CameraState, PoseQuality } from "../types/biometrics.types";
+import type { BiometricInput, Measurement, MeshParameter, SystemAuditLog } from "../types/database.types";
 
-const MOCK_MEASUREMENTS: ExtractedMeasurements = {
-  chest_circ_cm:       92.4,
-  waist_circ_cm:       76.8,
-  hip_circ_cm:         96.2,
-  inseam_cm:           78.5,
-  shoulder_breadth_cm: 42.1,
-  extraction_confidence: 0.94,
-  stature_cm:          172.0,
+type Tab = "capture" | "mesh" | "metrics";
+
+/** Body inputs entered on the landing page estimator (biometric_inputs). */
+const loadBiometric = (): BiometricInput => {
+  try {
+    const raw = sessionStorage.getItem("fv3d_estimator");
+    if (!raw) return DEMO_BIOMETRIC;
+    const e = JSON.parse(raw) as Pick<BiometricInput, "stature_cm" | "weight_kg" | "gender">;
+    if (!e.stature_cm || !e.weight_kg) return DEMO_BIOMETRIC;
+    return { ...DEMO_BIOMETRIC, ...e, calculated_bmi: bmi(e.weight_kg, e.stature_cm) };
+  } catch {
+    return DEMO_BIOMETRIC;
+  }
 };
 
-const MOCK_MESH_PARAMS: MeshParameter = {
-  id:               "fv3d-mesh-prod-001",
-  measurement_id:   "fv3d-meas-prod-001",
-  base_gender_mesh: "male_base",
-  scale_chest:      1.05,
-  scale_waist:      0.95,
-  scale_hips:       1.08,
-  morph_payload:    null,
-  created_at:       new Date().toISOString(),
-};
+const POSE_OK: PoseQuality = { is_upright: true, is_full_body_visible: true, confidence_score: 0.94, hud_color: "green" };
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [cameraState, setCameraState] = useState<CameraState>("idle");
   const [poseQuality, setPoseQuality] = useState<PoseQuality | null>(null);
-  const [measurements, setMeasurements] = useState<ExtractedMeasurements | null>(null);
-  const [meshParams, setMeshParams]     = useState<MeshParameter | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isDemoMode, setIsDemoMode]     = useState(false);
-  const [mobileTab, setMobileTab]       = useState<"hud" | "viewport" | "metrics">("hud");
+  const [measurement, setMeasurement] = useState<Measurement | null>(null);
+  const [mesh, setMesh] = useState<MeshParameter | null>(null);
+  const [biometric, setBiometric] = useState<BiometricInput | null>(null);
+  const [audit, setAudit] = useState<SystemAuditLog | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [demo, setDemo] = useState(false);
+  const [tab, setTab] = useState<Tab>("capture");
+  const [activeMetric, setActiveMetric] = useState<MetricKey>("chest_circ_cm");
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Initialize Camera Scan (Zero-Image Retention)
-  const handleStartCamera = useCallback(async () => {
+  const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: "user" },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
+      if (videoRef.current) videoRef.current.srcObject = stream;
       setCameraState("calibrating");
-      setPoseQuality({
-        is_upright: true,
-        is_full_body_visible: false,
-        confidence_score: 0.82,
-        hud_color: "orange",
-      });
-      setMobileTab("hud");
-    } catch (err) {
-      console.warn("[Dashboard] Camera simulated fallback:", err);
+      setPoseQuality({ ...POSE_OK, is_full_body_visible: false, confidence_score: 0.82, hud_color: "orange" });
+    } catch {
+      // No camera available: continue with a simulated feed
       setCameraState("calibrating");
-      setTimeout(() => {
-        setCameraState("front_capture");
-        setPoseQuality({
-          is_upright: true,
-          is_full_body_visible: true,
-          confidence_score: 0.95,
-          hud_color: "green",
-        });
-      }, 1200);
+      setTimeout(() => { setCameraState("front_capture"); setPoseQuality(POSE_OK); }, 1200);
     }
   }, []);
 
-  // Demo mode: loads high-grade biometric mock data
-  const handleDemoMode = useCallback(() => {
-    setIsDemoMode(true);
-    setIsProcessing(true);
+  const finishScan = useCallback((delay: number, isDemo = false) => {
+    const t0 = performance.now();
+    setProcessing(true);
     setCameraState("processing");
-
     setTimeout(() => {
-      setMeasurements(MOCK_MEASUREMENTS);
-      setMeshParams(MOCK_MESH_PARAMS);
-      setCameraState("complete");
-      setIsProcessing(false);
-      setPoseQuality({
-        is_upright: true,
-        is_full_body_visible: true,
-        confidence_score: 0.94,
-        hud_color: "green",
+      const bio = loadBiometric();
+      setBiometric(bio);
+      setMeasurement(DEMO_MEASUREMENT);
+      setMesh(DEMO_MESH);
+      setAudit({
+        id: Date.now(), user_id: bio.user_id, action_type: "body_scan",
+        execution_time_ms: Math.round(performance.now() - t0),
+        zero_retention_flag: true, ip_address_hash: "local", created_at: new Date().toISOString(),
       });
-      setMobileTab("viewport");
-    }, 1500);
-  }, []);
-
-  const handleCaptureFront = useCallback(() => {
-    setCameraState("side_capture");
-    setPoseQuality({
-      is_upright: true,
-      is_full_body_visible: true,
-      confidence_score: 0.92,
-      hud_color: "green",
-    });
-  }, []);
-
-  const handleCaptureSide = useCallback(() => {
-    setCameraState("processing");
-    setIsProcessing(true);
-    setTimeout(() => {
-      setMeasurements(MOCK_MEASUREMENTS);
-      setMeshParams(MOCK_MESH_PARAMS);
       setCameraState("complete");
-      setIsProcessing(false);
-      setMobileTab("viewport");
-    }, 2200);
+      setPoseQuality(POSE_OK);
+      setProcessing(false);
+      setDemo(isDemo);
+      setTab("mesh");
+    }, delay);
   }, []);
+
+  const reset = () => {
+    setCameraState("idle"); setPoseQuality(null); setMeasurement(null);
+    setMesh(null); setBiometric(null); setAudit(null); setDemo(false); setTab("capture");
+  };
+
+  const action = (() => {
+    switch (cameraState) {
+      case "idle":
+        return <button id="btn-start-camera" className="zf-btn zf-btn--primary zf-btn--full" onClick={startCamera}><Camera size={16} strokeWidth={1.5} />Start scan</button>;
+      case "calibrating":
+        return <button className="zf-btn zf-btn--primary zf-btn--full" onClick={() => { setCameraState("front_capture"); setPoseQuality(POSE_OK); }}><Ruler size={16} strokeWidth={1.5} />Confirm calibration</button>;
+      case "front_capture":
+        return <button id="btn-capture-front" className="zf-btn zf-btn--primary zf-btn--full" onClick={() => setCameraState("side_capture")}><Camera size={16} strokeWidth={1.5} />Capture front</button>;
+      case "side_capture":
+        return <button id="btn-capture-side" className="zf-btn zf-btn--primary zf-btn--full" onClick={() => finishScan(1200)}><Camera size={16} strokeWidth={1.5} />Capture side</button>;
+      case "complete":
+        return <button className="zf-btn zf-btn--secondary zf-btn--full" onClick={reset}><RotateCcw size={16} strokeWidth={1.5} />Rescan</button>;
+      default:
+        return null;
+    }
+  })();
 
   return (
-    <div className="fv3d-page">
-      {/* ── Production Cyber Navbar ── */}
-      <Navbar onDemoMode={handleDemoMode} isDemoMode={isDemoMode} />
+    <div className="zf-app">
+      <Navbar onDemoMode={() => finishScan(900, true)} isDemoMode={demo} />
 
-      {/* ── Responsive 3-Zone Adaptive Grid ── */}
-      <main className="fv3d-dashboard" id="fv3d-dashboard-main">
-
-        {/* ── ZONE 1: Camera Guide HUD ── */}
-        <section
-          id="zone-camera-hud"
-          aria-label="Camera Guide HUD"
-          className={`fv3d-zone-1 ${mobileTab === "hud" ? "tab-active" : ""}`}
+      <main className="zf-main" id="dashboard-main">
+        <div
+          className="no-print"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "16px",
+            flexWrap: "wrap",
+            gap: "10px",
+          }}
         >
-          <div className="fv3d-zone-label">
-            <span className="fv3d-zone-number">01 /</span>
-            <h2 style={{ fontSize: "14px", fontWeight: 700, color: "#e2e8f0", letterSpacing: "0.06em", margin: 0 }}>
-              CAMERA GUIDE HUD
-            </h2>
+          <div>
+            <h1 className="zf-title" style={{ fontSize: "20px" }}>Biometric Studio</h1>
+            <p className="zf-sub" style={{ fontSize: "12px", marginTop: "2px" }}>
+              Dual-perspective anatomical extraction with real-time 3D humanoid topology.
+            </p>
           </div>
-          <p style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px" }}>
-            Body alignment according to ISO 8559-1 anthropometric standards
-          </p>
-
-          <CameraGuideHUD
-            id="camera-guide-hud"
-            cameraState={cameraState}
-            poseQuality={poseQuality}
-            videoRef={videoRef}
-            onCaptureFront={handleCaptureFront}
-            onCaptureSide={handleCaptureSide}
-          />
-
-          {/* Action Trigger Buttons */}
-          <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            {cameraState === "idle" && (
-              <button
-                id="btn-start-camera"
-                className="btn btn-primary btn--full"
-                onClick={handleStartCamera}
-                style={{ minHeight: "48px" }}
-              >
-                <span>📸</span>
-                <span>Start Camera Scan</span>
-              </button>
-            )}
-
-            {cameraState === "calibrating" && (
-              <button
-                className="btn btn-secondary btn--full"
-                onClick={() => {
-                  setCameraState("front_capture");
-                  setPoseQuality({
-                    is_upright: true,
-                    is_full_body_visible: true,
-                    confidence_score: 0.92,
-                    hud_color: "green",
-                  });
-                }}
-                style={{ minHeight: "48px" }}
-              >
-                <span>📐</span>
-                <span>Calibrate A4 / Reference Card</span>
-              </button>
-            )}
-
-            {cameraState === "complete" && (
-              <button
-                className="btn btn-ghost btn--full"
-                onClick={() => {
-                  setCameraState("idle");
-                  setMeasurements(null);
-                  setMeshParams(null);
-                  setIsDemoMode(false);
-                }}
-                style={{ minHeight: "44px" }}
-              >
-                <span>🔄</span>
-                <span>Reset &amp; Rescan</span>
-              </button>
-            )}
-          </div>
-        </section>
-
-        {/* ── ZONE 2: Center 3D Viewport ── */}
-        <section
-          id="zone-3d-viewport"
-          aria-label="3D Biometric Viewport"
-          className={`fv3d-zone-2 ${mobileTab === "viewport" ? "tab-active" : ""}`}
-        >
-          <div className="fv3d-zone-label" style={{ justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span className="fv3d-zone-number">02 /</span>
-              <h1 style={{ fontSize: "14px", fontWeight: 700, color: "#e2e8f0", letterSpacing: "0.06em", margin: 0 }}>
-                3D BIOMETRIC VIEWPORT
-              </h1>
-            </div>
-            <span className="badge badge--cyan" style={{ fontSize: "10px" }}>
-              WebGL 60FPS
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+                color: "#A3E635",
+                background: "rgba(163, 230, 53, 0.08)",
+                border: "1px solid rgba(163, 230, 53, 0.25)",
+                padding: "4px 10px",
+                borderRadius: "9999px",
+              }}
+            >
+              <ShieldCheck size={14} strokeWidth={2} />
+              Privacy Mode: Zero-Retention Active
+            </span>
+            <span
+              className="mono"
+              style={{
+                fontSize: "12px",
+                color: "var(--label)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                padding: "4px 10px",
+                borderRadius: "9999px",
+              }}
+            >
+              Scan Speed: {audit ? `${(audit.execution_time_ms / 1000).toFixed(1)}s` : "2.4s"}
             </span>
           </div>
-          <p style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px" }}>
-            Real-time mannequin reconstruction synthesized from biometric dimensions
-          </p>
+        </div>
 
-          <Center3DViewport
-            id="center-3d-viewport"
-            meshParams={meshParams}
-            measurements={measurements}
-            isLoading={isProcessing}
-          />
-
-          {/* Performance & SLA HUD Bar */}
-          <div
-            style={{
-              marginTop: "12px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "10px 16px",
-              background: "rgba(15,23,42,0.6)",
-              borderRadius: "10px",
-              border: "1px solid rgba(51,65,85,0.4)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span className="dot dot--cyan dot--pulse" />
-              <span style={{ color: "#94a3b8", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
-                PIPELINE: RAMANUJAN ELLIPSE + PENALTY
-              </span>
+        <div className="zf-dash">
+          {/* Capture */}
+          <section className={`zf-col ${tab === "capture" ? "tab-active" : ""}`} aria-label="Capture">
+            <div className="zf-card zf-card-pad">
+              <div className="zf-section-head"><h2 className="zf-eyebrow">Capture</h2></div>
+              <CameraViewfinder cameraState={cameraState} poseQuality={poseQuality} videoRef={videoRef} />
+              <div style={{ marginTop: 16 }}>{action}</div>
             </div>
-            <span style={{ color: "#22c55e", fontSize: "11px", fontFamily: "var(--font-mono)", fontWeight: 700 }}>
-              SLA &lt; 2.4s ✓
-            </span>
-          </div>
-        </section>
+          </section>
 
-        {/* ── ZONE 3: Biometric Metrics + Size Advisor ── */}
-        <section
-          id="zone-metrics"
-          aria-label="Biometric Metrics & Size Advisor"
-          className={`fv3d-zone-3 ${mobileTab === "metrics" ? "tab-active" : ""}`}
-        >
-          <div className="fv3d-zone-label" style={{ justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span className="fv3d-zone-number" style={{ color: "var(--clr-violet)" }}>03 /</span>
-              <h2 style={{ fontSize: "14px", fontWeight: 700, color: "#e2e8f0", letterSpacing: "0.06em", margin: 0 }}>
-                METRICS &amp; SIZE ADVISOR
-              </h2>
-            </div>
-            <span className="badge badge--violet" style={{ fontSize: "10px" }}>
-              ISO 8559-1
-            </span>
-          </div>
-          <p style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px" }}>
-            Anthropometric parameters &amp; intelligent size recommendation engine
-          </p>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <BiometricMetrics
-              id="biometric-metrics"
-              measurements={measurements}
-              weightKg={70}
-              bmi={measurements ? 23.6 : undefined}
-            />
-
-            {measurements && (
-              <SizeAdvisorCard
-                id="size-advisor-card"
-                brand_name="Global Ready-to-Wear Standard"
-                size_label="M"
-                fit_type="regular"
-                chest_delta_cm={0.4}
-                waist_delta_cm={-0.8}
-                gemini_advisor_tip="Your biometric profile matches standard Size M (Regular fit). The +0.4cm chest allowance creates a structured silhouette with natural freedom of movement."
-                match_score={0.94}
-                size_system="US"
+          {/* Mesh */}
+          <section className={`zf-col ${tab === "mesh" ? "tab-active" : ""}`} aria-label="Mesh preview">
+            <div className="zf-card zf-card-pad">
+              <div className="zf-section-head">
+                <h2 className="zf-eyebrow">Mesh preview</h2>
+                <span className="zf-pill mono">{mesh ? mesh.base_gender_mesh : "no mesh"}</span>
+              </div>
+              <MannequinViewer
+                meshParams={mesh}
+                measurement={measurement}
+                isLoading={processing}
+                height={560}
+                activeMetric={activeMetric}
+                onSelectMetric={setActiveMetric}
               />
-            )}
+            </div>
+          </section>
 
-            {/* Quick Action to B2B Tailor Studio */}
-            <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-              <button
-                id="btn-export-dossier"
-                className="btn btn-secondary"
-                style={{ flex: 1, minHeight: "46px" }}
-                onClick={() => navigate("/tailor")}
-                title="Open technical CAD dossier in Tailor Studio B2B"
-              >
-                <span>✂️</span>
-                <span>Export Tailor Dossier (PDF)</span>
+          {/* Measurements + recommendation */}
+          <section className={`zf-col ${tab === "metrics" ? "tab-active" : ""}`} aria-label="Measurements and recommendation">
+            <MeasurementsPanel
+              measurement={measurement}
+              biometric={biometric}
+              activeMetric={activeMetric}
+              onSelectMetric={setActiveMetric}
+            />
+            {measurement && <RecommendationCard recommendation={DEMO_RECOMMENDATION} brand_name={DEMO_RECOMMENDATION.brand_name} />}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button id="btn-export-dossier" className="zf-btn zf-btn--secondary" style={{ flex: 1 }} onClick={() => navigate("/tailor")}>
+                <FileText size={16} strokeWidth={1.5} />Tailor dossier
               </button>
-              <button
-                id="btn-size-charts"
-                className="btn btn-ghost"
-                style={{ minHeight: "46px", padding: "0 16px" }}
-                onClick={() => navigate("/size-charts")}
-                title="Manage Retailer Size Chart Matrix"
-              >
-                <span>📊</span>
-                <span className="desktop-only">Size Chart</span>
+              <button id="btn-size-charts" className="zf-btn zf-btn--ghost" onClick={() => navigate("/size-charts")}>
+                <Table2 size={16} strokeWidth={1.5} />Size charts
               </button>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </main>
 
-      {/* ── Sticky Mobile Bottom Navigation Bar (Touch Targets >= 44x44px) ── */}
-      <nav className="fv3d-mobile-tabs" aria-label="Mobile View Selector">
-        <button
-          type="button"
-          className={`fv3d-tab-btn ${mobileTab === "hud" ? "active" : ""}`}
-          onClick={() => setMobileTab("hud")}
-          id="btn-tab-hud"
-          aria-label="View Camera HUD"
-        >
-          <span className="tab-icon">📸</span>
-          <span>01. Camera HUD</span>
-        </button>
-
-        <button
-          type="button"
-          className={`fv3d-tab-btn ${mobileTab === "viewport" ? "active" : ""}`}
-          onClick={() => setMobileTab("viewport")}
-          id="btn-tab-viewport"
-          aria-label="View 3D Avatar"
-        >
-          <span className="tab-icon">🧊</span>
-          <span>02. 3D Avatar</span>
-        </button>
-
-        <button
-          type="button"
-          className={`fv3d-tab-btn ${mobileTab === "metrics" ? "active" : ""}`}
-          onClick={() => setMobileTab("metrics")}
-          id="btn-tab-metrics"
-          aria-label="View Biometric Metrics & Size"
-        >
-          <span className="tab-icon">📏</span>
-          <span>03. Metrics &amp; Size</span>
-        </button>
+      <nav className="zf-tabs no-print" aria-label="View selector">
+        {([["capture", "Capture", ScanLine], ["mesh", "Mesh", Box], ["metrics", "Results", ListChecks]] as const).map(([k, label, Icon]) => (
+          <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)} id={`tab-${k}`}>
+            <Icon size={18} strokeWidth={1.5} />{label}
+          </button>
+        ))}
       </nav>
     </div>
   );
 };
 
 export default Dashboard;
+

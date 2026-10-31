@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // FITVISION 3D (FV3D) - DATABASE TYPES
 // Generated from: Supabase PostgreSQL ERD Schema
 // Team: C1SE.12 | Advisor: TS. Le Minh Thai
@@ -13,7 +13,7 @@ export interface Profile {
   full_name: string;            // varchar(100) NOT NULL
   email: string;                // varchar(255) UNIQUE NOT NULL
   role: 'customer' | 'tailor' | 'retailer' | 'admin'; // varchar(20) NOT NULL
-  custom_avatar_mesh_url: string | null; // text
+  avatar_url: string | null;    // text
   created_at: string;           // timestamptz NOT NULL
   updated_at: string;           // timestamptz NOT NULL
 }
