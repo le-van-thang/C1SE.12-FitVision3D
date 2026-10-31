@@ -1,0 +1,32 @@
+/* ================================================================
+   FITVISION 3D — DESIGN TOKENS
+   Clinical, precision-engineered theme. Shared by the app and the
+   standalone landing page.
+   ================================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --bg:        #0A0F12;   /* Deep Carbon */
+  --surface:   #11191E;   /* Matte Petrol Slate */
+  --surface-2: #162229;   /* icon containers / inputs */
+  --border:    rgba(255, 255, 255, 0.07);
+  --border-hi: rgba(255, 255, 255, 0.14);
+
+  --teal:      #4FD1C5;   /* mesh + active states */
+  --teal-dim:  rgba(79, 209, 197, 0.12);
+  --lime:      #A3E635;   /* measurement ring + positive delta */
+  --lime-dim:  rgba(163, 230, 53, 0.12);
+  --danger:    #F87171;
+
+  --white:     #FFFFFF;
+  --label:     #94A3B8;
+  --muted:     #64748B;
+
+  --font-sans: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  --r-md: 8px;
+  --r-xl: 12px;
+  --nav-h: 56px;
+  --status-h: 36px;
+}
