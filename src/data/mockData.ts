@@ -53,6 +53,7 @@ export interface DossierRecord {
   measurement: Measurement;
   mesh: MeshParameter;
   dossier: TailorDossier;
+  dossier_code: string;
 }
 
 const mk = (
@@ -60,6 +61,7 @@ const mk = (
   gender: BiometricInput["gender"], stature_cm: number, weight_kg: number,
   m: Pick<Measurement, "chest_circ_cm" | "waist_circ_cm" | "hip_circ_cm" | "inseam_cm" | "shoulder_breadth_cm" | "extraction_confidence">,
   token: string, expires: string,
+  dossier_code: string,
 ): DossierRecord => ({
   profile: {
     id: `usr-10${n}`, full_name, email, role: "customer", avatar_url: null,
@@ -86,18 +88,19 @@ const mk = (
     access_token: token, token_expires_at: expires, pdf_export_url: null,
     created_at: "2026-10-16T10:01:00Z",
   },
+  dossier_code,
 });
 
 export const DOSSIERS: DossierRecord[] = [
   mk(1, "Alexander Nguyen", "alexander.nguyen@example.com", "male", 176, 74,
     { chest_circ_cm: 94.8, waist_circ_cm: 78.2, hip_circ_cm: 97.4, inseam_cm: 77.8, shoulder_breadth_cm: 44.5, extraction_confidence: 0.96 },
-    "fv3d_tok_a1b2c3d4e5f60718293a4b5c6d7e8f90", "2026-12-18T14:30:00Z"),
+    "fv3d_tok_a1b2c3d4e5f60718293a4b5c6d7e8f90", "2026-12-18T14:30:00Z", "FV-8492-AN"),
   mk(2, "Marcus Tran", "marcus.tran@example.com", "male", 181, 82,
     { chest_circ_cm: 98.2, waist_circ_cm: 82.5, hip_circ_cm: 100.2, inseam_cm: 79.0, shoulder_breadth_cm: 46.0, extraction_confidence: 0.92 },
-    "fv3d_tok_0f9e8d7c6b5a4938271605f4e3d2c1b0", "2026-12-17T10:15:00Z"),
+    "fv3d_tok_0f9e8d7c6b5a4938271605f4e3d2c1b0", "2026-12-17T10:15:00Z", "FV-7215-MT"),
   mk(3, "Linh Pham", "linh.pham@example.com", "female", 164, 55,
     { chest_circ_cm: 84.6, waist_circ_cm: 66.8, hip_circ_cm: 92.0, inseam_cm: 74.2, shoulder_breadth_cm: 37.8, extraction_confidence: 0.89 },
-    "fv3d_tok_7c6b5a49382716f5e4d3c2b1a0918273", "2026-12-16T16:45:00Z"),
+    "fv3d_tok_7c6b5a49382716f5e4d3c2b1a0918273", "2026-12-16T16:45:00Z", "FV-3608-LP"),
 ];
 
 // ── Size Chart Manager ────────────────────────────────────
