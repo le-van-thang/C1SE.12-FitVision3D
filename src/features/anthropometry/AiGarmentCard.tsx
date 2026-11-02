@@ -272,3 +272,4 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
 };
 
 export default AiGarmentCard;
+

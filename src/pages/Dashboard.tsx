@@ -4,7 +4,7 @@
 // Col 2: 3D Humanoid Wireframe Topology Viewport (ZOZOFIT)
 // Col 3: ISO 8559 Anthropometric Table & Quan's AI Garment Card
 // ============================================================
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -60,11 +60,10 @@ export const Dashboard: React.FC = () => {
   const [tab, setTab] = useState<Tab>("capture");
   const [activeMetric, setActiveMetric] = useState<MetricKey>("chest_circ_cm");
 
-  // Handle Photo Scan from Phone / Disk
+  // Handle Photo Scan from Phone / Disk (Single Front A-Pose Image)
   const handleScan = useCallback(
     async (params: {
       frontFile: File | Blob;
-      sideFile?: File | Blob | null;
       height_cm: number;
       weight_kg: number;
       gender: "male" | "female" | "neutral";
@@ -115,7 +114,7 @@ export const Dashboard: React.FC = () => {
           waist_circ_cm: meas.vong_eo_cm,
           hip_circ_cm: meas.vong_mong_cm,
           shoulder_breadth_cm: meas.rong_vai_cm,
-          inseam_cm: meas.dai_chan_inseam_cm,
+          inseam_cm: dai_chan_inseam_cm_fallback(meas.dai_chan_inseam_cm, h),
           arm_length_cm: meas.dai_tay_cm,
           extraction_confidence: res.is_live_backend ? 0.98 : 0.94,
           created_at: new Date().toISOString(),
@@ -158,6 +157,10 @@ export const Dashboard: React.FC = () => {
     },
     []
   );
+
+  function dai_chan_inseam_cm_fallback(val: number | undefined, h: number): number {
+    return val && val > 30 ? val : Math.round(h * 0.46 * 10) / 10;
+  }
 
   // Load Demo Data for fast preview
   const handleLoadDemo = useCallback(() => {
@@ -216,7 +219,7 @@ export const Dashboard: React.FC = () => {
               Studio Nhân Trắc Học 3D (AI-Tailor Studio)
             </h1>
             <p className="zf-sub" style={{ fontSize: "12px", marginTop: "2px" }}>
-              Trích xuất số đo may mặc tự động từ ảnh chụp di động theo chuẩn quốc tế ISO 8559-1:2017.
+              Trích xuất số đo may mặc 3D tự động từ 1 ảnh chụp di động theo chuẩn quốc tế ISO 8559-1:2017.
             </p>
           </div>
 
@@ -275,7 +278,7 @@ export const Dashboard: React.FC = () => {
             <div className="zf-card zf-card-pad">
               <div className="zf-section-head" style={{ marginBottom: "12px" }}>
                 <h2 className="zf-eyebrow">Tải ảnh chụp từ điện thoại</h2>
-                <span className="zf-pill zf-pill--teal">A-Pose 2.5m - 3m</span>
+                <span className="zf-pill zf-pill--teal">1 Ảnh A-Pose Chuẩn</span>
               </div>
 
               <PhotoUploadCapture
@@ -374,7 +377,7 @@ export const Dashboard: React.FC = () => {
       <nav className="zf-tabs no-print" aria-label="View selector">
         {(
           [
-            ["capture", "Chụp / Tải ảnh", ScanLine],
+            ["capture", "Tải ảnh", ScanLine],
             ["mesh", "Mô hình 3D", Box],
             ["metrics", "Kết quả số đo", ListChecks],
           ] as const
