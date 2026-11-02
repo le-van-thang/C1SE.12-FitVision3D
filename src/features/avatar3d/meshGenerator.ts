@@ -63,7 +63,7 @@ export function createSkinnedZozofitMaterial(): THREE.ShaderMaterial {
       }
 
       void main() {
-        // Normalize object coordinates (Michelle bind pose is in cm or m depending on export)
+        // Normalize object coordinates
         float scale = length(vObjPos) > 10.0 ? 0.01 : 1.0;
         vec3 p = vObjPos * scale;
 
@@ -94,8 +94,8 @@ export function createSkinnedZozofitMaterial(): THREE.ShaderMaterial {
 }
 
 /**
- * Loads the real unified human 3D model, resets it to a clean anatomical A-Pose,
- * and adds contoured ZOZOFIT measurement rings.
+ * Loads the standard neutral humanoid mannequin (Xbot), resets it to an anatomical A-Pose,
+ * dynamically scales body girth (chest, waist, hips), and adds contoured ZOZOFIT measurement rings.
  */
 export function loadRealHumanModel(
   params: HumanBodyParams,
@@ -104,7 +104,8 @@ export function loadRealHumanModel(
 ): void {
   const loader = new GLTFLoader();
 
-  loader.load('/models/human_body.glb', (gltf) => {
+  // Load standard humanoid mannequin (Xbot) instead of anime character
+  loader.load('/Xbot.glb', (gltf) => {
     const root = new THREE.Group();
     const model = gltf.scene;
     const zozofitMat = createSkinnedZozofitMaterial();
@@ -113,41 +114,43 @@ export function loadRealHumanModel(
     const sWaist = params.scale_waist || 1.0;
     const sHips  = params.scale_hips  || 1.0;
 
-    // 1. Reset SkinnedMesh to clean bind pose (neutral standing pose) & apply ZOZOFIT shader
+    // 1. Reset SkinnedMesh to clean rest pose and apply ZOZOFIT quad-grid shader
     model.traverse((child) => {
       if ((child as THREE.SkinnedMesh).isSkinnedMesh) {
         const skinned = child as THREE.SkinnedMesh;
+        if (skinned.name === 'Beta_Joints') {
+          // Hide mechanical joint markers so body is clean and continuous
+          skinned.visible = false;
+        } else {
+          skinned.material = zozofitMat;
+        }
         if (skinned.parent) {
           skinned.parent.position.set(0, 0, 0);
           skinned.parent.rotation.set(0, 0, 0);
           skinned.parent.scale.set(1, 1, 1);
         }
-        skinned.skeleton.pose(); // Resets all bones to clean rest pose!
-        skinned.material = zozofitMat;
+        skinned.skeleton.pose();
         skinned.frustumCulled = false;
       } else if ((child as THREE.Mesh).isMesh) {
         (child as THREE.Mesh).material = zozofitMat;
       }
     });
 
-    // 2. Relax arms from T-Pose to natural ZOZOFIT A-Pose & apply X/Z anthropometric scaling
+    // 2. Rotate arms from T-Pose to natural ZOZOFIT A-Pose (~35 degrees) & apply girth scaling
     model.traverse((child) => {
       if ((child as THREE.Bone).isBone) {
         const bone = child as THREE.Bone;
         const n = bone.name.toLowerCase();
 
-        // Lower arms naturally to ~35 degrees from the torso (A-Pose)
-        // In Mixamo bind pose after skeleton.pose(), rotating around X brings arms down cleanly:
+        // Lower arms naturally into ergonomic A-Pose
         if (n.endsWith('leftarm')) {
-          bone.rotation.z = 0.0;
-          bone.rotation.x = 0.65;
+          bone.rotation.set(0, 0, -0.62);
         }
         if (n.endsWith('rightarm')) {
-          bone.rotation.z = 0.0;
-          bone.rotation.x = 0.65;
+          bone.rotation.set(0, 0, 0.62);
         }
 
-        // Anthropometric girth scaling (X and Z only, Y strictly locked to 1.0)
+        // Anthropometric girth scaling (X and Z expand with body measurements)
         if (n.endsWith('spine') || n.endsWith('spine1')) {
           bone.scale.set(sWaist, 1.0, sWaist);
         } else if (n.endsWith('spine2')) {
