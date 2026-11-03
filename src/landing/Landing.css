@@ -1,0 +1,611 @@
+/* ================================================================
+   LANDING — EDITORIAL FASHION-TECH DESIGN SYSTEM
+   max-w-7xl, generous whitespace, asymmetric bento layout,
+   frameless 3D viewport, and precision typography.
+   ================================================================ */
+@import "../styles/tokens.css";
+@import "../index.css";
+
+.lp {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.lp h1, .lp h2, .lp h3, .lp p, .lp dl, .lp dd {
+  margin: 0;
+}
+
+.lp a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Container (max-w-7xl mx-auto px-6 lg:px-12) ── */
+.lp-container {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding-left: clamp(24px, 5vw, 48px);
+  padding-right: clamp(24px, 5vw, 48px);
+}
+
+/* ── Navigation ── */
+.lp-nav {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: sticky;
+  top: 0;
+  background: rgba(10, 15, 18, 0.85);
+  backdrop-filter: blur(16px);
+  z-index: 50;
+}
+
+.lp-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.lp-brand b {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.lp-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: rgba(79, 209, 197, 0.12);
+  border: 1px solid rgba(79, 209, 197, 0.25);
+  border-radius: 8px;
+  color: var(--teal);
+}
+
+.lp-links {
+  display: flex;
+  gap: 32px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--label);
+}
+
+.lp-links a {
+  transition: color 0.15s;
+}
+
+.lp-links a:hover {
+  color: var(--white);
+}
+
+/* ── Buttons ── */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+}
+
+.lp-btn:active {
+  transform: scale(0.98);
+}
+
+.lp-btn--primary {
+  background: var(--teal);
+  color: #0A0F12;
+}
+
+.lp-btn--primary:hover {
+  background: #6fdcd2;
+}
+
+.lp-btn--secondary {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--white);
+}
+
+.lp-btn--secondary:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+  background: rgba(79, 209, 197, 0.05);
+}
+
+.lp-btn--sm {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 12px;
+}
+
+/* ── Hero Section (55% / 45% Split) ── */
+.lp-hero-wrap {
+  padding-top: clamp(32px, 5vw, 64px);
+  padding-bottom: clamp(48px, 6vw, 80px);
+}
+
+.lp-hero {
+  display: grid;
+  grid-template-columns: 55% 45%;
+  gap: 48px;
+  align-items: center;
+}
+
+.lp-hero-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 20px;
+}
+
+.lp-kicker-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 10px var(--teal);
+}
+
+.lp-hero-title {
+  font-size: clamp(44px, 5.5vw, 68px);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  color: #FFFFFF;
+}
+
+.lp-hero-title span {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.lp-hero-sub {
+  margin-top: 20px;
+  max-width: 540px;
+  color: var(--label);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.lp-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+  margin-bottom: 32px;
+}
+
+/* ── Inline Quick Size Estimator (integrated directly in hero left column) ── */
+.lp-estimator-inline {
+  background: rgba(17, 25, 30, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 18px 20px;
+  backdrop-filter: blur(12px);
+  margin-bottom: 28px;
+}
+
+.lp-estimator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.lp-estimator-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.lp-estimator-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--teal);
+  background: rgba(79, 209, 197, 0.1);
+  border: 1px solid rgba(79, 209, 197, 0.25);
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.lp-estimator-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.lp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.lp-field span {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-field input, .lp-field select {
+  height: 38px;
+  padding: 0 10px;
+  background: var(--surface-2);
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.lp-field input.mono {
+  font-family: var(--font-mono);
+}
+
+.lp-field input:focus, .lp-field select:focus {
+  border-color: var(--teal);
+}
+
+.lp-field select option {
+  background: #11191E;
+}
+
+.lp-estimator-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lp-estimator-bmi {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.lp-estimator-bmi span {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lp-estimator-bmi b {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+/* ── Hero Facts ── */
+.lp-hero-facts {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+}
+
+.lp-fact-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.lp-fact-val {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.lp-fact-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Hero Visual (Right Column) ── */
+.lp-hero-visual {
+  min-width: 0;
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* ── Editorial Section Headings ── */
+.lp-section-header {
+  margin-bottom: 48px;
+}
+
+.lp-section-kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 8px;
+}
+
+.lp-section-title {
+  font-size: clamp(28px, 3.5vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--white);
+}
+
+.lp-section-sub {
+  margin-top: 10px;
+  font-size: 15px;
+  color: var(--label);
+  max-width: 600px;
+}
+
+/* ── Asymmetric 2-Column Editorial Bento Grid (replaces 4 identical boxes) ── */
+.lp-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px 56px;
+}
+
+.lp-bento-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  padding-top: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-bento-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16px;
+}
+
+.lp-bento-num {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.25);
+  line-height: 1;
+}
+
+.lp-bento-tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--teal);
+  background: rgba(79, 209, 197, 0.08);
+  border: 1px solid rgba(79, 209, 197, 0.2);
+  padding: 3px 9px;
+  border-radius: 9999px;
+}
+
+.lp-bento-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+  color: var(--white);
+}
+
+.lp-bento-desc {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--label);
+}
+
+/* ── Steps Section (Progressive Timeline) ── */
+.lp-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+
+.lp-step-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  padding-top: 24px;
+}
+
+.lp-step-num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.lp-step-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.lp-step-desc {
+  font-size: 13px;
+  color: var(--label);
+  line-height: 1.6;
+}
+
+/* ── Recommendations Grid ── */
+.lp-rec-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  max-width: 900px;
+}
+
+.lp-rec-card {
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.lp-rec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--label);
+}
+
+.lp-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 209, 197, 0.35);
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.lp-rec-size {
+  font-size: 52px;
+  font-weight: 500;
+  line-height: 1;
+  margin: 18px 0;
+  color: var(--white);
+}
+
+.lp-rec-deltas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.lp-rec-deltas div {
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.lp-rec-deltas small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.lp-rec-deltas b {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* ── Privacy Callout Band ── */
+.lp-band {
+  margin: 96px auto 0;
+  padding: 44px clamp(24px, 5vw, 48px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  background: radial-gradient(ellipse at 20% 50%, rgba(79, 209, 197, 0.06) 0%, rgba(17, 25, 30, 0.9) 60%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+}
+
+.lp-band h2 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lp-band p {
+  margin-top: 8px;
+  color: var(--label);
+  font-size: 14px;
+  max-width: 640px;
+}
+
+/* ── Footer ── */
+.lp-footer {
+  margin-top: 80px;
+  padding: 32px 0 48px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1080px) {
+  .lp-hero {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .lp-links {
+    display: none;
+  }
+  .lp-bento-grid {
+    grid-template-columns: 1fr;
+  }
+  .lp-steps-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .lp-estimator-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .lp-steps-grid, .lp-rec-grid {
+    grid-template-columns: 1fr;
+  }
+  .lp-band {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .lp-hero-facts {
+    gap: 16px;
+  }
+  .lp-fact-divider {
+    display: none;
+  }
+}

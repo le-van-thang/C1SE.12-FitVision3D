@@ -4,15 +4,41 @@ __pycache__/
 *$py.class
 *.so
 
-# Environments & IDEs
+# Environments & Virtual Envs
 .venv/
 venv/
 ENV/
 env/
+.env
+*.local
+dist-ssr
+
+# Node & Frontend dependencies
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor & OS files
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
 *.swp
 *.swo
+*.suo
+*.sln
 
 # Large Pretrained Weights & Checkpoints (> 50MB, avoids GitHub 100MB limit)
 pretrained_models/
@@ -26,14 +52,24 @@ pretrained_models/
 *.pkl
 common/utils/human_model_files/smplx/*.npz
 
-# Build artifacts
-build/
-dist/
+# Build artifacts & Egg
 *.egg-info/
 *.egg
 
 # Output & Temp evaluation artifacts
 output/
 output_measurements.json
-*.log
 .ipynb_checkpoints/
+
+# AI Service submodule paths
+ai-service/pretrained_models/
+ai-service/**/*.pth
+ai-service/**/*.pth.tar
+ai-service/**/*.ckpt
+ai-service/**/*.bin
+ai-service/**/*.npz
+ai-service/output/
+ai-service/output_measurements.json
+ai-service/*.obj
+ai-service/*.ply
+ai-service/**/__pycache__/
