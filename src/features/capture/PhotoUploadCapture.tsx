@@ -4,6 +4,7 @@
 // Single-View 3D Body Mesh Recovery (SMPLer-X / ISO 8559)
 // ============================================================
 import React, { useState, useRef } from "react";
+import { useI18n } from "../../i18n";
 import {
   UploadCloud,
   CheckCircle2,
@@ -38,6 +39,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
   initialWeight = 70,
   initialGender = "male",
 }) => {
+  const { t } = useI18n();
   const [frontImage, setFrontImage] = useState<{ file: File | Blob; url: string; name: string } | null>(null);
   const [height, setHeight] = useState<number>(initialHeight);
   const [weight, setWeight] = useState<number>(initialWeight);
@@ -101,7 +103,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
           <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--foreground, #f8fafc)", display: "flex", alignItems: "center", gap: "6px" }}>
             <FileImage size={15} style={{ color: "#38bdf8" }} />
-            Ảnh toàn thân chính diện (A-Pose) <span style={{ color: "#ef4444" }}>*</span>
+            {t("cap.frontLabel")} <span style={{ color: "#ef4444" }}>*</span>
           </label>
           {!frontImage && (
             <button
@@ -121,7 +123,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               }}
             >
               <Sparkles size={12} />
-              Nạp ảnh mẫu A-Pose
+              {t("cap.loadSample")}
             </button>
           )}
         </div>
@@ -177,7 +179,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
                   gap: "4px",
                 }}
               >
-                <Trash2 size={12} /> Xóa ảnh
+                <Trash2 size={12} /> {t("cap.deletePhoto")}
               </button>
             </div>
             <div
@@ -196,7 +198,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
                 gap: "5px",
               }}
             >
-              <CheckCircle2 size={12} /> A-Pose Chính Diện (1 Ảnh Chuẩn)
+              <CheckCircle2 size={12} /> {t("cap.photoVerified")}
             </div>
           </div>
         ) : (
@@ -245,10 +247,10 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               <UploadCloud size={24} />
             </div>
             <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 600, color: "var(--foreground, #f8fafc)" }}>
-              Chọn hoặc kéo thả ảnh chụp toàn thân
+              {t("cap.uploadPrompt")}
             </p>
             <p style={{ margin: 0, fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-              1 ảnh dáng chữ A nhìn thẳng • Tự động tái tạo hình thể 3D
+              {t("cap.uploadSub")}
             </p>
           </div>
         )}
@@ -264,12 +266,12 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
         }}
       >
         <span style={{ fontSize: "12px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "10px" }}>
-          Thông số hiệu chuẩn nhân trắc học
+          {t("cap.calibTitle")}
         </span>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
           <div>
             <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-              <Ruler size={13} style={{ color: "#38bdf8" }} /> Chiều cao (cm)
+              <Ruler size={13} style={{ color: "#38bdf8" }} /> {t("cap.heightLabel")}
             </label>
             <input
               type="number"
@@ -291,7 +293,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           </div>
           <div>
             <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-              <Scale size={13} style={{ color: "#38bdf8" }} /> Cân nặng (kg)
+              <Scale size={13} style={{ color: "#38bdf8" }} /> {t("cap.weightLabel")}
             </label>
             <input
               type="number"
@@ -315,11 +317,11 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 
         <div>
           <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-            <User size={13} style={{ color: "#38bdf8" }} /> Giới tính giải phẫu
+            <User size={13} style={{ color: "#38bdf8" }} /> {t("cap.genderLabel")}
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
             {(["male", "female", "neutral"] as const).map((g) => {
-              const label = g === "male" ? "Nam" : g === "female" ? "Nữ" : "Unisex";
+              const label = g === "male" ? t("cap.male") : g === "female" ? t("cap.female") : t("cap.unisex");
               const isSel = gender === g;
               return (
                 <button
@@ -371,17 +373,17 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <HelpCircle size={14} style={{ color: "#38bdf8" }} /> Hướng dẫn chụp ảnh chuẩn ISO 8559
+            <HelpCircle size={14} style={{ color: "#38bdf8" }} /> {t("cap.guideTitle")}
           </span>
           {showGuide ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {showGuide && (
           <div style={{ padding: "0 12px 12px", fontSize: "11px", color: "#94a3b8", lineHeight: 1.6 }}>
             <ul style={{ margin: 0, paddingLeft: "16px" }}>
-              <li><strong>Số lượng ảnh:</strong> Chỉ cần <strong>duy nhất 1 ảnh</strong> toàn thân chính diện (A-Pose). AI sẽ tự động tái tạo khối 3D toàn diện.</li>
-              <li><strong>Khoảng cách:</strong> Đứng cách camera 2.5m - 3m, thấy rõ từ đỉnh đầu đến gót chân.</li>
-              <li><strong>Dáng đứng chữ A (A-Pose):</strong> Hai tay dang nhẹ 30° - 40° so với thân, hai chân rộng bằng vai.</li>
-              <li><strong>Trang phục:</strong> Mặc quần áo thun ôm sát (gym, yoga) để AI nhận diện đường cong chính xác nhất.</li>
+              <li>{t("cap.guidePhotos")}</li>
+              <li>{t("cap.guideDist")}</li>
+              <li>{t("cap.guidePose")}</li>
+              <li>{t("cap.guideWear")}</li>
             </ul>
           </div>
         )}
@@ -424,12 +426,12 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
                 animation: "spin 0.8s linear infinite",
               }}
             />
-            Đang phân tích hình thể &amp; tính toán ISO 8559...
+            {t("cap.scanningBtn")}
           </>
         ) : (
           <>
             <Sparkles size={16} />
-            Phân tích &amp; Dựng hình thể 3D (AI Scan)
+            {t("cap.scanBtn")}
           </>
         )}
       </button>

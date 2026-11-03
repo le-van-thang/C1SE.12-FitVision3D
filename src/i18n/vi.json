@@ -2,7 +2,10 @@
   "brand": {
     "name": "FitVision 3D",
     "tagline": "Nhân trắc học kỹ thuật số & Gợi ý kích cỡ trang phục",
-    "atelier": "Xưởng may đo kỹ thuật số"
+    "atelier": "Xưởng may đo kỹ thuật số",
+    "urban": "Nhà may Đô Thị",
+    "nordic": "Thời trang Bắc Âu",
+    "hanoi": "Nhà may Hà Nội"
   },
   "nav": {
     "home": "Trang chủ",
@@ -159,5 +162,552 @@
     "emptyTitle": "Chưa có lần đo nào",
     "emptyDesc": "Hãy thực hiện lần quét đầu tiên để lưu trữ số đo cơ thể của bạn.",
     "emptyAction": "Bắt đầu quét mới"
+  },
+  "app": {
+    "nav": {
+      "dashboard": "Bảng điều khiển 3D",
+      "tailor": "Xưởng may đo 3D",
+      "sizeCharts": "Bảng kích cỡ",
+      "admin": "Cổng quản trị (Hồ sơ cửa hàng)",
+      "adminShort": "Cổng quản trị",
+      "partner": "Đăng ký mở Cửa hàng / Dành cho Nhà may",
+      "pending": "Hồ sơ cửa hàng đang được duyệt (24h)",
+      "pendingTitle": "Xem chi tiết tình trạng hồ sơ xét duyệt",
+      "rejected": "Hồ sơ cửa hàng bị từ chối (Xem lý do)",
+      "rejectedShort": "Hồ sơ bị từ chối",
+      "signIn": "Đăng nhập",
+      "loadDemo": "Tải dữ liệu mẫu",
+      "demoLoaded": "Đã tải dữ liệu mẫu"
+    },
+    "role": {
+      "admin": "Quản trị viên",
+      "partner": "Đối tác đã duyệt",
+      "pendingStore": "Chờ duyệt cửa hàng",
+      "user": "Người dùng"
+    },
+    "menu": {
+      "partner": "Đăng ký mở Cửa hàng / Nhà may",
+      "pending": "Hồ sơ cửa hàng đang duyệt (24h)",
+      "rejected": "Hồ sơ bị từ chối - Xem lý do",
+      "details": "Chi tiết ›",
+      "open": "Mở ›",
+      "demoSwitch": "Chuyển vai trò thử nghiệm (Demo)",
+      "demoUser": "1. Người dùng thường",
+      "demoPending": "2. Cửa hàng chờ duyệt",
+      "demoStore": "3. Cửa hàng đã duyệt",
+      "demoAdmin": "4. Quản trị viên",
+      "signOut": "Đăng xuất"
+    },
+    "lang": {
+      "label": "Ngôn ngữ",
+      "vi": "Tiếng Việt",
+      "en": "English"
+    },
+    "auth": {
+      "back": "Quay lại trang chủ",
+      "close": "Đóng",
+      "signinTitle": "Đăng nhập FitVision 3D",
+      "registerTitle": "Tạo tài khoản mới",
+      "signinDesc": "Truy cập hồ sơ số đo nhân trắc học & dịch vụ thử đồ 3D",
+      "registerDesc": "Đăng ký tài khoản cá nhân với cam kết bảo mật quyền riêng tư",
+      "tabSignin": "Đăng nhập",
+      "tabRegister": "Tạo tài khoản",
+      "email": "Địa chỉ Email",
+      "emailReg": "Địa chỉ Email (Chặn domain rác)",
+      "emailPh": "Nhập địa chỉ email của bạn",
+      "password": "Mật khẩu",
+      "passwordPh": "Nhập mật khẩu",
+      "passwordReg": "Mật khẩu (8-32 ký tự, gồm Hoa, Thường, Số & Ký tự đặc biệt)",
+      "confirm": "Xác nhận Mật khẩu",
+      "confirmPh": "Nhập lại mật khẩu",
+      "fullName": "Họ và tên",
+      "fullNamePh": "Nguyễn Văn A",
+      "terms": "Tôi đồng ý với chính sách xử lý RAM tạm thời & Zero-Image Retention của FitVision 3D.",
+      "submitSignin": "Đăng nhập ngay",
+      "submitRegister": "Tạo tài khoản cá nhân",
+      "loadingSignin": "Đang xác thực...",
+      "loadingRegister": "Đang tạo tài khoản...",
+      "failSignin": "Đăng nhập thất bại.",
+      "failRegister": "Đăng ký thất bại.",
+      "taglinePre": "Số đo chuẩn xác đến từng ",
+      "taglineHi": "milimet",
+      "taglinePost": "chỉ từ một bức ảnh.",
+      "chipError": "Sai số",
+      "chipSpeed": "Xử lý",
+      "chipRetention": "Lưu ảnh",
+      "aboutTitle": "Về FitVision 3D",
+      "aboutDesc": "Nền tảng đo nhân trắc học 3D theo chuẩn ISO 8559-1: trích xuất số đo cơ thể từ ảnh chụp, dựng mô hình 3D và gợi ý kích cỡ phù hợp. Kết nối khách hàng với cửa hàng và nhà may, ảnh chỉ xử lý trên RAM và không lưu trữ.",
+      "engine": "Công cụ phân tích hình thể không gian",
+      "isoBadge": "Chứng nhận nhân trắc học ISO 8559-1",
+      "topology": "Lưới 3D hai lớp",
+      "latency": "Độ trễ tạm thời < 1.25s"
+    },
+    "gate": {
+      "title": "Cần đăng nhập để tiếp tục",
+      "generic": "Tính năng này",
+      "desc": "chỉ dành cho thành viên. Vui lòng đăng nhập để xem số đo, bảng kích cỡ và lưu hồ sơ của bạn.",
+      "back": "Quay lại",
+      "signIn": "Đăng nhập"
+    },
+    "dash": {
+      "title": "Phòng Đo Nhân Trắc Học 3D",
+      "sub": "Trích xuất số đo may mặc 3D tự động từ 1 ảnh chụp di động theo chuẩn quốc tế ISO 8559-1:2017.",
+      "zeroBadge": "Không lưu ảnh: Xử lý RAM tạm thời",
+      "retake": "Chụp lại / Đo lại",
+      "uploadTitle": "Tải ảnh chụp từ điện thoại",
+      "uploadPill": "1 Ảnh A-Pose Chuẩn",
+      "meshTitle": "Hình Thể 3D ZOZOFIT",
+      "standby": "Chế độ chờ A-Pose",
+      "lockedTitle": "Số đo đã bị khóa",
+      "lockedDesc": "Đăng nhập để xem số đo chi tiết và tư vấn kích cỡ. Dữ liệu của khách không được lưu.",
+      "featMeasure": "Số đo ISO 8559",
+      "featDossier": "Hồ sơ may đo",
+      "featSize": "Bảng kích cỡ",
+      "emptyRec": "Tải ảnh và nhấn \"Phân tích & Dựng hình thể 3D\" để nhận tư vấn kích cỡ quần áo và số đo may mặc tự động.",
+      "tabUpload": "Tải ảnh",
+      "tabMesh": "Mô hình 3D",
+      "tabMetrics": "Kết quả số đo",
+      "meshScales": "Ngực x{c} · Eo x{w} · Mông x{h}"
+    }
+  },
+  "lp": {
+    "nav": {
+      "architecture": "Kiến trúc",
+      "methodology": "Phương pháp",
+      "matching": "Gợi ý kích cỡ"
+    },
+    "hero": {
+      "kicker": "Chọn kích cỡ sinh trắc học ISO 8559-1",
+      "titleA": "Tìm kích cỡ",
+      "titleB": "vừa vặn nhất",
+      "sub": "Trích xuất nhân trắc học chuẩn y khoa chỉ từ một ảnh chụp. Dựng mô hình 3D tức thì, gợi ý kích cỡ theo thương hiệu thực tế và không lưu trữ ảnh.",
+      "cta": "Bắt đầu quét cơ thể",
+      "viewportTag": "Mô hình người 3D tương tác · Kéo để xoay"
+    },
+    "est": {
+      "title": "Ước tính kích cỡ nhanh",
+      "badge": "Hiệu chuẩn tức thì",
+      "stature": "Chiều cao (cm)",
+      "weight": "Cân nặng (kg)",
+      "gender": "Giới tính",
+      "male": "Nam",
+      "female": "Nữ",
+      "other": "Khác",
+      "garment": "Trang phục",
+      "bmi": "Chỉ số BMI:",
+      "under": "Thiếu cân",
+      "normal": "Bình thường",
+      "over": "Thừa cân",
+      "preload": "Nạp vào Xưởng may đo 3D"
+    },
+    "facts": {
+      "f1": "Nhân trắc học chuẩn hóa",
+      "f2": "Độ trễ xử lý tại chỗ",
+      "f3": "Không lưu trữ ảnh"
+    },
+    "features": {
+      "kicker": "Kiến trúc cốt lõi",
+      "title": "Độ chính xác kỹ thuật trong từng số đo",
+      "sub": "Kết hợp hình học tính toán với nhân trắc học y khoa để vừa vặn chính xác đến từng milimet."
+    },
+    "pillars": {
+      "p1": {
+        "tag": "Trích xuất hai góc chụp",
+        "title": "Quét sinh trắc học hai góc nhìn",
+        "desc": "Nhận diện mốc giải phẫu kết hợp công thức elip Ramanujan để tính chu vi mặt cắt thực từ chỉ một ảnh chính diện và một ảnh nghiêng."
+      },
+      "p2": {
+        "tag": "Hình học 3D động",
+        "title": "Mô hình người 3D thời gian thực",
+        "desc": "Biến dạng xương trực tiếp và lưới wireframe hai lớp ZOZOFIT hiển thị chính xác thân trên, vòng eo và vòng mông của bạn theo thời gian thực."
+      },
+      "p3": {
+        "tag": "Chuẩn ISO 8559-1",
+        "title": "Bảo mật tạm thời, không lưu ảnh",
+        "desc": "Khung hình được xử lý hoàn toàn trong RAM tạm thời và hủy ngay lập tức. Không có ảnh hay video sinh trắc học nào được ghi xuống ổ đĩa."
+      },
+      "p4": {
+        "tag": "Cầu nối B2B cho nhà may",
+        "title": "Hồ sơ thông số may đo theo yêu cầu",
+        "desc": "Tạo nhanh hồ sơ số đo khách hàng được mã hóa, truy cập bằng token có thời hạn và xuất bảng phân tích kích cỡ đầy đủ ra PDF."
+      }
+    },
+    "how": {
+      "kicker": "Phương pháp",
+      "title": "Quy trình sinh trắc học bốn giai đoạn",
+      "sub": "Từ khung hình máy ảnh đến hồ sơ may đo trong chưa đầy 90 giây, xử lý hoàn toàn trên thiết bị."
+    },
+    "steps": {
+      "s1": {
+        "title": "Hiệu chuẩn",
+        "desc": "Cầm một tờ A4 hoặc thẻ chuẩn để quy đổi pixel sang milimet."
+      },
+      "s2": {
+        "title": "Chụp ảnh",
+        "desc": "Căn chỉnh tư thế trong khung ngắm để chụp ảnh chính diện và ảnh nghiêng."
+      },
+      "s3": {
+        "title": "Tổng hợp",
+        "desc": "Thuật toán cục bộ tính chu vi ngực, eo, mông và chiều dài chân trong."
+      },
+      "s4": {
+        "title": "Gợi ý",
+        "desc": "Đối chiếu độ rộng may mặc với bảng kích cỡ thực tế của từng thương hiệu."
+      }
+    },
+    "results": {
+      "kicker": "Gợi ý kích cỡ",
+      "title": "Hiệu chuẩn kích cỡ theo thương hiệu thực tế",
+      "sub": "Bảng kích cỡ từng thương hiệu được so sánh với mặt cắt thực của bạn cùng độ rộng may mặc.",
+      "chest": "Độ rộng ngực",
+      "waist": "Độ rộng eo"
+    },
+    "privacy": {
+      "title": "Ảnh của bạn không bao giờ rời khỏi thiết bị",
+      "desc": "Khung hình chỉ được xử lý trong RAM trình duyệt tạm thời và bị hủy vĩnh viễn sau khi tính toán. Chỉ số đo dạng số ẩn danh được giữ lại.",
+      "cta": "Bắt đầu quét"
+    },
+    "footer": {
+      "advisor": ""
+    }
+  },
+  "viewer": {
+    "zone": {
+      "full_body": "Toàn thân",
+      "chest": "Ngực",
+      "waist": "Eo",
+      "hips": "Mông"
+    },
+    "chest": "Vòng ngực",
+    "waist": "Vòng eo",
+    "hips": "Vòng mông",
+    "shoulders": "Rộng vai",
+    "inseam": "Dài chân trong",
+    "drag": "KÉO ĐỂ XOAY · CUỘN ĐỂ PHÓNG TO",
+    "loading": "ĐANG TẢI MÔ HÌNH NGƯỜI 3D..."
+  },
+  "admin": {
+    "approveSuccess": "Đã phê duyệt thành công cửa hàng \"{brand}\". Quyền 'store' đã được kích hoạt!",
+    "rejectReasonRequired": "Vui lòng nhập lý do từ chối để đối tác nắm được nguyên nhân.",
+    "rejectSuccess": "Đã từ chối hồ sơ \"{brand}\". Lý do đã được lưu.",
+    "previewTitle": "Chế độ xem trước (Chỉ xem / Không phải Admin)",
+    "previewBodyPrefix": "Bạn hiện đang đăng nhập với vai trò",
+    "previewBodyMid": "Chuyển sang vai trò",
+    "previewBodySuffix": "để thực hiện thao tác Phê duyệt hoặc Từ chối hồ sơ.",
+    "switchToAdmin": "Chuyển sang Admin (1 chạm)",
+    "badge": "FitVision 3D • Bảo vệ Super Admin",
+    "title": "Cổng Admin: Hồ sơ đăng ký cửa hàng",
+    "subtitle": "Quản lý và xét duyệt hồ sơ đối tác Nhà may / Cửa hàng thời trang 3D theo tiêu chuẩn ISO 8559.",
+    "signedInAdmin": "Admin đang đăng nhập:",
+    "guest": "Khách",
+    "metricTotal": "Tổng hồ sơ nộp",
+    "metricPending": "Chờ duyệt",
+    "metricApproved": "Đã duyệt",
+    "metricRejected": "Đã từ chối",
+    "tabAll": "Tất cả",
+    "tabPending": "Chờ duyệt",
+    "tabApproved": "Đã duyệt",
+    "tabRejected": "Từ chối",
+    "searchPlaceholder": "Tìm theo tên, SĐT, địa chỉ...",
+    "colBrand": "Thương hiệu / Cửa hàng",
+    "colApplicant": "Người đại diện nộp đơn",
+    "colPhone": "Số điện thoại",
+    "colAddress": "Địa chỉ xưởng",
+    "colDoc": "Hồ sơ xác thực (GPKD/Link)",
+    "colStatus": "Trạng thái",
+    "colActions": "Thao tác",
+    "empty": "Không tìm thấy hồ sơ nào khớp với bộ lọc.",
+    "unknown": "Không rõ",
+    "reasonLabel": "Lý do:",
+    "statusPENDING": "CHỜ DUYỆT",
+    "statusAPPROVED": "ĐÃ DUYỆT",
+    "statusREJECTED": "ĐÃ TỪ CHỐI",
+    "approve": "Duyệt",
+    "approveTitle": "Phê duyệt mở cửa hàng và cấp quyền role='store'",
+    "reject": "Từ chối",
+    "rejectTitle": "Từ chối hồ sơ và nhập lý do",
+    "storeActivated": "Đã kích hoạt Store",
+    "rejected": "Đã từ chối",
+    "modalTitle": "Từ chối Hồ sơ Cửa hàng",
+    "close": "Đóng",
+    "reasonField": "Lý do từ chối (Bắt buộc)",
+    "reasonPlaceholder": "Ví dụ: Giấy phép kinh doanh không khớp thông tin đăng ký doanh nghiệp quốc gia hoặc địa chỉ showroom không tồn tại...",
+    "reasonHint": "Lý do này sẽ hiển thị trực tiếp cho đối tác để họ điều chỉnh và nộp lại hồ sơ.",
+    "cancel": "Hủy bỏ",
+    "confirmReject": "Xác nhận Từ chối"
+  },
+  "merchant": {
+    "submitFailed": "Nộp hồ sơ thất bại.",
+    "close": "Đóng",
+    "badge": "Đăng ký đối tác B2B",
+    "title": "Đăng ký mở Cửa hàng / Dành cho Nhà may",
+    "subtitle": "Trở thành đối tác FitVision 3D để quản lý hồ sơ đo khách hàng, tích hợp bảng kích cỡ số hóa và xuất hồ sơ kỹ thuật chuẩn ISO 8559.",
+    "brandLabel": "Tên Thương hiệu / Nhà may",
+    "brandPlaceholder": "Ví dụ: Atelier Hanoi Bespoke, Veston Sài Gòn...",
+    "phoneLabel": "Số điện thoại liên hệ xác thực",
+    "phonePlaceholder": "Ví dụ: 0912345678 hoặc +84912345678",
+    "phoneHint": "Hệ thống tự động lọc số rác và kiểm tra tính duy nhất trên hệ thống.",
+    "addressLabel": "Địa chỉ Xưởng may / Showroom",
+    "addressPlaceholder": "Số nhà, đường phố, quận/huyện, tỉnh/thành phố",
+    "docLabel": "Mã số GPKD hoặc Link Website/Fanpage",
+    "docPlaceholder": "Mã số GPKD (Ví dụ: 0108928374) hoặc link https://...",
+    "docHint": "Quản trị viên sẽ thẩm định tính pháp lý của thương hiệu trong 24 giờ làm việc.",
+    "submitting": "Đang gửi hồ sơ...",
+    "submit": "Nộp hồ sơ xét duyệt cửa hàng",
+    "applicant": "Người nộp đơn:",
+    "sla": "Thời hạn xét duyệt:",
+    "slaValue": "Dưới 24h"
+  },
+  "storeStatus": {
+    "close": "Đóng",
+    "today": "Hôm nay",
+    "titleApproved": "Cửa hàng đã được phê duyệt!",
+    "titleRejected": "Hồ sơ cửa hàng chưa được duyệt",
+    "titlePending": "Hồ sơ cửa hàng đang được duyệt",
+    "descApproved": "Chào mừng bạn đến với mạng lưới đối tác nhà may FitVision 3D.",
+    "descRejected": "Vui lòng kiểm tra lý do bên dưới và cập nhật lại thông tin để xét duyệt lại.",
+    "descPending": "Thời gian xét duyệt dự kiến trong 24 giờ làm việc.",
+    "rejectionFrom": "Lý do từ chối từ Quản trị viên:",
+    "rejectionDefault": "Thông tin giấy phép hoặc xác thực không đủ điều kiện.",
+    "appStatus": "Trạng thái hồ sơ",
+    "statusPENDING": "CHỜ DUYỆT",
+    "statusAPPROVED": "ĐÃ DUYỆT",
+    "statusREJECTED": "ĐÃ TỪ CHỐI",
+    "brand": "Thương hiệu:",
+    "phone": "Điện thoại:",
+    "address": "Địa chỉ:",
+    "verification": "Xác thực:",
+    "submittedAt": "Thời gian nộp:",
+    "editResubmit": "Chỉnh sửa và nộp lại hồ sơ",
+    "closeWindow": "Đóng cửa sổ"
+  },
+  "cap": {
+    "previewAlt": "Xem trước ảnh chính diện dáng chữ A",
+    "sampleCanvas": "Ảnh mẫu dáng chữ A chuẩn",
+    "genderNeutral": "Trung tính",
+    "ready": "Sẵn sàng",
+    "standby": "Máy ảnh đang chờ",
+    "state": {
+      "idle": {
+        "text": "Đang chờ",
+        "sub": "Bắt đầu quét để mở máy ảnh"
+      },
+      "calibrating": {
+        "text": "Hiệu chuẩn tỷ lệ",
+        "sub": "Giữ một tờ giấy A4 hoặc tấm thẻ trong khung hình"
+      },
+      "front_capture": {
+        "text": "Mặt trước",
+        "sub": "Đứng thẳng, thả lỏng hai tay"
+      },
+      "side_capture": {
+        "text": "Mặt nghiêng",
+        "sub": "Xoay người 90°, nhìn thẳng phía trước"
+      },
+      "processing": {
+        "text": "Đang trích xuất",
+        "sub": "Đang tính toán số đo"
+      },
+      "complete": {
+        "text": "Hoàn tất quét",
+        "sub": "Đã trích xuất số đo"
+      },
+      "error": {
+        "text": "Lỗi máy ảnh",
+        "sub": "Kiểm tra quyền truy cập và thử lại"
+      }
+    },
+    "male": "Nam",
+    "female": "Nữ",
+    "unisex": "Trung tính",
+    "scanBtn": "Phân tích & Dựng hình thể 3D (AI Scan)",
+    "scanningBtn": "Đang phân tích hình thể & tính toán ISO 8559...",
+    "uploadPrompt": "Chọn hoặc kéo thả ảnh chụp toàn thân",
+    "uploadSub": "1 ảnh dáng chữ A nhìn thẳng • Tự động tái tạo hình thể 3D",
+    "deletePhoto": "Xóa ảnh",
+    "loadSample": "Nạp ảnh mẫu A-Pose",
+    "photoVerified": "A-Pose Chính Diện (1 Ảnh Chuẩn)",
+    "calibTitle": "Thông số hiệu chuẩn nhân trắc học",
+    "heightLabel": "Chiều cao (cm)",
+    "weightLabel": "Cân nặng (kg)",
+    "genderLabel": "Giới tính giải phẫu",
+    "guideTitle": "Hướng dẫn chụp ảnh chuẩn ISO 8559",
+    "frontLabel": "Ảnh toàn thân chính diện (A-Pose)",
+    "guidePhotos": "Số lượng ảnh: Chỉ cần duy nhất 1 ảnh toàn thân chính diện (A-Pose). AI sẽ tự động tái tạo khối 3D toàn diện.",
+    "guideDist": "Khoảng cách: Đứng cách máy ảnh 2.5m - 3m, thấy rõ từ đỉnh đầu đến gót chân.",
+    "guidePose": "Dáng đứng chữ A (A-Pose): Hai tay dang nhẹ 30° - 40° so với thân, hai chân rộng bằng vai.",
+    "guideWear": "Trang phục: Mặc quần áo thun ôm sát (gym, yoga) để AI nhận diện đường cong chính xác nhất."
+  },
+  "meas": {
+    "ariaLabel": "Số đo cơ thể",
+    "chest": "Vòng ngực",
+    "waist": "Vòng eo",
+    "hips": "Vòng mông / hông",
+    "shoulders": "Rộng vai",
+    "inseam": "Chiều dài chân trong",
+    "armLength": "Chiều dài tay áo",
+    "engineIso": "Bộ máy sinh trắc ISO",
+    "inches": "inch",
+    "recAriaLabel": "Gợi ý kích cỡ",
+    "recTitle": "Kích cỡ đề xuất",
+    "fit": {
+      "slim": "Dáng ôm",
+      "regular": "Dáng vừa",
+      "relaxed": "Dáng thoải mái",
+      "oversized": "Dáng rộng"
+    },
+    "chestAllowance": "Độ dư vòng ngực",
+    "waistAllowance": "Độ dư vòng eo",
+    "advisorNote": "Lời khuyên từ chuyên gia",
+    "title": "Số đo ISO 8559",
+    "confidence": "{p}% độ tin cậy",
+    "chestSub": "",
+    "waistSub": "",
+    "hipsSub": "",
+    "shouldersSub": "",
+    "inseamSub": "",
+    "armLengthSub": "",
+    "bioTitle": "Thông số sinh trắc học",
+    "stature": "Chiều cao",
+    "weight": "Cân nặng",
+    "bmi": "Chỉ số BMI",
+    "cardTitle": "Tư vấn Kích cỡ & May mặc (AI May Đo)",
+    "cardSub": "Chuẩn quốc tế ISO 8559-1",
+    "topwear": "Áo sơ mi / Áo thun (Thân trên)",
+    "topwearStandard": "Tiêu chuẩn Châu Á / US",
+    "bottomwear": "Quần tây / Jean (Thân dưới)",
+    "bottomwearInches": "Vòng eo {w} inch • Ống {i} inch",
+    "sizePrefix": "Cỡ",
+    "bodyFit": "Phân loại phom dáng:",
+    "easeAllowance": "Độ cử động may đo khuyên dùng:",
+    "slimChest": "Dáng ôm ngực",
+    "regularChest": "Dáng vừa ngực",
+    "trouserWaist": "Cạp lưng quần",
+    "execTime": "Tốc độ xử lý: {s}s",
+    "privacyGuaranteed": "100% Bảo mật ảnh cục bộ"
+  },
+  "status": {
+    "scanSpeed": "Tốc độ quét:",
+    "zeroRetention": "Chế độ bảo mật: Không lưu ảnh đang bật",
+    "standardRetention": "Lưu trữ tiêu chuẩn"
+  },
+  "garment": {
+    "1": "Áo thun",
+    "2": "Áo sơ mi",
+    "3": "Áo kiểu nữ",
+    "4": "Quần tây",
+    "5": "Chân váy",
+    "6": "Áo khoác"
+  },
+  "fitlbl": {
+    "slim": "Dáng ôm",
+    "regular": "Dáng vừa",
+    "relaxed": "Dáng rộng rãi",
+    "oversized": "Dáng rất rộng"
+  },
+  "dashx": {
+    "engine": "Động cơ AI: ISO 8559",
+    "live": "FastAPI SMPLer-X: Trực tuyến"
+  },
+  "tailor": {
+    "badge": "Xưởng may B2B",
+    "subtitle": "Hồ sơ sinh trắc học của khách và thông số CAD chính xác, chia sẻ qua token bảo mật.",
+    "privacy": "Chế độ riêng tư: Không lưu ảnh đang bật",
+    "iso": "Đạt chuẩn ISO 8559-1",
+    "dossierCode": "Mã hồ sơ may đo",
+    "authenticate": "Xác thực",
+    "exportPdf": "Xuất PDF",
+    "e2ee": "Token mã hóa đầu cuối:",
+    "validUntil": "Có hiệu lực đến:",
+    "clients": "Khách hàng",
+    "clientDossiers": "Hồ sơ khách hàng",
+    "activeSpecs": "3 bộ thông số đang dùng",
+    "meshPreview": "Xem trước lưới 3D",
+    "topology": "Cấu trúc giải phẫu",
+    "morphing": "Biến đổi trực tiếp khung xương theo {name}",
+    "dossierSpec": "Thông số hồ sơ",
+    "bodyMeasures": "Số đo cơ thể",
+    "chest": "Ngực",
+    "waist": "Eo",
+    "hips": "Hông",
+    "shoulders": "Vai",
+    "inseam": "Dài trong chân",
+    "accuracy": "Độ chính xác số đo",
+    "biometric": "Dữ liệu sinh trắc học",
+    "genderLabel": "Giới tính",
+    "height": "Chiều cao",
+    "weight": "Cân nặng",
+    "bmi": "Chỉ số BMI",
+    "meshParams": "Tham số biến dạng lưới 3D",
+    "anatomicalBase": "Nền giải phẫu",
+    "chestScale": "Hệ số tỉ lệ ngực",
+    "waistScale": "Hệ số tỉ lệ eo",
+    "hipScale": "Hệ số tỉ lệ hông",
+    "contactless": "Trao đổi hồ sơ không chạm",
+    "gender": {
+      "male": "nam",
+      "female": "nữ",
+      "unisex": "phi giới tính",
+      "other": "khác"
+    },
+    "title": "Xưởng May Đo 3D",
+    "copy": "Chép",
+    "copied": "Đã chép",
+    "openQrTitle": "Mở mã QR hồ sơ may đo",
+    "qrCode": "Mã QR",
+    "codePlaceholder": "Nhập mã (VD: FV-8492-AN) hoặc dán Token...",
+    "hideToken": "Ẩn token",
+    "showToken": "Hiện toàn bộ token",
+    "copyTokenTitle": "Sao chép Token 64-bit",
+    "copyToken": "Chép token",
+    "tokenCopied": "Đã chép token",
+    "copyCodeTitle": "Sao chép mã may đo",
+    "printPdfTitle": "In hoặc lưu hồ sơ may đo chuẩn PDF",
+    "qrModalTitle": "Mã QR Hồ Sơ May Đo",
+    "qrModalDesc": "Khách hàng mở app FitVision 3D trên điện thoại hoặc đưa mã QR này để thợ may quét nhận trọn bộ số đo giải phẫu 3D ngay lập tức.",
+    "qrSimulate": "Mô phỏng quét mã",
+    "close": "Đóng"
+  },
+  "sizes": {
+    "overlapChest": "Ngực: cỡ {a} tối đa ({amax}) chồng lấn cỡ {b} tối thiểu ({bmin})",
+    "overlapWaist": "Eo: cỡ {a} tối đa ({amax}) chồng lấn cỡ {b} tối thiểu ({bmin})",
+    "saved": "Đã lưu bảng kích cỡ. JSON đã được sao chép vào bộ nhớ tạm.",
+    "resetDone": "Đã khôi phục bảng kích cỡ về mặc định.",
+    "title": "Bảng kích cỡ",
+    "subtitle": "Thiết lập kích thước từng cấp cỡ và độ cử động thoải mái theo từng bộ sưu tập.",
+    "reset": "Đặt lại",
+    "save": "Lưu bảng kích cỡ",
+    "brand": "Thương hiệu / Bộ sưu tập",
+    "targetFit": "Đối tượng mặc",
+    "garmentType": "Loại trang phục",
+    "easeAllowance": "Độ rộng thoải mái của trang phục (+cm)",
+    "gender": {
+      "male": "nam",
+      "female": "nữ",
+      "unisex": "phi giới tính"
+    },
+    "col": {
+      "size": "Kích cỡ",
+      "min_chest": "Ngực tối thiểu (cm)",
+      "max_chest": "Ngực tối đa (cm)",
+      "min_waist": "Eo tối thiểu (cm)",
+      "max_waist": "Eo tối đa (cm)",
+      "min_hip": "Hông tối thiểu (cm)",
+      "max_hip": "Hông tối đa (cm)"
+    },
+    "simulator": "Mô phỏng độ vừa vặn",
+    "sampleChest": "Vòng ngực mẫu (cm)",
+    "sampleWaist": "Vòng eo mẫu (cm)",
+    "recommended": "Kích cỡ đề xuất",
+    "fitStyle": "Kiểu dáng",
+    "fitSuffix": "Dáng {fit}",
+    "fit": {
+      "slim": "ôm sát",
+      "regular": "vừa vặn",
+      "relaxed": "thoải mái",
+      "oversized": "rộng thùng thình"
+    },
+    "chestAllowance": "Độ rộng ngực",
+    "waistAllowance": "Độ rộng eo"
   }
 }

@@ -1,0 +1,42 @@
+{
+  "en": {
+    "garment": {
+      "1": "T-Shirt",
+      "2": "Dress Shirt",
+      "3": "Blouse",
+      "4": "Trousers",
+      "5": "Skirt",
+      "6": "Jacket"
+    },
+    "fitlbl": {
+      "slim": "Slim fit",
+      "regular": "Regular fit",
+      "relaxed": "Relaxed fit",
+      "oversized": "Oversized fit"
+    },
+    "dashx": {
+      "engine": "AI Engine: ISO 8559",
+      "live": "FastAPI SMPLer-X: Online"
+    }
+  },
+  "vi": {
+    "garment": {
+      "1": "Áo thun",
+      "2": "Áo sơ mi",
+      "3": "Áo kiểu nữ",
+      "4": "Quần tây",
+      "5": "Chân váy",
+      "6": "Áo khoác"
+    },
+    "fitlbl": {
+      "slim": "Dáng ôm",
+      "regular": "Dáng vừa",
+      "relaxed": "Dáng rộng rãi",
+      "oversized": "Dáng rất rộng"
+    },
+    "dashx": {
+      "engine": "Công cụ AI: ISO 8559",
+      "live": "FastAPI SMPLer-X: Trực tuyến"
+    }
+  }
+}

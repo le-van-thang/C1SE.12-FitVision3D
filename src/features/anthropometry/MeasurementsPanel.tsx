@@ -1,11 +1,7 @@
-// ============================================================
-// MEASUREMENTS PANEL
-// measurements: chest/waist/hip/shoulder/inseam/arm + extraction_confidence
-// biometric_inputs: stature_cm / weight_kg / calculated_bmi
-// ============================================================
 import React, { useEffect, useRef, useState } from "react";
 import type { BiometricInput, Measurement } from "../../types/database.types";
 import type { MetricKey } from "../avatar3d/MannequinViewer";
+import { useI18n } from "../../i18n";
 
 const useCountUp = (target: number | null | undefined, ms = 700) => {
   const [val, setVal] = useState(0);
@@ -58,11 +54,11 @@ export const MetricRow: React.FC<{
         <span style={{ color: isActive ? "#A3E635" : undefined, fontWeight: isActive ? 600 : undefined }}>
           {label}
         </span>
-        {sublabel && (
+        {sublabel ? (
           <span style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", marginTop: "1px" }}>
             {sublabel}
           </span>
-        )}
+        ) : null}
       </div>
       {value == null ? (
         <b className="empty">—</b>
@@ -91,23 +87,25 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
   onSelectMetric,
   id = "measurements-panel",
 }) => {
+  const { t } = useI18n();
   const conf = measurement?.extraction_confidence;
+
   return (
-    <section className="zf-card zf-card-pad" id={id} aria-label="Measurements">
+    <section className="zf-card zf-card-pad" id={id} aria-label={t("meas.title")}>
       <div className="zf-section-head" style={{ marginBottom: 4 }}>
-        <h2 className="zf-eyebrow">Số đo ISO 8559</h2>
+        <h2 className="zf-eyebrow">{t("meas.title")}</h2>
         {conf != null && (
           <span
             className={`zf-pill mono ${conf >= 0.85 ? "zf-pill--lime" : "zf-pill--teal"}`}
           >
-            {(conf * 100).toFixed(0)}% độ tin cậy
+            {t("meas.confidence").replace("{p}", (conf * 100).toFixed(0))}
           </span>
         )}
       </div>
       <div className="zf-rows">
         <MetricRow
-          label="Chest"
-          sublabel="Vòng ngực"
+          label={t("meas.chest")}
+          sublabel={t("meas.chestSub") || undefined}
           field="chest_circ_cm"
           value={measurement?.chest_circ_cm}
           unit="cm"
@@ -115,8 +113,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("chest_circ_cm")}
         />
         <MetricRow
-          label="Waist"
-          sublabel="Vòng eo"
+          label={t("meas.waist")}
+          sublabel={t("meas.waistSub") || undefined}
           field="waist_circ_cm"
           value={measurement?.waist_circ_cm}
           unit="cm"
@@ -124,8 +122,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("waist_circ_cm")}
         />
         <MetricRow
-          label="Hips"
-          sublabel="Vòng mông / hông"
+          label={t("meas.hips")}
+          sublabel={t("meas.hipsSub") || undefined}
           field="hip_circ_cm"
           value={measurement?.hip_circ_cm}
           unit="cm"
@@ -133,8 +131,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("hip_circ_cm")}
         />
         <MetricRow
-          label="Shoulders"
-          sublabel="Rộng vai"
+          label={t("meas.shoulders")}
+          sublabel={t("meas.shouldersSub") || undefined}
           field="shoulder_breadth_cm"
           value={measurement?.shoulder_breadth_cm}
           unit="cm"
@@ -142,8 +140,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("shoulder_breadth_cm")}
         />
         <MetricRow
-          label="Inseam"
-          sublabel="Chiều dài chân trong"
+          label={t("meas.inseam")}
+          sublabel={t("meas.inseamSub") || undefined}
           field="inseam_cm"
           value={measurement?.inseam_cm}
           unit="cm"
@@ -152,8 +150,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
         />
         {measurement?.arm_length_cm != null && (
           <MetricRow
-            label="Arm Length"
-            sublabel="Chiều dài tay áo"
+            label={t("meas.armLength")}
+            sublabel={t("meas.armLengthSub") || undefined}
             field="arm_length_cm"
             value={measurement?.arm_length_cm}
             unit="cm"
@@ -161,11 +159,13 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
         )}
       </div>
 
-      <h3 className="zf-eyebrow zf-group-label" style={{ marginTop: "14px" }}>Thông số sinh trắc học</h3>
+      <h3 className="zf-eyebrow zf-group-label" style={{ marginTop: "14px" }}>
+        {t("meas.bioTitle")}
+      </h3>
       <div className="zf-rows">
-        <MetricRow label="Chiều cao" field="stature_cm" value={biometric?.stature_cm} unit="cm" />
-        <MetricRow label="Cân nặng" field="weight_kg" value={biometric?.weight_kg} unit="kg" />
-        <MetricRow label="Chỉ số BMI" field="calculated_bmi" value={biometric?.calculated_bmi} unit="" />
+        <MetricRow label={t("meas.stature")} field="stature_cm" value={biometric?.stature_cm} unit="cm" />
+        <MetricRow label={t("meas.weight")} field="weight_kg" value={biometric?.weight_kg} unit="kg" />
+        <MetricRow label={t("meas.bmi")} field="calculated_bmi" value={biometric?.calculated_bmi} unit="" />
       </div>
     </section>
   );
