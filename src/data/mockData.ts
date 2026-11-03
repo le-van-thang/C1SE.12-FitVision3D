@@ -4,7 +4,7 @@
 // ============================================================
 import type {
   Profile, BiometricInput, Measurement, MeshParameter, Recommendation,
-  TailorDossier, SystemAuditLog, GarmentCategory, BrandSizeChart,
+  TailorDossier, SystemAuditLog, GarmentCategory, BrandSizeChart, Store,
 } from "../types/database.types";
 
 export const bmi = (weight_kg: number, stature_cm: number): number =>
@@ -139,3 +139,85 @@ export const buildSizeRows = (brand: string): SizeRow[] => {
     min_hip: e + o, max_hip: f + o,
   }));
 };
+
+// ── Pre-populated RBAC & Merchant Test States ───────────────
+export const TEST_USERS: Record<string, Profile> = {
+  regular: {
+    id: "usr-regular",
+    full_name: "Hoàng Minh Quân",
+    email: "quan.hoang@fitvision3d.com",
+    role: "user",
+    avatar_url: null,
+    created_at: "2026-10-01T08:00:00Z",
+    updated_at: "2026-10-01T08:00:00Z",
+  },
+  pending: {
+    id: "usr-pending",
+    full_name: "Lê Thu Hà (Nhà May Hà Nội)",
+    email: "ha.le@ateliervietnam.vn",
+    role: "user",
+    avatar_url: null,
+    created_at: "2026-10-05T09:00:00Z",
+    updated_at: "2026-10-05T09:00:00Z",
+  },
+  store: {
+    id: "usr-store",
+    full_name: "Bùi Thanh Sơn (Tailor Master)",
+    email: "son.bui@urbanatelier.com",
+    role: "store",
+    avatar_url: null,
+    created_at: "2026-09-15T10:00:00Z",
+    updated_at: "2026-09-15T10:00:00Z",
+  },
+  admin: {
+    id: "usr-admin",
+    full_name: "Admin TS. Lê Minh Thái",
+    email: "admin@fitvision3d.ai",
+    role: "admin",
+    avatar_url: null,
+    created_at: "2026-08-01T00:00:00Z",
+    updated_at: "2026-08-01T00:00:00Z",
+  },
+};
+
+export const INITIAL_MOCK_STORES: Store[] = [
+  {
+    id: "store-001",
+    user_id: "usr-pending",
+    brand_name: "Atelier Hà Nội Bespoke",
+    phone: "0912345678",
+    address: "45 Tràng Tiền, Quận Hoàn Kiếm, Hà Nội",
+    verification_doc: "https://atelier-hanoi.vn (GPKD: 0108928374)",
+    status: "PENDING",
+    is_approved: false,
+    rejection_reason: null,
+    created_at: "2026-11-01T09:30:00Z",
+    updated_at: "2026-11-01T09:30:00Z",
+  },
+  {
+    id: "store-002",
+    user_id: "usr-store",
+    brand_name: "Urban Atelier Sài Gòn",
+    phone: "0987654321",
+    address: "128 Đồng Khởi, Quận 1, TP. Hồ Chí Minh",
+    verification_doc: "https://urbanatelier.com (GPKD: 0314829103)",
+    status: "APPROVED",
+    is_approved: true,
+    rejection_reason: null,
+    created_at: "2026-10-15T10:30:00Z",
+    updated_at: "2026-10-15T10:30:00Z",
+  },
+  {
+    id: "store-003",
+    user_id: "usr-rejected",
+    brand_name: "Fast Fashion Clone Ltd",
+    phone: "0905123456",
+    address: "12 Chợ Đêm Đồng Xuân, Hà Nội",
+    verification_doc: "Không có link hoặc giấy phép hợp lệ",
+    status: "REJECTED",
+    is_approved: false,
+    rejection_reason: "Giấy phép kinh doanh không khớp thông tin đăng ký doanh nghiệp quốc gia và địa chỉ chưa được xác thực.",
+    created_at: "2026-10-20T14:00:00Z",
+    updated_at: "2026-10-20T14:00:00Z",
+  },
+];

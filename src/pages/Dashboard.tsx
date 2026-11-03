@@ -16,8 +16,12 @@ import {
   Cpu,
   RotateCcw,
   Sparkles,
+  Lock,
 } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
+import { LoginRequiredDialog } from "../components/common/LoginRequiredDialog";
+import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../i18n";
 import { PhotoUploadCapture } from "../features/capture/PhotoUploadCapture";
 import { MannequinViewer, type MetricKey } from "../features/avatar3d/MannequinViewer";
 import { MeasurementsPanel } from "../features/anthropometry/MeasurementsPanel";
@@ -46,6 +50,11 @@ const loadInitialBiometric = (): { height: number; weight: number; gender: "male
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, openSignIn } = useAuth();
+  const { t } = useI18n();
+  // Guests may scan + view the 3D model only. Measurements / size charts stay locked and are never stored.
+  const locked = !isAuthenticated;
+  const [lockedFeature, setLockedFeature] = useState<string | null>(null);
   const initBio = loadInitialBiometric();
 
   const [measurement, setMeasurement] = useState<(Measurement & { arm_length_cm?: number | null }) | null>(null);
@@ -216,10 +225,10 @@ export const Dashboard: React.FC = () => {
         >
           <div>
             <h1 className="zf-title" style={{ fontSize: "20px" }}>
-              Studio Nhân Trắc Học 3D (AI-Tailor Studio)
+              {t("app.dash.title")}
             </h1>
             <p className="zf-sub" style={{ fontSize: "12px", marginTop: "2px" }}>
-              Trích xuất số đo may mặc 3D tự động từ 1 ảnh chụp di động theo chuẩn quốc tế ISO 8559-1:2017.
+              {t("app.dash.sub")}
             </p>
           </div>
 
@@ -238,7 +247,7 @@ export const Dashboard: React.FC = () => {
               }}
             >
               <ShieldCheck size={14} strokeWidth={2} />
-              Zero-Retention: Ảnh không lưu máy chủ
+              {t("app.dash.zeroBadge")}
             </span>
 
             <span
@@ -255,7 +264,7 @@ export const Dashboard: React.FC = () => {
               }}
             >
               <Cpu size={14} />
-              {isLiveBackend ? "FastAPI SMPLer-X: Online" : "AI Engine: ISO 8559"}
+              {isLiveBackend ? t("dashx.live") : t("dashx.engine")}
             </span>
 
             {measurement && (
@@ -265,7 +274,7 @@ export const Dashboard: React.FC = () => {
                 className="zf-btn zf-btn--ghost"
                 style={{ padding: "4px 10px", fontSize: "12px", height: "auto" }}
               >
-                <RotateCcw size={13} /> Chụp lại / Đo lại
+                <RotateCcw size={13} /> {t("app.dash.retake")}
               </button>
             )}
           </div>
@@ -277,8 +286,8 @@ export const Dashboard: React.FC = () => {
           <section className={`zf-col ${tab === "capture" ? "tab-active" : ""}`} aria-label="Photo Studio">
             <div className="zf-card zf-card-pad">
               <div className="zf-section-head" style={{ marginBottom: "12px" }}>
-                <h2 className="zf-eyebrow">Tải ảnh chụp từ điện thoại</h2>
-                <span className="zf-pill zf-pill--teal">1 Ảnh A-Pose Chuẩn</span>
+                <h2 className="zf-eyebrow">{t("app.dash.uploadTitle")}</h2>
+                <span className="zf-pill zf-pill--teal">{t("app.dash.uploadPill")}</span>
               </div>
 
               <PhotoUploadCapture
@@ -295,17 +304,20 @@ export const Dashboard: React.FC = () => {
           <section className={`zf-col ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
             <div className="zf-card zf-card-pad" style={{ position: "relative" }}>
               <div className="zf-section-head">
-                <h2 className="zf-eyebrow">Hình Thể 3D ZOZOFIT</h2>
+                <h2 className="zf-eyebrow">{t("app.dash.meshTitle")}</h2>
                 <span className="zf-pill mono">
                   {mesh
-                    ? `Chest x${mesh.scale_chest.toFixed(2)} · Waist x${mesh.scale_waist.toFixed(2)} · Hips x${mesh.scale_hips.toFixed(2)}`
-                    : "A-Pose Standby"}
+                    ? t("app.dash.meshScales")
+                        .replace("{c}", mesh.scale_chest.toFixed(2))
+                        .replace("{w}", mesh.scale_waist.toFixed(2))
+                        .replace("{h}", mesh.scale_hips.toFixed(2))
+                    : t("app.dash.standby")}
                 </span>
               </div>
 
               <MannequinViewer
                 meshParams={mesh}
-                measurement={measurement}
+                measurement={locked ? null : measurement}
                 isLoading={processing}
                 height={580}
                 activeMetric={activeMetric}
@@ -319,67 +331,142 @@ export const Dashboard: React.FC = () => {
             className={`zf-col ${tab === "metrics" ? "tab-active" : ""}`}
             aria-label="Measurements and recommendations"
           >
-            {/* ISO 8559 Anthropometric Table */}
-            <MeasurementsPanel
-              measurement={measurement}
-              biometric={biometric}
-              activeMetric={activeMetric}
-              onSelectMetric={setActiveMetric}
-            />
+            {locked ? (
+              <>
+                {/* Locked state for guests: no measurements, no size recommendation */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  id="locked-measurements"
+                  onClick={() => setLockedFeature(t("app.dash.featMeasure"))}
+                  onKeyDown={(e) => e.key === "Enter" && setLockedFeature(t("app.dash.featMeasure"))}
+                  style={{ position: "relative", cursor: "pointer" }}
+                >
+                  <div style={{ filter: "blur(3px)", opacity: 0.45, pointerEvents: "none", userSelect: "none" }}>
+                    <MeasurementsPanel
+                      measurement={null}
+                      biometric={null}
+                      activeMetric={activeMetric}
+                      onSelectMetric={() => undefined}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      textAlign: "center",
+                      padding: 16,
+                      borderRadius: 12,
+                      background: "rgba(10, 15, 18, 0.55)",
+                    }}
+                  >
+                    <Lock size={26} style={{ color: "#4FD1C5" }} />
+                    <strong style={{ fontSize: 14 }}>{t("app.dash.lockedTitle")}</strong>
+                    <span style={{ fontSize: 12, color: "#94A3B8", maxWidth: 240 }}>
+                      {t("app.dash.lockedDesc")}
+                    </span>
+                  </div>
+                </div>
 
-            {/* Quan's AI Garment Recommendation Card */}
-            {garmentRec ? (
-              <AiGarmentCard
-                data={garmentRec}
-                executionTime={executionTime}
-                isLiveBackend={isLiveBackend}
-              />
+                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                  <button
+                    id="btn-export-dossier"
+                    className="zf-btn zf-btn--secondary"
+                    style={{ flex: 1, opacity: 0.6 }}
+                    onClick={() => setLockedFeature(t("app.dash.featDossier"))}
+                  >
+                    <Lock size={15} strokeWidth={1.8} /> {t("app.dash.featDossier")}
+                  </button>
+                  <button
+                    id="btn-size-charts"
+                    className="zf-btn zf-btn--ghost"
+                    style={{ opacity: 0.6 }}
+                    onClick={() => setLockedFeature(t("app.dash.featSize"))}
+                  >
+                    <Lock size={15} strokeWidth={1.8} /> {t("app.dash.featSize")}
+                  </button>
+                </div>
+              </>
             ) : (
-              <div
-                style={{
-                  padding: "16px",
-                  borderRadius: "10px",
-                  border: "1px dashed rgba(255, 255, 255, 0.12)",
-                  background: "rgba(255, 255, 255, 0.02)",
-                  textAlign: "center",
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                }}
-              >
-                <Sparkles size={20} style={{ color: "#38bdf8", margin: "0 auto 8px" }} />
-                Tải ảnh và nhấn "Phân tích &amp; Dựng hình thể 3D" để nhận tư vấn size quần áo và số đo may mặc tự động.
-              </div>
-            )}
+              <>
+                {/* ISO 8559 Anthropometric Table */}
+                <MeasurementsPanel
+                  measurement={measurement}
+                  biometric={biometric}
+                  activeMetric={activeMetric}
+                  onSelectMetric={setActiveMetric}
+                />
 
-            {/* Quick Actions */}
-            <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
-              <button
-                id="btn-export-dossier"
-                className="zf-btn zf-btn--secondary"
-                style={{ flex: 1 }}
-                onClick={() => navigate("/tailor")}
-              >
-                <FileText size={16} strokeWidth={1.5} /> Hồ sơ may đo
-              </button>
-              <button
-                id="btn-size-charts"
-                className="zf-btn zf-btn--ghost"
-                onClick={() => navigate("/size-charts")}
-              >
-                <Table2 size={16} strokeWidth={1.5} /> Bảng size
-              </button>
-            </div>
+                {/* Quan's AI Garment Recommendation Card */}
+                {garmentRec ? (
+                  <AiGarmentCard
+                    data={garmentRec}
+                    executionTime={executionTime}
+                    isLiveBackend={isLiveBackend}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "10px",
+                      border: "1px dashed rgba(255, 255, 255, 0.12)",
+                      background: "rgba(255, 255, 255, 0.02)",
+                      textAlign: "center",
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <Sparkles size={20} style={{ color: "#38bdf8", margin: "0 auto 8px" }} />
+                    {t("app.dash.emptyRec")}
+                  </div>
+                )}
+
+                {/* Quick Actions */}
+                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                  <button
+                    id="btn-export-dossier"
+                    className="zf-btn zf-btn--secondary"
+                    style={{ flex: 1 }}
+                    onClick={() => navigate("/tailor")}
+                  >
+                    <FileText size={16} strokeWidth={1.5} /> {t("app.dash.featDossier")}
+                  </button>
+                  <button
+                    id="btn-size-charts"
+                    className="zf-btn zf-btn--ghost"
+                    onClick={() => navigate("/size-charts")}
+                  >
+                    <Table2 size={16} strokeWidth={1.5} /> {t("app.dash.featSize")}
+                  </button>
+                </div>
+              </>
+            )}
           </section>
         </div>
       </main>
+
+      <LoginRequiredDialog
+        open={lockedFeature !== null}
+        feature={lockedFeature ?? undefined}
+        onBack={() => setLockedFeature(null)}
+        onSignIn={() => {
+          setLockedFeature(null);
+          openSignIn();
+        }}
+      />
 
       {/* Mobile Bottom Tab Navigation */}
       <nav className="zf-tabs no-print" aria-label="View selector">
         {(
           [
-            ["capture", "Tải ảnh", ScanLine],
-            ["mesh", "Mô hình 3D", Box],
-            ["metrics", "Kết quả số đo", ListChecks],
+            ["capture", t("app.dash.tabUpload"), ScanLine],
+            ["mesh", t("app.dash.tabMesh"), Box],
+            ["metrics", t("app.dash.tabMetrics"), ListChecks],
           ] as const
         ).map(([k, label, Icon]) => (
           <button
