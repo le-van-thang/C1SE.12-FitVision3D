@@ -2,7 +2,10 @@
   "brand": {
     "name": "FitVision 3D",
     "tagline": "Digital Anthropometry & Intelligent Size Recommendation",
-    "atelier": "Digital Bespoke Atelier"
+    "atelier": "Digital Bespoke Atelier",
+    "urban": "Urban Atelier",
+    "nordic": "Nordic Thread",
+    "hanoi": "Atelier Hanoi"
   },
   "nav": {
     "home": "Home",
@@ -159,5 +162,552 @@
     "emptyTitle": "No measurements on record",
     "emptyDesc": "Perform your first scan to generate and preserve body dimensions.",
     "emptyAction": "Begin New Scan"
+  },
+  "app": {
+    "nav": {
+      "dashboard": "Dashboard Studio",
+      "tailor": "Tailor Studio",
+      "sizeCharts": "Size Charts",
+      "admin": "Admin Portal (Store Applications)",
+      "adminShort": "Admin Portal",
+      "partner": "Open a Store / For Tailors",
+      "pending": "Store application under review (24h)",
+      "pendingTitle": "View application review status",
+      "rejected": "Store application rejected (view reason)",
+      "rejectedShort": "Application rejected",
+      "signIn": "Sign In",
+      "loadDemo": "Load demo",
+      "demoLoaded": "Demo loaded"
+    },
+    "role": {
+      "admin": "Super Admin",
+      "partner": "Approved Partner",
+      "pendingStore": "Store Pending",
+      "user": "Standard User"
+    },
+    "menu": {
+      "partner": "Open a Store / Tailor shop",
+      "pending": "Store application in review (24h)",
+      "rejected": "Application rejected - view reason",
+      "details": "Details ›",
+      "open": "Open ›",
+      "demoSwitch": "Switch demo role",
+      "demoUser": "1. Regular User",
+      "demoPending": "2. Pending Store",
+      "demoStore": "3. Approved Store",
+      "demoAdmin": "4. Administrator",
+      "signOut": "Sign Out"
+    },
+    "lang": {
+      "label": "Language",
+      "vi": "Tiếng Việt",
+      "en": "English"
+    },
+    "auth": {
+      "back": "Back to home",
+      "close": "Close",
+      "signinTitle": "Sign in to FitVision 3D",
+      "registerTitle": "Create a new account",
+      "signinDesc": "Access your body-measurement profile & 3D try-on services",
+      "registerDesc": "Register a personal account with a privacy-first commitment",
+      "tabSignin": "Sign In",
+      "tabRegister": "Create Account",
+      "email": "Email address",
+      "emailReg": "Email address (disposable domains blocked)",
+      "emailPh": "Enter your email address",
+      "password": "Password",
+      "passwordPh": "Enter your password",
+      "passwordReg": "Password (8-32 chars with upper, lower, digit & symbol)",
+      "confirm": "Confirm password",
+      "confirmPh": "Re-enter your password",
+      "fullName": "Full name",
+      "fullNamePh": "John Doe",
+      "terms": "I agree to the temporary RAM processing & Zero-Image Retention policy of FitVision 3D.",
+      "submitSignin": "Sign in now",
+      "submitRegister": "Create personal account",
+      "loadingSignin": "Authenticating...",
+      "loadingRegister": "Creating account...",
+      "failSignin": "Sign in failed.",
+      "failRegister": "Registration failed.",
+      "taglinePre": "Measurements accurate to the ",
+      "taglineHi": "millimeter",
+      "taglinePost": "from just one photo.",
+      "chipError": "Error",
+      "chipSpeed": "Processing",
+      "chipRetention": "Image stored",
+      "aboutTitle": "About FitVision 3D",
+      "aboutDesc": "A 3D anthropometric platform based on ISO 8559-1: extract body measurements from a photo, build a 3D model and recommend the right size. It connects customers with stores and tailors; photos are processed in RAM only and never stored.",
+      "engine": "Spatial Body Intelligence Engine",
+      "isoBadge": "ISO 8559-1 Anthropometrics Certified",
+      "topology": "3D Dual-Mesh Topology",
+      "latency": "< 1.25s Ephemeral Latency"
+    },
+    "gate": {
+      "title": "Sign-in required to continue",
+      "generic": "This feature",
+      "desc": "is member-only. Please sign in to view measurements, size charts, and save your profile.",
+      "back": "Back",
+      "signIn": "Sign In"
+    },
+    "dash": {
+      "title": "Anthropometric 3D Studio (AI-Tailor Studio)",
+      "sub": "Automatically extract 3D garment measurements from a single mobile photo, following ISO 8559-1:2017.",
+      "zeroBadge": "Zero-Retention: RAM-Only ephemeral processing",
+      "retake": "Retake / Re-measure",
+      "uploadTitle": "Upload photo from phone",
+      "uploadPill": "1 standard A-Pose photo",
+      "meshTitle": "ZOZOFIT 3D Body Shape",
+      "standby": "A-Pose Standby",
+      "lockedTitle": "Measurements locked",
+      "lockedDesc": "Sign in to view detailed measurements and size recommendation. Guest data is not stored.",
+      "featMeasure": "ISO 8559 Measurements",
+      "featDossier": "Tailoring Dossier",
+      "featSize": "Size Charts",
+      "emptyRec": "Upload a photo and press \"Analyze & Reconstruct 3D\" to get clothing size advice and automatic tailoring measurements.",
+      "tabUpload": "Upload",
+      "tabMesh": "3D Model",
+      "tabMetrics": "Results",
+      "meshScales": "Chest x{c} · Waist x{w} · Hips x{h}"
+    }
+  },
+  "lp": {
+    "nav": {
+      "architecture": "Architecture",
+      "methodology": "Methodology",
+      "matching": "Garment Matching"
+    },
+    "hero": {
+      "kicker": "ISO 8559-1 Biometric Sizing",
+      "titleA": "Find Your",
+      "titleB": "Perfect Fit",
+      "sub": "Clinical-grade anthropometric extraction from a standard photo. Instant 3D humanoid topology and real-world brand size matching with zero photo retention.",
+      "cta": "Start body scan",
+      "viewportTag": "Interactive 3D Mannequin Topology · Drag to Rotate"
+    },
+    "est": {
+      "title": "Quick Size Estimator",
+      "badge": "Instant Calibration",
+      "stature": "Stature (cm)",
+      "weight": "Weight (kg)",
+      "gender": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "other": "Non-binary",
+      "garment": "Garment",
+      "bmi": "Calculated BMI:",
+      "under": "Under",
+      "normal": "Normal",
+      "over": "Over",
+      "preload": "Preload into Studio"
+    },
+    "facts": {
+      "f1": "Standardized Anthropometrics",
+      "f2": "Local Inference Latency",
+      "f3": "Zero Photo Retention"
+    },
+    "features": {
+      "kicker": "Core Architecture",
+      "title": "Engineering rigor behind every measurement",
+      "sub": "Combining computational geometry with clinical anthropometrics for millimeter-accurate garment fit."
+    },
+    "pillars": {
+      "p1": {
+        "tag": "Dual Camera Extraction",
+        "title": "Dual-Perspective Biometric Scan",
+        "desc": "Anatomical landmark detection paired with Ramanujan ellipse calculus computes true cross-sectional circumference from just one front and one profile photo."
+      },
+      "p2": {
+        "tag": "Dynamic 3D Geometry",
+        "title": "Real-Time Humanoid Topology",
+        "desc": "Direct bone morphing and ZOZOFIT dual-layer wireframe render an accurate anatomical representation of your torso, waist, and hips in real time."
+      },
+      "p3": {
+        "tag": "ISO 8559-1 Certified",
+        "title": "Zero-Retention Ephemeral Privacy",
+        "desc": "Scan frames are processed entirely in ephemeral RAM and immediately discarded. No camera footage or biometric photos ever touch disk storage."
+      },
+      "p4": {
+        "tag": "B2B Atelier Bridge",
+        "title": "Bespoke Tailor Specification Dossiers",
+        "desc": "Instantly generate encrypted client measurement dossiers accessible via expiring token and export complete sizing breakdowns to PDF."
+      }
+    },
+    "how": {
+      "kicker": "Methodology",
+      "title": "Four-stage biometric pipeline",
+      "sub": "From camera frame to tailor dossier in under 90 seconds, all processed on-device."
+    },
+    "steps": {
+      "s1": {
+        "title": "Calibrate",
+        "desc": "Hold any standard A4 sheet or card for sub-millimeter pixel scaling."
+      },
+      "s2": {
+        "title": "Capture",
+        "desc": "Align your posture in the viewfinder for a front and a profile photo."
+      },
+      "s3": {
+        "title": "Synthesize",
+        "desc": "Local algorithms compute chest, waist, hips, and inseam circumferences."
+      },
+      "s4": {
+        "title": "Recommend",
+        "desc": "Match ease allowances against real brand garment sizing matrixes."
+      }
+    },
+    "results": {
+      "kicker": "Garment Matching",
+      "title": "Real-world brand size calibration",
+      "sub": "Individual brand charts are compared against your exact cross-sections with tailor ease allowances.",
+      "chest": "Chest Allowance",
+      "waist": "Waist Allowance"
+    },
+    "privacy": {
+      "title": "Your photos never leave your device",
+      "desc": "Image frames are processed exclusively in volatile browser RAM and permanently discarded upon calculation. Only anonymized numerical measurements are retained.",
+      "cta": "Start Scan"
+    },
+    "footer": {
+      "advisor": ""
+    }
+  },
+  "viewer": {
+    "zone": {
+      "full_body": "Full Body",
+      "chest": "Chest",
+      "waist": "Waist",
+      "hips": "Hips"
+    },
+    "chest": "Chest",
+    "waist": "Waist",
+    "hips": "Hips",
+    "shoulders": "Shoulders",
+    "inseam": "Inseam",
+    "drag": "DRAG TO ROTATE · SCROLL TO ZOOM",
+    "loading": "LOADING ANATOMICAL HUMANOID..."
+  },
+  "admin": {
+    "approveSuccess": "Successfully approved store \"{brand}\". The 'store' role has been activated!",
+    "rejectReasonRequired": "Please enter a rejection reason so the partner understands why.",
+    "rejectSuccess": "Rejected application \"{brand}\". The reason has been saved.",
+    "previewTitle": "Preview mode (View-Only / Non-Admin)",
+    "previewBodyPrefix": "You are currently signed in with the role",
+    "previewBodyMid": "Switch to the",
+    "previewBodySuffix": "role to approve or reject applications.",
+    "switchToAdmin": "Switch to Admin (1-Click)",
+    "badge": "FitVision 3D • Super Admin Guard",
+    "title": "Admin Portal: Store Applications",
+    "subtitle": "Manage and review partner applications from tailors / 3D fashion stores according to ISO 8559.",
+    "signedInAdmin": "Signed-in Admin:",
+    "guest": "Guest",
+    "metricTotal": "Total applications",
+    "metricPending": "Pending",
+    "metricApproved": "Approved",
+    "metricRejected": "Rejected",
+    "tabAll": "All",
+    "tabPending": "Pending",
+    "tabApproved": "Approved",
+    "tabRejected": "Rejected",
+    "searchPlaceholder": "Search by name, phone, address...",
+    "colBrand": "Brand / Store",
+    "colApplicant": "Applicant representative",
+    "colPhone": "Phone number",
+    "colAddress": "Workshop address",
+    "colDoc": "Verification document (Business license/Link)",
+    "colStatus": "Status",
+    "colActions": "Actions",
+    "empty": "No applications match the filter.",
+    "unknown": "Unknown",
+    "reasonLabel": "Reason:",
+    "statusPENDING": "PENDING",
+    "statusAPPROVED": "APPROVED",
+    "statusREJECTED": "REJECTED",
+    "approve": "Approve",
+    "approveTitle": "Approve the store and grant the role='store'",
+    "reject": "Reject",
+    "rejectTitle": "Reject the application and enter a reason",
+    "storeActivated": "Store activated",
+    "rejected": "Rejected",
+    "modalTitle": "Reject Store Application",
+    "close": "Close",
+    "reasonField": "Rejection reason (Required)",
+    "reasonPlaceholder": "E.g.: The business license does not match the national business registry, or the showroom address does not exist...",
+    "reasonHint": "This reason will be shown directly to the partner so they can fix and resubmit the application.",
+    "cancel": "Cancel",
+    "confirmReject": "Confirm Rejection"
+  },
+  "merchant": {
+    "submitFailed": "Failed to submit the application.",
+    "close": "Close",
+    "badge": "B2B Merchant Onboarding",
+    "title": "Register a Store / For Tailors",
+    "subtitle": "Become a FitVision 3D partner to manage customer measurement records, integrate digital size charts and export technical dossiers compliant with ISO 8559.",
+    "brandLabel": "Brand / Tailor name",
+    "brandPlaceholder": "E.g.: Atelier Hanoi Bespoke, Veston Saigon...",
+    "phoneLabel": "Verification contact phone number",
+    "phonePlaceholder": "E.g.: 0912345678 or +84912345678",
+    "phoneHint": "The system automatically filters spam numbers and checks for uniqueness.",
+    "addressLabel": "Workshop / Showroom address",
+    "addressPlaceholder": "House number, street, district, city/province",
+    "docLabel": "Business license number or Website/Fanpage link",
+    "docPlaceholder": "Business license number (E.g.: 0108928374) or link https://...",
+    "docHint": "An administrator will verify the brand's legal status within 24 business hours.",
+    "submitting": "Submitting application...",
+    "submit": "Submit store application for review",
+    "applicant": "Applicant:",
+    "sla": "Review SLA:",
+    "slaValue": "Under 24h"
+  },
+  "storeStatus": {
+    "close": "Close",
+    "today": "Today",
+    "titleApproved": "Your store has been approved!",
+    "titleRejected": "Your store application was not approved",
+    "titlePending": "Your store application is under review",
+    "descApproved": "Welcome to the FitVision 3D tailor partner network.",
+    "descRejected": "Please check the reason below and update your information to be reviewed again.",
+    "descPending": "Estimated review time is within 24 business hours.",
+    "rejectionFrom": "Rejection reason from the administrator:",
+    "rejectionDefault": "The license or verification information is not eligible.",
+    "appStatus": "Application status",
+    "statusPENDING": "PENDING",
+    "statusAPPROVED": "APPROVED",
+    "statusREJECTED": "REJECTED",
+    "brand": "Brand:",
+    "phone": "Phone:",
+    "address": "Address:",
+    "verification": "Verification:",
+    "submittedAt": "Submitted at:",
+    "editResubmit": "Edit and resubmit application",
+    "closeWindow": "Close window"
+  },
+  "cap": {
+    "previewAlt": "Front A-Pose Preview",
+    "sampleCanvas": "Standard A-Pose Sample",
+    "genderNeutral": "Unisex",
+    "ready": "Ready",
+    "standby": "Camera standby",
+    "state": {
+      "idle": {
+        "text": "Standby",
+        "sub": "Start the scan to open the camera"
+      },
+      "calibrating": {
+        "text": "Calibrate scale",
+        "sub": "Hold an A4 sheet or card in frame"
+      },
+      "front_capture": {
+        "text": "Front view",
+        "sub": "Stand upright, arms relaxed"
+      },
+      "side_capture": {
+        "text": "Side view",
+        "sub": "Turn 90°, face forward"
+      },
+      "processing": {
+        "text": "Extracting",
+        "sub": "Computing measurements"
+      },
+      "complete": {
+        "text": "Scan complete",
+        "sub": "Measurements extracted"
+      },
+      "error": {
+        "text": "Camera error",
+        "sub": "Check permissions and retry"
+      }
+    },
+    "male": "Male",
+    "female": "Female",
+    "unisex": "Unisex",
+    "scanBtn": "Analyze & Reconstruct 3D (AI Scan)",
+    "scanningBtn": "Analyzing body shape & computing ISO 8559...",
+    "uploadPrompt": "Select or drag and drop full-body photo",
+    "uploadSub": "1 front-facing A-pose photo • Automatic 3D body reconstruction",
+    "deletePhoto": "Delete photo",
+    "loadSample": "Load sample A-Pose",
+    "photoVerified": "Front A-Pose (1 Standard Image)",
+    "calibTitle": "Anthropometric Calibration Parameters",
+    "heightLabel": "Height (cm)",
+    "weightLabel": "Weight (kg)",
+    "genderLabel": "Anatomical Gender",
+    "guideTitle": "ISO 8559 Photo Capture Guide",
+    "frontLabel": "Front Full-Body Photo (A-Pose)",
+    "guidePhotos": "Number of photos: Requires only 1 front-facing full-body photo (A-Pose). AI automatically reconstructs the complete 3D mesh.",
+    "guideDist": "Distance: Stand 2.5m - 3m from camera, clearly visible from head to heels.",
+    "guidePose": "A-Pose Posture: Arms spread 30° - 40° from torso, feet shoulder-width apart.",
+    "guideWear": "Clothing: Wear form-fitting athletic wear (gym, yoga) for optimal contour detection."
+  },
+  "meas": {
+    "ariaLabel": "Measurements",
+    "chest": "Chest",
+    "waist": "Waist",
+    "hips": "Hips",
+    "shoulders": "Shoulders",
+    "inseam": "Inseam",
+    "armLength": "Arm Length",
+    "engineIso": "ISO Biometrics Engine",
+    "inches": "Inches",
+    "recAriaLabel": "Size recommendation",
+    "recTitle": "Recommended size",
+    "fit": {
+      "slim": "Slim fit",
+      "regular": "Regular fit",
+      "relaxed": "Relaxed fit",
+      "oversized": "Oversized fit"
+    },
+    "chestAllowance": "Chest Allowance",
+    "waistAllowance": "Waist Allowance",
+    "advisorNote": "Advisor note",
+    "title": "ISO 8559 Measurements",
+    "confidence": "{p}% confidence",
+    "chestSub": "Chest circumference",
+    "waistSub": "Waist circumference",
+    "hipsSub": "Hip circumference",
+    "shouldersSub": "Shoulder breadth",
+    "inseamSub": "Inside leg length",
+    "armLengthSub": "Sleeve length",
+    "bioTitle": "Biometric Parameters",
+    "stature": "Height",
+    "weight": "Weight",
+    "bmi": "BMI Index",
+    "cardTitle": "Garment Sizing & Fit Advisor (AI Tailor)",
+    "cardSub": "International Standard ISO 8559-1",
+    "topwear": "Shirt / T-Shirt (Topwear)",
+    "topwearStandard": "Asian / US Standard",
+    "bottomwear": "Trousers / Jean (Bottomwear)",
+    "bottomwearInches": "{w}W x {i}L (Inches)",
+    "sizePrefix": "Size",
+    "bodyFit": "Body Fit Classification:",
+    "easeAllowance": "Recommended Ease Allowance:",
+    "slimChest": "Slim-fit chest",
+    "regularChest": "Regular chest",
+    "trouserWaist": "Trouser waist",
+    "execTime": "Processing speed: {s}s",
+    "privacyGuaranteed": "100% Local photo privacy"
+  },
+  "status": {
+    "scanSpeed": "Scan Speed:",
+    "zeroRetention": "Privacy Mode: Zero-Retention Active",
+    "standardRetention": "Standard Retention"
+  },
+  "garment": {
+    "1": "T-Shirt",
+    "2": "Dress Shirt",
+    "3": "Blouse",
+    "4": "Trousers",
+    "5": "Skirt",
+    "6": "Jacket"
+  },
+  "fitlbl": {
+    "slim": "Slim fit",
+    "regular": "Regular fit",
+    "relaxed": "Relaxed fit",
+    "oversized": "Oversized fit"
+  },
+  "dashx": {
+    "engine": "AI Engine: ISO 8559",
+    "live": "FastAPI SMPLer-X: Online"
+  },
+  "tailor": {
+    "badge": "B2B Atelier",
+    "subtitle": "Client biometric dossiers and precision CAD specifications shared via secure token.",
+    "privacy": "Privacy Mode: Zero-Retention Active",
+    "iso": "ISO 8559-1 Certified",
+    "dossierCode": "Bespoke Dossier Code",
+    "authenticate": "Authenticate",
+    "exportPdf": "Export PDF",
+    "e2ee": "E2EE Token:",
+    "validUntil": "Valid Until:",
+    "clients": "Clients",
+    "clientDossiers": "Client Dossiers",
+    "activeSpecs": "3 active specifications",
+    "meshPreview": "Mesh preview",
+    "topology": "Anatomical Topology",
+    "morphing": "Direct bone morphing matching {name}",
+    "dossierSpec": "Dossier specification",
+    "bodyMeasures": "Body Measurements",
+    "chest": "Chest",
+    "waist": "Waist",
+    "hips": "Hips",
+    "shoulders": "Shoulders",
+    "inseam": "Inseam",
+    "accuracy": "Measurement Accuracy",
+    "biometric": "Biometric Inputs",
+    "genderLabel": "Gender",
+    "height": "Height",
+    "weight": "Weight",
+    "bmi": "BMI Index",
+    "meshParams": "Mesh Deformation Parameters",
+    "anatomicalBase": "Anatomical Base",
+    "chestScale": "Chest Scale Factor",
+    "waistScale": "Waist Scale Factor",
+    "hipScale": "Hip Scale Factor",
+    "contactless": "Contactless Dossier Exchange",
+    "gender": {
+      "male": "male",
+      "female": "female",
+      "unisex": "unisex",
+      "other": "other"
+    },
+    "title": "Tailor Studio",
+    "copy": "Copy",
+    "copied": "Copied",
+    "openQrTitle": "Open Dossier QR Code",
+    "qrCode": "QR Code",
+    "codePlaceholder": "Enter code (e.g. FV-8492-AN) or paste Token...",
+    "hideToken": "Hide token",
+    "showToken": "Show full token",
+    "copyTokenTitle": "Copy 64-bit Token",
+    "copyToken": "Copy token",
+    "tokenCopied": "Token copied",
+    "copyCodeTitle": "Copy dossier code",
+    "printPdfTitle": "Print or save PDF specification dossier",
+    "qrModalTitle": "Bespoke Dossier QR Code",
+    "qrModalDesc": "Clients open the FitVision 3D app or present this QR code for tailors to instantly scan and import the full 3D anatomical specifications.",
+    "qrSimulate": "Simulate scan",
+    "close": "Close"
+  },
+  "sizes": {
+    "overlapChest": "Chest: {a} max ({amax}) overlaps {b} min ({bmin})",
+    "overlapWaist": "Waist: {a} max ({amax}) overlaps {b} min ({bmin})",
+    "saved": "Saved size chart. JSON payload copied to clipboard.",
+    "resetDone": "Reset size chart to defaults.",
+    "title": "Size Chart Manager",
+    "subtitle": "Define garment grade dimensions and ease allowances per collection.",
+    "reset": "Reset",
+    "save": "Save size chart",
+    "brand": "Brand / Collection",
+    "targetFit": "Target Fit",
+    "garmentType": "Garment Type",
+    "easeAllowance": "Garment Ease Allowance (+cm)",
+    "gender": {
+      "male": "male",
+      "female": "female",
+      "unisex": "unisex"
+    },
+    "col": {
+      "size": "Size",
+      "min_chest": "Chest Min (cm)",
+      "max_chest": "Chest Max (cm)",
+      "min_waist": "Waist Min (cm)",
+      "max_waist": "Waist Max (cm)",
+      "min_hip": "Hip Min (cm)",
+      "max_hip": "Hip Max (cm)"
+    },
+    "simulator": "Fit Simulator",
+    "sampleChest": "Sample Chest (cm)",
+    "sampleWaist": "Sample Waist (cm)",
+    "recommended": "Recommended size",
+    "fitStyle": "Fit Style",
+    "fitSuffix": "{fit} fit",
+    "fit": {
+      "slim": "Slim",
+      "regular": "Regular",
+      "relaxed": "Relaxed",
+      "oversized": "Oversized"
+    },
+    "chestAllowance": "Chest Allowance",
+    "waistAllowance": "Waist Allowance"
   }
 }

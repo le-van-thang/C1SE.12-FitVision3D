@@ -1,0 +1,30 @@
+{
+    "thong_tin_nhap": {
+        "gioi_tinh": "male",
+        "chieu_cao_nhap_cm": 178.0,
+        "can_nang_nhap_kg": 74.0,
+        "scale_factor_hieu_chinh": 0.9994
+    },
+    "so_do_may_mac_cm": {
+        "chieu_cao": 178.0,
+        "vong_nguc": 100.6,
+        "vong_eo": 86.7,
+        "vong_hong": 95.8,
+        "rong_vai": 38.5,
+        "dai_tay_ao": 52.3,
+        "dai_chan_inseam": 78.7,
+        "can_nang_uoc_tinh_kg": 74.0
+    },
+    "smplx_betas": [
+        0.21225,
+        -0.83315,
+        0.45686,
+        -0.07221,
+        0.33064,
+        -0.24002,
+        0.33537,
+        0.12292,
+        0.07533,
+        -0.11373
+    ]
+}
