@@ -60,6 +60,7 @@ common/utils/human_model_files/smplx/*.npz
 output/
 output_measurements.json
 .ipynb_checkpoints/
+backend/.data/
 
 # AI Service submodule paths
 ai-service/pretrained_models/

@@ -8,6 +8,7 @@ import {
   checkHoneypot,
   RateLimiter,
 } from '@/lib/validationRules';
+import { authApi } from '@/services/authApi';
 
 const STORAGE_KEY_PROFILES = 'fv3d_auth_profiles_v1';
 const STORAGE_KEY_STORES = 'fv3d_auth_stores_v1';
@@ -40,12 +41,14 @@ export interface AuthContextType {
 
   // Modal Controls
   isAuthModalOpen: boolean;
-  authModalTab: 'signin' | 'register';
+  authModalTab: 'signin' | 'register' | 'forgot' | 'verify';
   isOnboardingModalOpen: boolean;
   isStatusModalOpen: boolean;
 
   openSignIn: () => void;
   openRegister: () => void;
+  openForgotPassword: () => void;
+  openVerifyEmail: (email?: string) => void;
   closeAuthModal: () => void;
   openOnboarding: () => void;
   closeOnboarding: () => void;
@@ -53,9 +56,13 @@ export interface AuthContextType {
   closeStatusModal: () => void;
 
   // Auth Operations
-  signIn: (email: string, password?: string, website_trap?: string) => { success: boolean; error?: string };
-  register: (payload: RegisterPayload) => { success: boolean; error?: string };
-  signOut: () => void;
+  signIn: (email: string, password?: string, website_trap?: string) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
+  register: (payload: RegisterPayload) => Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }>;
+  signOut: () => Promise<void>;
+  verifyEmail: (email: string, otp: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string; devOtp?: string }>;
+  resetPassword: (payload: { email: string; otp: string; newPassword: string; confirmPassword?: string }) => Promise<{ success: boolean; error?: string; message?: string }>;
+  signInWithGoogle: (data: { email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => Promise<{ success: boolean; error?: string }>;
 
   // Merchant Onboarding & Admin
   applyMerchant: (payload: MerchantOnboardingPayload) => { success: boolean; error?: string };
@@ -67,6 +74,23 @@ export interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function mapBackendUserToProfile(u: { id: string; email: string; fullName?: string; role?: string; avatarUrl?: string; createdAt?: string }): Profile {
+  const roleMap: Record<string, UserRole> = {
+    ADMIN: 'admin',
+    SHOP_OWNER: 'store',
+    USER: 'user',
+  };
+  return {
+    id: u.id,
+    full_name: u.fullName || u.email.split('@')[0],
+    email: u.email,
+    role: (u.role ? roleMap[u.role] : 'user') || 'user',
+    avatar_url: u.avatarUrl || null,
+    created_at: u.createdAt || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
 
 function initProfiles(): Profile[] {
   try {
@@ -96,7 +120,6 @@ function initCurrentUserId(): string | null {
   } catch {
     // fallback
   }
-  // Default to guest for realistic first-load experience, but can be switched with 1-click
   return null;
 }
 
@@ -107,9 +130,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalTab, setAuthModalTab] = useState<'signin' | 'register'>('signin');
+  const [authModalTab, setAuthModalTab] = useState<'signin' | 'register' | 'forgot' | 'verify'>('signin');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+
+  // Initial Session Check from Backend (via silent refresh or cookie)
+  useEffect(() => {
+    let isMounted = true;
+    async function checkSession() {
+      try {
+        const res = await authApi.getProfile();
+        if (res.success && res.data && isMounted) {
+          const prof = mapBackendUserToProfile(res.data);
+          setProfiles((prev) => {
+            const exists = prev.some((p) => p.id === prof.id);
+            return exists ? prev.map((p) => (p.id === prof.id ? prof : p)) : [prof, ...prev];
+          });
+          setCurrentUserId(prof.id);
+        }
+      } catch {
+        // Not logged in with live backend session
+      }
+    }
+    checkSession();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Sync with localStorage
   useEffect(() => {
@@ -150,6 +197,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthModalOpen(true);
   }, []);
 
+  const openForgotPassword = useCallback(() => {
+    setAuthModalTab('forgot');
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const openVerifyEmail = useCallback((_email?: string) => {
+    setAuthModalTab('verify');
+    setIsAuthModalOpen(true);
+  }, []);
+
   const closeAuthModal = useCallback(() => {
     setIsAuthModalOpen(false);
   }, []);
@@ -170,15 +227,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsStatusModalOpen(false);
   }, []);
 
-  // 1. Sign In
+  // 1. Sign In (Live Backend Call)
   const signIn = useCallback(
-    (emailInput: string, passwordInput = '', website_trap = '') => {
-      // 1. Honeypot check
+    async (emailInput: string, passwordInput = '', website_trap = '') => {
       if (checkHoneypot(website_trap)) {
         return { success: false, error: 'Phát hiện hoạt động bot đáng ngờ (Honeypot Triggered).' };
       }
 
-      // 2. Rate limit check
       const limit = RateLimiter.checkLimit('login', 5, 10);
       if (!limit.allowed) {
         return {
@@ -187,33 +242,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      const email = emailInput.trim().toLowerCase();
-      const user = profiles.find((p) => p.email.toLowerCase() === email);
+      const email = emailInput.trim();
+      const res = await authApi.login(email, passwordInput);
 
-      if (!user) {
+      if (res.success && res.data?.user) {
+        const profile = mapBackendUserToProfile(res.data.user);
+        setProfiles((prev) => {
+          const filtered = prev.filter((p) => p.id !== profile.id);
+          return [profile, ...filtered];
+        });
+        setCurrentUserId(profile.id);
+        setIsAuthModalOpen(false);
+        return { success: true };
+      }
+
+      if (res.error?.code === 'AUTH_EMAIL_NOT_VERIFIED') {
         return {
           success: false,
-          error: 'Tài khoản không tồn tại trên hệ thống. Vui lòng kiểm tra lại email hoặc đăng ký tài khoản mới.',
+          errorCode: 'AUTH_EMAIL_NOT_VERIFIED',
+          error: res.error.message || 'Tài khoản chưa được kích hoạt email.',
         };
       }
 
-      // In real backend, password would be hashed. In thick-client mock, we allow simple check.
-      setCurrentUserId(user.id);
-      setIsAuthModalOpen(false);
-      return { success: true };
+      return {
+        success: false,
+        errorCode: res.error?.code,
+        error: res.error?.message || 'Email hoặc mật khẩu không chính xác.',
+      };
     },
-    [profiles]
+    []
   );
 
-  // 2. Register (EQUAL PUBLIC REGISTRATION - STRICTLY role = 'user')
+  // 2. Register (Live Backend Call)
   const register = useCallback(
-    (payload: RegisterPayload) => {
-      // 1. Honeypot check
+    async (payload: RegisterPayload) => {
       if (checkHoneypot(payload.website_trap)) {
         return { success: false, error: 'Phát hiện bot tự động đăng ký (Honeypot Triggered).' };
       }
 
-      // 2. Rate limiting check
       const limit = RateLimiter.checkLimit('register', 3, 10);
       if (!limit.allowed) {
         return {
@@ -222,14 +288,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // 3. Email validation
-      const existingEmails = profiles.map((p) => p.email);
-      const emailResult = validateEmail(payload.email, existingEmails);
-      if (!emailResult.valid) {
-        return { success: false, error: emailResult.error };
+      const cleanFullName = (payload.fullName || '').trim();
+      if (cleanFullName.length < 2) {
+        return { success: false, error: 'Họ và tên phải có tối thiểu 2 ký tự.' };
       }
 
-      // 4. Password validation
       const passResult = validatePassword(payload.password);
       if (!passResult.valid) {
         return { success: false, error: passResult.error };
@@ -239,57 +302,137 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Mật khẩu xác nhận không trùng khớp với mật khẩu đã nhập.' };
       }
 
-      if (payload.termsAgreed !== undefined && !payload.termsAgreed) {
-        return { success: false, error: 'Bạn phải đồng ý với Điều khoản Dịch vụ & Chính sách Bảo mật.' };
+      const res = await authApi.register({
+        fullName: cleanFullName,
+        email: payload.email.trim(),
+        password: payload.password,
+        confirmPassword: payload.confirmPassword,
+        extraNotes: payload.website_trap,
+      });
+
+      if (res.success) {
+        return {
+          success: true,
+          message: res.data?.message || 'Đăng ký thành công! Hãy kiểm tra email để kích hoạt tài khoản.',
+          devOtp: res.data?.devOtp,
+        };
       }
 
-      const cleanFullName = (payload.fullName || '').trim();
-      if (cleanFullName.length < 2) {
-        return { success: false, error: 'Họ và tên phải có tối thiểu 2 ký tự.' };
-      }
-
-      // STRICT SECURITY RULE: Role is hard-coded to 'user'. No role selector allowed.
-      const newUserId = `usr-${Date.now()}`;
-      const newProfile: Profile = {
-        id: newUserId,
-        full_name: cleanFullName,
-        email: payload.email.trim().toLowerCase(),
-        role: 'user', // HARD-CODED STRICT USER ROLE
-        avatar_url: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+      return {
+        success: false,
+        error: res.error?.message || 'Đăng ký thất bại. Vui lòng thử lại.',
       };
-
-      setProfiles((prev) => [...prev, newProfile]);
-      setCurrentUserId(newProfile.id);
-      setIsAuthModalOpen(false);
-
-      return { success: true };
     },
-    [profiles]
+    []
   );
 
-  // 3. Sign Out
-  const signOut = useCallback(() => {
+  // 3. Verify Email OTP
+  const verifyEmail = useCallback(async (email: string, otp: string) => {
+    const res = await authApi.verifyEmail(email.trim(), otp.trim());
+    if (res.success) {
+      return {
+        success: true,
+        message: res.data?.message || 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.',
+      };
+    }
+    return {
+      success: false,
+      error: res.error?.message || 'Kích hoạt thất bại. Vui lòng kiểm tra lại mã OTP.',
+    };
+  }, []);
+
+  // 4. Forgot Password
+  const forgotPassword = useCallback(async (email: string) => {
+    const res = await authApi.forgotPassword(email.trim());
+    if (res.success) {
+      return {
+        success: true,
+        message: res.data?.message || 'Đã gửi mã xác nhận đặt lại mật khẩu đến email.',
+        devOtp: res.data?.devOtp,
+      };
+    }
+    return {
+      success: false,
+      error: res.error?.message || 'Không thể gửi yêu cầu đặt lại mật khẩu.',
+    };
+  }, []);
+
+  // 5. Reset Password
+  const resetPassword = useCallback(
+    async (payload: { email: string; otp: string; newPassword: string; confirmPassword?: string }) => {
+      const passResult = validatePassword(payload.newPassword);
+      if (!passResult.valid) {
+        return { success: false, error: passResult.error };
+      }
+      if (payload.confirmPassword && payload.newPassword !== payload.confirmPassword) {
+        return { success: false, error: 'Mật khẩu xác nhận không khớp.' };
+      }
+
+      const res = await authApi.resetPassword({
+        email: payload.email.trim(),
+        otp: payload.otp.trim(),
+        newPassword: payload.newPassword,
+        confirmNewPassword: payload.confirmPassword,
+      });
+
+      if (res.success) {
+        return {
+          success: true,
+          message: res.data?.message || 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.',
+        };
+      }
+      return {
+        success: false,
+        error: res.error?.message || 'Đặt lại mật khẩu thất bại. Vui lòng kiểm tra mã OTP.',
+      };
+    },
+    []
+  );
+
+  // 6. Sign In With Google (Thực tế với dữ liệu từ Google OAuth)
+  const signInWithGoogle = useCallback(
+    async (data: { email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => {
+      const res = await authApi.googleLogin(data);
+      if (res.success && res.data?.user) {
+        const prof = mapBackendUserToProfile(res.data.user);
+        setProfiles((prev) => {
+          const filtered = prev.filter((p) => p.id !== prof.id);
+          return [prof, ...filtered];
+        });
+        setCurrentUserId(prof.id);
+        setIsAuthModalOpen(false);
+        return { success: true };
+      }
+      return {
+        success: false,
+        error: res.error?.message || 'Đăng nhập bằng Google thất bại.',
+      };
+    },
+    []
+  );
+
+  // 7. Sign Out
+  const signOut = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch {}
     setCurrentUserId(null);
     try {
       localStorage.setItem(STORAGE_KEY_USER_ID, 'guest');
     } catch {}
   }, []);
 
-  // 4. Merchant Onboarding (Apply for Store)
+  // 8. Merchant Onboarding (Apply for Store)
   const applyMerchant = useCallback(
     (payload: MerchantOnboardingPayload) => {
       if (!currentUser) {
         return { success: false, error: 'Vui lòng đăng nhập trước khi nộp hồ sơ mở cửa hàng.' };
       }
 
-      // 1. Honeypot check
       if (checkHoneypot(payload.website_trap)) {
         return { success: false, error: 'Phát hiện bot tự động (Honeypot Triggered).' };
       }
 
-      // 2. Rate limiting check
       const limit = RateLimiter.checkLimit('apply_store', 3, 10);
       if (!limit.allowed) {
         return {
@@ -298,7 +441,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // 3. Brand name check
       const brandName = (payload.brandName || '').trim();
       if (brandName.length < 3) {
         return { success: false, error: 'Tên thương hiệu/cửa hàng phải có ít nhất 3 ký tự.' };
@@ -309,20 +451,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Tên thương hiệu này đã được sử dụng. Vui lòng chọn tên khác.' };
       }
 
-      // 4. Phone validation
       const existingPhones = stores.map((s) => s.phone);
       const phoneResult = validatePhoneNumber(payload.phone, existingPhones);
       if (!phoneResult.valid) {
         return { success: false, error: phoneResult.error };
       }
 
-      // 5. Address check
       const address = (payload.address || '').trim();
       if (address.length < 5) {
         return { success: false, error: 'Địa chỉ xưởng/cửa hàng phải có ít nhất 5 ký tự.' };
       }
 
-      // 6. Verification doc check
       const verificationDoc = (payload.verificationDoc || '').trim();
       if (verificationDoc.length < 3) {
         return {
@@ -331,7 +470,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // Check if user already has an active store application
       const existingStore = stores.find((s) => s.user_id === currentUser.id);
       const now = new Date().toISOString();
 
@@ -348,7 +486,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             error: 'Cửa hàng của bạn đã được phê duyệt.',
           };
         }
-        // If rejected, update the existing store record to PENDING
         const updatedStores = stores.map((s) =>
           s.id === existingStore.id
             ? {
@@ -370,7 +507,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       }
 
-      // Create new store record
       const newStore: Store = {
         id: `store-${Date.now()}`,
         user_id: currentUser.id,
@@ -394,7 +530,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [currentUser, stores]
   );
 
-  // 5. Admin Approve Store
+  // 9. Admin Approve Store
   const approveStore = useCallback(
     (storeId: string) => {
       const targetStore = stores.find((s) => s.id === storeId);
@@ -404,7 +540,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const now = new Date().toISOString();
 
-      // Atomically update store status AND applicant role to 'store'
       setStores((prev) =>
         prev.map((s) =>
           s.id === storeId
@@ -436,57 +571,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [stores]
   );
 
-  // 6. Admin Reject Store
-  const rejectStore = useCallback(
-    (storeId: string, reason: string) => {
-      const cleanReason = (reason || '').trim();
-      if (!cleanReason) {
-        return { success: false, error: 'Lý do từ chối là bắt buộc để gửi thông báo cho đối tác.' };
-      }
+  // 10. Admin Reject Store
+  const rejectStore = useCallback((storeId: string, reason: string) => {
+    const cleanReason = (reason || '').trim();
+    if (!cleanReason) {
+      return { success: false, error: 'Lý do từ chối là bắt buộc để gửi thông báo cho đối tác.' };
+    }
 
-      const now = new Date().toISOString();
+    const now = new Date().toISOString();
 
-      setStores((prev) =>
-        prev.map((s) =>
-          s.id === storeId
-            ? {
-                ...s,
-                status: 'REJECTED',
-                is_approved: false,
-                rejection_reason: cleanReason,
-                updated_at: now,
-              }
-            : s
-        )
-      );
+    setStores((prev) =>
+      prev.map((s) =>
+        s.id === storeId
+          ? {
+              ...s,
+              status: 'REJECTED',
+              is_approved: false,
+              rejection_reason: cleanReason,
+              updated_at: now,
+            }
+          : s
+      )
+    );
 
-      return { success: true };
-    },
-    []
-  );
+    return { success: true };
+  }, []);
 
-  // 7. Demo Switcher for Instant Testing
-  const switchDemoRole = useCallback(
-    (role: 'user' | 'pending' | 'store' | 'admin' | 'guest') => {
-      if (role === 'guest') {
-        setCurrentUserId(null);
-        return;
-      }
+  // 11. Demo Switcher for Instant Testing
+  const switchDemoRole = useCallback((role: 'user' | 'pending' | 'store' | 'admin' | 'guest') => {
+    if (role === 'guest') {
+      setCurrentUserId(null);
+      return;
+    }
 
-      const target = TEST_USERS[role];
-      if (target) {
-        // Ensure user exists in profiles state
-        setProfiles((prev) => {
-          if (!prev.some((p) => p.id === target.id)) {
-            return [...prev, target];
-          }
-          return prev;
-        });
-        setCurrentUserId(target.id);
-      }
-    },
-    []
-  );
+    const target = TEST_USERS[role];
+    if (target) {
+      setProfiles((prev) => {
+        if (!prev.some((p) => p.id === target.id)) {
+          return [...prev, target];
+        }
+        return prev;
+      });
+      setCurrentUserId(target.id);
+    }
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -505,6 +633,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         openSignIn,
         openRegister,
+        openForgotPassword,
+        openVerifyEmail,
         closeAuthModal,
         openOnboarding,
         closeOnboarding,
@@ -514,6 +644,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signIn,
         register,
         signOut,
+        verifyEmail,
+        forgotPassword,
+        resetPassword,
+        signInWithGoogle,
 
         applyMerchant,
         approveStore,
