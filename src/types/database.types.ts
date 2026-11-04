@@ -5,6 +5,8 @@
 // IMPORTANT: Property names MUST match DB column names exactly
 // ============================================================
 
+export type UserRole = 'user' | 'store' | 'admin' | 'customer' | 'tailor' | 'retailer';
+
 // ----------------------------------------------------------
 // TABLE: profiles
 // ----------------------------------------------------------
@@ -12,10 +14,27 @@ export interface Profile {
   id: string;                   // uuid pk
   full_name: string;            // varchar(100) NOT NULL
   email: string;                // varchar(255) UNIQUE NOT NULL
-  role: 'customer' | 'tailor' | 'retailer' | 'admin'; // varchar(20) NOT NULL
+  role: UserRole;               // varchar(20) NOT NULL
   avatar_url: string | null;    // text
   created_at: string;           // timestamptz NOT NULL
   updated_at: string;           // timestamptz NOT NULL
+}
+
+// ----------------------------------------------------------
+// TABLE: stores
+// ----------------------------------------------------------
+export interface Store {
+  id: string;                   // uuid pk
+  user_id: string;              // uuid NOT NULL -> profiles.id (UNIQUE FK)
+  brand_name: string;           // varchar(100) NOT NULL UNIQUE
+  phone: string;                // varchar(20) NOT NULL UNIQUE
+  address: string;              // text NOT NULL
+  verification_doc: string;     // text NOT NULL (Business license ID or Partner Website/Fanpage URL)
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  is_approved?: boolean;        // boolean flag (true when status === 'APPROVED')
+  rejection_reason?: string | null; // text (mandatory when status === 'REJECTED')
+  created_at: string;           // timestamptz NOT NULL
+  updated_at?: string;          // timestamptz
 }
 
 // ----------------------------------------------------------
@@ -141,6 +160,11 @@ export interface Database {
         Row: Profile;
         Insert: Omit<Profile, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Profile>;
+      };
+      stores: {
+        Row: Store;
+        Insert: Omit<Store, 'id' | 'created_at'>;
+        Update: Partial<Store>;
       };
       biometric_inputs: {
         Row: BiometricInput;

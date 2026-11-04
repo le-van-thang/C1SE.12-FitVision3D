@@ -28,3 +28,8 @@ timm
 pyglet
 yapf==0.40.1
 loguru
+pyyaml
+fastapi
+uvicorn
+python-multipart
+pydantic

@@ -1,14 +1,7 @@
-// ============================================================
-// AI GARMENT RECOMMENDATION CARD
-// Displays Quan's AI-Tailor module results:
-// - Topwear Shirt Size (XS - XXL)
-// - Bottomwear Trouser Size (Waist x Inseam in inches)
-// - Body Shape Classification (V-Shape / Athletic, Regular, Comfort)
-// - Ease Allowance Recommendations (Slim Fit, Regular Fit, Trouser Waist)
-// ============================================================
 import React from "react";
 import { Shirt, Scissors, Sparkles, CheckCircle2, ShieldCheck, Zap } from "lucide-react";
 import type { AiMeasurementResponse } from "../../services/aiService";
+import { useI18n } from "../../i18n";
 
 export interface AiGarmentCardProps {
   data: AiMeasurementResponse["garment_size_recommendations"];
@@ -16,11 +9,28 @@ export interface AiGarmentCardProps {
   isLiveBackend?: boolean;
 }
 
+const localizedBodyShape = (text: string, loc: string) => {
+  if (!text) return "";
+  if (loc === "vi") {
+    const match = text.match(/\(([^)]+)\)/);
+    if (match) return match[1];
+    if (text.toLowerCase().includes("athletic")) return "Thể thao, ngực nở eo thon";
+    if (text.toLowerCase().includes("balanced") || text.toLowerCase().includes("regular")) return "Cân đối tiêu chuẩn";
+    if (text.toLowerCase().includes("comfort") || text.toLowerCase().includes("relaxed")) return "Dáng người đầy đặn";
+    if (text.toLowerCase().includes("slim")) return "Dáng người thon gọn";
+  } else {
+    const match = text.match(/^([^(]+)/);
+    if (match && text.includes("(")) return match[1].trim();
+  }
+  return text;
+};
+
 export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
   data,
   executionTime = 1.25,
   isLiveBackend = false,
 }) => {
+  const { t, locale } = useI18n();
   if (!data) return null;
 
   return (
@@ -60,10 +70,10 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#f8fafc" }}>
-              Tư vấn Size &amp; May mặc (AI Tailor)
+              {t("meas.cardTitle")}
             </h2>
             <span style={{ fontSize: "11px", color: "#94a3b8" }}>
-              Chuẩn quốc tế ISO 8559-1
+              {t("meas.cardSub")}
             </span>
           </div>
         </div>
@@ -114,7 +124,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
           }}
         >
           <span style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
-            Áo sơ mi / Áo thun (Topwear)
+            {t("meas.topwear")}
           </span>
           <div
             style={{
@@ -124,9 +134,9 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
               letterSpacing: "0.05em",
             }}
           >
-            Size {data.topwear_shirt_size}
+            {t("meas.sizePrefix")} {data.topwear_shirt_size}
           </div>
-          <span style={{ fontSize: "10px", color: "#64748b" }}>Tiêu chuẩn Châu Á / US</span>
+          <span style={{ fontSize: "10px", color: "#64748b" }}>{t("meas.topwearStandard")}</span>
         </div>
 
         {/* Bottomwear */}
@@ -140,7 +150,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
           }}
         >
           <span style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
-            Quần âu / Jean (Bottomwear)
+            {t("meas.bottomwear")}
           </span>
           <div
             style={{
@@ -151,10 +161,12 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
               marginBottom: "2px",
             }}
           >
-            {data.bottomwear_trouser_size}
+            {data.bottomwear_trouser_size ? data.bottomwear_trouser_size.replace(/^Size\s+/i, `${t("meas.sizePrefix")} `) : ""}
           </div>
           <span style={{ fontSize: "10px", color: "#64748b" }}>
-            {data.waist_inches}W x {data.inseam_inches}L (Inches)
+            {t("meas.bottomwearInches")
+              .replace("{w}", String(data.waist_inches))
+              .replace("{i}", String(data.inseam_inches))}
           </span>
         </div>
       </div>
@@ -175,10 +187,10 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
         <Sparkles size={18} style={{ color: "#38bdf8", flexShrink: 0 }} />
         <div>
           <span style={{ fontSize: "11px", color: "#94a3b8", display: "block" }}>
-            Phân loại form dáng (Body Fit):
+            {t("meas.bodyFit")}
           </span>
           <strong style={{ fontSize: "13px", color: "#f8fafc" }}>
-            {data.body_shape_classification}
+            {localizedBodyShape(data.body_shape_classification, locale)}
           </strong>
         </div>
       </div>
@@ -199,7 +211,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
           }}
         >
           <Scissors size={13} style={{ color: "#a3e635" }} />
-          Độ cử động may đo khuyên dùng (Ease Allowance):
+          {t("meas.easeAllowance")}
         </span>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
           <div
@@ -211,7 +223,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
               textAlign: "center",
             }}
           >
-            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>Slim-fit ngực</span>
+            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>{t("meas.slimChest")}</span>
             <strong style={{ fontSize: "13px", color: "#38bdf8" }}>
               {data.ease_allowance_recommendation.slim_fit_chest_cm} <small style={{ fontSize: "10px" }}>cm</small>
             </strong>
@@ -226,7 +238,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
               textAlign: "center",
             }}
           >
-            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>Regular ngực</span>
+            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>{t("meas.regularChest")}</span>
             <strong style={{ fontSize: "13px", color: "#38bdf8" }}>
               {data.ease_allowance_recommendation.regular_fit_chest_cm} <small style={{ fontSize: "10px" }}>cm</small>
             </strong>
@@ -241,7 +253,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
               textAlign: "center",
             }}
           >
-            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>Cạp lưng quần</span>
+            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>{t("meas.trouserWaist")}</span>
             <strong style={{ fontSize: "13px", color: "#a3e635" }}>
               {data.ease_allowance_recommendation.trouser_waist_ease_cm} <small style={{ fontSize: "10px" }}>cm</small>
             </strong>
@@ -262,9 +274,9 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
           color: "#64748b",
         }}
       >
-        <span>Tốc độ xử lý: {executionTime.toFixed(2)}s</span>
+        <span>{t("meas.execTime").replace("{s}", executionTime.toFixed(2))}</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-          <ShieldCheck size={12} style={{ color: "#a3e635" }} /> 100% Bảo mật ảnh cục bộ
+          <ShieldCheck size={12} style={{ color: "#a3e635" }} /> {t("meas.privacyGuaranteed")}
         </span>
       </div>
     </section>
@@ -272,4 +284,3 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
 };
 
 export default AiGarmentCard;
-

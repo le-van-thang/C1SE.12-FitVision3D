@@ -29,6 +29,7 @@ export interface MannequinViewerProps {
   id?: string;
   activeMetric?: MetricKey | null;
   onSelectMetric?: (metric: MetricKey) => void;
+  zonePillAlign?: "center" | "left" | "right";
 }
 
 type ViewZone = "full_body" | "chest" | "waist" | "hips";
@@ -117,6 +118,8 @@ const CALLOUTS: CalloutDef[] = [
   { key: "hip_circ_cm", label: "Hips", side: "right", get3DPoint: (lm) => lm.hips },
 ];
 
+import { useI18n } from "../../i18n";
+
 export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   meshParams,
   measurement,
@@ -125,7 +128,9 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   id = "zozofit-viewport",
   activeMetric: controlledMetric,
   onSelectMetric,
+  zonePillAlign = "center",
 }) => {
+  const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const leftCalloutRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -396,8 +401,11 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
         style={{
           position: "absolute",
           top: "14px",
-          left: "50%",
-          transform: "translateX(-50%)",
+          ...(zonePillAlign === "center"
+            ? { left: "50%", transform: "translateX(-50%)" }
+            : zonePillAlign === "left"
+              ? { left: "14px" }
+              : { right: "14px" }),
           zIndex: 30,
         }}
       >
@@ -423,7 +431,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               transition: "border-color 0.15s",
             }}
           >
-            <span>{VIEW_LABELS[currentZone]}</span>
+            <span>{t(`viewer.zone.${currentZone}`)}</span>
             <ChevronDown size={14} strokeWidth={2} style={{ color: "#94A3B8" }} />
           </button>
 
@@ -432,8 +440,11 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               style={{
                 position: "absolute",
                 top: "calc(100% + 6px)",
-                left: "50%",
-                transform: "translateX(-50%)",
+                ...(zonePillAlign === "center"
+                  ? { left: "50%", transform: "translateX(-50%)" }
+                  : zonePillAlign === "left"
+                    ? { left: 0 }
+                    : { right: 0 }),
                 background: "#11191E",
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 borderRadius: "10px",
@@ -464,7 +475,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                     transition: "background 0.15s, color 0.15s",
                   }}
                 >
-                  {VIEW_LABELS[z]}
+                  {t(`viewer.zone.${z}`)}
                 </button>
               ))}
             </div>
@@ -556,7 +567,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                   transition: "color 0.2s",
                 }}
               >
-                {c.label}
+                {t(`viewer.${c.label.toLowerCase()}`)}
               </span>
               <span
                 className="mono"
@@ -622,7 +633,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                   transition: "color 0.2s",
                 }}
               >
-                {c.label}
+                {t(`viewer.${c.label.toLowerCase()}`)}
               </span>
               <span
                 className="mono"
@@ -657,7 +668,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           zIndex: 15,
         }}
       >
-        DRAG TO ROTATE · SCROLL TO ZOOM
+        {t("viewer.drag")}
       </div>
 
       {/* 7. Loading Overlay */}
@@ -687,7 +698,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
             }}
           />
           <span style={{ color: "#94A3B8", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
-            LOADING ANATOMICAL HUMANOID...
+            {t("viewer.loading")}
           </span>
         </div>
       )}

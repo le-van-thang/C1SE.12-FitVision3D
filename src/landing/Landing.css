@@ -318,7 +318,7 @@ html {
 }
 
 /* ── Hero Facts ── */
-.lp-hero-facts {
+.lp-hero-facts, .lp-facts {
   display: flex;
   align-items: center;
   gap: 24px;
@@ -327,24 +327,31 @@ html {
   flex-wrap: wrap;
 }
 
-.lp-fact-label {
+.lp-hero-facts > div, .lp-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lp-fact-val, .lp-facts .mono {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--white);
+  line-height: 1.2;
+}
+
+.lp-fact-label, .lp-facts small {
   display: block;
   font-size: 11px;
   color: var(--muted);
   letter-spacing: 0.04em;
-  margin-bottom: 2px;
-}
-
-.lp-fact-val {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--white);
+  line-height: 1.3;
 }
 
 .lp-fact-divider {
   width: 1px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.08);
+  height: 28px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* ── Hero Visual (Right Column) ── */

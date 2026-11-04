@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:all": "concurrently -n \"FRONTEND,BACKEND\" -c \"cyan,magenta\" \"vite --port 5173 --host\" \"cd backend && npm run dev\"",
+    "dev:full": "concurrently -n \"FRONTEND,BACKEND,AI-CORE\" -c \"cyan,magenta,yellow\" \"vite --port 5173 --host\" \"cd backend && npm run dev\" \"python app.py\"",
+    "start": "npm run dev:all",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "i18n:check": "node scripts/i18n-check.mjs",
@@ -32,6 +36,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.6.1",
+    "concurrently": "^10.0.6",
     "oxlint": "^1.81.0",
     "postcss": "^8.5.30",
     "tailwindcss": "^3.4.19",

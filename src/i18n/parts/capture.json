@@ -1,0 +1,92 @@
+{
+  "en": {
+    "cap": {
+      "previewAlt": "Front A-Pose Preview",
+      "sampleCanvas": "Standard A-Pose Sample",
+      "genderNeutral": "Unisex",
+      "ready": "Ready",
+      "standby": "Camera standby",
+      "state": {
+        "idle": { "text": "Standby", "sub": "Start the scan to open the camera" },
+        "calibrating": { "text": "Calibrate scale", "sub": "Hold an A4 sheet or card in frame" },
+        "front_capture": { "text": "Front view", "sub": "Stand upright, arms relaxed" },
+        "side_capture": { "text": "Side view", "sub": "Turn 90°, face forward" },
+        "processing": { "text": "Extracting", "sub": "Computing measurements" },
+        "complete": { "text": "Scan complete", "sub": "Measurements extracted" },
+        "error": { "text": "Camera error", "sub": "Check permissions and retry" }
+      }
+    },
+    "meas": {
+      "ariaLabel": "Measurements",
+      "chest": "Chest",
+      "waist": "Waist",
+      "hips": "Hips",
+      "shoulders": "Shoulders",
+      "inseam": "Inseam",
+      "armLength": "Arm Length",
+      "engineIso": "ISO Biometrics Engine",
+      "inches": "Inches",
+      "recAriaLabel": "Size recommendation",
+      "recTitle": "Recommended size",
+      "fit": {
+        "slim": "Slim fit",
+        "regular": "Regular fit",
+        "relaxed": "Relaxed fit",
+        "oversized": "Oversized fit"
+      },
+      "chestAllowance": "Chest Allowance",
+      "waistAllowance": "Waist Allowance",
+      "advisorNote": "Advisor note"
+    },
+    "status": {
+      "scanSpeed": "Scan Speed:",
+      "zeroRetention": "Privacy Mode: Zero-Retention Active",
+      "standardRetention": "Standard Retention"
+    }
+  },
+  "vi": {
+    "cap": {
+      "previewAlt": "Xem trước ảnh chính diện dáng chữ A",
+      "sampleCanvas": "Ảnh mẫu dáng chữ A chuẩn",
+      "genderNeutral": "Trung tính",
+      "ready": "Sẵn sàng",
+      "standby": "Máy ảnh đang chờ",
+      "state": {
+        "idle": { "text": "Đang chờ", "sub": "Bắt đầu quét để mở máy ảnh" },
+        "calibrating": { "text": "Hiệu chuẩn tỷ lệ", "sub": "Giữ một tờ giấy A4 hoặc tấm thẻ trong khung hình" },
+        "front_capture": { "text": "Mặt trước", "sub": "Đứng thẳng, thả lỏng hai tay" },
+        "side_capture": { "text": "Mặt nghiêng", "sub": "Xoay người 90°, nhìn thẳng phía trước" },
+        "processing": { "text": "Đang trích xuất", "sub": "Đang tính toán số đo" },
+        "complete": { "text": "Hoàn tất quét", "sub": "Đã trích xuất số đo" },
+        "error": { "text": "Lỗi máy ảnh", "sub": "Kiểm tra quyền truy cập và thử lại" }
+      }
+    },
+    "meas": {
+      "ariaLabel": "Số đo cơ thể",
+      "chest": "Ngực",
+      "waist": "Eo",
+      "hips": "Hông",
+      "shoulders": "Vai",
+      "inseam": "Chân trong",
+      "armLength": "Chiều dài tay",
+      "engineIso": "Bộ máy sinh trắc ISO",
+      "inches": "inch",
+      "recAriaLabel": "Gợi ý kích cỡ",
+      "recTitle": "Kích cỡ đề xuất",
+      "fit": {
+        "slim": "Dáng ôm",
+        "regular": "Dáng vừa",
+        "relaxed": "Dáng thoải mái",
+        "oversized": "Dáng rộng"
+      },
+      "chestAllowance": "Độ dư vòng ngực",
+      "waistAllowance": "Độ dư vòng eo",
+      "advisorNote": "Lời khuyên từ chuyên gia"
+    },
+    "status": {
+      "scanSpeed": "Tốc độ quét:",
+      "zeroRetention": "Chế độ bảo mật: Zero-Retention đang bật",
+      "standardRetention": "Lưu trữ tiêu chuẩn"
+    }
+  }
+}

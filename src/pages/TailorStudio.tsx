@@ -21,6 +21,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
+import { useI18n } from "../i18n";
 import { MeshViewport } from "../features/anthropometry/MeshViewport";
 import { DOSSIERS } from "../data/mockData";
 
@@ -138,6 +139,7 @@ const SvgQrCode: React.FC<{ text: string; size?: number }> = ({ text, size = 180
 };
 
 export const TailorStudio: React.FC = () => {
+  const { t } = useI18n();
   const [idx, setIdx] = useState(0);
   const [inputVal, setInputVal] = useState(DOSSIERS[0].dossier_code);
   const [showFullToken, setShowFullToken] = useState(false);
@@ -216,7 +218,7 @@ export const TailorStudio: React.FC = () => {
           >
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <h1 className="zf-title">Tailor Studio</h1>
+                <h1 className="zf-title">{t("tailor.title")}</h1>
                 <span
                   style={{
                     display: "inline-flex",
@@ -231,11 +233,11 @@ export const TailorStudio: React.FC = () => {
                     borderRadius: "9999px",
                   }}
                 >
-                  <Sparkles size={12} /> B2B Atelier
+                  <Sparkles size={12} /> {t("tailor.badge")}
                 </span>
               </div>
               <p className="zf-sub">
-                Client biometric dossiers and precision CAD specifications shared via secure token.
+                {t("tailor.subtitle")}
               </p>
             </div>
 
@@ -254,9 +256,9 @@ export const TailorStudio: React.FC = () => {
                 }}
               >
                 <ShieldCheck size={14} strokeWidth={2} />
-                Privacy Mode: Zero-Retention Active
+                {t("tailor.privacy")}
               </span>
-              <span className="zf-pill mono">ISO 8559-1 Certified</span>
+              <span className="zf-pill mono">{t("tailor.iso")}</span>
             </div>
           </div>
         </div>
@@ -315,7 +317,7 @@ export const TailorStudio: React.FC = () => {
                     display: "block",
                   }}
                 >
-                  Bespoke Dossier Code
+                  {t("tailor.dossierCode")}
                 </span>
                 <span
                   className="mono"
@@ -334,7 +336,7 @@ export const TailorStudio: React.FC = () => {
                   type="button"
                   id="btn-copy-dossier-code"
                   onClick={() => copyToClipboard(dossier_code, "code")}
-                  title="Sao chép mã may đo"
+                  title={t("tailor.copyCodeTitle")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -351,14 +353,14 @@ export const TailorStudio: React.FC = () => {
                   }}
                 >
                   {copiedType === "code" ? <Check size={14} /> : <Copy size={14} />}
-                  <span>{copiedType === "code" ? "Đã chép" : "Chép"}</span>
+                  <span>{copiedType === "code" ? t("tailor.copied") : t("tailor.copy")}</span>
                 </button>
 
                 <button
                   type="button"
                   id="btn-open-qr-modal"
                   onClick={() => setIsQrModalOpen(true)}
-                  title="Mở mã QR hồ sơ may đo"
+                  title={t("tailor.openQrTitle")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -375,7 +377,7 @@ export const TailorStudio: React.FC = () => {
                   }}
                 >
                   <QrCode size={14} />
-                  <span>Mã QR</span>
+                  <span>{t("tailor.qrCode")}</span>
                 </button>
               </div>
             </div>
@@ -406,7 +408,7 @@ export const TailorStudio: React.FC = () => {
                     border: "1px solid rgba(255, 255, 255, 0.12)",
                     borderRadius: "8px",
                   }}
-                  placeholder="Nhập mã (VD: FV-8492-AN) hoặc dán Token..."
+                  placeholder={t("tailor.codePlaceholder")}
                   value={inputVal}
                   onChange={(e) => setInputVal(e.target.value)}
                   spellCheck={false}
@@ -418,7 +420,7 @@ export const TailorStudio: React.FC = () => {
                 className="zf-btn zf-btn--secondary"
                 style={{ height: 42, padding: "0 16px", whiteSpace: "nowrap" }}
               >
-                Authenticate
+                {t("tailor.authenticate")}
               </button>
               <button
                 type="button"
@@ -426,10 +428,10 @@ export const TailorStudio: React.FC = () => {
                 className="zf-btn zf-btn--primary"
                 style={{ height: 42, padding: "0 18px", whiteSpace: "nowrap" }}
                 onClick={exportPdf}
-                title={dossier.pdf_export_url ?? "In hoặc lưu hồ sơ may đo chuẩn PDF"}
+                title={dossier.pdf_export_url ?? t("tailor.printPdfTitle")}
               >
                 <FileDown size={16} strokeWidth={1.75} />
-                Export PDF
+                {t("tailor.exportPdf")}
               </button>
             </form>
           </div>
@@ -452,7 +454,7 @@ export const TailorStudio: React.FC = () => {
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#94A3B8" }}>
                 <Lock size={12} style={{ color: "#38BDF8" }} />
-                <span>E2EE Token:</span>
+                <span>{t("tailor.e2ee")}</span>
               </span>
               <code
                 className="mono"
@@ -471,7 +473,7 @@ export const TailorStudio: React.FC = () => {
                 type="button"
                 id="btn-toggle-token-visibility"
                 onClick={() => setShowFullToken((v) => !v)}
-                title={showFullToken ? "Ẩn token" : "Hiện toàn bộ token"}
+                title={showFullToken ? t("tailor.hideToken") : t("tailor.showToken")}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -488,7 +490,7 @@ export const TailorStudio: React.FC = () => {
                 type="button"
                 id="btn-copy-raw-token"
                 onClick={() => copyToClipboard(dossier.access_token, "token")}
-                title="Sao chép Token 64-bit"
+                title={t("tailor.copyTokenTitle")}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -503,13 +505,13 @@ export const TailorStudio: React.FC = () => {
                 }}
               >
                 {copiedType === "token" ? <Check size={12} /> : <Copy size={12} />}
-                <span>{copiedType === "token" ? "Đã chép token" : "Chép token"}</span>
+                <span>{copiedType === "token" ? t("tailor.tokenCopied") : t("tailor.copyToken")}</span>
               </button>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span>
-                Valid Until: <b className="mono" style={{ color: "var(--white)" }}>{fmtDate(dossier.token_expires_at)}</b>
+                {t("tailor.validUntil")} <b className="mono" style={{ color: "var(--white)" }}>{fmtDate(dossier.token_expires_at)}</b>
               </span>
             </div>
           </div>
@@ -527,11 +529,11 @@ export const TailorStudio: React.FC = () => {
         {/* ── Main Studio Grid ── */}
         <div className="zf-tailor">
           {/* Client selector: profiles + biometric_inputs.gender */}
-          <aside className="zf-card zf-card-pad no-print" aria-label="Clients">
+          <aside className="zf-card zf-card-pad no-print" aria-label={t("tailor.clients")}>
             <div className="zf-section-head" style={{ marginBottom: 12 }}>
               <div>
-                <h2 className="zf-eyebrow">Client Dossiers</h2>
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>3 active specifications</span>
+                <h2 className="zf-eyebrow">{t("tailor.clientDossiers")}</h2>
+                <span style={{ fontSize: 11, color: "var(--muted)" }}>{t("tailor.activeSpecs")}</span>
               </div>
               <Search size={14} strokeWidth={1.5} color="var(--muted)" />
             </div>
@@ -551,7 +553,7 @@ export const TailorStudio: React.FC = () => {
                   <div className="top" style={{ marginBottom: 4 }}>
                     <strong style={{ fontSize: 14, fontWeight: 600 }}>{d.profile.full_name}</strong>
                     <span className="zf-pill" style={{ textTransform: "capitalize" }}>
-                      {d.biometric.gender}
+                      {t("tailor.gender." + d.biometric.gender)}
                     </span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -576,12 +578,12 @@ export const TailorStudio: React.FC = () => {
           </aside>
 
           {/* Center Mesh Preview */}
-          <section className="zf-card zf-card-pad" aria-label="Mesh preview">
+          <section className="zf-card zf-card-pad" aria-label={t("tailor.meshPreview")}>
             <div className="zf-section-head">
               <div>
-                <h2 className="zf-eyebrow">Anatomical Topology</h2>
+                <h2 className="zf-eyebrow">{t("tailor.topology")}</h2>
                 <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                  Direct bone morphing matching {profile.full_name}
+                  {t("tailor.morphing").replace("{name}", profile.full_name)}
                 </p>
               </div>
               <span className="zf-pill mono">{mesh.base_gender_mesh}</span>
@@ -590,7 +592,7 @@ export const TailorStudio: React.FC = () => {
           </section>
 
           {/* Right Dossier Specification */}
-          <section className="zf-card zf-card-pad" aria-label="Dossier specification">
+          <section className="zf-card zf-card-pad" aria-label={t("tailor.dossierSpec")}>
             <div className="zf-section-head" style={{ marginBottom: 8 }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -618,33 +620,33 @@ export const TailorStudio: React.FC = () => {
               </span>
             </div>
 
-            <h3 className="zf-eyebrow zf-group-label">Body Measurements</h3>
+            <h3 className="zf-eyebrow zf-group-label">{t("tailor.bodyMeasures")}</h3>
             <div className="zf-rows">
-              <Spec label="Chest" value={cm(m.chest_circ_cm)} />
-              <Spec label="Waist" value={cm(m.waist_circ_cm)} />
-              <Spec label="Hips" value={cm(m.hip_circ_cm)} />
-              <Spec label="Shoulders" value={cm(m.shoulder_breadth_cm)} />
-              <Spec label="Inseam" value={cm(m.inseam_cm)} />
+              <Spec label={t("tailor.chest")} value={cm(m.chest_circ_cm)} />
+              <Spec label={t("tailor.waist")} value={cm(m.waist_circ_cm)} />
+              <Spec label={t("tailor.hips")} value={cm(m.hip_circ_cm)} />
+              <Spec label={t("tailor.shoulders")} value={cm(m.shoulder_breadth_cm)} />
+              <Spec label={t("tailor.inseam")} value={cm(m.inseam_cm)} />
               <Spec
-                label="Measurement Accuracy"
+                label={t("tailor.accuracy")}
                 value={`${(m.extraction_confidence * 100).toFixed(0)}% (${m.extraction_confidence.toFixed(2)})`}
               />
             </div>
 
-            <h3 className="zf-eyebrow zf-group-label">Biometric Inputs</h3>
+            <h3 className="zf-eyebrow zf-group-label">{t("tailor.biometric")}</h3>
             <div className="zf-rows">
-              <Spec label="Gender" value={<span style={{ textTransform: "capitalize" }}>{b.gender}</span>} />
-              <Spec label="Height" value={cm(b.stature_cm)} />
-              <Spec label="Weight" value={<>{b.weight_kg.toFixed(1)}<em>kg</em></>} />
-              <Spec label="BMI Index" value={b.calculated_bmi?.toFixed(2) ?? "—"} />
+              <Spec label={t("tailor.genderLabel")} value={<span style={{ textTransform: "capitalize" }}>{t("tailor.gender." + b.gender)}</span>} />
+              <Spec label={t("tailor.height")} value={cm(b.stature_cm)} />
+              <Spec label={t("tailor.weight")} value={<>{b.weight_kg.toFixed(1)}<em>kg</em></>} />
+              <Spec label={t("tailor.bmi")} value={b.calculated_bmi?.toFixed(2) ?? "—"} />
             </div>
 
-            <h3 className="zf-eyebrow zf-group-label">Mesh Deformation Parameters</h3>
+            <h3 className="zf-eyebrow zf-group-label">{t("tailor.meshParams")}</h3>
             <div className="zf-rows">
-              <Spec label="Anatomical Base" value={mesh.base_gender_mesh} />
-              <Spec label="Chest Scale Factor" value={mesh.scale_chest.toFixed(3)} />
-              <Spec label="Waist Scale Factor" value={mesh.scale_waist.toFixed(3)} />
-              <Spec label="Hip Scale Factor" value={mesh.scale_hips.toFixed(3)} />
+              <Spec label={t("tailor.anatomicalBase")} value={mesh.base_gender_mesh} />
+              <Spec label={t("tailor.chestScale")} value={mesh.scale_chest.toFixed(3)} />
+              <Spec label={t("tailor.waistScale")} value={mesh.scale_waist.toFixed(3)} />
+              <Spec label={t("tailor.hipScale")} value={mesh.scale_hips.toFixed(3)} />
             </div>
           </section>
         </div>
@@ -693,10 +695,10 @@ export const TailorStudio: React.FC = () => {
                     fontWeight: 700,
                   }}
                 >
-                  Contactless Dossier Exchange
+                  {t("tailor.contactless")}
                 </span>
                 <h3 style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>
-                  Mã QR Hồ Sơ May Đo
+                  {t("tailor.qrModalTitle")}
                 </h3>
               </div>
               <button
@@ -752,7 +754,7 @@ export const TailorStudio: React.FC = () => {
             </div>
 
             <p style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5, marginBottom: 18 }}>
-              Khách hàng mở app FitVision 3D trên điện thoại hoặc đưa mã QR này để thợ may quét nhận trọn bộ số đo giải phẫu 3D ngay lập tức.
+              {t("tailor.qrModalDesc")}
             </p>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -766,7 +768,7 @@ export const TailorStudio: React.FC = () => {
                 className="zf-btn zf-btn--primary"
                 style={{ flex: 1, height: 40 }}
               >
-                <Check size={16} /> Mô phỏng quét mã
+                <Check size={16} /> {t("tailor.qrSimulate")}
               </button>
               <button
                 type="button"
@@ -775,7 +777,7 @@ export const TailorStudio: React.FC = () => {
                 className="zf-btn zf-btn--secondary"
                 style={{ height: 40 }}
               >
-                Đóng
+                {t("tailor.close")}
               </button>
             </div>
           </div>
