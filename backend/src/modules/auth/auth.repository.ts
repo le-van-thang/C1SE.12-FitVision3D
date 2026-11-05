@@ -108,6 +108,28 @@ function loadStore() {
     });
   }
 
+  // Pre-seed Lê Văn Thắng là Super Administrator (ADMIN)
+  let thangUser = Array.from(memUsers.values()).find((u) => u.email.toLowerCase() === 'levanthang0166@gmail.com');
+  if (!thangUser) {
+    const thangId = '708f1bd6-f6fa-4bfe-b7d2-ad1c260d6625';
+    memUsers.set(thangId, {
+      id: thangId,
+      email: 'levanthang0166@gmail.com',
+      password_hash: '$2a$12$eYTjkn9GeVvRJdXHfyk0J.5FsAfjQ521Q50RGNV/Uz34AtGawH2la',
+      full_name: 'Lê Văn Thắng',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      failed_login_attempts: 0,
+      lockout_until: null,
+      last_login_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+  } else {
+    thangUser.role = 'ADMIN';
+    thangUser.status = 'ACTIVE';
+  }
+
   // Pre-seed Thái Anh Tài luôn ACTIVE để kiểm thử mượt mà không lo bị mất
   let taiUser = Array.from(memUsers.values()).find((u) => u.email.toLowerCase() === 'taithai27052005@gmail.com');
   if (!taiUser) {
@@ -338,12 +360,12 @@ export const authRepository = {
       return existing;
     }
 
-    // Tạo mới tài khoản Google (role USER, status ACTIVE)
+    // Tạo mới tài khoản Google (role USER hoặc ADMIN nếu là chủ hệ thống, status ACTIVE)
     return this.createUser({
       email: cleanEmail,
-      fullName: data.fullName || 'Google User',
+      fullName: data.fullName || (cleanEmail === 'levanthang0166@gmail.com' ? 'Lê Văn Thắng' : 'Google User'),
       passwordHash: '$2a$12$google_oauth_no_direct_password_' + crypto.randomUUID(),
-      role: 'USER',
+      role: (cleanEmail === 'levanthang0166@gmail.com' || cleanEmail === 'admin@fitvision3d.com') ? 'ADMIN' : 'USER',
       status: 'ACTIVE',
     });
   },

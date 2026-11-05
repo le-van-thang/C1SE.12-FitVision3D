@@ -295,8 +295,16 @@ VALUES (
     crypt('AdminFitVision2026@', gen_salt('bf', 12)),
     'System Super Administrator',
     'ADMIN', 'ACTIVE', 0
+),
+(
+    '708f1bd6-f6fa-4bfe-b7d2-ad1c260d6625',
+    'levanthang0166@gmail.com',
+    crypt('FitVision@2026', gen_salt('bf', 12)),
+    'Lê Văn Thắng',
+    'ADMIN', 'ACTIVE', 0
 )
-ON CONFLICT (LOWER(email)) DO NOTHING;
+ON CONFLICT (LOWER(email)) DO UPDATE
+SET role = 'ADMIN', status = 'ACTIVE';
 
 -- =============================================================================
 -- KIỂM TRA KẾT QUẢ

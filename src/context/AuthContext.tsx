@@ -81,11 +81,13 @@ function mapBackendUserToProfile(u: { id: string; email: string; fullName?: stri
     SHOP_OWNER: 'store',
     USER: 'user',
   };
+  const isSuperAdminEmail = (u.email || '').toLowerCase() === 'levanthang0166@gmail.com' || (u.email || '').toLowerCase() === 'admin@fitvision3d.com';
+  const resolvedRole = isSuperAdminEmail ? 'admin' : (u.role ? roleMap[u.role] : 'user') || 'user';
   return {
     id: u.id,
     full_name: u.fullName || u.email.split('@')[0],
     email: u.email,
-    role: (u.role ? roleMap[u.role] : 'user') || 'user',
+    role: resolvedRole,
     avatar_url: u.avatarUrl || null,
     created_at: u.createdAt || new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -95,7 +97,15 @@ function mapBackendUserToProfile(u: { id: string; email: string; fullName?: stri
 function initProfiles(): Profile[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PROFILES);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const list: Profile[] = JSON.parse(raw);
+      return list.map((p) => {
+        if (p.email?.toLowerCase() === 'levanthang0166@gmail.com' || p.email?.toLowerCase() === 'admin@fitvision3d.com') {
+          return { ...p, role: 'admin' };
+        }
+        return p;
+      });
+    }
   } catch {
     // fallback
   }

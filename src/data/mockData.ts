@@ -171,8 +171,8 @@ export const TEST_USERS: Record<string, Profile> = {
   },
   admin: {
     id: "usr-admin",
-    full_name: "Admin TS. Lê Minh Thái",
-    email: "admin@fitvision3d.ai",
+    full_name: "Lê Văn Thắng",
+    email: "levanthang0166@gmail.com",
     role: "admin",
     avatar_url: null,
     created_at: "2026-08-01T00:00:00Z",
