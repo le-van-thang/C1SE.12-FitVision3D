@@ -291,23 +291,7 @@ export const AuthModal: React.FC = () => {
     setSuccessMessage(null);
 
     if (!googleClientId || googleClientId.trim() === '') {
-      // Chế độ mô phỏng Google OAuth nhanh cho đồ án (Demo / Fallback Mode)
-      setLoading(true);
-      try {
-        const res = await signInWithGoogle({
-          email: 'levanthang0166@gmail.com',
-          fullName: 'Lê Văn Thắng',
-          avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
-          googleId: 'google_oauth_levanthang0166',
-        });
-        setLoading(false);
-        if (!res.success) {
-          setErrorMessage(getLocalizedErrorMessage('GOOGLE_LOGIN_FAILED', res.error));
-        }
-      } catch (err: any) {
-        setLoading(false);
-        setErrorMessage(err.message || 'Lỗi đăng nhập Google');
-      }
+      setErrorMessage(t('app.authErrors.GOOGLE_CONFIG_MISSING'));
       return;
     }
 
