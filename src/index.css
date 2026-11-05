@@ -6,6 +6,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root, html, body, input, select, textarea {
+  color-scheme: dark !important;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 body {
@@ -508,7 +512,7 @@ input:-webkit-autofill:active {
 }
 .zf-auth-form-pane input:not([type=checkbox]) { transition: border-color .2s, box-shadow .2s, background .2s !important; }
 .zf-auth-form-pane input:not([type=checkbox]):focus {
-  box-shadow: 0 0 0 3px rgba(79,209,197,.16), 0 0 18px rgba(79,209,197,.10) !important;
+  box-shadow: 0 0 0 1000px #030712 inset, 0 0 0 3px rgba(79,209,197,.16), 0 0 18px rgba(79,209,197,.10) !important;
 }
 .zf-auth-form-pane button[type=submit] {
   background: linear-gradient(135deg, #4FD1C5 0%, #38B2AC 55%, #3B82F6 140%) !important;
@@ -548,3 +552,24 @@ input:-webkit-autofill:active {
   background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
 }
 .zf-auth-trust svg { color: #4FD1C5; }
+
+
+/* ── Final Autofill Safeguard ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+input:-internal-autofill-selected,
+.zf-auth-form-pane input:-webkit-autofill,
+.zf-auth-form-pane input:-webkit-autofill:hover,
+.zf-auth-form-pane input:-webkit-autofill:focus,
+.zf-auth-form-pane input:-webkit-autofill:active,
+.zf-auth-form-pane input:-internal-autofill-selected {
+  -webkit-box-shadow: 0 0 0 1000px #030712 inset !important;
+  box-shadow: 0 0 0 1000px #030712 inset, 0 0 0 3px rgba(79,209,197,.2) !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  color: #FFFFFF !important;
+  caret-color: #4FD1C5 !important;
+  background-color: #030712 !important;
+  transition: background-color 5000000s ease-in-out 0s !important;
+}
