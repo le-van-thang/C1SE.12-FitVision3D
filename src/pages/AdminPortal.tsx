@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Shield,
   Search,
@@ -13,499 +14,1012 @@ import {
   Users,
   Check,
   X,
+  RefreshCw,
+  Lock,
+  Unlock,
+  ShieldCheck,
+  ExternalLink,
+  Activity,
+  UserCheck,
+  Layers,
+  Database,
+  Calendar,
+  Sparkles,
 } from 'lucide-react';
 import { Navbar } from '@/components/common/Navbar';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
-import type { Store } from '@/types/database.types';
+import {
+  adminApi,
+  AdminStoreItem,
+  AdminUserItem,
+  AdminStats,
+  AdminAuditLogItem,
+} from '@/services/adminApi';
 
-type FilterTab = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
+type AdminMainTab = 'STORES' | 'USERS' | 'AUDIT';
+type StoreFilterTab = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
+type UserFilterRole = 'ALL' | 'ADMIN' | 'SHOP_OWNER' | 'USER';
 
 export const AdminPortal: React.FC = () => {
-  const { t, locale } = useI18n();
-  const {
-    currentUser,
-    userRole,
-    stores,
-    profiles,
-    approveStore,
-    rejectStore,
-    switchDemoRole,
-  } = useAuth();
+  const { t } = useI18n();
+  const { currentUser, userRole } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<FilterTab>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [rejectingStore, setRejectingStore] = useState<Store | null>(null);
+  // Navigation tabs
+  const [mainTab, setMainTab] = useState<AdminMainTab>('STORES');
+  const [storeFilterTab, setStoreFilterTab] = useState<StoreFilterTab>('ALL');
+  const [userFilterRole, setUserFilterRole] = useState<UserFilterRole>('ALL');
+
+  // Search queries
+  const [storeSearch, setStoreSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+
+  // Live PostgreSQL Data States
+  const [stats, setStats] = useState<AdminStats>({
+    totalUsers: 0,
+    totalStores: 0,
+    pendingStores: 0,
+    approvedStores: 0,
+    rejectedStores: 0,
+    totalMeasurements: 0,
+  });
+  const [stores, setStores] = useState<AdminStoreItem[]>([]);
+  const [users, setUsers] = useState<AdminUserItem[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AdminAuditLogItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Modals & Action States
+  const [rejectingStore, setRejectingStore] = useState<AdminStoreItem | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [rejectError, setRejectError] = useState<string | null>(null);
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'admin' || currentUser?.email === 'levanthang0166@gmail.com';
 
-  // Metrics
-  const totalCount = stores.length;
-  const pendingCount = stores.filter((s) => s.status === 'PENDING').length;
-  const approvedCount = stores.filter((s) => s.status === 'APPROVED').length;
-  const rejectedCount = stores.filter((s) => s.status === 'REJECTED').length;
+  const showToast = (type: 'success' | 'error', text: string) => {
+    setActionMessage({ type, text });
+    setTimeout(() => setActionMessage(null), 4500);
+  };
 
-  // Filtered list
-  const filteredStores = useMemo(() => {
-    return stores.filter((store) => {
-      // Tab filter
-      if (activeTab !== 'ALL' && store.status !== activeTab) {
-        return false;
+  // Fetch all live data from PostgreSQL via backend API
+  const fetchLiveData = useCallback(async (quiet = false) => {
+    if (!quiet) setIsLoading(true);
+    setIsRefreshing(true);
+    try {
+      const [statsRes, storesRes, usersRes, logsRes] = await Promise.all([
+        adminApi.getStats(),
+        adminApi.getStores(),
+        adminApi.getUsers(),
+        adminApi.getAuditLogs(30),
+      ]);
+
+      if (statsRes.success && statsRes.data) {
+        setStats(statsRes.data);
       }
+      if (storesRes.success && Array.isArray(storesRes.data)) {
+        setStores(storesRes.data);
+      }
+      if (usersRes.success && Array.isArray(usersRes.data)) {
+        setUsers(usersRes.data);
+      }
+      if (logsRes.success && Array.isArray(logsRes.data)) {
+        setAuditLogs(logsRes.data);
+      }
+    } catch (err: any) {
+      showToast('error', 'Không thể kết nối cơ sở dữ liệu PostgreSQL.');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
-      // Search query
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      const applicant = profiles.find((p) => p.id === store.user_id);
-      return (
-        store.brand_name.toLowerCase().includes(q) ||
-        store.phone.toLowerCase().includes(q) ||
-        store.address.toLowerCase().includes(q) ||
-        store.verification_doc.toLowerCase().includes(q) ||
-        (applicant && applicant.full_name.toLowerCase().includes(q)) ||
-        (applicant && applicant.email.toLowerCase().includes(q))
-      );
-    });
-  }, [stores, profiles, activeTab, searchQuery]);
+  useEffect(() => {
+    fetchLiveData();
+  }, [fetchLiveData]);
 
-  const handleApprove = (store: Store) => {
-    const res = approveStore(store.id);
-    if (res.success) {
-      setActionSuccess(t('admin.approveSuccess').replace('{brand}', store.brand_name));
-      setTimeout(() => setActionSuccess(null), 4000);
+  // Handle Approve Store
+  const handleApproveStore = async (store: AdminStoreItem) => {
+    setActionLoadingId(store.id);
+    try {
+      const res = await adminApi.approveStore(store.id);
+      if (res.success) {
+        showToast('success', `Đã phê duyệt thành công nhà may "${store.shop_name}".`);
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Lỗi khi phê duyệt hồ sơ.');
+      }
+    } catch {
+      showToast('error', 'Lỗi hệ thống khi gửi yêu cầu duyệt.');
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
-  const openRejectModal = (store: Store) => {
-    setRejectingStore(store);
-    setRejectionReason('');
-    setRejectError(null);
-  };
-
-  const handleConfirmReject = (e: React.FormEvent) => {
+  // Handle Reject Store
+  const handleConfirmReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectingStore) return;
-
     if (!rejectionReason.trim()) {
-      setRejectError(t('admin.rejectReasonRequired'));
+      showToast('error', 'Vui lòng nhập lý do từ chối hồ sơ.');
       return;
     }
 
-    const res = rejectStore(rejectingStore.id, rejectionReason.trim());
-    if (res.success) {
-      setActionSuccess(t('admin.rejectSuccess').replace('{brand}', rejectingStore.brand_name));
-      setRejectingStore(null);
-      setTimeout(() => setActionSuccess(null), 4000);
+    setActionLoadingId(rejectingStore.id);
+    try {
+      const res = await adminApi.rejectStore(rejectingStore.id, rejectionReason.trim());
+      if (res.success) {
+        showToast('success', `Đã từ chối hồ sơ nhà may "${rejectingStore.shop_name}".`);
+        setRejectingStore(null);
+        setRejectionReason('');
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Lỗi khi từ chối hồ sơ.');
+      }
+    } catch {
+      showToast('error', 'Lỗi hệ thống khi từ chối hồ sơ.');
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
+  // Handle Toggle User Status (Lock/Unlock)
+  const handleToggleUserStatus = async (user: AdminUserItem) => {
+    if (user.email === 'levanthang0166@gmail.com') {
+      showToast('error', 'Tài khoản Super Administrator không thể bị khóa.');
+      return;
+    }
+    const newStatus = user.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
+    setActionLoadingId(user.id);
+    try {
+      const res = await adminApi.updateUserStatus(user.id, newStatus);
+      if (res.success) {
+        showToast('success', `Đã chuyển trạng thái người dùng thành ${newStatus}.`);
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Không thể đổi trạng thái.');
+      }
+    } catch {
+      showToast('error', 'Lỗi kết nối khi cập nhật người dùng.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Handle Change User Role
+  const handleChangeUserRole = async (user: AdminUserItem, newRole: string) => {
+    if (user.email === 'levanthang0166@gmail.com' && newRole !== 'ADMIN') {
+      showToast('error', 'Không thể hạ quyền của Super Administrator.');
+      return;
+    }
+    setActionLoadingId(user.id);
+    try {
+      const res = await adminApi.updateUserRole(user.id, newRole);
+      if (res.success) {
+        showToast('success', `Đã cập nhật vai trò người dùng thành ${newRole}.`);
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Không thể cập nhật vai trò.');
+      }
+    } catch {
+      showToast('error', 'Lỗi kết nối khi đổi vai trò.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Filtered Stores
+  const filteredStores = useMemo(() => {
+    return stores.filter((s) => {
+      if (storeFilterTab !== 'ALL' && s.status !== storeFilterTab) return false;
+      if (!storeSearch.trim()) return true;
+      const q = storeSearch.toLowerCase();
+      return (
+        s.shop_name?.toLowerCase().includes(q) ||
+        s.phone_number?.toLowerCase().includes(q) ||
+        s.shop_address?.toLowerCase().includes(q) ||
+        s.business_license_no?.toLowerCase().includes(q) ||
+        s.owner_name?.toLowerCase().includes(q) ||
+        s.owner_email?.toLowerCase().includes(q)
+      );
+    });
+  }, [stores, storeFilterTab, storeSearch]);
+
+  // Filtered Users
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (userFilterRole !== 'ALL' && u.role !== userFilterRole) return false;
+      if (!userSearch.trim()) return true;
+      const q = userSearch.toLowerCase();
+      return (
+        u.full_name?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        u.phone?.toLowerCase().includes(q)
+      );
+    });
+  }, [users, userFilterRole, userSearch]);
+
   return (
-    <div className="zf-app min-h-screen bg-[#0A0F12] text-white flex flex-col font-sans">
+    <div className="min-h-screen bg-[#070B0E] text-slate-100 flex flex-col font-sans selection:bg-[#4FD1C5]/30 selection:text-white">
       <Navbar />
 
-      <main className="zf-main flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 py-8">
-        {/* Permission Guard Banner */}
-        {!isAdmin && (
-          <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle size={20} className="shrink-0 text-amber-400" />
-              <div>
-                <strong className="block font-semibold">{t('admin.previewTitle')}</strong>
-                <span className="text-xs text-amber-200">
-                  {t('admin.previewBodyPrefix')} <code>{userRole}</code>. {t('admin.previewBodyMid')} <strong>Admin</strong> {t('admin.previewBodySuffix')}
-                </span>
-              </div>
-            </div>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Toast Notification */}
+        {actionMessage && (
+          <div
+            className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl backdrop-blur-xl border transition-all animate-fade-in ${
+              actionMessage.type === 'success'
+                ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
+                : 'bg-rose-950/80 border-rose-500/40 text-rose-200'
+            }`}
+          >
+            {actionMessage.type === 'success' ? (
+              <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+            ) : (
+              <AlertTriangle size={18} className="text-rose-400 shrink-0" />
+            )}
+            <span className="text-sm font-medium">{actionMessage.text}</span>
             <button
-              type="button"
-              onClick={() => switchDemoRole('admin')}
-              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs transition-colors shrink-0 cursor-pointer"
+              onClick={() => setActionMessage(null)}
+              className="ml-2 text-slate-400 hover:text-white"
             >
-              {t('admin.switchToAdmin')}
+              <X size={14} />
             </button>
           </div>
         )}
 
-        {/* Success toast */}
-        {actionSuccess && (
-          <div className="mb-6 p-3.5 rounded-xl bg-teal-500/10 border border-[#4FD1C5]/40 text-[#4FD1C5] text-xs flex items-center gap-2.5 animate-fade-in">
-            <CheckCircle2 size={16} />
-            <span className="font-medium">{actionSuccess}</span>
-          </div>
-        )}
-
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-white/10">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 mb-2">
-              <Shield size={12} /> {t('admin.badge')}
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              {t('admin.title')}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              {t('admin.subtitle')}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="text-slate-400">{t('admin.signedInAdmin')}</span>
-            <span className="px-2.5 py-1 rounded-md bg-[#162229] border border-white/10 text-indigo-300 font-semibold">
-              {currentUser?.full_name || t('admin.guest')}
-            </span>
-          </div>
-        </div>
-
-        {/* Metric Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-          <div className="p-4 rounded-xl bg-[#11191E] border border-white/5 flex items-center justify-between">
+        {/* Top Header Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0C151B] via-[#0E1B22] to-[#0A1318] border border-cyan-500/20 p-6 sm:p-8 mb-8 shadow-2xl shadow-cyan-950/20">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[#4FD1C5]/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                {t('admin.metricTotal')}
-              </span>
-              <span className="text-2xl font-bold font-mono text-white mt-1 block">
-                {totalCount}
-              </span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold tracking-wider uppercase mb-3">
+                <ShieldCheck size={14} className="text-[#4FD1C5]" />
+                <span>FitVision 3D • Super Admin Platform Control</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+                Cổng Điều Hành & Quản Trị Hệ Thống
+              </h1>
+              <p className="mt-1 text-sm text-slate-400 max-w-2xl leading-relaxed">
+                Đồng bộ trực tiếp cơ sở dữ liệu PostgreSQL thực tế, xét duyệt nhà may đo 3D theo chuẩn ISO 8559 và phân quyền tài khoản người dùng.
+              </p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-slate-800/60 flex items-center justify-center text-slate-300">
-              <Users size={18} />
-            </div>
-          </div>
 
-          <div className="p-4 rounded-xl bg-[#11191E] border border-amber-500/20 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider block">
-                {t('admin.metricPending')}
-              </span>
-              <span className="text-2xl font-bold font-mono text-amber-300 mt-1 block">
-                {pendingCount}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
-              <Clock size={18} />
-            </div>
-          </div>
+            {/* Header Right Actions */}
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              {/* PostgreSQL Live Badge */}
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#0F1E24] border border-emerald-500/30 text-emerald-400 text-xs font-mono">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span>PostgreSQL: Kết nối thực</span>
+              </div>
 
-          <div className="p-4 rounded-xl bg-[#11191E] border border-teal-500/20 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-teal-400 uppercase tracking-wider block">
-                {t('admin.metricApproved')}
-              </span>
-              <span className="text-2xl font-bold font-mono text-[#4FD1C5] mt-1 block">
-                {approvedCount}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center text-[#4FD1C5]">
-              <CheckCircle2 size={18} />
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#11191E] border border-red-500/20 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-red-400 uppercase tracking-wider block">
-                {t('admin.metricRejected')}
-              </span>
-              <span className="text-2xl font-bold font-mono text-red-300 mt-1 block">
-                {rejectedCount}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">
-              <XCircle size={18} />
-            </div>
-          </div>
-        </div>
-
-        {/* Filters & Search Controls */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
-          {/* Tabs */}
-          <div className="inline-flex p-1 rounded-xl bg-[#11191E] border border-white/10 text-xs">
-            {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as FilterTab[]).map((tab) => (
+              {/* Refresh Button */}
               <button
-                key={tab}
                 type="button"
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
-                  activeTab === tab
-                    ? 'bg-[#162229] text-[#4FD1C5] font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                onClick={() => fetchLiveData(false)}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#14232C] hover:bg-[#1A2E3A] border border-slate-700 hover:border-cyan-500/40 text-slate-200 hover:text-white text-xs font-medium transition cursor-pointer disabled:opacity-50"
               >
-                {tab === 'ALL'
-                  ? `${t('admin.tabAll')} (${totalCount})`
-                  : tab === 'PENDING'
-                  ? `${t('admin.tabPending')} (${pendingCount})`
-                  : tab === 'APPROVED'
-                  ? `${t('admin.tabApproved')} (${approvedCount})`
-                  : `${t('admin.tabRejected')} (${rejectedCount})`}
+                <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-cyan-400' : ''} />
+                <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
               </button>
-            ))}
-          </div>
 
-          {/* Search Bar */}
-          <div className="relative w-full sm:w-72">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <Search size={15} />
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('admin.searchPlaceholder')}
-              className="w-full h-9 pl-9 pr-3 bg-[#11191E] border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#4FD1C5] transition-colors"
-            />
+              {/* Customer View Link */}
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#0F1E24] hover:bg-[#152B34] border border-slate-700 hover:border-cyan-500/40 text-slate-300 hover:text-[#4FD1C5] text-xs font-medium transition"
+              >
+                <ExternalLink size={13} />
+                <span>Xem phòng đo 3D (Khách)</span>
+              </Link>
+
+              {/* Logged in admin pill */}
+              <div className="px-3 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-xs text-slate-300">
+                <span className="text-slate-400">Admin: </span>
+                <span className="font-semibold text-cyan-300">{currentUser?.full_name || 'Lê Văn Thắng'}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Applications List Table */}
-        <div className="rounded-2xl bg-[#11191E] border border-white/10 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#0A0F12] text-slate-400 uppercase tracking-wider text-[10px] font-semibold border-b border-white/10">
-                <tr>
-                  <th className="py-3.5 px-4">{t('admin.colBrand')}</th>
-                  <th className="py-3.5 px-4">{t('admin.colApplicant')}</th>
-                  <th className="py-3.5 px-4">{t('admin.colPhone')}</th>
-                  <th className="py-3.5 px-4">{t('admin.colAddress')}</th>
-                  <th className="py-3.5 px-4">{t('admin.colDoc')}</th>
-                  <th className="py-3.5 px-4">{t('admin.colStatus')}</th>
-                  <th className="py-3.5 px-4 text-right">{t('admin.colActions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5 font-sans">
-                {filteredStores.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-12 text-slate-400 text-xs">
-                      {t('admin.empty')}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredStores.map((store) => {
-                    const applicant = profiles.find((p) => p.id === store.user_id);
-                    const isPending = store.status === 'PENDING';
-                    const isApproved = store.status === 'APPROVED';
-                    const isRejected = store.status === 'REJECTED';
+        {/* Real Metrics Stats Overview */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          {/* Total Stores */}
+          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-slate-800 hover:border-cyan-500/40 p-4 transition duration-300 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Tổng nhà may</span>
+              <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+                <StoreIcon size={18} />
+              </div>
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-white">
+              {stats.totalStores}
+            </div>
+            <span className="text-[11px] text-slate-400 mt-1 block">Hồ sơ đối tác đã nộp</span>
+          </div>
 
-                    return (
-                      <tr key={store.id} className="hover:bg-white/[0.02] transition-colors">
-                        {/* Brand info */}
-                        <td className="py-4 px-4">
-                          <div className="font-semibold text-white text-sm flex items-center gap-2">
-                            <StoreIcon size={15} className="text-[#4FD1C5] shrink-0" />
-                            <span>{store.brand_name}</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                            ID: {store.id} • {new Date(store.created_at).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-GB')}
-                          </div>
-                        </td>
+          {/* Pending Reviews */}
+          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-amber-500/20 hover:border-amber-500/50 p-4 transition duration-300 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-amber-300/80 uppercase tracking-wider">Chờ xét duyệt</span>
+              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+                <Clock size={18} className="animate-pulse" />
+              </div>
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-amber-400">
+              {stats.pendingStores}
+            </div>
+            <span className="text-[11px] text-amber-300/70 mt-1 block">Cần quản trị viên duyệt</span>
+          </div>
 
-                        {/* Applicant */}
-                        <td className="py-4 px-4">
-                          <div className="font-medium text-slate-200">
-                            {applicant?.full_name || t('admin.unknown')}
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-mono">
-                            {applicant?.email || 'N/A'}
-                          </div>
-                        </td>
+          {/* Approved Stores */}
+          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-emerald-500/20 hover:border-emerald-500/50 p-4 transition duration-300 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-emerald-300/80 uppercase tracking-wider">Đã kích hoạt</span>
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                <CheckCircle2 size={18} />
+              </div>
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">
+              {stats.approvedStores}
+            </div>
+            <span className="text-[11px] text-emerald-300/70 mt-1 block">Đang hoạt động trên sàn</span>
+          </div>
 
-                        {/* Phone */}
-                        <td className="py-4 px-4 font-mono text-slate-300">
-                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#0A0F12] border border-white/5">
-                            <Phone size={12} className="text-teal-400" />
-                            <span>{store.phone}</span>
-                          </div>
-                        </td>
+          {/* Total Registered Users */}
+          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-indigo-500/20 hover:border-indigo-500/50 p-4 transition duration-300 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-indigo-300/80 uppercase tracking-wider">Người dùng</span>
+              <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+                <Users size={18} />
+              </div>
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-indigo-300">
+              {stats.totalUsers}
+            </div>
+            <span className="text-[11px] text-indigo-300/70 mt-1 block">Tài khoản trong CSDL</span>
+          </div>
 
-                        {/* Address */}
-                        <td className="py-4 px-4 text-slate-300 max-w-xs truncate" title={store.address}>
-                          <div className="flex items-center gap-1.5 truncate">
-                            <MapPin size={12} className="text-slate-400 shrink-0" />
-                            <span className="truncate">{store.address}</span>
-                          </div>
-                        </td>
+          {/* Biometric Scans */}
+          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-purple-500/20 hover:border-purple-500/50 p-4 transition duration-300 shadow-lg col-span-2 sm:col-span-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-purple-300/80 uppercase tracking-wider">Phép đo 3D</span>
+              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                <Activity size={18} />
+              </div>
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-purple-300">
+              {stats.totalMeasurements}
+            </div>
+            <span className="text-[11px] text-purple-300/70 mt-1 block">Trích xuất nhân trắc</span>
+          </div>
+        </div>
 
-                        {/* Verification Doc */}
-                        <td className="py-4 px-4 max-w-xs truncate">
-                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#0A0F12] border border-white/5 text-teal-300 font-mono text-[11px] truncate" title={store.verification_doc}>
-                            <FileCheck2 size={12} className="shrink-0" />
-                            <span className="truncate">{store.verification_doc}</span>
-                          </div>
-                        </td>
+        {/* Main Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-px mb-6">
+          <button
+            type="button"
+            onClick={() => setMainTab('STORES')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-medium rounded-t-xl transition relative cursor-pointer ${
+              mainTab === 'STORES'
+                ? 'text-[#4FD1C5] bg-[#0E181E] border-t-2 border-[#4FD1C5]'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#0B1317]'
+            }`}
+          >
+            <StoreIcon size={16} />
+            <span>Hồ sơ Nhà may / Cửa hàng</span>
+            {stats.pendingStores > 0 && (
+              <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                {stats.pendingStores}
+              </span>
+            )}
+          </button>
 
-                        {/* Status */}
-                        <td className="py-4 px-4">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider ${
-                              isApproved
-                                ? 'bg-teal-500/20 text-[#4FD1C5] border border-teal-500/30'
-                                : isRejected
-                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            }`}
-                          >
-                            {isApproved ? (
-                              <CheckCircle2 size={10} />
-                            ) : isRejected ? (
-                              <XCircle size={10} />
-                            ) : (
-                              <Clock size={10} />
-                            )}
-                            {t('admin.status' + store.status, store.status)}
-                          </span>
-                          {isRejected && store.rejection_reason && (
-                            <div className="text-[10px] text-red-300 mt-1 max-w-[200px] truncate" title={store.rejection_reason}>
-                              {t('admin.reasonLabel')} {store.rejection_reason}
-                            </div>
-                          )}
-                        </td>
+          <button
+            type="button"
+            onClick={() => setMainTab('USERS')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-medium rounded-t-xl transition relative cursor-pointer ${
+              mainTab === 'USERS'
+                ? 'text-[#4FD1C5] bg-[#0E181E] border-t-2 border-[#4FD1C5]'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#0B1317]'
+            }`}
+          >
+            <Users size={16} />
+            <span>Quản lý Người dùng & Phân quyền</span>
+            <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-mono bg-slate-800 text-slate-300">
+              {users.length}
+            </span>
+          </button>
 
-                        {/* Action Buttons */}
-                        <td className="py-4 px-4 text-right">
-                          {isPending ? (
-                            <div className="inline-flex items-center gap-2 justify-end">
-                              <button
-                                type="button"
-                                onClick={() => handleApprove(store)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#4FD1C5] hover:bg-[#6fdcd2] text-[#0A0F12] font-semibold text-xs transition-colors cursor-pointer shadow-sm"
-                                title={t('admin.approveTitle')}
-                              >
-                                <Check size={13} strokeWidth={2.5} />
-                                <span>{t('admin.approve')}</span>
-                              </button>
+          <button
+            type="button"
+            onClick={() => setMainTab('AUDIT')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-medium rounded-t-xl transition relative cursor-pointer ${
+              mainTab === 'AUDIT'
+                ? 'text-[#4FD1C5] bg-[#0E181E] border-t-2 border-[#4FD1C5]'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#0B1317]'
+            }`}
+          >
+            <Shield size={16} />
+            <span>Nhật ký Kiểm toán Hệ thống</span>
+          </button>
+        </div>
 
-                              <button
-                                type="button"
-                                onClick={() => openRejectModal(store)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 font-semibold text-xs transition-colors cursor-pointer"
-                                title={t('admin.rejectTitle')}
-                              >
-                                <X size={13} strokeWidth={2.5} />
-                                <span>{t('admin.reject')}</span>
-                              </button>
-                            </div>
-                          ) : isApproved ? (
-                            <span className="text-[11px] text-[#4FD1C5] font-medium inline-flex items-center gap-1">
-                              <CheckCircle2 size={13} /> {t('admin.storeActivated')}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-red-400 font-medium inline-flex items-center gap-1">
-                              <XCircle size={13} /> {t('admin.rejected')}
-                            </span>
-                          )}
+        {/* ========================================================================= */}
+        {/* TAB 1: STORES MANAGEMENT */}
+        {/* ========================================================================= */}
+        {mainTab === 'STORES' && (
+          <div className="space-y-4">
+            {/* Store Filter & Search Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-[#0D161B] border border-slate-800">
+              {/* Filter Pills */}
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { key: 'ALL', label: 'Tất cả hồ sơ', count: stores.length },
+                  { key: 'PENDING', label: 'Chờ duyệt', count: stores.filter((s) => s.status === 'PENDING').length },
+                  { key: 'APPROVED', label: 'Đã duyệt', count: stores.filter((s) => s.status === 'APPROVED').length },
+                  { key: 'REJECTED', label: 'Từ chối', count: stores.filter((s) => s.status === 'REJECTED').length },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setStoreFilterTab(item.key as StoreFilterTab)}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                      storeFilterTab === item.key
+                        ? 'bg-[#4FD1C5]/15 border border-[#4FD1C5]/40 text-[#4FD1C5] font-semibold'
+                        : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-black/40">
+                      {item.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Box */}
+              <div className="relative w-full md:w-80">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={storeSearch}
+                  onChange={(e) => setStoreSearch(e.target.value)}
+                  placeholder="Tìm theo tên xưởng, SĐT, GPKD..."
+                  className="w-full bg-[#080E12] border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#4FD1C5] transition"
+                />
+                {storeSearch && (
+                  <button
+                    onClick={() => setStoreSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Stores Table */}
+            <div className="overflow-hidden rounded-xl bg-[#0D161B] border border-slate-800 shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#080E12] text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+                    <tr>
+                      <th className="py-3.5 px-4 font-semibold">Thương hiệu / Cửa hàng</th>
+                      <th className="py-3.5 px-4 font-semibold">Chủ sở hữu & Đại diện</th>
+                      <th className="py-3.5 px-4 font-semibold">Địa chỉ & Liên hệ</th>
+                      <th className="py-3.5 px-4 font-semibold">Hồ sơ Pháp lý / GPKD</th>
+                      <th className="py-3.5 px-4 font-semibold">Trạng thái</th>
+                      <th className="py-3.5 px-4 font-semibold text-right">Thao tác duyệt</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {filteredStores.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-slate-400">
+                          <StoreIcon size={32} className="mx-auto text-slate-600 mb-2" />
+                          <p className="text-sm font-medium">Không tìm thấy hồ sơ cửa hàng nào phù hợp.</p>
+                          <p className="text-xs text-slate-400 mt-1">Dữ liệu được lấy theo thời gian thực từ bảng `shops` trong PostgreSQL.</p>
                         </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
+                    ) : (
+                      filteredStores.map((store) => {
+                        const isPending = store.status === 'PENDING';
+                        const isApproved = store.status === 'APPROVED';
+                        const isRejected = store.status === 'REJECTED';
+                        const isBusy = actionLoadingId === store.id;
 
-      {/* Reject Reason Modal */}
-      {rejectingStore && (
-        <div
-          className="zf-modal-backdrop animate-fade-in"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-            background: 'rgba(5, 8, 10, 0.85)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-          }}
-          onClick={() => setRejectingStore(null)}
-        >
-          <div
-            className="zf-modal-card"
-            style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: 460,
-              background: '#11191E',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: 18,
-              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.8)',
-              padding: 24,
-              color: '#FFFFFF',
-              overflow: 'hidden',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
+                        return (
+                          <tr
+                            key={store.id}
+                            className="hover:bg-slate-800/20 transition duration-150 group"
+                          >
+                            {/* Brand Name */}
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-cyan-950/40 border border-cyan-500/20 flex items-center justify-center text-[#4FD1C5] font-bold text-sm shrink-0">
+                                  {store.shop_name?.charAt(0).toUpperCase() || 'S'}
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-white group-hover:text-[#4FD1C5] transition text-sm">
+                                    {store.shop_name}
+                                  </div>
+                                  <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+                                    ID: {store.id.substring(0, 13)}...
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
 
-            <button
-              type="button"
-              onClick={() => setRejectingStore(null)}
-              aria-label={t('admin.close')}
-              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
-            >
-              <X size={18} />
-            </button>
+                            {/* Owner details */}
+                            <td className="py-4 px-4">
+                              <div className="text-slate-200 font-medium">{store.owner_name || 'Khách nộp đơn'}</div>
+                              <div className="text-[11px] font-mono text-slate-400">{store.owner_email || '—'}</div>
+                              {store.owner_role && (
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-800 text-slate-300">
+                                  ROLE: {store.owner_role}
+                                </span>
+                              )}
+                            </td>
 
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center justify-center">
-                <AlertTriangle size={20} />
+                            {/* Phone & Address */}
+                            <td className="py-4 px-4 text-slate-300">
+                              <div className="flex items-center gap-1.5 text-slate-300">
+                                <Phone size={12} className="text-cyan-400 shrink-0" />
+                                <span className="font-mono text-xs">{store.phone_number}</span>
+                              </div>
+                              <div className="flex items-start gap-1.5 text-[11px] text-slate-400 mt-1 max-w-xs">
+                                <MapPin size={12} className="text-slate-400 shrink-0 mt-0.5" />
+                                <span>{store.shop_address}</span>
+                              </div>
+                            </td>
+
+                            {/* Verification Doc / Tax Code */}
+                            <td className="py-4 px-4 text-slate-300">
+                              <div className="flex items-center gap-1.5">
+                                <FileCheck2 size={13} className="text-emerald-400 shrink-0" />
+                                <span className="font-mono text-xs font-semibold text-slate-200">
+                                  {store.business_license_no || 'Đang cập nhật'}
+                                </span>
+                              </div>
+                              {store.tax_code && (
+                                <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+                                  Mã số thuế: {store.tax_code}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-4 px-4">
+                              {isPending && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                                  <Clock size={12} className="animate-pulse" />
+                                  <span>Chờ duyệt</span>
+                                </span>
+                              )}
+                              {isApproved && (
+                                <div>
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                                    <CheckCircle2 size={12} />
+                                    <span>Đã duyệt</span>
+                                  </span>
+                                  {store.approved_at && (
+                                    <div className="text-[10px] text-slate-400 font-mono mt-1">
+                                      {new Date(store.approved_at).toLocaleDateString('vi-VN')}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {isRejected && (
+                                <div>
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/30">
+                                    <XCircle size={12} />
+                                    <span>Từ chối</span>
+                                  </span>
+                                  {store.rejection_reason && (
+                                    <p className="text-[10px] text-rose-400/80 mt-1 max-w-[160px] line-clamp-2" title={store.rejection_reason}>
+                                      Lý do: {store.rejection_reason}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-4 px-4 text-right">
+                              {isPending && (
+                                <div className="inline-flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleApproveStore(store)}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-md shadow-emerald-950/40 disabled:opacity-50"
+                                  >
+                                    <Check size={13} />
+                                    <span>Duyệt</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => {
+                                      setRejectingStore(store);
+                                      setRejectionReason('');
+                                    }}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-rose-300 text-xs transition cursor-pointer disabled:opacity-50"
+                                  >
+                                    <X size={13} />
+                                    <span>Từ chối</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {isApproved && (
+                                <div className="text-[11px] text-emerald-400/80 font-mono">
+                                  ● Tài khoản Shop Owner Active
+                                </div>
+                              )}
+
+                              {isRejected && (
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleApproveStore(store)}
+                                  className="text-[11px] text-cyan-400 hover:underline cursor-pointer"
+                                >
+                                  Xét duyệt lại
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <h3 className="text-base font-bold text-white">{t('admin.modalTitle')}</h3>
-                <p className="text-xs text-slate-400">{rejectingStore.brand_name}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 2: USER MANAGEMENT */}
+        {/* ========================================================================= */}
+        {mainTab === 'USERS' && (
+          <div className="space-y-4">
+            {/* User Filter & Search */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-[#0D161B] border border-slate-800">
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { key: 'ALL', label: 'Tất cả người dùng', count: users.length },
+                  { key: 'ADMIN', label: 'Quản trị viên (Admin)', count: users.filter((u) => u.role === 'ADMIN').length },
+                  { key: 'SHOP_OWNER', label: 'Chủ xưởng may (Shop Owner)', count: users.filter((u) => u.role === 'SHOP_OWNER').length },
+                  { key: 'USER', label: 'Khách hàng (User)', count: users.filter((u) => u.role === 'USER').length },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setUserFilterRole(item.key as UserFilterRole)}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                      userFilterRole === item.key
+                        ? 'bg-[#4FD1C5]/15 border border-[#4FD1C5]/40 text-[#4FD1C5] font-semibold'
+                        : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-black/40">
+                      {item.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* User search input */}
+              <div className="relative w-full md:w-80">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Tìm theo tên, email người dùng..."
+                  className="w-full bg-[#080E12] border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#4FD1C5] transition"
+                />
               </div>
             </div>
 
-            {rejectError && (
-              <div className="mb-4 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
-                {rejectError}
-              </div>
-            )}
+            {/* Users Table */}
+            <div className="overflow-hidden rounded-xl bg-[#0D161B] border border-slate-800 shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#080E12] text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+                    <tr>
+                      <th className="py-3.5 px-4 font-semibold">Tài khoản & Email</th>
+                      <th className="py-3.5 px-4 font-semibold">Họ và tên</th>
+                      <th className="py-3.5 px-4 font-semibold">Phân quyền (RBAC)</th>
+                      <th className="py-3.5 px-4 font-semibold">Trạng thái</th>
+                      <th className="py-3.5 px-4 font-semibold">Ngày tạo tài khoản</th>
+                      <th className="py-3.5 px-4 font-semibold text-right">Hành động quản lý</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {filteredUsers.map((user) => {
+                      const isSuperAdmin = user.email === 'levanthang0166@gmail.com';
+                      const isLocked = user.status === 'LOCKED' || user.status === 'BANNED';
+                      const isBusy = actionLoadingId === user.id;
 
-            <form onSubmit={handleConfirmReject} className="space-y-4">
+                      return (
+                        <tr key={user.id} className="hover:bg-slate-800/20 transition duration-150">
+                          {/* Email & Initial */}
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  user.role === 'ADMIN'
+                                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
+                                    : user.role === 'SHOP_OWNER'
+                                    ? 'bg-cyan-500/20 text-[#4FD1C5] border border-cyan-500/40'
+                                    : 'bg-slate-800 text-slate-300 border border-slate-700'
+                                }`}
+                              >
+                                {(user.full_name || user.email).charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-mono text-xs font-semibold text-white flex items-center gap-1.5">
+                                  <span>{user.email}</span>
+                                  {isSuperAdmin && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                      SUPER ADMIN
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                  UUID: {user.id.substring(0, 8)}...
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Full Name */}
+                          <td className="py-4 px-4 font-medium text-slate-200">
+                            {user.full_name || 'Chưa cập nhật'}
+                          </td>
+
+                          {/* Role Badge & Selector */}
+                          <td className="py-4 px-4">
+                            {user.role === 'ADMIN' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                <Shield size={12} />
+                                <span>ADMINISTRATOR</span>
+                              </span>
+                            ) : user.role === 'SHOP_OWNER' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/15 text-[#4FD1C5] border border-cyan-500/30">
+                                <StoreIcon size={12} />
+                                <span>SHOP_OWNER</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                                <Users size={12} />
+                                <span>CUSTOMER_USER</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-4 px-4">
+                            {user.status === 'ACTIVE' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                <span>Hoạt động</span>
+                              </span>
+                            ) : user.status === 'PENDING_VERIFY' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                                <span>Chờ xác thực</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/30">
+                                <Lock size={11} />
+                                <span>Đã khóa</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Created at */}
+                          <td className="py-4 px-4 font-mono text-[11px] text-slate-400">
+                            {new Date(user.created_at).toLocaleString('vi-VN')}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-4 px-4 text-right">
+                            {!isSuperAdmin ? (
+                              <div className="inline-flex items-center gap-2">
+                                {/* Lock/Unlock button */}
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleToggleUserStatus(user)}
+                                  className={`p-1.5 rounded-lg border text-xs transition cursor-pointer disabled:opacity-50 ${
+                                    isLocked
+                                      ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/60'
+                                      : 'bg-rose-950/40 border-rose-500/30 text-rose-300 hover:bg-rose-900/60'
+                                  }`}
+                                  title={isLocked ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}
+                                >
+                                  {isLocked ? <Unlock size={14} /> : <Lock size={14} />}
+                                </button>
+
+                                {/* Switch role button */}
+                                {user.role === 'USER' ? (
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleChangeUserRole(user, 'SHOP_OWNER')}
+                                    className="px-2.5 py-1 rounded bg-[#0E1E26] hover:bg-[#142A36] border border-cyan-500/30 text-[#4FD1C5] text-[11px] font-semibold transition cursor-pointer disabled:opacity-50"
+                                  >
+                                    Cấp quyền Shop
+                                  </button>
+                                ) : user.role === 'SHOP_OWNER' ? (
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleChangeUserRole(user, 'USER')}
+                                    className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-[11px] transition cursor-pointer disabled:opacity-50"
+                                  >
+                                    Thu hồi Shop
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-amber-300/70 font-mono">
+                                [Bảo vệ Toàn quyền]
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 3: AUDIT LOGS */}
+        {/* ========================================================================= */}
+        {mainTab === 'AUDIT' && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-[#0D161B] border border-slate-800 flex items-center justify-between">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  {t('admin.reasonField')} <span className="text-red-400">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={4}
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder={t('admin.reasonPlaceholder')}
-                  className="w-full p-3 bg-[#0A0F12] border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-400 transition-colors"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  {t('admin.reasonHint')}
+                <h3 className="font-semibold text-white text-sm">Nhật ký Kiểm toán Hệ thống (Audit Trails)</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Lưu trữ các thao tác quan trọng: duyệt nhà may, thay đổi trạng thái người dùng theo tiêu chuẩn an ninh.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => fetchLiveData(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white"
+              >
+                <RefreshCw size={13} />
+                <span>Cập nhật</span>
+              </button>
+            </div>
 
-              <div className="flex items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setRejectingStore(null)}
-                  className="w-1/2 h-10 rounded-lg bg-[#162229] hover:bg-[#1f2f38] text-slate-300 font-semibold text-xs transition-colors"
-                >
-                  {t('admin.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 h-10 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-xs transition-colors shadow-md"
-                >
-                  {t('admin.confirmReject')}
-                </button>
+            <div className="overflow-hidden rounded-xl bg-[#0D161B] border border-slate-800">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#080E12] text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4 font-semibold">Mã nhật ký</th>
+                      <th className="py-3 px-4 font-semibold">Hành động (Action)</th>
+                      <th className="py-3 px-4 font-semibold">Tác nhân (Actor)</th>
+                      <th className="py-3 px-4 font-semibold">Thời gian xử lý</th>
+                      <th className="py-3 px-4 font-semibold">Mã hóa IP Hash</th>
+                      <th className="py-3 px-4 font-semibold">Thời gian ghi nhận</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {auditLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400 font-sans">
+                          Chưa có sự kiện kiểm toán mới nào được ghi nhận.
+                        </td>
+                      </tr>
+                    ) : (
+                      auditLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-800/20">
+                          <td className="py-3 px-4 text-slate-400">#{log.id}</td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-950/60 text-[#4FD1C5] border border-cyan-500/30">
+                              {log.action_type}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-200 font-sans">
+                            {log.user_email || log.user_id ? `${log.user_email || log.user_id}` : 'System / Background'}
+                          </td>
+                          <td className="py-3 px-4 text-slate-400">
+                            {log.execution_time_ms} ms
+                          </td>
+                          <td className="py-3 px-4 text-[11px] text-slate-400">
+                            {log.ip_address_hash || 'local'}
+                          </td>
+                          <td className="py-3 px-4 text-slate-400 text-[11px]">
+                            {new Date(log.created_at).toLocaleString('vi-VN')}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Modal: Rejection Reason */}
+        {rejectingStore && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-lg rounded-2xl bg-[#0F171C] border border-rose-500/30 p-6 shadow-2xl relative">
+              <button
+                type="button"
+                onClick={() => setRejectingStore(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                  <XCircle size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Từ chối hồ sơ đối tác</h3>
+                  <p className="text-xs text-slate-400">
+                    Cửa hàng: <strong className="text-rose-300">{rejectingStore.shop_name}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleConfirmReject} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    Lý do từ chối (Gửi thông báo tới chủ nhà may):
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Ví dụ: Giấy phép kinh doanh không khớp thông tin đại diện pháp luật, số điện thoại không liên lạc được..."
+                    className="w-full bg-[#080E12] border border-slate-700 focus:border-rose-500 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none transition"
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setRejectingStore(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition cursor-pointer"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition cursor-pointer shadow-lg shadow-rose-950/50"
+                  >
+                    Xác nhận Từ chối
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 };
-
-export default AdminPortal;

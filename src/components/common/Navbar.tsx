@@ -103,43 +103,33 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
 
           {/* Admin Navigation */}
           {isAuthenticated && isAdmin && (
-            <>
-              <Link
-                to="/admin"
-                className={`zf-link ${pathname === '/admin' ? 'active' : ''}`}
-                id="nav-admin"
-                style={{
-                  color: '#A5B4FC',
-                  background: 'rgba(99, 102, 241, 0.15)',
-                  border: '1px solid rgba(165, 180, 252, 0.3)',
-                }}
-              >
-                <Shield size={16} strokeWidth={1.5} />
-                <span>{t('app.nav.adminShort')}</span>
-                {pendingStoresCount > 0 && (
-                  <span
-                    style={{
-                      background: '#F59E0B',
-                      color: '#000',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: '1px 5px',
-                      borderRadius: 8,
-                    }}
-                  >
-                    {pendingStoresCount}
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/dashboard"
-                className={`zf-link ${pathname === '/dashboard' ? 'active' : ''}`}
-                id="nav-dashboard"
-              >
-                <ScanLine size={16} strokeWidth={1.5} />
-                <span>{t('app.nav.dashboard')}</span>
-              </Link>
-            </>
+            <Link
+              to="/admin"
+              className={`zf-link ${pathname === '/admin' ? 'active' : ''}`}
+              id="nav-admin"
+              style={{
+                color: '#4FD1C5',
+                background: 'rgba(79, 209, 197, 0.12)',
+                border: '1px solid rgba(79, 209, 197, 0.3)',
+              }}
+            >
+              <Shield size={16} strokeWidth={1.5} />
+              <span>{t('app.nav.adminShort')}</span>
+              {pendingStoresCount > 0 && (
+                <span
+                  style={{
+                    background: '#F59E0B',
+                    color: '#000',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '1px 5px',
+                    borderRadius: 8,
+                  }}
+                >
+                  {pendingStoresCount}
+                </span>
+              )}
+            </Link>
           )}
         </nav>
 
