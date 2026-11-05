@@ -50,6 +50,10 @@ services:
       JWT_REFRESH_SECRET: fitvision_super_secret_refresh_jwt_key_2026_min32chars
       JWT_REFRESH_EXPIRES_IN: 7d
       AI_TAILOR_SERVICE_URL: http://ai-service:8000
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 465
+      SMTP_USER: ${SMTP_USER:-levanthang0166@gmail.com}
+      SMTP_PASS: ${SMTP_PASS:-awxgmndgfxmclure}
     volumes:
       - ./backend:/app
       - /app/node_modules

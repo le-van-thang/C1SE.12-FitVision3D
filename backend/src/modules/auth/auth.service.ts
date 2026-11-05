@@ -1,3 +1,4 @@
+import { emailService } from '../../services/email.service.js';
 import crypto from 'crypto';
 import { authRepository, UserEntity } from './auth.repository.js';
 import {
@@ -64,21 +65,19 @@ export const authService = {
       status: 'PENDING_VERIFY',
     });
 
-    // Mô phỏng dịch vụ gửi email kích hoạt (Dev Mode)
-    console.log(`\n============================================================`);
-    console.log(`📧 [EMAIL SERVICE - MÔ PHỎNG GỬI EMAIL KÍCH HOẠT]`);
-    console.log(`- Tới: ${user.email}`);
-    console.log(`- Tiêu đề: [FitVision 3D] Mã kích hoạt tài khoản của bạn`);
-    console.log(`- Mã OTP kích hoạt: 123456`);
-    console.log(`- Hết hạn trong: 15 phút`);
-    console.log(`============================================================\n`);
+    // Sinh mã ngẫu nhiên 6 chữ số và gửi qua Gmail SMTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    emailService.saveOtp(user.email, otpCode, 'VERIFY');
+    emailService.sendActivationEmail(user.email, user.full_name, otpCode).catch((err) => {
+      console.error('Failed to dispatch activation email:', err.message);
+    });
 
     return {
       userId: user.id,
       email: user.email,
       status: user.status,
-      message: 'Đăng ký thành công. Vui lòng kiểm tra email để kích hoạt tài khoản.',
-      devOtp: '123456',
+      message: 'Đăng ký thành công. Mã OTP 6 số đã được gửi tới hộp thư Gmail của bạn.',
+      devOtp: otpCode,
     };
   },
 
@@ -368,15 +367,15 @@ export const authService = {
       };
     }
 
-    // Kiểm tra OTP (Chấp nhận mã 6 số hợp lệ hoặc token)
-    const validOtp = dto.otp && (dto.otp === '123456' || /^[0-9]{6}$/.test(dto.otp));
+    // Kiểm tra OTP qua emailService
+    const validOtp = emailService.verifyOtp(dto.email, dto.otp || '', 'VERIFY');
     const validToken = dto.verificationToken && dto.verificationToken.length >= 16;
 
     if (!validOtp && !validToken) {
       throw new AppError(
         400,
-        ErrorCode.VALIDATION_FAILED,
-        'Mã OTP không hợp lệ (cần 6 chữ số) hoặc Token đã hết hạn.'
+        ErrorCode.AUTH_OTP_INVALID,
+        'Mã OTP không chính xác hoặc đã hết hạn (15 phút). Vui lòng kiểm tra lại Gmail.'
       );
     }
 
@@ -394,15 +393,13 @@ export const authService = {
    */
   async resendVerification(email: string) {
     const user = await authRepository.findUserByEmail(email);
-    console.log(`\n============================================================`);
-    console.log(`📧 [EMAIL SERVICE - GỬI LẠI MÃ KÍCH HOẠT OTP]`);
-    console.log(`- Tới: ${email}`);
-    console.log(`- Mã OTP mới: 123456 (Dev Mode)`);
-    console.log(`============================================================\n`);
-    // Luôn trả về thông báo chung để chống thu thập tài khoản
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    emailService.saveOtp(email, otpCode, 'VERIFY');
+    emailService.sendActivationEmail(email, user?.full_name || '', otpCode).catch(console.error);
+
     return {
-      message: 'Nếu tài khoản tồn tại và chưa kích hoạt, mã xác thực mới đã được gửi tới email của bạn.',
-      devOtp: '123456',
+      message: 'Mã xác thực mới đã được gửi tới hộp thư Gmail của bạn.',
+      devOtp: otpCode,
     };
   },
 
@@ -431,16 +428,13 @@ export const authService = {
     const cleanEmail = email.toLowerCase().trim();
     const user = await authRepository.findUserByEmail(cleanEmail);
 
-    console.log(`\n============================================================`);
-    console.log(`📧 [EMAIL SERVICE - QUÊN MẬT KHẨU / OTP ĐẶT LẠI MẬT KHẨU]`);
-    console.log(`- Tới: ${cleanEmail}`);
-    console.log(`- Mã OTP đặt lại mật khẩu: 123456 (Dev Mode)`);
-    console.log(`- Hết hạn trong: 15 phút`);
-    console.log(`============================================================\n`);
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    emailService.saveOtp(cleanEmail, otpCode, 'FORGOT');
+    emailService.sendPasswordResetEmail(cleanEmail, otpCode).catch(console.error);
 
     return {
-      message: 'Nếu email tồn tại trong hệ thống, mã xác thực đặt lại mật khẩu đã được gửi đi.',
-      devOtp: '123456',
+      message: 'Mã OTP đặt lại mật khẩu đã được gửi tới hộp thư Gmail của bạn.',
+      devOtp: otpCode,
     };
   },
 
@@ -454,9 +448,10 @@ export const authService = {
       throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản người dùng.');
     }
 
-    // Kiểm tra OTP (chấp nhận 123456 hoặc 6 số)
-    if (dto.otp !== '123456' && !/^[0-9]{6}$/.test(dto.otp)) {
-      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã OTP không chính xác hoặc đã hết hạn.');
+    // Kiểm tra OTP qua emailService
+    const validOtp = emailService.verifyOtp(cleanEmail, dto.otp, 'FORGOT');
+    if (!validOtp) {
+      throw new AppError(400, ErrorCode.AUTH_OTP_INVALID, 'Mã OTP không chính xác hoặc đã hết hạn (15 phút).');
     }
 
     // Hash mật khẩu mới với bcrypt (cost >= 12)

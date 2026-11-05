@@ -29,6 +29,12 @@ export const env = {
   
   // Anti-Bot Turnstile
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '',
+
+  // SMTP / Email Service
+  SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
+  SMTP_PORT: parseInt(process.env.SMTP_PORT || '465', 10),
+  SMTP_USER: process.env.SMTP_USER || '',
+  SMTP_PASS: process.env.SMTP_PASS || '',
   
   isProduction: process.env.NODE_ENV === 'production',
 };

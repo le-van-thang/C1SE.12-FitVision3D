@@ -203,7 +203,7 @@ export const AuthModal: React.FC = () => {
 
     if (res.success) {
       setSuccessMessage(t('app.auth.successRegister'));
-      setOtpCode(res.devOtp || '123456');
+      setOtpCode('');
       openVerifyEmail(email);
     } else {
       setErrorMessage(getLocalizedErrorMessage((res as any)?.errorCode, res.error));
@@ -246,7 +246,7 @@ export const AuthModal: React.FC = () => {
 
     if (res.success) {
       setSuccessMessage(t('app.auth.successForgot'));
-      setOtpCode(res.devOtp || '123456');
+      setOtpCode('');
       setForgotStep('reset');
     } else {
       setErrorMessage(getLocalizedErrorMessage(undefined, res.error));
@@ -1448,7 +1448,7 @@ export const AuthModal: React.FC = () => {
                         <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8' }}>
                           {t('app.auth.otpLabel', 'Mã OTP xác thực (6 số)')}
                         </label>
-                        <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>{t('app.auth.otpDevHint', 'Mã thử nghiệm: 123456')}</span>
+                        <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>{locale === 'en' ? 'Check your Gmail inbox' : 'Đã gửi tới Gmail của bạn'}</span>
                       </div>
                       <input
                         type="text"
@@ -1600,7 +1600,7 @@ export const AuthModal: React.FC = () => {
                     <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8' }}>
                       {t('app.auth.verifyOtpLabel', 'Mã kích hoạt OTP (6 chữ số)')}
                     </label>
-                    <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>{t('app.auth.otpDevHint', 'Mã thử nghiệm: 123456')}</span>
+                    <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>{locale === 'en' ? 'Check your Gmail inbox' : 'Đã gửi tới Gmail của bạn'}</span>
                   </div>
                   <input
                     type="text"
