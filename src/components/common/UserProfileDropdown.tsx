@@ -18,8 +18,7 @@ export const UserProfileDropdown: React.FC = () => {
     currentUser,
     currentStore,
     signOut,
-    switchDemoRole,
-    openOnboarding,
+        openOnboarding,
     openStatusModal,
   } = useAuth();
 
@@ -322,118 +321,6 @@ export const UserProfileDropdown: React.FC = () => {
             )}
           </div>
 
-          {/* Quick Demo Switcher */}
-          <div style={{ paddingTop: 10, paddingBottom: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '.06em', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Sparkles size={11} style={{ color: '#4FD1C5' }} />
-                {t('app.menu.demoSwitch')}
-              </span>
-              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: '#64748B' }}>RBAC</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  switchDemoRole('user');
-                  setIsOpen(false);
-                }}
-                style={{
-                  padding: '8px 8px',
-                  borderRadius: 8,
-                  fontSize: 11,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: role === 'user' && !isPendingStore ? '#162229' : '#0A0F12',
-                  color: role === 'user' && !isPendingStore ? '#4FD1C5' : '#CBD5E1',
-                  border: `1px solid ${role === 'user' && !isPendingStore ? 'rgba(79, 209, 197, 0.4)' : 'rgba(255, 255, 255, 0.06)'}`,
-                  fontWeight: role === 'user' && !isPendingStore ? 600 : 400,
-                }}
-              >
-                <User size={13} />
-                <span>{t('app.menu.demoUser')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  switchDemoRole('pending');
-                  setIsOpen(false);
-                }}
-                style={{
-                  padding: '8px 8px',
-                  borderRadius: 8,
-                  fontSize: 11,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: isPendingStore ? '#162229' : '#0A0F12',
-                  color: isPendingStore ? '#FCD34D' : '#CBD5E1',
-                  border: `1px solid ${isPendingStore ? 'rgba(246, 173, 85, 0.4)' : 'rgba(255, 255, 255, 0.06)'}`,
-                  fontWeight: isPendingStore ? 600 : 400,
-                }}
-              >
-                <Clock size={13} />
-                <span>{t('app.menu.demoPending')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  switchDemoRole('store');
-                  setIsOpen(false);
-                }}
-                style={{
-                  padding: '8px 8px',
-                  borderRadius: 8,
-                  fontSize: 11,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: role === 'store' ? '#162229' : '#0A0F12',
-                  color: role === 'store' ? '#4FD1C5' : '#CBD5E1',
-                  border: `1px solid ${role === 'store' ? 'rgba(79, 209, 197, 0.4)' : 'rgba(255, 255, 255, 0.06)'}`,
-                  fontWeight: role === 'store' ? 600 : 400,
-                }}
-              >
-                <StoreIcon size={13} />
-                <span>{t('app.menu.demoStore')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  switchDemoRole('admin');
-                  setIsOpen(false);
-                }}
-                style={{
-                  padding: '8px 8px',
-                  borderRadius: 8,
-                  fontSize: 11,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: role === 'admin' ? '#162229' : '#0A0F12',
-                  color: role === 'admin' ? '#A5B4FC' : '#CBD5E1',
-                  border: `1px solid ${role === 'admin' ? 'rgba(99, 102, 241, 0.4)' : 'rgba(255, 255, 255, 0.06)'}`,
-                  fontWeight: role === 'admin' ? 600 : 400,
-                }}
-              >
-                <Shield size={13} />
-                <span>{t('app.menu.demoAdmin')}</span>
-              </button>
-            </div>
-          </div>
 
           {/* Sign Out Button */}
           <div style={{ paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>

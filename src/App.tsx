@@ -15,6 +15,25 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   return isAuthenticated ? children : <Navigate to="/dashboard" replace />;
 };
 
+/** Tailor & Size chart studio only accessible to Approved Store Partners or Admin */
+const RequireStore: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/dashboard" replace />;
+  if (userRole !== 'store' && userRole !== 'tailor' && userRole !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
+/** Admin Portal strictly isolated to System Admin */
+const RequireAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (!isAuthenticated || userRole !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
 export const App: React.FC = () => (
   <BrowserRouter>
     <I18nProvider>
@@ -22,9 +41,9 @@ export const App: React.FC = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/tailor" element={<RequireAuth><TailorStudio /></RequireAuth>} />
-          <Route path="/size-charts" element={<RequireAuth><SizeChartManager /></RequireAuth>} />
-          <Route path="/admin" element={<AdminPortal />} />
+          <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
+          <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
+          <Route path="/admin" element={<RequireAdmin><AdminPortal /></RequireAdmin>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>

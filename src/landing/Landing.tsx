@@ -128,56 +128,13 @@ export const Landing: React.FC = () => {
               <span className="lp-mark"><Box size={16} strokeWidth={1.5} /></span>
               <span>FitVision <b>3D</b></span>
             </a>
-
-            {/* Role indicator pill on landing */}
-            {isAuthenticated && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontFamily: "var(--font-mono)",
-                  padding: "2px 8px",
-                  borderRadius: 20,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  border: "1px solid",
-                  borderColor: isAdmin
-                    ? "rgba(165, 180, 252, 0.4)"
-                    : isStore
-                    ? "rgba(79, 209, 197, 0.4)"
-                    : currentStore?.status === "PENDING"
-                    ? "rgba(245, 158, 11, 0.4)"
-                    : "rgba(148, 163, 184, 0.3)",
-                  background: isAdmin
-                    ? "rgba(99, 102, 241, 0.15)"
-                    : isStore
-                    ? "rgba(79, 209, 197, 0.15)"
-                    : currentStore?.status === "PENDING"
-                    ? "rgba(245, 158, 11, 0.15)"
-                    : "rgba(148, 163, 184, 0.1)",
-                  color: isAdmin
-                    ? "#A5B4FC"
-                    : isStore
-                    ? "#4FD1C5"
-                    : currentStore?.status === "PENDING"
-                    ? "#FCD34D"
-                    : "#CBD5E1",
-                }}
-              >
-                {isAdmin
-                  ? t("app.role.admin")
-                  : isStore
-                  ? t("app.role.partner")
-                  : currentStore?.status === "PENDING"
-                  ? t("app.role.pendingStore")
-                  : t("app.role.user")}
-              </span>
-            )}
+          
           </div>
 
           {/* Center Dynamic Links based on Role */}
           <nav className="lp-links" aria-label="Landing navigation">
-            {/* Guest Navigation */}
-            {!isAuthenticated && (
+            {/* Guest or Regular User Navigation */}
+            {(!isAuthenticated || isUser) && (
               <>
                 <a href="#features">{t("lp.nav.architecture")}</a>
                 <a href="#how">{t("lp.nav.methodology")}</a>
@@ -186,82 +143,7 @@ export const Landing: React.FC = () => {
               </>
             )}
 
-            {/* Standard User Navigation */}
-            {isAuthenticated && isUser && (
-              <>
-                <a href="#features">{t("lp.nav.architecture")}</a>
-                <a href="#how">{t("lp.nav.methodology")}</a>
-                <a href="/dashboard">{t("app.nav.dashboard")}</a>
-
-                {/* Partner Onboarding CTA Button */}
-                {!currentStore && (
-                  <button
-                    type="button"
-                    onClick={openOnboarding}
-                    className="lp-btn lp-btn--secondary lp-btn--sm"
-                    style={{
-                      height: 32,
-                      padding: "0 12px",
-                      fontSize: 12,
-                      borderColor: "rgba(246, 173, 85, 0.4)",
-                      color: "#F6AD55",
-                      background: "rgba(246, 173, 85, 0.08)",
-                      cursor: "pointer",
-                    }}
-                    id="lp-nav-partner"
-                  >
-                    <StoreIcon size={13} />
-                    <span>{t("app.nav.partner")}</span>
-                  </button>
-                )}
-
-                {/* Pending Store Status Badge */}
-                {currentStore?.status === "PENDING" && (
-                  <button
-                    type="button"
-                    onClick={openStatusModal}
-                    className="lp-btn lp-btn--secondary lp-btn--sm"
-                    style={{
-                      height: 32,
-                      padding: "0 12px",
-                      fontSize: 12,
-                      borderColor: "rgba(246, 173, 85, 0.5)",
-                      color: "#F6AD55",
-                      background: "rgba(246, 173, 85, 0.15)",
-                      cursor: "pointer",
-                    }}
-                    id="lp-nav-pending-badge"
-                  >
-                    <Clock size={13} className="animate-pulse" />
-                    <span>{t("app.nav.pending")}</span>
-                  </button>
-                )}
-
-                {/* Rejected Store Status Badge */}
-                {currentStore?.status === "REJECTED" && (
-                  <button
-                    type="button"
-                    onClick={openStatusModal}
-                    className="lp-btn lp-btn--secondary lp-btn--sm"
-                    style={{
-                      height: 32,
-                      padding: "0 12px",
-                      fontSize: 12,
-                      borderColor: "rgba(248, 113, 113, 0.5)",
-                      color: "#F87171",
-                      background: "rgba(248, 113, 113, 0.12)",
-                      cursor: "pointer",
-                    }}
-                    id="lp-nav-rejected-badge"
-                  >
-                    <AlertTriangle size={13} />
-                    <span>{t("app.nav.rejectedShort")}</span>
-                  </button>
-                )}
-              </>
-            )}
-
-            {/* Approved Store Partner: Unlocks B2B Business Tabs */}
+            {/* Approved Store Partner Navigation */}
             {isAuthenticated && isStore && (
               <>
                 <a href="/dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -273,16 +155,12 @@ export const Landing: React.FC = () => {
                 <a href="/size-charts" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <Table2 size={14} /> {t("app.nav.sizeCharts")}
                 </a>
-                <a href="#results">{t("lp.nav.matching")}</a>
               </>
             )}
 
-            {/* System Admin: Unlocks Admin Portal & Full Access */}
+            {/* System Admin Navigation */}
             {isAuthenticated && isAdmin && (
               <>
-                <a href="/dashboard">{t("app.nav.dashboard")}</a>
-                <a href="/tailor">{t("app.nav.tailor")}</a>
-                <a href="/size-charts">{t("app.nav.sizeCharts")}</a>
                 <a
                   href="/admin"
                   style={{
@@ -312,6 +190,7 @@ export const Landing: React.FC = () => {
                     </span>
                   )}
                 </a>
+                <a href="/dashboard">{t("app.nav.dashboard")}</a>
               </>
             )}
           </nav>
