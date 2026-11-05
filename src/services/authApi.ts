@@ -28,7 +28,9 @@ export interface ApiResponse<T = any> {
 
 async function request<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const currentLocale = typeof window !== 'undefined' ? (localStorage.getItem('fv3d_locale_preference') || 'vi') : 'vi';
   const headers: Record<string, string> = {
+    'Accept-Language': currentLocale,
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };

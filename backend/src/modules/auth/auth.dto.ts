@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const PASSWORD_REGEX = /^(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]).{6,32}$/;:,.<>?]).*$/;
+const PASSWORD_REGEX = /^(?=.*[!@#$%^&*()_+\-=[\]{}|;:,.<>?]).{6,32}$/;
 const VIETNAM_PHONE_REGEX = /^(84|0)[35789][0-9]{8}$/;
 
 // 1. DTO Đăng ký Khách Hàng (User)

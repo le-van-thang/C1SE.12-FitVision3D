@@ -37,7 +37,7 @@ export const AuthModal: React.FC = () => {
     resetPassword,
     signInWithGoogle,
   } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   // Inputs strictly initialized to EMPTY strings (user types everything)
   const [email, setEmail] = useState('');
@@ -86,6 +86,83 @@ export const AuthModal: React.FC = () => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  
+  // Helper dịch mã lỗi sang ngôn ngữ đang chọn (VI/EN)
+  const getLocalizedErrorMessage = (code?: string, rawMsg?: string): string => {
+    const isEn = locale === 'en';
+
+    // Xử lý theo nội dung rawMsg trước để bắt chính xác các câu từ backend
+    if (rawMsg) {
+      const lower = rawMsg.toLowerCase();
+      if (lower.includes('vui lòng nhập email') || lower.includes('nhập địa chỉ email') || lower.includes('email.')) {
+        return t('app.authErrors.AUTH_EMAIL_REQUIRED');
+      }
+      if (lower.includes('vui lòng nhập mật khẩu') || lower.includes('mật khẩu không được để trống') || lower.includes('mật khẩu mới')) {
+        return t('app.authErrors.AUTH_PASSWORD_REQUIRED');
+      }
+      if (lower.includes('họ và tên') || lower.includes('tối thiểu 2 ký tự')) {
+        return t('app.authErrors.AUTH_NAME_REQUIRED');
+      }
+      if (lower.includes('không chính xác') || lower.includes('email hoặc mật khẩu')) {
+        return t('app.authErrors.AUTH_INVALID_CREDENTIALS');
+      }
+      if (lower.includes('chưa được kích hoạt')) {
+        return t('app.authErrors.AUTH_EMAIL_NOT_VERIFIED');
+      }
+      if (lower.includes('đã được đăng ký') || lower.includes('đã được sử dụng')) {
+        return t('app.authErrors.AUTH_EMAIL_ALREADY_EXISTS');
+      }
+      if (lower.includes('tạm thời') || lower.includes('rác') || lower.includes('disposable')) {
+        return t('app.authErrors.AUTH_DISPOSABLE_EMAIL');
+      }
+      if (lower.includes('không trùng khớp') || lower.includes('không khớp') || lower.includes('mismatch')) {
+        return t('app.authErrors.AUTH_PASSWORD_MISMATCH');
+      }
+      if (lower.includes('quá số lần') || lower.includes('quá nhiều lần') || lower.includes('rate limit') || lower.includes('đợi 1-2 phút') || lower.includes('đợi 10 phút')) {
+        return t('app.authErrors.AUTH_RATE_LIMIT_EXCEEDED');
+      }
+      if (lower.includes('tạm khóa') || lower.includes('bị khóa') || lower.includes('locked')) {
+        return t('app.authErrors.AUTH_ACCOUNT_LOCKED');
+      }
+      if (lower.includes('tạm ngưng') || lower.includes('bị vô hiệu') || lower.includes('banned')) {
+        return t('app.authErrors.AUTH_ACCOUNT_BANNED');
+      }
+      if (lower.includes('mã otp') || lower.includes('hết hạn') || lower.includes('otp')) {
+        return t('app.authErrors.AUTH_OTP_INVALID');
+      }
+      if (lower.includes('máy chủ xác thực') || lower.includes('network') || lower.includes('failed to fetch') || lower.includes('lỗi mạng')) {
+        return t('app.authErrors.NETWORK_ERROR');
+      }
+      if (lower.includes('bot') || lower.includes('honeypot')) {
+        return t('app.authErrors.BOT_DETECTED');
+      }
+      if (lower.includes('google')) {
+        return t('app.authErrors.GOOGLE_LOGIN_FAILED');
+      }
+    }
+
+    // Xử lý theo mã lỗi chuẩn (code)
+    if (code) {
+      if (code === 'VALIDATION_FAILED') {
+        if (rawMsg?.toLowerCase().includes('email')) return t('app.authErrors.AUTH_EMAIL_REQUIRED');
+        if (rawMsg?.toLowerCase().includes('mật khẩu') || rawMsg?.toLowerCase().includes('password')) return t('app.authErrors.AUTH_PASSWORD_REQUIRED');
+        return t('app.authErrors.VALIDATION_FAILED');
+      }
+      const key = "app.authErrors." + code;
+      const translated = t(key);
+      if (translated && translated !== key) {
+        return translated;
+      }
+    }
+
+    // Nếu đang ở tiếng Anh mà thông điệp vẫn chứa chữ tiếng Việt, không bao giờ để lọt
+    if (isEn && rawMsg && /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(rawMsg)) {
+      return t('app.authErrors.DEFAULT_ERROR');
+    }
+
+    return rawMsg || t('app.authErrors.DEFAULT_ERROR');
+  };
+
   if (!isAuthModalOpen) return null;
 
   // 1. Handle Sign In
@@ -100,9 +177,9 @@ export const AuthModal: React.FC = () => {
 
     if (!res.success) {
       if (res.errorCode === 'AUTH_EMAIL_NOT_VERIFIED') {
-        setErrorMessage(res.error || 'Tài khoản chưa được kích hoạt email.');
+        setErrorMessage(getLocalizedErrorMessage('AUTH_EMAIL_NOT_VERIFIED', res.error));
       } else {
-        setErrorMessage(res.error || t('app.auth.failSignin'));
+        setErrorMessage(getLocalizedErrorMessage((res as any).errorCode, res.error));
       }
     }
   };
@@ -125,11 +202,11 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(res.message || 'Đăng ký thành công! Vui lòng nhập mã OTP để kích hoạt.');
+      setSuccessMessage(t('app.auth.successRegister'));
       setOtpCode(res.devOtp || '123456');
       openVerifyEmail(email);
     } else {
-      setErrorMessage(res.error || t('app.auth.failRegister'));
+      setErrorMessage(getLocalizedErrorMessage((res as any)?.errorCode, res.error));
     }
   };
 
@@ -144,12 +221,12 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(res.message || 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.');
+      setSuccessMessage(t('app.auth.successVerify'));
       setTimeout(() => {
         openSignIn();
       }, 1200);
     } else {
-      setErrorMessage(res.error || 'Mã OTP không chính xác hoặc đã hết hạn.');
+      setErrorMessage(getLocalizedErrorMessage('AUTH_OTP_INVALID', res.error));
     }
   };
 
@@ -157,7 +234,7 @@ export const AuthModal: React.FC = () => {
   const handleRequestForgotOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      setErrorMessage('Vui lòng nhập email của bạn.');
+      setErrorMessage(t('app.authErrors.AUTH_EMAIL_REQUIRED'));
       return;
     }
     setErrorMessage(null);
@@ -168,11 +245,11 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(res.message || 'Đã gửi mã OTP đến email. (Mã thử nghiệm: 123456)');
+      setSuccessMessage(t('app.auth.successForgot'));
       setOtpCode(res.devOtp || '123456');
       setForgotStep('reset');
     } else {
-      setErrorMessage(res.error || 'Không thể gửi yêu cầu đặt lại mật khẩu.');
+      setErrorMessage(getLocalizedErrorMessage(undefined, res.error));
     }
   };
 
@@ -180,7 +257,7 @@ export const AuthModal: React.FC = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmNewPassword) {
-      setErrorMessage('Mật khẩu xác nhận không khớp.');
+      setErrorMessage(t('app.authErrors.AUTH_PASSWORD_MISMATCH'));
       return;
     }
     setErrorMessage(null);
@@ -196,13 +273,13 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(res.message || 'Đặt lại mật khẩu thành công! Đang chuyển hướng...');
+      setSuccessMessage(t('app.auth.successReset'));
       setTimeout(() => {
         setPassword('');
         openSignIn();
       }, 1500);
     } else {
-      setErrorMessage(res.error || 'Đặt lại mật khẩu thất bại.');
+      setErrorMessage(getLocalizedErrorMessage(undefined, res.error));
     }
   };
 
@@ -214,12 +291,12 @@ export const AuthModal: React.FC = () => {
     setSuccessMessage(null);
 
     if (!googleClientId || googleClientId.trim() === '') {
-      setErrorMessage('Chưa tìm thấy VITE_GOOGLE_CLIENT_ID trong file AI-Tailor/.env. Vui lòng kiểm tra lại cấu hình.');
+      setErrorMessage(t('app.authErrors.GOOGLE_CONFIG_MISSING'));
       return;
     }
 
     if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
-      setErrorMessage('Google OAuth SDK đang tải... Vui lòng thử lại sau 2 giây.');
+      setErrorMessage(t('app.authErrors.GOOGLE_SDK_LOADING'));
       return;
     }
 
@@ -232,7 +309,7 @@ export const AuthModal: React.FC = () => {
           if (tokenResponse.error) {
             setLoading(false);
             if (tokenResponse.error !== 'popup_closed_by_user') {
-              setErrorMessage(`Lỗi từ Google: ${tokenResponse.error_description || tokenResponse.error}`);
+              setErrorMessage(`${t('app.authErrors.GOOGLE_LOGIN_FAILED')}: ${tokenResponse.error_description || tokenResponse.error}`);
             }
             return;
           }
@@ -248,7 +325,7 @@ export const AuthModal: React.FC = () => {
 
               if (!googleUser.email) {
                 setLoading(false);
-                setErrorMessage('Google không trả về thông tin email của bạn.');
+                setErrorMessage(t('app.authErrors.GOOGLE_LOGIN_FAILED'));
                 return;
               }
 
@@ -262,11 +339,11 @@ export const AuthModal: React.FC = () => {
 
               setLoading(false);
               if (!res.success) {
-                setErrorMessage(res.error || 'Đăng nhập Google thất bại.');
+                setErrorMessage(getLocalizedErrorMessage('GOOGLE_LOGIN_FAILED', res.error));
               }
             } catch (err: any) {
               setLoading(false);
-              setErrorMessage('Không thể kết nối lấy dữ liệu từ Google: ' + (err.message || 'Lỗi mạng'));
+              setErrorMessage(t('app.authErrors.GOOGLE_LOGIN_FAILED'));
             }
           }
         },
@@ -276,7 +353,7 @@ export const AuthModal: React.FC = () => {
       tokenClient.requestAccessToken({ prompt: 'select_account' });
     } catch (err: any) {
       setLoading(false);
-      setErrorMessage('Không thể mở popup đăng nhập Google: ' + (err.message || 'Lỗi không xác định'));
+      setErrorMessage(t('app.authErrors.GOOGLE_LOGIN_FAILED'));
     }
   };
 
@@ -540,8 +617,8 @@ export const AuthModal: React.FC = () => {
                   : authModalTab === 'register'
                   ? t('app.auth.registerTitle', 'Tạo tài khoản mới')
                   : authModalTab === 'forgot'
-                  ? 'Quên mật khẩu'
-                  : 'Kích hoạt tài khoản'}
+                  ? t('app.auth.forgotTitle', 'Quên mật khẩu')
+                  : t('app.auth.verifyTitle', 'Kích hoạt tài khoản')}
               </h1>
               <p style={{ fontSize: 13, color: '#94A3B8', marginTop: 8, marginBottom: 0 }}>
                 {authModalTab === 'signin'
@@ -549,8 +626,8 @@ export const AuthModal: React.FC = () => {
                   : authModalTab === 'register'
                   ? t('app.auth.registerDesc', 'Tạo tài khoản khách hàng để trải nghiệm thử đồ 3D')
                   : authModalTab === 'forgot'
-                  ? 'Khôi phục mật khẩu tài khoản của bạn qua mã xác nhận OTP'
-                  : 'Nhập mã OTP 6 số để hoàn tất kích hoạt tài khoản'}
+                  ? t('app.auth.forgotDesc', 'Khôi phục mật khẩu tài khoản của bạn qua mã xác nhận OTP')
+                  : t('app.auth.verifyDesc', 'Nhập mã OTP 6 số để hoàn tất kích hoạt tài khoản')}
               </p>
             </div>
 
@@ -647,7 +724,7 @@ export const AuthModal: React.FC = () => {
                 <AlertCircle size={17} style={{ flexShrink: 0, marginTop: 1, color: '#F87171' }} />
                 <div style={{ flex: 1 }}>
                   <span>{errorMessage}</span>
-                  {errorMessage.includes('chưa được kích hoạt') && (
+                  {(errorMessage.includes('chưa được kích hoạt') || errorMessage.toLowerCase().includes('activated') || errorMessage.includes('OTP')) && (
                     <div style={{ marginTop: 6 }}>
                       <button
                         type="button"
@@ -663,7 +740,7 @@ export const AuthModal: React.FC = () => {
                           padding: 0,
                         }}
                       >
-                        Bấm vào đây để nhập mã kích hoạt (OTP: 123456)
+                        {t('app.authErrors.CLICK_TO_VERIFY', 'Bấm vào đây để nhập mã kích hoạt')} (OTP: 123456)
                       </button>
                     </div>
                   )}
@@ -885,7 +962,7 @@ export const AuthModal: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '6px 0' }}>
                   <div style={{ flex: 1, height: 1, background: '#1E293B' }} />
                   <span style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                    hoặc tiếp tục với
+                    {t('app.auth.orContinueWith', 'Hoặc tiếp tục với')}
                   </span>
                   <div style={{ flex: 1, height: 1, background: '#1E293B' }} />
                 </div>
@@ -998,7 +1075,7 @@ export const AuthModal: React.FC = () => {
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Nguyễn Văn A"
+                      placeholder={locale === 'en' ? 'John Doe' : 'Nguyễn Văn A'}
                       style={{
                         width: '100%',
                         height: 42,
@@ -1083,7 +1160,7 @@ export const AuthModal: React.FC = () => {
                       marginBottom: 5,
                     }}
                   >
-                    {t('app.auth.passwordReg', 'Mật khẩu (ít nhất 8 ký tự, 1 số, 1 chữ hoa, 1 ký tự đặc biệt)')}
+                    {locale === 'en' ? 'PASSWORD (6-32 CHARS, NUMBERS & SPECIAL CHAR)' : 'MẬT KHẨU (6-32 KÝ TỰ, GỒM SỐ & KÝ TỰ ĐẶC BIỆT)'}
                   </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
@@ -1234,7 +1311,7 @@ export const AuthModal: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
                   <div style={{ flex: 1, height: 1, background: '#1E293B' }} />
                   <span style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                    hoặc tiếp tục với
+                    {t('app.auth.orContinueWith', 'Hoặc tiếp tục với')}
                   </span>
                   <div style={{ flex: 1, height: 1, background: '#1E293B' }} />
                 </div>
@@ -1287,7 +1364,7 @@ export const AuthModal: React.FC = () => {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>Đăng ký nhanh với Google</span>
+                  <span>{t('app.auth.googleSignUp', 'Đăng ký nhanh với Google')}</span>
                 </button>
               </form>
             )}
@@ -1309,7 +1386,7 @@ export const AuthModal: React.FC = () => {
                           marginBottom: 7,
                         }}
                       >
-                        Địa chỉ Email cần lấy lại mật khẩu
+                        {t('app.auth.forgotEmailLabel', 'Địa chỉ Email cần lấy lại mật khẩu')}
                       </label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
@@ -1359,7 +1436,7 @@ export const AuthModal: React.FC = () => {
                         marginTop: 4,
                       }}
                     >
-                      {loading ? 'Đang gửi mã...' : 'Gửi mã xác nhận OTP'}
+                      {loading ? t('app.auth.sendingOtpBtn', 'Đang gửi mã...') : t('app.auth.sendOtpBtn', 'Gửi mã xác nhận OTP')}
                       <ArrowRight size={17} />
                     </button>
                   </form>
@@ -1369,9 +1446,9 @@ export const AuthModal: React.FC = () => {
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                         <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8' }}>
-                          Mã OTP xác thực (6 số)
+                          {t('app.auth.otpLabel', 'Mã OTP xác thực (6 số)')}
                         </label>
-                        <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>Mã thử nghiệm: 123456</span>
+                        <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>{t('app.auth.otpDevHint', 'Mã thử nghiệm: 123456')}</span>
                       </div>
                       <input
                         type="text"
@@ -1401,15 +1478,13 @@ export const AuthModal: React.FC = () => {
 
                     {/* New Password */}
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 5 }}>
-                        Mật khẩu mới
-                      </label>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 5 }}>{t('app.auth.newPasswordLabel', 'Mật khẩu mới')}</label>
                       <input
                         type="password"
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Nhập mật khẩu mới"
+                        placeholder={t('app.auth.newPasswordPh', 'Nhập mật khẩu mới')}
                         style={{
                           width: '100%',
                           height: 42,
@@ -1428,15 +1503,13 @@ export const AuthModal: React.FC = () => {
 
                     {/* Confirm New Password */}
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 5 }}>
-                        Xác nhận mật khẩu mới
-                      </label>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 5 }}>{t('app.auth.confirmNewPasswordLabel', 'Xác nhận mật khẩu mới')}</label>
                       <input
                         type="password"
                         required
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
-                        placeholder="Nhập lại mật khẩu mới"
+                        placeholder={t('app.auth.confirmNewPasswordPh', 'Nhập lại mật khẩu mới')}
                         style={{
                           width: '100%',
                           height: 42,
@@ -1472,7 +1545,7 @@ export const AuthModal: React.FC = () => {
                         marginTop: 6,
                       }}
                     >
-                      {loading ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+                      {loading ? t('app.auth.updatingPasswordBtn', 'Đang cập nhật...') : t('app.auth.updatePasswordBtn', 'Cập nhật mật khẩu')}
                       <ArrowRight size={17} />
                     </button>
                   </form>
@@ -1492,7 +1565,7 @@ export const AuthModal: React.FC = () => {
                     onMouseEnter={(e) => (e.currentTarget.style.color = '#4FD1C5')}
                     onMouseLeave={(e) => (e.currentTarget.style.color = '#94A3B8')}
                   >
-                    ← Quay lại Đăng nhập
+                    {t('app.auth.backToSignIn', '← Quay lại Đăng nhập')}
                   </button>
                 </div>
               </div>
@@ -1502,9 +1575,7 @@ export const AuthModal: React.FC = () => {
             {authModalTab === 'verify' && (
               <form onSubmit={handleVerifyEmail} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 7 }}>
-                    Email cần kích hoạt
-                  </label>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 7 }}>{t('app.auth.verifyEmailLabel', 'Email cần kích hoạt')}</label>
                   <input
                     type="email"
                     required
@@ -1527,9 +1598,9 @@ export const AuthModal: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                     <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8' }}>
-                      Mã kích hoạt OTP (6 chữ số)
+                      {t('app.auth.verifyOtpLabel', 'Mã kích hoạt OTP (6 chữ số)')}
                     </label>
-                    <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>Mã thử nghiệm: 123456</span>
+                    <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>{t('app.auth.otpDevHint', 'Mã thử nghiệm: 123456')}</span>
                   </div>
                   <input
                     type="text"
@@ -1576,7 +1647,7 @@ export const AuthModal: React.FC = () => {
                     marginTop: 4,
                   }}
                 >
-                  {loading ? 'Đang kích hoạt...' : 'Kích hoạt tài khoản ngay'}
+                  {loading ? t('app.auth.activatingBtn', 'Đang kích hoạt...') : t('app.auth.activateBtn', 'Kích hoạt tài khoản ngay')}
                   <CheckCircle2 size={17} />
                 </button>
 
@@ -1594,7 +1665,7 @@ export const AuthModal: React.FC = () => {
                     onMouseEnter={(e) => (e.currentTarget.style.color = '#4FD1C5')}
                     onMouseLeave={(e) => (e.currentTarget.style.color = '#94A3B8')}
                   >
-                    ← Quay lại Đăng nhập
+                    {t('app.auth.backToSignIn', '← Quay lại Đăng nhập')}
                   </button>
                 </div>
               </form>

@@ -231,13 +231,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = useCallback(
     async (emailInput: string, passwordInput = '', website_trap = '') => {
       if (checkHoneypot(website_trap)) {
-        return { success: false, error: 'Phát hiện hoạt động bot đáng ngờ (Honeypot Triggered).' };
+        return { success: false, errorCode: 'BOT_DETECTED', error: 'Phát hiện hoạt động bot đáng ngờ (Honeypot Triggered).' };
       }
 
       const limit = RateLimiter.checkLimit('login', 5, 1);
       if (!limit.allowed) {
         return {
           success: false,
+          errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
           error: `Đăng nhập quá số lần cho phép. Vui lòng thử lại sau ${limit.waitMinutes} phút.`,
         };
       }
@@ -277,27 +278,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = useCallback(
     async (payload: RegisterPayload) => {
       if (checkHoneypot(payload.website_trap)) {
-        return { success: false, error: 'Phát hiện bot tự động đăng ký (Honeypot Triggered).' };
+        return { success: false, errorCode: 'BOT_DETECTED', error: 'Phát hiện bot tự động đăng ký (Honeypot Triggered).' };
       }
 
       const cleanFullName = (payload.fullName || '').trim();
       if (cleanFullName.length < 2) {
-        return { success: false, error: 'Họ và tên phải có tối thiểu 2 ký tự.' };
+        return { success: false, errorCode: 'AUTH_NAME_REQUIRED', error: 'Họ và tên phải có tối thiểu 2 ký tự.' };
       }
 
       const passResult = validatePassword(payload.password);
       if (!passResult.valid) {
-        return { success: false, error: passResult.error };
+        return { success: false, errorCode: passResult.code || 'PASSWORD_COMPLEXITY_FAILED', error: passResult.error };
       }
 
       if (payload.confirmPassword !== undefined && payload.password !== payload.confirmPassword) {
-        return { success: false, error: 'Mật khẩu xác nhận không trùng khớp với mật khẩu đã nhập.' };
+        return { success: false, errorCode: 'AUTH_PASSWORD_MISMATCH', error: 'Mật khẩu xác nhận không trùng khớp với mật khẩu đã nhập.' };
       }
 
       const limit = RateLimiter.checkLimit('register', 5, 2);
       if (!limit.allowed) {
         return {
           success: false,
+          errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
           error: `Quá số lần đăng ký cho phép. Vui lòng đợi ${limit.waitMinutes} phút trước khi thử lại.`,
         };
       }
