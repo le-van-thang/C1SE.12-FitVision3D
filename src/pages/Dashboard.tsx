@@ -27,6 +27,7 @@ import { MannequinViewer, type MetricKey } from "../features/avatar3d/MannequinV
 import { MeasurementsPanel } from "../features/anthropometry/MeasurementsPanel";
 import { AiGarmentCard } from "../features/anthropometry/AiGarmentCard";
 import { runAiMeasurement, type AiMeasurementResponse } from "../services/aiService";
+import { recommendGarmentSizes } from "../utils/garmentSizeCalculator";
 import { DEMO_BIOMETRIC, DEMO_MEASUREMENT, DEMO_MESH, bmi } from "../data/mockData";
 import type { BiometricInput, Measurement, MeshParameter, SystemAuditLog } from "../types/database.types";
 
@@ -180,17 +181,27 @@ export const Dashboard: React.FC = () => {
       arm_length_cm: 58.5,
     });
     setMesh(DEMO_MESH);
+
+    const demoSizing = recommendGarmentSizes({
+      gender: "male",
+      height_cm: DEMO_BIOMETRIC.stature_cm,
+      weight_kg: DEMO_BIOMETRIC.weight_kg,
+      chest_cm: DEMO_MEASUREMENT.chest_circ_cm,
+      waist_cm: DEMO_MEASUREMENT.waist_circ_cm,
+      hips_cm: DEMO_MEASUREMENT.hip_circ_cm,
+      shoulder_cm: DEMO_MEASUREMENT.shoulder_breadth_cm ?? undefined,
+      inseam_cm: DEMO_MEASUREMENT.inseam_cm ?? undefined,
+    });
+
     setGarmentRec({
-      topwear_shirt_size: "M",
-      bottomwear_trouser_size: "Size 31 (31W x 31L)",
-      waist_inches: 31,
-      inseam_inches: 31,
-      body_shape_classification: "V-Shape / Athletic (Thể thao, ngực nở eo thon)",
-      ease_allowance_recommendation: {
-        slim_fit_chest_cm: 97.4,
-        regular_fit_chest_cm: 100.4,
-        trouser_waist_ease_cm: 80.8,
-      },
+      topwear_shirt_size: demoSizing.topwear.recommended_label,
+      bottomwear_trouser_size: demoSizing.bottomwear.tag,
+      waist_inches: demoSizing.bottomwear.waist_inches,
+      inseam_inches: demoSizing.bottomwear.inseam_inches,
+      body_shape_classification: demoSizing.body_shape_classification,
+      ease_allowance_recommendation: demoSizing.ease_allowance_recommendation,
+      topwear: demoSizing.topwear,
+      bottomwear: demoSizing.bottomwear,
     });
     setIsLiveBackend(false);
     setExecutionTime(0.85);
@@ -408,6 +419,26 @@ export const Dashboard: React.FC = () => {
                     data={garmentRec}
                     executionTime={executionTime}
                     isLiveBackend={isLiveBackend}
+                    measurements={
+                      measurement
+                        ? {
+                            chieu_cao_cm: biometric?.stature_cm || 172,
+                            vong_nguc_cm: measurement.chest_circ_cm,
+                            vong_eo_cm: measurement.waist_circ_cm,
+                            vong_mong_cm: measurement.hip_circ_cm,
+                            rong_vai_cm: measurement.shoulder_breadth_cm,
+                            dai_chan_inseam_cm: measurement.inseam_cm,
+                            can_nang_kg: biometric?.weight_kg || 70,
+                          }
+                        : undefined
+                    }
+                    gender={
+                      biometric?.gender === "female"
+                        ? "female"
+                        : biometric?.gender === "male"
+                        ? "male"
+                        : "neutral"
+                    }
                   />
                 ) : (
                   <div

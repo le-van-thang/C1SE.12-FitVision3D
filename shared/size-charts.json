@@ -1,0 +1,269 @@
+{
+  "version": "1.0.0",
+  "men": {
+    "topwear": [
+      {
+        "asia": "XS",
+        "us": "XS",
+        "us_uk_chest_in": "32-34",
+        "eu": "44",
+        "uk": "32-34",
+        "chest_min": 78.0,
+        "chest_max": 84.0,
+        "shoulder_min": 39.0,
+        "shoulder_max": 41.0,
+        "height_min": 155.0,
+        "height_max": 163.0,
+        "weight_min": 45.0,
+        "weight_max": 52.0
+      },
+      {
+        "asia": "S",
+        "us": "XS",
+        "us_uk_chest_in": "35-37",
+        "eu": "46",
+        "uk": "35-37",
+        "chest_min": 84.0,
+        "chest_max": 90.0,
+        "shoulder_min": 41.0,
+        "shoulder_max": 43.0,
+        "height_min": 160.0,
+        "height_max": 168.0,
+        "weight_min": 52.0,
+        "weight_max": 60.0
+      },
+      {
+        "asia": "M",
+        "us": "S",
+        "us_uk_chest_in": "38-40",
+        "eu": "48",
+        "uk": "38-40",
+        "chest_min": 90.0,
+        "chest_max": 96.0,
+        "shoulder_min": 43.0,
+        "shoulder_max": 45.0,
+        "height_min": 166.0,
+        "height_max": 172.0,
+        "weight_min": 58.0,
+        "weight_max": 66.0
+      },
+      {
+        "asia": "L",
+        "us": "M",
+        "us_uk_chest_in": "41-43",
+        "eu": "50",
+        "uk": "41-43",
+        "chest_min": 96.0,
+        "chest_max": 102.0,
+        "shoulder_min": 45.0,
+        "shoulder_max": 47.0,
+        "height_min": 170.0,
+        "height_max": 176.0,
+        "weight_min": 64.0,
+        "weight_max": 72.0
+      },
+      {
+        "asia": "XL",
+        "us": "L",
+        "us_uk_chest_in": "44-46",
+        "eu": "52",
+        "uk": "44-46",
+        "chest_min": 102.0,
+        "chest_max": 108.0,
+        "shoulder_min": 47.0,
+        "shoulder_max": 49.0,
+        "height_min": 174.0,
+        "height_max": 180.0,
+        "weight_min": 70.0,
+        "weight_max": 80.0
+      },
+      {
+        "asia": "XXL",
+        "us": "XL",
+        "us_uk_chest_in": "47-49",
+        "eu": "54",
+        "uk": "47-49",
+        "chest_min": 108.0,
+        "chest_max": 114.0,
+        "shoulder_min": 49.0,
+        "shoulder_max": 51.0,
+        "height_min": 176.0,
+        "height_max": 184.0,
+        "weight_min": 78.0,
+        "weight_max": 90.0
+      }
+    ],
+    "bottomwear": [
+      {
+        "asia": "XS",
+        "us": "26-27",
+        "waist_inch_min": 26,
+        "waist_inch_max": 27,
+        "waist_min": 66.0,
+        "waist_max": 70.0
+      },
+      {
+        "asia": "S",
+        "us": "28-29",
+        "waist_inch_min": 28,
+        "waist_inch_max": 29,
+        "waist_min": 71.0,
+        "waist_max": 74.0
+      },
+      {
+        "asia": "M",
+        "us": "30-31",
+        "waist_inch_min": 30,
+        "waist_inch_max": 31,
+        "waist_min": 76.0,
+        "waist_max": 79.0
+      },
+      {
+        "asia": "L",
+        "us": "32-33",
+        "waist_inch_min": 32,
+        "waist_inch_max": 33,
+        "waist_min": 81.0,
+        "waist_max": 84.0
+      },
+      {
+        "asia": "XL",
+        "us": "34-35",
+        "waist_inch_min": 34,
+        "waist_inch_max": 35,
+        "waist_min": 86.0,
+        "waist_max": 89.0
+      },
+      {
+        "asia": "XXL",
+        "us": "36-38",
+        "waist_inch_min": 36,
+        "waist_inch_max": 38,
+        "waist_min": 91.0,
+        "waist_max": 97.0
+      }
+    ]
+  },
+  "women": {
+    "topwear": [
+      {
+        "asia": "XS",
+        "us": "0-2",
+        "eu": "32-34",
+        "uk": "4-6",
+        "chest_min": 78.0,
+        "chest_max": 82.0,
+        "waist_min": 60.0,
+        "waist_max": 64.0,
+        "hip_min": 84.0,
+        "hip_max": 88.0,
+        "height_min": 150.0,
+        "height_max": 158.0
+      },
+      {
+        "asia": "S",
+        "us": "4-6",
+        "eu": "36",
+        "uk": "8-10",
+        "chest_min": 82.0,
+        "chest_max": 86.0,
+        "waist_min": 64.0,
+        "waist_max": 68.0,
+        "hip_min": 88.0,
+        "hip_max": 92.0,
+        "height_min": 155.0,
+        "height_max": 162.0
+      },
+      {
+        "asia": "M",
+        "us": "8-10",
+        "eu": "38",
+        "uk": "12-14",
+        "chest_min": 86.0,
+        "chest_max": 90.0,
+        "waist_min": 68.0,
+        "waist_max": 72.0,
+        "hip_min": 92.0,
+        "hip_max": 96.0,
+        "height_min": 158.0,
+        "height_max": 165.0
+      },
+      {
+        "asia": "L",
+        "us": "12-14",
+        "eu": "40-42",
+        "uk": "16-18",
+        "chest_min": 90.0,
+        "chest_max": 94.0,
+        "waist_min": 72.0,
+        "waist_max": 76.0,
+        "hip_min": 96.0,
+        "hip_max": 100.0,
+        "height_min": 160.0,
+        "height_max": 168.0
+      },
+      {
+        "asia": "XL",
+        "us": "16",
+        "eu": "44",
+        "uk": "20",
+        "chest_min": 94.0,
+        "chest_max": 98.0,
+        "waist_min": 76.0,
+        "waist_max": 80.0,
+        "hip_min": 100.0,
+        "hip_max": 104.0,
+        "height_min": 162.0,
+        "height_max": 170.0
+      }
+    ],
+    "bottomwear": [
+      {
+        "asia": "XS",
+        "us": "24-25",
+        "waist_inch_min": 24,
+        "waist_inch_max": 25,
+        "waist_min": 60.0,
+        "waist_max": 64.0
+      },
+      {
+        "asia": "S",
+        "us": "26-27",
+        "waist_inch_min": 26,
+        "waist_inch_max": 27,
+        "waist_min": 64.0,
+        "waist_max": 68.0
+      },
+      {
+        "asia": "M",
+        "us": "28-29",
+        "waist_inch_min": 28,
+        "waist_inch_max": 29,
+        "waist_min": 68.0,
+        "waist_max": 72.0
+      },
+      {
+        "asia": "L",
+        "us": "30-31",
+        "waist_inch_min": 30,
+        "waist_inch_max": 31,
+        "waist_min": 72.0,
+        "waist_max": 76.0
+      },
+      {
+        "asia": "XL",
+        "us": "32-33",
+        "waist_inch_min": 32,
+        "waist_inch_max": 33,
+        "waist_min": 76.0,
+        "waist_max": 80.0
+      }
+    ]
+  },
+  "standard_inseams": [28, 30, 32, 34, 36],
+  "ease_allowances": {
+    "slim_fit_chest_cm": 5.0,
+    "regular_fit_chest_cm": 8.0,
+    "trouser_waist_ease_cm": 2.0
+  }
+}

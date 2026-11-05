@@ -121,6 +121,11 @@ export type SizeRow = Pick<
   "size_label" | "min_chest" | "max_chest" | "min_waist" | "max_waist" | "min_hip" | "max_hip"
 > & { id: string };
 
+// CHÚ THÍCH QUAN TRỌNG:
+// BASE_ROWS dưới đây là bảng tham chiếu demo dành riêng cho Size Chart Manager / Xưởng may đối tác,
+// KHÔNG dùng để tính kích cỡ may mặc đề xuất cho người dùng.
+// Logic tính size chuẩn quốc tế (Châu Á, US, EU, UK) được quản lý tập trung tại `shared/size-charts.json`
+// và thực thi qua `src/utils/garmentSizeCalculator.ts`.
 const BASE_ROWS: Array<[string, number, number, number, number, number, number]> = [
   ["XS", 84, 88, 68, 72, 88, 92],
   ["S",  88, 92, 72, 76, 92, 96],
