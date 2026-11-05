@@ -307,3 +307,4 @@ export const adminRepository = {
     return rows[0];
   },
 };
+

@@ -271,16 +271,16 @@ export const AdminPortal: React.FC = () => {
         {/* Top Header Card */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0C151B] via-[#0E1B22] to-[#0A1318] border border-cyan-500/20 p-6 sm:p-8 mb-8 shadow-2xl shadow-cyan-950/20">
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#4FD1C5]/5 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold tracking-wider uppercase mb-3">
                 <ShieldCheck size={14} className="text-[#4FD1C5]" />
                 <span>FitVision 3D • Super Admin Platform Control</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-                Cổng Điều Hành & Quản Trị Hệ Thống
+                Cổng Điều Hành & Quản Trị Hệ&nbsp;Thống
               </h1>
-              <p className="mt-1 text-sm text-slate-400 max-w-2xl leading-relaxed">
+              <p className="mt-1 text-sm text-slate-300 max-w-2xl leading-relaxed">
                 Đồng bộ trực tiếp cơ sở dữ liệu PostgreSQL thực tế, xét duyệt nhà may đo 3D theo chuẩn ISO 8559 và phân quyền tài khoản người dùng.
               </p>
             </div>
@@ -398,53 +398,96 @@ export const AdminPortal: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-px mb-6">
+        {/* Main Navigation Tabs - Sáng sủa, Đẳng cấp & Nổi bật */}
+        <div className="flex flex-wrap items-center gap-3.5 mb-8 p-2 rounded-2xl bg-[#091217] border border-slate-700/80 shadow-2xl">
+          {/* TAB 1: STORES */}
           <button
             type="button"
             onClick={() => setMainTab('STORES')}
-            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-medium rounded-t-xl transition relative cursor-pointer ${
+            className={`flex items-center gap-3 px-6 py-3.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
               mainTab === 'STORES'
-                ? 'text-[#4FD1C5] bg-[#0E181E] border-t-2 border-[#4FD1C5]'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#0B1317]'
+                ? 'bg-gradient-to-r from-[#20E3B2] via-[#00D2B4] to-[#38BDF8] text-[#021518] shadow-[0_4px_25px_rgba(32,227,178,0.5)] border border-teal-200 scale-[1.02]'
+                : 'bg-[#13232C] hover:bg-[#1C323F] text-slate-100 hover:text-white border border-slate-700/90 hover:border-teal-400/60 shadow-md'
             }`}
           >
-            <StoreIcon size={16} />
-            <span>Hồ sơ Nhà may / Cửa hàng</span>
-            {stats.pendingStores > 0 && (
-              <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                {stats.pendingStores}
+            <StoreIcon
+              size={19}
+              className={mainTab === 'STORES' ? 'text-[#021518] stroke-[2.4]' : 'text-[#20E3B2] stroke-[2]'}
+            />
+            <span className="tracking-wide">Hồ sơ Nhà may / Cửa hàng</span>
+            {stats.pendingStores > 0 ? (
+              <span
+                className={`ml-1 px-2.5 py-0.5 rounded-full text-xs font-black font-mono transition shadow-md ${
+                  mainTab === 'STORES'
+                    ? 'bg-[#021518] text-[#20E3B2]'
+                    : 'bg-amber-400 text-slate-950 animate-bounce'
+                }`}
+              >
+                {stats.pendingStores} mới
+              </span>
+            ) : (
+              <span
+                className={`ml-1 px-2 py-0.5 rounded-md text-xs font-bold font-mono transition ${
+                  mainTab === 'STORES'
+                    ? 'bg-[#021518]/25 text-[#021518]'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                {stores.length}
               </span>
             )}
           </button>
 
+          {/* TAB 2: USERS */}
           <button
             type="button"
             onClick={() => setMainTab('USERS')}
-            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-medium rounded-t-xl transition relative cursor-pointer ${
+            className={`flex items-center gap-3 px-6 py-3.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
               mainTab === 'USERS'
-                ? 'text-[#4FD1C5] bg-[#0E181E] border-t-2 border-[#4FD1C5]'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#0B1317]'
+                ? 'bg-gradient-to-r from-[#818CF8] via-[#6366F1] to-[#38BDF8] text-[#050814] shadow-[0_4px_25px_rgba(99,102,241,0.5)] border border-indigo-200 scale-[1.02]'
+                : 'bg-[#13232C] hover:bg-[#1C323F] text-slate-100 hover:text-white border border-slate-700/90 hover:border-indigo-400/60 shadow-md'
             }`}
           >
-            <Users size={16} />
-            <span>Quản lý Người dùng & Phân quyền</span>
-            <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-mono bg-slate-800 text-slate-300">
+            <Users
+              size={19}
+              className={mainTab === 'USERS' ? 'text-[#050814] stroke-[2.4]' : 'text-[#818CF8] stroke-[2]'}
+            />
+            <span className="tracking-wide">Quản lý Người dùng & Phân quyền</span>
+            <span
+              className={`ml-1 px-2.5 py-0.5 rounded-full text-xs font-black font-mono transition shadow-md ${
+                mainTab === 'USERS'
+                  ? 'bg-[#050814] text-[#818CF8]'
+                  : 'bg-indigo-500/25 text-indigo-300 border border-indigo-500/40'
+              }`}
+            >
               {users.length}
             </span>
           </button>
 
+          {/* TAB 3: AUDIT */}
           <button
             type="button"
             onClick={() => setMainTab('AUDIT')}
-            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-medium rounded-t-xl transition relative cursor-pointer ${
+            className={`flex items-center gap-3 px-6 py-3.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
               mainTab === 'AUDIT'
-                ? 'text-[#4FD1C5] bg-[#0E181E] border-t-2 border-[#4FD1C5]'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#0B1317]'
+                ? 'bg-gradient-to-r from-[#FBBF24] via-[#F59E0B] to-[#FB923C] text-[#140D01] shadow-[0_4px_25px_rgba(245,158,11,0.5)] border border-amber-200 scale-[1.02]'
+                : 'bg-[#13232C] hover:bg-[#1C323F] text-slate-100 hover:text-white border border-slate-700/90 hover:border-amber-400/60 shadow-md'
             }`}
           >
-            <Shield size={16} />
-            <span>Nhật ký Kiểm toán Hệ thống</span>
+            <Shield
+              size={19}
+              className={mainTab === 'AUDIT' ? 'text-[#140D01] stroke-[2.4]' : 'text-[#FBBF24] stroke-[2]'}
+            />
+            <span className="tracking-wide">Nhật ký Kiểm toán Hệ thống</span>
+            <span
+              className={`ml-1 px-2 py-0.5 rounded-md text-xs font-bold font-mono transition ${
+                mainTab === 'AUDIT'
+                  ? 'bg-[#140D01]/25 text-[#140D01]'
+                  : 'bg-slate-800 text-slate-300'
+              }`}
+            >
+              Live
+            </span>
           </button>
         </div>
 
@@ -467,14 +510,20 @@ export const AdminPortal: React.FC = () => {
                     key={item.key}
                     type="button"
                     onClick={() => setStoreFilterTab(item.key as StoreFilterTab)}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${
                       storeFilterTab === item.key
-                        ? 'bg-[#4FD1C5]/15 border border-[#4FD1C5]/40 text-[#4FD1C5] font-semibold'
-                        : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                        ? 'bg-[#20E3B2] text-[#021417] shadow-[0_2px_14px_rgba(32,227,178,0.4)] border border-teal-200'
+                        : 'bg-[#14232C] hover:bg-[#1C303C] text-slate-100 hover:text-white border border-slate-700 hover:border-teal-400/50'
                     }`}
                   >
                     <span>{item.label}</span>
-                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-black/40">
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold ${
+                        storeFilterTab === item.key
+                          ? 'bg-[#021417] text-[#20E3B2]'
+                          : 'bg-slate-800 text-slate-300'
+                      }`}
+                    >
                       {item.count}
                     </span>
                   </button>
@@ -702,14 +751,20 @@ export const AdminPortal: React.FC = () => {
                     key={item.key}
                     type="button"
                     onClick={() => setUserFilterRole(item.key as UserFilterRole)}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${
                       userFilterRole === item.key
-                        ? 'bg-[#4FD1C5]/15 border border-[#4FD1C5]/40 text-[#4FD1C5] font-semibold'
-                        : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200'
+                        ? 'bg-[#818CF8] text-[#050814] shadow-[0_2px_14px_rgba(99,102,241,0.4)] border border-indigo-200'
+                        : 'bg-[#14232C] hover:bg-[#1C303C] text-slate-100 hover:text-white border border-slate-700 hover:border-indigo-400/50'
                     }`}
                   >
                     <span>{item.label}</span>
-                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-black/40">
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold ${
+                        userFilterRole === item.key
+                          ? 'bg-[#050814] text-[#818CF8]'
+                          : 'bg-slate-800 text-slate-300'
+                      }`}
+                    >
                       {item.count}
                     </span>
                   </button>

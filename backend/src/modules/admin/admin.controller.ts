@@ -70,3 +70,4 @@ export const adminController = {
     sendSuccess(res, shop, 'Hồ sơ đã được gửi thành công và đang chờ xét duyệt.');
   },
 };
+
