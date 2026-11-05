@@ -191,7 +191,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
   }, [currentUserId]);
 
-  const currentUser = profiles.find((p) => p.id === currentUserId) || null;
+  const rawUser = profiles.find((p) => p.id === currentUserId) || null;
+  const isSuperAdmin = (rawUser?.email || '').toLowerCase() === 'levanthang0166@gmail.com' || (rawUser?.email || '').toLowerCase() === 'admin@fitvision3d.com';
+  const currentUser: Profile | null = rawUser
+    ? {
+        ...rawUser,
+        role: isSuperAdmin ? 'admin' : rawUser.role,
+      }
+    : null;
   const currentStore = currentUser ? stores.find((s) => s.user_id === currentUser.id) || null : null;
   const isAuthenticated = Boolean(currentUser);
   const userRole: UserRole | 'guest' = currentUser ? currentUser.role : 'guest';
