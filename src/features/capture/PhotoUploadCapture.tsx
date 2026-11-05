@@ -3,7 +3,7 @@
 // Replaces laptop webcam with high-resolution mobile photo upload
 // Single-View 3D Body Mesh Recovery (SMPLer-X / ISO 8559)
 // ============================================================
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useI18n } from "../../i18n";
 import {
   UploadCloud,
@@ -41,11 +41,63 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 }) => {
   const { t } = useI18n();
   const [frontImage, setFrontImage] = useState<{ file: File | Blob; url: string; name: string } | null>(null);
-  const [height, setHeight] = useState<number>(initialHeight);
-  const [weight, setWeight] = useState<number>(initialWeight);
+  const [height, setHeight] = useState<string>(String(initialHeight));
+  const [weight, setWeight] = useState<string>(String(initialWeight));
   const [gender, setGender] = useState<"male" | "female" | "neutral">(initialGender);
   const [showGuide, setShowGuide] = useState<boolean>(false);
   const [dragActive, setDragActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (initialHeight) setHeight(String(initialHeight));
+  }, [initialHeight]);
+
+  useEffect(() => {
+    if (initialWeight) setWeight(String(initialWeight));
+  }, [initialWeight]);
+
+  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    // Cho phép người dùng xóa trắng trường input để gõ lại từ đầu (không bị nhảy về số 0)
+    if (val === '') {
+      setHeight('');
+      return;
+    }
+    // Xóa số 0 thừa ở đầu nếu gõ số mới (ví dụ "02" -> "2", "0172" -> "172")
+    if (/^0+[1-9]/.test(val)) {
+      val = val.replace(/^0+/, '');
+    }
+    setHeight(val);
+  };
+
+  const handleHeightBlur = () => {
+    const num = parseFloat(height);
+    if (!height.trim() || isNaN(num) || num <= 0) {
+      setHeight(String(initialHeight || 172));
+    } else {
+      setHeight(String(num));
+    }
+  };
+
+  const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    if (val === '') {
+      setWeight('');
+      return;
+    }
+    if (/^0+[1-9]/.test(val)) {
+      val = val.replace(/^0+/, '');
+    }
+    setWeight(val);
+  };
+
+  const handleWeightBlur = () => {
+    const num = parseFloat(weight);
+    if (!weight.trim() || isNaN(num) || num <= 0) {
+      setWeight(String(initialWeight || 70));
+    } else {
+      setWeight(String(num));
+    }
+  };
 
   const frontInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,10 +140,12 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 
   const handleStartScan = () => {
     if (!frontImage) return;
+    const finalHeight = parseFloat(height) || initialHeight || 172;
+    const finalWeight = parseFloat(weight) || initialWeight || 70;
     onScan({
       frontFile: frontImage.file,
-      height_cm: height,
-      weight_kg: weight,
+      height_cm: finalHeight,
+      weight_kg: finalWeight,
       gender,
     });
   };
@@ -275,10 +329,12 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
             </label>
             <input
               type="number"
-              min={120}
-              max={230}
+              min={100}
+              max={250}
+              placeholder="172"
               value={height}
-              onChange={(e) => setHeight(Number(e.target.value))}
+              onChange={handleHeightChange}
+              onBlur={handleHeightBlur}
               style={{
                 width: "100%",
                 background: "var(--surface, #0f172a)",
@@ -297,10 +353,12 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
             </label>
             <input
               type="number"
-              min={35}
-              max={160}
+              min={30}
+              max={250}
+              placeholder="70"
               value={weight}
-              onChange={(e) => setWeight(Number(e.target.value))}
+              onChange={handleWeightChange}
+              onBlur={handleWeightBlur}
               style={{
                 width: "100%",
                 background: "var(--surface, #0f172a)",

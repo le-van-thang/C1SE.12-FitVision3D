@@ -270,7 +270,7 @@ export const Landing: React.FC = () => {
                         min="120"
                         max="230"
                         value={stature}
-                        onChange={(e) => setStature(e.target.value)}
+                        onChange={(e) => setStature(e.target.value.replace(/^0+(?=\d)/, ''))}
                         placeholder="172"
                       />
                     </div>
@@ -283,7 +283,7 @@ export const Landing: React.FC = () => {
                         min="35"
                         max="200"
                         value={weight}
-                        onChange={(e) => setWeight(e.target.value)}
+                        onChange={(e) => setWeight(e.target.value.replace(/^0+(?=\d)/, ''))}
                         placeholder="70"
                       />
                     </div>
