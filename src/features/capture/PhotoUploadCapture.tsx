@@ -35,14 +35,14 @@ export interface PhotoUploadCaptureProps {
 export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
   onScan,
   isProcessing,
-  initialHeight = 172,
-  initialWeight = 70,
+  initialHeight,
+  initialWeight,
   initialGender = "male",
 }) => {
   const { t } = useI18n();
   const [frontImage, setFrontImage] = useState<{ file: File | Blob; url: string; name: string } | null>(null);
-  const [height, setHeight] = useState<string>(String(initialHeight));
-  const [weight, setWeight] = useState<string>(String(initialWeight));
+  const [height, setHeight] = useState<string>(initialHeight ? String(initialHeight) : "");
+  const [weight, setWeight] = useState<string>(initialWeight ? String(initialWeight) : "");
   const [gender, setGender] = useState<"male" | "female" | "neutral">(initialGender);
   const [showGuide, setShowGuide] = useState<boolean>(false);
   const [dragActive, setDragActive] = useState<boolean>(false);
@@ -70,9 +70,10 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
   };
 
   const handleHeightBlur = () => {
+    if (!height.trim()) return;
     const num = parseFloat(height);
-    if (!height.trim() || isNaN(num) || num <= 0) {
-      setHeight(String(initialHeight || 172));
+    if (isNaN(num) || num <= 0) {
+      setHeight('');
     } else {
       setHeight(String(num));
     }
@@ -91,9 +92,10 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
   };
 
   const handleWeightBlur = () => {
+    if (!weight.trim()) return;
     const num = parseFloat(weight);
-    if (!weight.trim() || isNaN(num) || num <= 0) {
-      setWeight(String(initialWeight || 70));
+    if (isNaN(num) || num <= 0) {
+      setWeight('');
     } else {
       setWeight(String(num));
     }
@@ -331,10 +333,11 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               type="number"
               min={100}
               max={250}
-              placeholder="172"
+              placeholder="VD: 172"
               value={height}
               onChange={handleHeightChange}
               onBlur={handleHeightBlur}
+              className="zf-calib-input"
               style={{
                 width: "100%",
                 background: "var(--surface, #0f172a)",
@@ -355,10 +358,11 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               type="number"
               min={30}
               max={250}
-              placeholder="70"
+              placeholder="VD: 70"
               value={weight}
               onChange={handleWeightChange}
               onBlur={handleWeightBlur}
+              className="zf-calib-input"
               style={{
                 width: "100%",
                 background: "var(--surface, #0f172a)",

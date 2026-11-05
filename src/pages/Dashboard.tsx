@@ -33,18 +33,18 @@ import type { BiometricInput, Measurement, MeshParameter, SystemAuditLog } from 
 type Tab = "capture" | "mesh" | "metrics";
 
 /** Biometric inputs cached from landing page */
-const loadInitialBiometric = (): { height: number; weight: number; gender: "male" | "female" | "neutral" } => {
+const loadInitialBiometric = (): { height?: number; weight?: number; gender: "male" | "female" | "neutral" } => {
   try {
     const raw = sessionStorage.getItem("fv3d_estimator");
-    if (!raw) return { height: 172, weight: 70, gender: "male" };
+    if (!raw) return { height: undefined, weight: undefined, gender: "male" };
     const e = JSON.parse(raw);
     return {
-      height: Number(e.stature_cm) || 172,
-      weight: Number(e.weight_kg) || 70,
+      height: e.stature_cm ? Number(e.stature_cm) : undefined,
+      weight: e.weight_kg ? Number(e.weight_kg) : undefined,
       gender: (e.gender === "female" ? "female" : "male") as "male" | "female",
     };
   } catch {
-    return { height: 172, weight: 70, gender: "male" };
+    return { height: undefined, weight: undefined, gender: "male" };
   }
 };
 

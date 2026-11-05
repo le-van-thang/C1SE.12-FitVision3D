@@ -342,6 +342,11 @@ button { font-family: inherit; }
 .zf-form-input::placeholder {
   color: #475569 !important;
 }
+.zf-calib-input::placeholder {
+  color: #64748B !important;
+  opacity: 0.65 !important;
+  font-style: italic !important;
+}
 
 .zf-demo-box {
   margin-top: 22px !important;
