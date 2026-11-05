@@ -833,7 +833,7 @@ export const AuthModal: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94A3B8', cursor: 'pointer' }}>
                     <input type="checkbox" defaultChecked style={{ accentColor: '#4FD1C5', cursor: 'pointer' }} />
-                    <span>Ghi nhớ đăng nhập</span>
+                    <span>{t('app.auth.rememberMe', 'Ghi nhớ đăng nhập')}</span>
                   </label>
                   <button
                     type="button"
@@ -848,7 +848,7 @@ export const AuthModal: React.FC = () => {
                       padding: 0,
                     }}
                   >
-                    Quên mật khẩu?
+                    {t('app.auth.forgotPassword', 'Quên mật khẩu?')}
                   </button>
                 </div>
 
@@ -938,7 +938,7 @@ export const AuthModal: React.FC = () => {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>Đăng nhập với Google</span>
+                  <span>{t('app.auth.googleSignIn', 'Đăng nhập với Google')}</span>
                 </button>
               </form>
             )}

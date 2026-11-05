@@ -217,7 +217,7 @@
       "emailPh": "Nhập địa chỉ email của bạn",
       "password": "Mật khẩu",
       "passwordPh": "Nhập mật khẩu",
-      "passwordReg": "Mật khẩu (8-32 ký tự, gồm Hoa, Thường, Số & Ký tự đặc biệt)",
+      "passwordReg": "Mật khẩu (tối thiểu 6 ký tự, gồm ít nhất 1 ký tự đặc biệt)",
       "confirm": "Xác nhận Mật khẩu",
       "confirmPh": "Nhập lại mật khẩu",
       "fullName": "Họ và tên",
@@ -240,7 +240,16 @@
       "engine": "Công cụ phân tích hình thể không gian",
       "isoBadge": "Chứng nhận nhân trắc học ISO 8559-1",
       "topology": "Lưới 3D hai lớp",
-      "latency": "Độ trễ tạm thời < 1.25s"
+      "latency": "Độ trễ tạm thời < 1.25s",
+      "nameReg": "Họ và tên",
+      "rememberMe": "Ghi nhớ đăng nhập",
+      "forgotPassword": "Quên mật khẩu?",
+      "orContinueWith": "Hoặc tiếp tục với",
+      "googleSignIn": "Đăng nhập với Google",
+      "forgotTitle": "Quên mật khẩu",
+      "forgotDesc": "Khôi phục mật khẩu tài khoản của bạn qua mã xác nhận OTP",
+      "verifyTitle": "Kích hoạt tài khoản",
+      "verifyDesc": "Nhập mã OTP 6 số để hoàn tất kích hoạt tài khoản"
     },
     "gate": {
       "title": "Cần đăng nhập để tiếp tục",
