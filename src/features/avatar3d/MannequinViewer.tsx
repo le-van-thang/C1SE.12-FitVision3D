@@ -42,20 +42,20 @@ interface CameraPreset {
 
 const VIEW_PRESETS: Record<ViewZone, CameraPreset> = {
   full_body: {
-    target: new THREE.Vector3(0, 0.0, 0),
-    pos: new THREE.Vector3(0, 0.05, 2.35),
+    target: new THREE.Vector3(0, -0.02, 0),
+    pos: new THREE.Vector3(0, 0.04, 3.20),
   },
   chest: {
     target: new THREE.Vector3(0, 0.30, 0),
-    pos: new THREE.Vector3(0, 0.32, 1.15),
+    pos: new THREE.Vector3(0, 0.32, 1.35),
   },
   waist: {
     target: new THREE.Vector3(0, 0.08, 0),
-    pos: new THREE.Vector3(0, 0.10, 1.05),
+    pos: new THREE.Vector3(0, 0.10, 1.25),
   },
   hips: {
     target: new THREE.Vector3(0, -0.09, 0),
-    pos: new THREE.Vector3(0, -0.07, 1.18),
+    pos: new THREE.Vector3(0, -0.07, 1.35),
   },
 };
 
@@ -203,7 +203,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 50);
     const initialPreset = VIEW_PRESETS.full_body;
-    camera.position.set(0, 0.05, 2.35);
+    camera.position.copy(initialPreset.pos);
     camera.lookAt(initialPreset.target);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -220,7 +220,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     controls.maxPolarAngle = Math.PI * 0.65;
     controls.minPolarAngle = Math.PI * 0.25;
     controls.minDistance = 0.8;
-    controls.maxDistance = 5.0;
+    controls.maxDistance = 6.0;
     controls.enablePan = false;
 
     // Subtle radial ground platform under feet (y = -0.86)

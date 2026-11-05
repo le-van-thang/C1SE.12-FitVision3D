@@ -146,8 +146,8 @@ html {
 
 .lp-hero {
   display: grid;
-  grid-template-columns: 55% 45%;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
+  gap: clamp(24px, 4vw, 48px);
   align-items: center;
 }
 
@@ -352,6 +352,47 @@ html {
   width: 1px;
   height: 28px;
   background: rgba(255, 255, 255, 0.12);
+}
+
+
+/* ── Hero 3D Mesh Viewport Frame ── */
+.lp-hero-viewport {
+  min-width: 0;
+  width: 100%;
+  max-width: 580px;
+  justify-self: end;
+  position: relative;
+}
+
+.lp-viewport-frame {
+  position: relative;
+  width: 100%;
+  border-radius: 16px;
+  background: rgba(10, 15, 18, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.lp-viewport-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(7, 11, 14, 0.85);
+}
+
+.lp-viewport-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 8px var(--teal);
 }
 
 /* ── Hero Visual (Right Column) ── */
@@ -586,6 +627,10 @@ html {
   .lp-hero {
     grid-template-columns: 1fr;
     gap: 40px;
+  }
+  .lp-hero-viewport {
+    max-width: 100%;
+    justify-self: center;
   }
   .lp-links {
     display: none;
