@@ -25,7 +25,10 @@ export interface GarmentSizeOutput {
     sub_label: string;          // Hiển thị các hệ còn lại
     is_boundary: boolean;
     boundary_text?: string;
+    boundary_sizes?: [string, string]; // [lower, upper] theo hệ đang chọn
     notes?: string;
+    notes_key?: "basedOnChestShoulder" | "basedOnChest" | "shoulderUpgrade";
+    notes_params?: Record<string, any>;
   };
   bottomwear: {
     asia: string;
@@ -37,6 +40,7 @@ export interface GarmentSizeOutput {
     tag: string;                // "Cỡ 28 (28W x 30L) ≈ Size S"
     sub_label: string;          // "US/UK: 28W x 30L"
     notes?: string;
+    has_hip_alert?: boolean;
   };
   body_shape_classification: string;
   ease_allowance_recommendation: {
@@ -124,6 +128,8 @@ export function recommendGarmentSizes(
   // Kiểm tra chỉ số thứ 2: Rộng vai (và đối soát cao / nặng)
   let upgradedIdx = primaryIdx;
   let notesReason: string | undefined;
+  let notesKey: "basedOnChestShoulder" | "basedOnChest" | "shoulderUpgrade" = shoulder > 0 ? "basedOnChestShoulder" : "basedOnChest";
+  let notesParams: Record<string, any> = { chest, shoulder };
 
   if (shoulder > 0 && !isFemale) {
     let shoulderIdx = primaryIdx;
@@ -138,6 +144,8 @@ export function recommendGarmentSizes(
     }
     if (shoulderIdx > primaryIdx) {
       upgradedIdx = shoulderIdx;
+      notesKey = "shoulderUpgrade";
+      notesParams = { size: topRows[upgradedIdx].asia, shoulder };
       notesReason = `Khuyên tăng lên cỡ ${topRows[upgradedIdx].asia} do vai rộng (${shoulder}cm)`;
     }
   }
@@ -159,8 +167,14 @@ export function recommendGarmentSizes(
 
   // Xây dựng text hiển thị ranh giới nếu có
   let boundaryText: string | undefined;
-  if (isBoundary && fit === 'regular') {
-    boundaryText = `${lowerRow.asia} (vừa ôm) hoặc ${upperRow.asia} (thoải mái)`;
+  let boundarySizes: [string, string] | undefined;
+  if (isBoundary) {
+    const lowerSys = activeSystem === 'us' ? lowerRow.us : activeSystem === 'eu' ? lowerRow.eu : activeSystem === 'uk' ? lowerRow.uk : lowerRow.asia;
+    const upperSys = activeSystem === 'us' ? upperRow.us : activeSystem === 'eu' ? upperRow.eu : activeSystem === 'uk' ? upperRow.uk : upperRow.asia;
+    boundarySizes = [lowerSys, upperSys];
+    if (fit === 'regular') {
+      boundaryText = `${lowerSys} (vừa ôm) hoặc ${upperSys} (thoải mái)`;
+    }
   }
 
   // Label dòng lớn theo hệ đang chọn
@@ -227,10 +241,12 @@ export function recommendGarmentSizes(
 
   // Kiểm tra độ chênh lệch mông - eo
   let hipNotes: string | undefined;
+  let hasHipAlert = false;
   if (hips > 0) {
     const diff = hips - waist;
     const threshold = isFemale ? 28.0 : 20.0;
     if (diff > threshold) {
+      hasHipAlert = true;
       hipNotes = 'Mông khá đầy, nên chọn thêm 1 cỡ hoặc form regular/relaxed.';
     }
   }
@@ -258,7 +274,10 @@ export function recommendGarmentSizes(
       sub_label: topSubLabel,
       is_boundary: isBoundary,
       boundary_text: boundaryText,
+      boundary_sizes: boundarySizes,
       notes: notesReason,
+      notes_key: notesKey,
+      notes_params: notesParams,
     },
     bottomwear: {
       asia: asiaBottom,
@@ -270,6 +289,7 @@ export function recommendGarmentSizes(
       tag: trouserTag,
       sub_label: trouserSub,
       notes: hipNotes,
+      has_hip_alert: hasHipAlert,
     },
     body_shape_classification: fitType,
     ease_allowance_recommendation: {

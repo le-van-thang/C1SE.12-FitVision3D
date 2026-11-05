@@ -25,16 +25,22 @@ const STORAGE_KEY_FIT = "fv3d_preferred_fit";
 
 const localizedBodyShape = (text: string, loc: string) => {
   if (!text) return "";
+  const lower = text.toLowerCase();
   if (loc === "vi") {
     const match = text.match(/\(([^)]+)\)/);
-    if (match) return match[1];
-    if (text.toLowerCase().includes("athletic")) return "Thể thao, ngực nở eo thon";
-    if (text.toLowerCase().includes("balanced") || text.toLowerCase().includes("regular")) return "Cân đối tiêu chuẩn";
-    if (text.toLowerCase().includes("comfort") || text.toLowerCase().includes("relaxed")) return "Dáng người đầy đặn";
-    if (text.toLowerCase().includes("slim")) return "Dáng người thon gọn";
+    if (match) return match[1].trim();
+    if (lower.includes("athletic") || lower.includes("v-shape")) return "Thể thao, ngực nở eo thon";
+    if (lower.includes("balanced") || lower.includes("regular")) return "Cân đối tiêu chuẩn";
+    if (lower.includes("comfort") || lower.includes("relaxed")) return "Dáng người đầy đặn";
+    if (lower.includes("slim")) return "Dáng người thon gọn";
+    if (lower.includes("hourglass")) return "Dáng đồng hồ cát";
+    if (lower.includes("rectangle")) return "Dáng chữ nhật";
   } else {
     const match = text.match(/^([^(]+)/);
     if (match && text.includes("(")) return match[1].trim();
+    if (lower.includes("thể thao") || lower.includes("ngực nở")) return "V-Shape / Athletic";
+    if (lower.includes("cân đối")) return "Regular / Balanced";
+    if (lower.includes("đầy đặn") || lower.includes("bụng")) return "Comfort / Relaxed Fit";
   }
   return text;
 };
@@ -159,6 +165,86 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
       : activeSystem === "eu"
       ? t("meas.systemEu")
       : t("meas.systemUk");
+
+  // Format hiển thị kích cỡ áo thích ứng 100% theo ngôn ngữ hiện tại
+  const topwearSizeText = useMemo(() => {
+    if (!topwear) return `${t("meas.sizePrefix")} ${data.topwear_shirt_size}`;
+    if (topwear.is_boundary && preferredFit === "regular") {
+      if (topwear.boundary_sizes && topwear.boundary_sizes.length === 2) {
+        return t("meas.boundaryNote")
+          .replace("{s1}", topwear.boundary_sizes[0])
+          .replace("{s2}", topwear.boundary_sizes[1]);
+      }
+      if (topwear.boundary_text) {
+        const parts = topwear.boundary_text.split(/\s+(?:hoặc|or)\s+/i);
+        if (parts.length === 2) {
+          const s1 = parts[0].replace(/\s*\([^)]*\)/g, "").trim();
+          const s2 = parts[1].replace(/\s*\([^)]*\)/g, "").trim();
+          return t("meas.boundaryNote").replace("{s1}", s1).replace("{s2}", s2);
+        }
+      }
+    }
+    return `${t("meas.sizePrefix")} ${topwear.recommended_label || data.topwear_shirt_size}`;
+  }, [topwear, preferredFit, data.topwear_shirt_size, t]);
+
+  // Format sub-label các hệ khác theo ngôn ngữ hiện tại
+  const topwearSubLabelText = useMemo(() => {
+    if (!topwear) return "";
+    const parts: string[] = [];
+    if (activeSystem !== "asia") parts.push(`${t("meas.systemAsiaShort")}: ${topwear.asia}`);
+    if (activeSystem !== "us") parts.push(`US: ${topwear.us}`);
+    if (activeSystem !== "eu") parts.push(`EU: ${topwear.eu}`);
+    if (activeSystem !== "uk") parts.push(`UK: ${topwear.uk}`);
+    return parts.join(" | ");
+  }, [topwear, activeSystem, t]);
+
+  // Format ghi chú lý do áo thích ứng 100% theo ngôn ngữ hiện tại
+  const topwearNotesText = useMemo(() => {
+    if (!topwear) return "";
+    if (topwear.notes_key === "shoulderUpgrade" && topwear.notes_params) {
+      return t("meas.shoulderUpgrade")
+        .replace("{size}", topwear.notes_params.size)
+        .replace("{shoulder}", String(topwear.notes_params.shoulder));
+    }
+    if (topwear.notes_key === "basedOnChestShoulder" && topwear.notes_params) {
+      return t("meas.basedOnChestShoulder")
+        .replace("{chest}", String(topwear.notes_params.chest))
+        .replace("{shoulder}", String(topwear.notes_params.shoulder));
+    }
+    if (topwear.notes_key === "basedOnChest" && topwear.notes_params) {
+      return t("meas.basedOnChest")
+        .replace("{chest}", String(topwear.notes_params.chest));
+    }
+    if (topwear.notes) {
+      const m = topwear.notes.match(/ngực\s+([\d.]+)cm(?:,\s*vai\s+([\d.]+)cm)?/i);
+      if (m) {
+        return m[2]
+          ? t("meas.basedOnChestShoulder").replace("{chest}", m[1]).replace("{shoulder}", m[2])
+          : t("meas.basedOnChest").replace("{chest}", m[1]);
+      }
+      return topwear.notes;
+    }
+    return "";
+  }, [topwear, t]);
+
+  // Format tag quần thích ứng 100% theo ngôn ngữ hiện tại
+  const trouserTagText = useMemo(() => {
+    if (!bottomwear) {
+      return data.bottomwear_trouser_size
+        ? data.bottomwear_trouser_size.replace(/^Size\s+/i, `${t("meas.sizePrefix")} `)
+        : "";
+    }
+    const w = bottomwear.waist_inches;
+    const i = bottomwear.inseam_inches;
+    const asia = bottomwear.asia;
+    return t("meas.trouserTagFormat")
+      .replace(/\{prefix\}/g, t("meas.sizePrefix"))
+      .replace(/\{w\}/g, String(w))
+      .replace(/\{i\}/g, String(i))
+      .replace(/\{asia\}/g, asia);
+  }, [bottomwear, data.bottomwear_trouser_size, t]);
+
+  const hasHipAlert = Boolean(bottomwear?.has_hip_alert || bottomwear?.notes);
 
   return (
     <section
@@ -355,7 +441,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
             {/* Dòng kích cỡ lớn */}
             <div
               style={{
-                fontSize: topwear?.boundary_text ? "16px" : "22px",
+                fontSize: topwear?.is_boundary && preferredFit === "regular" ? "15px" : "22px",
                 fontWeight: 800,
                 color: "#38bdf8",
                 letterSpacing: "0.02em",
@@ -363,9 +449,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
                 lineHeight: 1.3,
               }}
             >
-              {topwear?.boundary_text
-                ? topwear.boundary_text
-                : `${t("meas.sizePrefix")} ${topwear?.recommended_label || data.topwear_shirt_size}`}
+              {topwearSizeText}
             </div>
 
             {/* Nhãn hệ size động */}
@@ -376,15 +460,15 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
 
           <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed rgba(255, 255, 255, 0.08)" }}>
             {/* Dòng phụ: các hệ còn lại */}
-            {topwear?.sub_label && (
+            {topwearSubLabelText && (
               <span style={{ fontSize: "10px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
-                {topwear.sub_label}
+                {topwearSubLabelText}
               </span>
             )}
             {/* Ghi chú lý do */}
-            {topwear?.notes && (
+            {topwearNotesText && (
               <span style={{ fontSize: "10px", color: "#64748b", display: "block", fontStyle: "italic" }}>
-                {topwear.notes}
+                {topwearNotesText}
               </span>
             )}
           </div>
@@ -410,17 +494,14 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
             {/* Dòng kích cỡ lớn */}
             <div
               style={{
-                fontSize: "17px",
+                fontSize: "16px",
                 fontWeight: 800,
                 color: "#a3e635",
                 margin: "4px 0",
                 lineHeight: 1.3,
               }}
             >
-              {bottomwear?.tag ||
-                (data.bottomwear_trouser_size
-                  ? data.bottomwear_trouser_size.replace(/^Size\s+/i, `${t("meas.sizePrefix")} `)
-                  : "")}
+              {trouserTagText}
             </div>
 
             {/* Dòng phụ US/UK */}
@@ -433,7 +514,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
           </div>
 
           {/* Ghi chú cảnh báo hông nếu có */}
-          {bottomwear?.notes && (
+          {hasHipAlert && (
             <div
               style={{
                 marginTop: "8px",
@@ -448,7 +529,7 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
             >
               <AlertCircle size={13} style={{ color: "#fbbf24", flexShrink: 0 }} />
               <span style={{ fontSize: "10px", color: "#fde68a", lineHeight: 1.3 }}>
-                {bottomwear.notes}
+                {t("meas.hipAlert")}
               </span>
             </div>
           )}
