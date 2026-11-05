@@ -20,9 +20,9 @@ export const RegisterDto = z
       .max(100, 'Họ và tên tối đa 100 ký tự.'),
     password: z
       .string({ required_error: 'Vui lòng nhập mật khẩu.' })
-      .min(6, 'M?t kh?u t?i thi?u 6 k� t?.')
+      .min(6, 'Mật khẩu phải từ 6 đến 32 ký tự.')
       .max(32, 'Mật khẩu tối đa 32 ký tự.')
-      ,
+      .regex(PASSWORD_REGEX, 'Mật khẩu cần từ 6 đến 32 ký tự và chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...).'),
     confirmPassword: z.string({ required_error: 'Vui lòng nhập lại mật khẩu xác nhận.' }),
     termsAgreed: z.literal(true, {
       errorMap: () => ({ message: 'Vui lòng đồng ý với Điều khoản sử dụng.' }),
@@ -133,9 +133,9 @@ export const ResetPasswordDto = z
     otp: z.string({ required_error: 'Vui lòng nhập mã OTP.' }).min(6, 'Mã OTP gồm 6 chữ số.').max(6, 'Mã OTP gồm 6 chữ số.'),
     newPassword: z
       .string({ required_error: 'Vui lòng nhập mật khẩu mới.' })
-      .min(6, 'M?t kh?u t?i thi?u 6 k� t?.')
+      .min(6, 'Mật khẩu phải từ 6 đến 32 ký tự.')
       .max(32, 'Mật khẩu tối đa 32 ký tự.')
-      ,
+      .regex(PASSWORD_REGEX, 'Mật khẩu cần từ 6 đến 32 ký tự và chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...).'),
     confirmNewPassword: z.string({ required_error: 'Vui lòng xác nhận mật khẩu mới.' }),
   })
   .refine((data) => data.newPassword === data.confirmNewPassword, {
