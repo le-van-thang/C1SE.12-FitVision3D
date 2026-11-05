@@ -46,7 +46,8 @@ export const AuthModal: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [termsAgreed, setTermsAgreed] = useState(true);
-  const [websiteTrap, setWebsiteTrap] = useState(''); // Honeypot trap
+  const [websiteTrap, setWebsiteTrap] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}); // Honeypot trap
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -821,6 +822,11 @@ export const AuthModal: React.FC = () => {
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
+                  {fieldErrors.password && (
+                    <span style={{ display: 'block', color: '#EF4444', fontSize: 11, marginTop: 4, fontWeight: 500 }}>
+                      * {fieldErrors.password}
+                    </span>
+                  )}
                 </div>
 
                 {/* Remember Me & Forgot Password Row */}
@@ -1599,3 +1605,4 @@ export const AuthModal: React.FC = () => {
     </div>
   );
 };
+

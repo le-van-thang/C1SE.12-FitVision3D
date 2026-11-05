@@ -234,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Phát hiện hoạt động bot đáng ngờ (Honeypot Triggered).' };
       }
 
-      const limit = RateLimiter.checkLimit('login', 5, 10);
+      const limit = RateLimiter.checkLimit('login', 5, 1);
       if (!limit.allowed) {
         return {
           success: false,
@@ -280,14 +280,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Phát hiện bot tự động đăng ký (Honeypot Triggered).' };
       }
 
-      const limit = RateLimiter.checkLimit('register', 3, 10);
-      if (!limit.allowed) {
-        return {
-          success: false,
-          error: `Quá số lần đăng ký cho phép. Vui lòng đợi ${limit.waitMinutes} phút trước khi thử lại.`,
-        };
-      }
-
       const cleanFullName = (payload.fullName || '').trim();
       if (cleanFullName.length < 2) {
         return { success: false, error: 'Họ và tên phải có tối thiểu 2 ký tự.' };
@@ -300,6 +292,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (payload.confirmPassword !== undefined && payload.password !== payload.confirmPassword) {
         return { success: false, error: 'Mật khẩu xác nhận không trùng khớp với mật khẩu đã nhập.' };
+      }
+
+      const limit = RateLimiter.checkLimit('register', 5, 2);
+      if (!limit.allowed) {
+        return {
+          success: false,
+          error: `Quá số lần đăng ký cho phép. Vui lòng đợi ${limit.waitMinutes} phút trước khi thử lại.`,
+        };
       }
 
       const res = await authApi.register({
@@ -433,7 +433,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Phát hiện bot tự động (Honeypot Triggered).' };
       }
 
-      const limit = RateLimiter.checkLimit('apply_store', 3, 10);
+      const limit = RateLimiter.checkLimit('apply_store', 5, 2);
       if (!limit.allowed) {
         return {
           success: false,
@@ -668,3 +668,5 @@ export function useAuth(): AuthContextType {
   }
   return context;
 }
+
+

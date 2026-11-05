@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{}|;:,.<>?]).*$/;
+const PASSWORD_REGEX = /^(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]).{6,32}$/;:,.<>?]).*$/;
 const VIETNAM_PHONE_REGEX = /^(84|0)[35789][0-9]{8}$/;
 
 // 1. DTO Đăng ký Khách Hàng (User)
@@ -20,9 +20,9 @@ export const RegisterDto = z
       .max(100, 'Họ và tên tối đa 100 ký tự.'),
     password: z
       .string({ required_error: 'Vui lòng nhập mật khẩu.' })
-      .min(8, 'Mật khẩu cần 8-32 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.')
+      .min(6, 'M?t kh?u t?i thi?u 6 k� t?.')
       .max(32, 'Mật khẩu tối đa 32 ký tự.')
-      .regex(PASSWORD_REGEX, 'Mật khẩu cần 8-32 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.'),
+      ,
     confirmPassword: z.string({ required_error: 'Vui lòng nhập lại mật khẩu xác nhận.' }),
     termsAgreed: z.literal(true, {
       errorMap: () => ({ message: 'Vui lòng đồng ý với Điều khoản sử dụng.' }),
@@ -133,9 +133,9 @@ export const ResetPasswordDto = z
     otp: z.string({ required_error: 'Vui lòng nhập mã OTP.' }).min(6, 'Mã OTP gồm 6 chữ số.').max(6, 'Mã OTP gồm 6 chữ số.'),
     newPassword: z
       .string({ required_error: 'Vui lòng nhập mật khẩu mới.' })
-      .min(8, 'Mật khẩu cần 8-32 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.')
+      .min(6, 'M?t kh?u t?i thi?u 6 k� t?.')
       .max(32, 'Mật khẩu tối đa 32 ký tự.')
-      .regex(PASSWORD_REGEX, 'Mật khẩu cần 8-32 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.'),
+      ,
     confirmNewPassword: z.string({ required_error: 'Vui lòng xác nhận mật khẩu mới.' }),
   })
   .refine((data) => data.newPassword === data.confirmNewPassword, {
@@ -155,3 +155,4 @@ export const GoogleAuthDto = z.object({
 });
 
 export type GoogleAuthDtoType = z.infer<typeof GoogleAuthDto>;
+

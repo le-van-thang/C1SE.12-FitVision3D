@@ -1,0 +1,107 @@
+services:
+  # ----------------------------------------------------------------------------
+  # 1. DATABASE SERVICE (PostgreSQL 16)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: fv3d-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fitvision3d
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-123456}
+    ports:
+      - "5432:5432"
+    volumes:
+      - fv3d_pg_data:/var/lib/postgresql/data
+      - ./database/migrations/20261105_complete_schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fitvision3d"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fv3d-network
+
+  # ----------------------------------------------------------------------------
+  # 2. BACKEND AUTH & CORE SERVICE (Express Node.js)
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: fv3d-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      API_PREFIX: /api/v1
+      CLIENT_ORIGIN: http://localhost:5173
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-123456}
+      DB_NAME: fitvision3d
+      JWT_ACCESS_SECRET: fitvision_super_secret_access_jwt_key_2026_min32chars
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: fitvision_super_secret_refresh_jwt_key_2026_min32chars
+      JWT_REFRESH_EXPIRES_IN: 7d
+      AI_TAILOR_SERVICE_URL: http://ai-service:8000
+    ports:
+      - "5000:5000"
+    networks:
+      - fv3d-network
+
+  # ----------------------------------------------------------------------------
+  # 3. FRONTEND WEB CLIENT (React + Vite + Nginx)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: fv3d-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "5173:80"
+    networks:
+      - fv3d-network
+
+  # ----------------------------------------------------------------------------
+  # 4. AI-TAILOR 3D EXTRACTION SERVICE (PyTorch + SMPLer-X)
+  # Lưu ý: Chạy nếu có GPU NVIDIA + NVIDIA Container Toolkit
+  # ----------------------------------------------------------------------------
+  # ai-service:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: fv3d-ai-tailor
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./inputs:/app/inputs
+  #     - ./outputs:/app/outputs
+  #   networks:
+  #     - fv3d-network
+
+volumes:
+  fv3d_pg_data:
+    driver: local
+
+networks:
+  fv3d-network:
+    driver: bridge
+

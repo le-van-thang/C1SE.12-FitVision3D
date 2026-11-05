@@ -36,8 +36,7 @@ export const EMAIL_REGEX =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
 /** Password: 8-32 chars, at least 1 lower, 1 upper, 1 digit, 1 special character */
-export const PASSWORD_REGEX =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{}|;:,.<>?]).{8,32}$/;
+export const PASSWORD_REGEX = /^(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]).{6,32}$/;
 
 export interface ValidationResult {
   valid: boolean;
@@ -180,10 +179,10 @@ export function validatePassword(password: string): ValidationResult {
     return { valid: false, error: 'Mật khẩu không được để trống.', code: 'PASSWORD_REQUIRED' };
   }
 
-  if (password.length < 8 || password.length > 32) {
+  if (password.length < 6 || password.length > 32) {
     return {
       valid: false,
-      error: 'Mật khẩu phải có độ dài từ 8 đến 32 ký tự.',
+      error: 'Mật khẩu phải có độ dài từ 6 đến 32 ký tự.',
       code: 'PASSWORD_LENGTH_INVALID',
     };
   }
@@ -191,7 +190,7 @@ export function validatePassword(password: string): ValidationResult {
   if (!PASSWORD_REGEX.test(password)) {
     return {
       valid: false,
-      error: 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt (!@#$%^&*...).',
+      error: 'Mật khẩu cần chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...).',
       code: 'PASSWORD_COMPLEXITY_FAILED',
     };
   }
@@ -231,7 +230,7 @@ export class RateLimiter {
     }
   }
 
-  public static checkLimit(action: string, maxAttempts = 5, windowMinutes = 10): { allowed: boolean; waitMinutes?: number } {
+  public static checkLimit(action: string, maxAttempts = 5, windowMinutes = 2): { allowed: boolean; waitMinutes?: number } {
     const now = Date.now();
     const windowMs = windowMinutes * 60 * 1000;
     const history = this.getHistory();
