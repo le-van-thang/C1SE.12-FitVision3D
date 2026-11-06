@@ -16,14 +16,15 @@ export type MetricKey =
   | "waist_circ_cm"
   | "hip_circ_cm"
   | "shoulder_breadth_cm"
-  | "inseam_cm";
+  | "inseam_cm"
+  | "arm_length_cm";
 
 export interface MannequinViewerProps {
   meshParams: MeshParameter | null;
-  measurement: Pick<
+  measurement: (Pick<
     Measurement,
     "chest_circ_cm" | "waist_circ_cm" | "hip_circ_cm" | "shoulder_breadth_cm" | "inseam_cm"
-  > | null;
+  > & { arm_length_cm?: number | null }) | null;
   isLoading?: boolean;
   height?: number | string;
   id?: string;
@@ -33,7 +34,7 @@ export interface MannequinViewerProps {
 }
 
 type ViewZone = "full_body" | "chest" | "waist" | "hips";
-type ActiveZoneKey = "chest" | "waist" | "hips" | "shoulders" | "inseam";
+type ActiveZoneKey = "chest" | "waist" | "hips" | "shoulders" | "inseam" | "arm_length";
 
 interface CameraPreset {
   target: THREE.Vector3;
@@ -78,6 +79,8 @@ function metricToZone(metric: MetricKey): ActiveZoneKey {
       return "shoulders";
     case "inseam_cm":
       return "inseam";
+    case "arm_length_cm":
+      return "arm_length";
   }
 }
 
@@ -87,6 +90,7 @@ interface AnatomicalLandmarks {
   hips: THREE.Vector3;
   shoulders: THREE.Vector3;
   inseam: THREE.Vector3;
+  arm_length: THREE.Vector3;
 }
 
 function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
@@ -100,6 +104,7 @@ function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
     hips: new THREE.Vector3(0.178 * sHips, -0.09, -0.005),
     shoulders: new THREE.Vector3(0.195 * sChest, 0.43, 0.0),
     inseam: new THREE.Vector3(-0.085 * sHips, -0.35, 0.0),
+    arm_length: new THREE.Vector3(0.38 * sChest, 0.20, 0.0),
   };
 }
 
@@ -115,6 +120,7 @@ const CALLOUTS: CalloutDef[] = [
   { key: "waist_circ_cm", label: "Waist", side: "left", get3DPoint: (lm) => lm.waist },
   { key: "inseam_cm", label: "Inseam", side: "left", get3DPoint: (lm) => lm.inseam },
   { key: "shoulder_breadth_cm", label: "Shoulders", side: "right", get3DPoint: (lm) => lm.shoulders },
+  { key: "arm_length_cm", label: "arm_length", side: "right", get3DPoint: (lm) => lm.arm_length },
   { key: "hip_circ_cm", label: "Hips", side: "right", get3DPoint: (lm) => lm.hips },
 ];
 

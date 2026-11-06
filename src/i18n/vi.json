@@ -444,6 +444,7 @@
     "hips": "Vòng mông",
     "shoulders": "Rộng vai",
     "inseam": "Dài chân trong",
+    "arm_length": "Dài tay áo",
     "drag": "KÉO ĐỂ XOAY · CUỘN ĐỂ PHÓNG TO",
     "loading": "ĐANG TẢI MÔ HÌNH NGƯỜI 3D..."
   },
@@ -626,8 +627,8 @@
     "waistSub": "",
     "hipsSub": "",
     "shouldersSub": "",
-    "inseamSub": "",
-    "armLengthSub": "",
+    "inseamSub": "Từ đũng quần đến mắt cá chân",
+    "armLengthSub": "Từ đỉnh vai đến cổ tay",
     "bioTitle": "Thông số sinh trắc học",
     "stature": "Chiều cao",
     "weight": "Cân nặng",

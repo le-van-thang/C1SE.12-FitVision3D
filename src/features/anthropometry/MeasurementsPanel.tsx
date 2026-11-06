@@ -148,15 +148,15 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           isActive={activeMetric === "inseam_cm"}
           onClick={() => onSelectMetric?.("inseam_cm")}
         />
-        {measurement?.arm_length_cm != null && (
-          <MetricRow
-            label={t("meas.armLength")}
-            sublabel={t("meas.armLengthSub") || undefined}
-            field="arm_length_cm"
-            value={measurement?.arm_length_cm}
-            unit="cm"
-          />
-        )}
+        <MetricRow
+          label={t("meas.armLength")}
+          sublabel={t("meas.armLengthSub") || undefined}
+          field="arm_length_cm"
+          value={measurement?.arm_length_cm}
+          unit="cm"
+          isActive={activeMetric === "arm_length_cm"}
+          onClick={() => onSelectMetric?.("arm_length_cm")}
+        />
       </div>
 
       <h3 className="zf-eyebrow zf-group-label" style={{ marginTop: "14px" }}>

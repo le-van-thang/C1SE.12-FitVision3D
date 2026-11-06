@@ -21,6 +21,7 @@ export const DEMO_MEASUREMENT: Measurement = {
   id: "mea-001", user_id: "usr-001", input_id: "bio-001",
   chest_circ_cm: 92.4, waist_circ_cm: 76.8, hip_circ_cm: 96.2,
   inseam_cm: 78.5, shoulder_breadth_cm: 42.1,
+  arm_length_cm: 58.5,
   extraction_confidence: 0.94, created_at: "2026-10-18T14:30:02Z",
 };
 

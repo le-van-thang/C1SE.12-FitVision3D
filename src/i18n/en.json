@@ -444,6 +444,7 @@
     "hips": "Hips",
     "shoulders": "Shoulders",
     "inseam": "Inseam",
+    "arm_length": "Arm Length",
     "drag": "DRAG TO ROTATE · SCROLL TO ZOOM",
     "loading": "LOADING ANATOMICAL HUMANOID..."
   },
@@ -626,8 +627,8 @@
     "waistSub": "Waist circumference",
     "hipsSub": "Hip circumference",
     "shouldersSub": "Shoulder breadth",
-    "inseamSub": "Inside leg length",
-    "armLengthSub": "Sleeve length",
+    "inseamSub": "From crotch to ankle",
+    "armLengthSub": "Shoulder point to wrist",
     "bioTitle": "Biometric Parameters",
     "stature": "Height",
     "weight": "Weight",

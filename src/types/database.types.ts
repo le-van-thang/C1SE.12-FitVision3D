@@ -62,6 +62,7 @@ export interface Measurement {
   hip_circ_cm: number;          // numeric(5,2) NOT NULL
   inseam_cm: number | null;     // numeric(5,2)
   shoulder_breadth_cm: number | null; // numeric(5,2)
+  arm_length_cm?: number | null; // numeric(5,2) - Chiều dài tay áo
   extraction_confidence: number; // numeric(3,2) NOT NULL [0.00-1.00]
   created_at: string;           // timestamptz NOT NULL
 }
