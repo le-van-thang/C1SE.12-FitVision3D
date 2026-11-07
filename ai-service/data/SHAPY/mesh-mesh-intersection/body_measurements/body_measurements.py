@@ -11,8 +11,9 @@ MODULE ĐO LƯỜNG CƠ THỂ 3D THEO CHUẨN ISO 8559 (SHAPY BODY MEASUREMENTS)
 5. compute_peripheries()                : Tính chu vi Ngực, Eo, Hông bằng ConvexHull 2D.
 6. compute_limb_peripheries()           : Tính chu vi Bắp tay, Cổ tay, Đùi, Bắp chân, Cổ chân.
 7. compute_height()                     : Đo khoảng cách trục Y từ Đỉnh đầu đến Gót chân trái.
-8. compute_mass()                       : Tính thể tích lưới 3D x Khối lượng riêng (985 kg/m3).
-9. forward()                            : Trả về dict chứa đầy đủ số đo thân & tứ chi.
+8. compute_dynamic_density()            : Nội suy khối lượng riêng sinh học động theo BMI & Giới tính (Siri/Deurenberg).
+9. compute_mass()                       : Tính thể tích lưới 3D x Khối lượng riêng sinh học động (neo chuẩn 985 kg/m3).
+10. forward()                           : Trả về dict chứa đầy đủ số đo thân & tứ chi.
 ===============================================================================
 """
 
@@ -406,7 +407,42 @@ class BodyMeasurements(nn.Module):
             torch.stack([head_top, left_heel], axis=0)
         )
 
-    def compute_mass(self, tris: Tensor) -> Tensor:
+    @classmethod
+    def compute_dynamic_density(
+        cls,
+        height_m: float = None,
+        weight_kg: float = None,
+        gender: str = 'neutral'
+    ) -> float:
+        """
+        Tính khối lượng riêng cơ thể sinh học động (kg/m^3) theo phương trình Siri & Deurenberg
+        dựa trên chỉ số BMI và giới tính, lấy điểm neo chuẩn 985.0 kg/m^3 tại BMI tham chiếu 22.0.
+        Đảm bảo mô hình thích ứng chính xác với tỷ lệ Mô mỡ (900 kg/m^3) và Cơ xương (1100 kg/m^3).
+        """
+        if height_m is None or weight_kg is None or height_m <= 0 or weight_kg <= 0:
+            return float(cls.DENSITY)
+
+        bmi = float(weight_kg) / (float(height_m) ** 2)
+        bmi = max(13.0, min(45.0, bmi))
+
+        g_str = str(gender).lower().strip()
+        if g_str in ['male', 'nam', 'm']:
+            sex_flag = 1.0
+        elif g_str in ['female', 'nu', 'nữ', 'f']:
+            sex_flag = 0.0
+        else:
+            sex_flag = 0.5
+
+        # Phương trình Deurenberg ước tính tỷ lệ mỡ cơ thể (Body Fat %) ở độ tuổi trưởng thành tham chiếu (28 tuổi)
+        # Tại BMI = 22.0, sex_flag = 0.5 -> BF%_ref = 22.04% -> mẫu số Siri_ref = 472.04
+        body_fat_pct = (1.20 * bmi) + (0.23 * 28.0) - (10.8 * sex_flag) - 5.4
+        body_fat_pct = max(5.0, min(50.0, body_fat_pct))
+
+        # Quy đổi theo phương trình Siri được chuẩn hóa tại điểm neo DENSITY = 985.0 kg/m^3 của lưới SMPL-X
+        dynamic_density = float(cls.DENSITY) * (472.04 / (body_fat_pct + 450.0))
+        return float(np.clip(dynamic_density, 945.0, 1030.0))
+
+    def compute_mass(self, tris: Tensor, custom_density: float = None) -> Tensor:
         x = tris[:, :, :, 0]
         y = tris[:, :, :, 1]
         z = tris[:, :, :, 2]
@@ -418,7 +454,8 @@ class BodyMeasurements(nn.Module):
             x[:, :, 1] * y[:, :, 0] * z[:, :, 2] +
             x[:, :, 0] * y[:, :, 1] * z[:, :, 2]
         ).sum(dim=1).abs() / 6.0
-        return volume * self.DENSITY
+        active_density = float(custom_density) if (custom_density is not None and custom_density > 0) else float(self.DENSITY)
+        return volume * active_density
 
     def forward(
         self,
@@ -433,11 +470,12 @@ class BodyMeasurements(nn.Module):
         compute_thigh: bool = True,
         compute_calf: bool = True,
         compute_ankle: bool = True,
+        custom_density: float = None,
         **kwargs
     ):
         measurements = {}
         if compute_mass:
-            measurements['mass'] = {'tensor': self.compute_mass(triangles)}
+            measurements['mass'] = {'tensor': self.compute_mass(triangles, custom_density=custom_density)}
 
         if compute_height:
             mesh_height, points = self.compute_height(triangles)
