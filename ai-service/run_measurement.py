@@ -70,9 +70,11 @@ from config import cfg
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Trích xuất số đo cơ thể từ ảnh 2D theo chuẩn ISO 8559")
-    parser.add_argument('--image', '--img_path', dest='image', type=str, required=True,
+    parser = argparse.ArgumentParser(description="Trích xuất số đo cơ thể từ ảnh 2D hoặc lưới 3D (.obj) theo chuẩn ISO 8559")
+    parser.add_argument('--image', '--img_path', dest='image', type=str, default=None,
                         help="Đường dẫn tới file ảnh toàn thân (jpg/png)")
+    parser.add_argument('--mesh_obj', type=str, default=None,
+                        help="Đường dẫn tới file lưới 3D SMPL-X mẫu (.obj) để test trực tiếp không cần ảnh")
     parser.add_argument('--output_json', type=str, default='output_measurements.json',
                         help="Đường dẫn lưu file kết quả JSON")
     parser.add_argument('--height_cm', type=float, default=None,
@@ -88,6 +90,8 @@ def parse_args():
     parser.add_argument('--save_mesh', type=str, default=None,
                         help="Đường dẫn lưu file 3D avatar (.obj hoặc .ply) để import vào CLO3D/Blender")
     args = parser.parse_args()
+    if not args.image and not args.mesh_obj:
+        parser.error("Vui lòng cung cấp --image <duong_dan_anh> hoặc --mesh_obj <duong_dan_file_obj>")
     if not args.gender or str(args.gender).strip().lower() in ['', '""', "''", 'none', 'null']:
         args.gender = 'neutral'
     return args
@@ -302,12 +306,17 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
     vertices = output.vertices
     triangles = vertices[:, faces_tensor]
 
-    # Đo chu vi (Ngực, Eo, Hông), Chiều cao và Cân nặng bằng mặt phẳng cắt ngang 3D
+    # Đo chu vi (Ngực, Eo, Hông, Bắp tay, Cổ tay, Đùi, Bắp chân, Cổ chân), Chiều cao và Cân nặng bằng mặt phẳng cắt ngang 3D
     meas_raw = meas_module(triangles)['measurements']
     est_height_m = meas_raw['height']['tensor'].item()
     est_chest_m = meas_raw['chest']['tensor'].item()
     est_waist_m = meas_raw['waist']['tensor'].item()
     est_hips_m = meas_raw['hips']['tensor'].item()
+    est_bicep_m = meas_raw['bicep']['tensor'].item()
+    est_wrist_m = meas_raw['wrist']['tensor'].item()
+    est_thigh_m = meas_raw['thigh']['tensor'].item()
+    est_calf_m = meas_raw['calf']['tensor'].item()
+    est_ankle_m = meas_raw['ankle']['tensor'].item()
     est_mass_kg = meas_raw['mass']['tensor'].item()
 
     # Đo khoảng cách giải phẫu (Rộng vai, Dài tay, Dài chân trong) từ tọa độ trọng tâm mặt tam giác
@@ -355,6 +364,11 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
             "vong_hong": round(est_hips_m * scale_factor * 100.0, 1),
             "rong_vai": round(shoulder_width_m * scale_factor * 100.0, 1),
             "dai_tay_ao": round(arm_length_m * scale_factor * 100.0, 1),
+            "vong_bap_tay": round(est_bicep_m * scale_factor * 100.0, 1),
+            "vong_co_tay": round(est_wrist_m * scale_factor * 100.0, 1),
+            "vong_dui": round(est_thigh_m * scale_factor * 100.0, 1),
+            "vong_bap_chan": round(est_calf_m * scale_factor * 100.0, 1),
+            "vong_co_chan": round(est_ankle_m * scale_factor * 100.0, 1),
             "dai_chan_inseam": round(leg_inseam_m * scale_factor * 100.0, 1),
             "can_nang_uoc_tinh_kg": round(float(final_mass_kg), 1)
         },
@@ -362,54 +376,165 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
     }
 
 
+def compute_measurements_from_obj(obj_path, height_cm_input=None, weight_kg_input=None, gender='neutral', device='cpu'):
+    """
+    Đo trực tiếp toàn bộ 13 số đo may mặc ISO 8559 từ file lưới 3D SMPL-X mẫu (.obj)
+    mà không cần chạy qua mạng nơ-ron trích xuất ảnh (dùng để kiểm thử hình học độc lập).
+    """
+    from body_measurements import BodyMeasurements
+
+    verts_list = []
+    faces_list = []
+    with open(obj_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.startswith('v '):
+                parts = line.strip().split()
+                verts_list.append([float(parts[1]), float(parts[2]), float(parts[3])])
+            elif line.startswith('f '):
+                parts = line.strip().split()
+                faces_list.append([int(parts[1].split('/')[0]) - 1,
+                                   int(parts[2].split('/')[0]) - 1,
+                                   int(parts[3].split('/')[0]) - 1])
+
+    verts_np = np.array(verts_list, dtype=np.float32)
+    faces_np = np.array(faces_list, dtype=np.int64)
+    tris_np = verts_np[faces_np]  # (F, 3, 3)
+
+    use_cuda = ('cuda' in device and torch.cuda.is_available())
+    target_device = torch.device(device if use_cuda else 'cpu')
+    triangles = torch.tensor(tris_np, dtype=torch.float32, device=target_device).unsqueeze(0)
+
+    meas_def_path = osp.join(CURRENT_DIR, 'data', 'SHAPY', 'mesh-mesh-intersection', 'data', 'measurement_defitions.yaml')
+    meas_verts_path = osp.join(CURRENT_DIR, 'data', 'SHAPY', 'mesh-mesh-intersection', 'data', 'smplx_measurements.yaml')
+    meas_module = BodyMeasurements({
+        'meas_definition_path': meas_def_path,
+        'meas_vertices_path': meas_verts_path,
+    }).to(target_device)
+
+    meas_raw = meas_module(triangles)['measurements']
+    est_height_m = meas_raw['height']['tensor'].item()
+    est_chest_m = meas_raw['chest']['tensor'].item()
+    est_waist_m = meas_raw['waist']['tensor'].item()
+    est_hips_m = meas_raw['hips']['tensor'].item()
+    est_bicep_m = meas_raw['bicep']['tensor'].item()
+    est_wrist_m = meas_raw['wrist']['tensor'].item()
+    est_thigh_m = meas_raw['thigh']['tensor'].item()
+    est_calf_m = meas_raw['calf']['tensor'].item()
+    est_ankle_m = meas_raw['ankle']['tensor'].item()
+    est_mass_kg = meas_raw['mass']['tensor'].item()
+
+    with open(meas_verts_path, 'r') as f:
+        landmarks_yaml = yaml.safe_load(f)
+
+    pt_shoulder_l = get_landmark_3d(tris_np, landmarks_yaml, 'ShoulderLeft')
+    pt_shoulder_r = get_landmark_3d(tris_np, landmarks_yaml, 'ShoulderRight')
+    pt_wrist_l = get_landmark_3d(tris_np, landmarks_yaml, 'WristLeft')
+    pt_crotch = get_landmark_3d(tris_np, landmarks_yaml, 'Crotch')
+    pt_heel_l = get_landmark_3d(tris_np, landmarks_yaml, 'HeelLeft')
+
+    shoulder_width_m = float(np.linalg.norm(pt_shoulder_l - pt_shoulder_r))
+    arm_length_m = float(np.linalg.norm(pt_shoulder_l - pt_wrist_l))
+    leg_inseam_m = float(abs(pt_crotch[1] - pt_heel_l[1]))
+
+    has_height = (height_cm_input is not None and height_cm_input > 0)
+    has_weight = (weight_kg_input is not None and weight_kg_input > 0)
+    scale_factor = (height_cm_input / 100.0) / est_height_m if has_height else 1.0
+    final_mass_kg = weight_kg_input if has_weight else (est_mass_kg * (scale_factor ** 3))
+
+    return {
+        "thong_tin_nhap": {
+            "gioi_tinh": gender,
+            "chieu_cao_nhap_cm": height_cm_input,
+            "can_nang_nhap_kg": weight_kg_input,
+            "scale_factor_hieu_chinh": round(float(scale_factor), 4),
+            "nguon_du_lieu": osp.basename(obj_path)
+        },
+        "so_do_may_mac_cm": {
+            "chieu_cao": round(est_height_m * scale_factor * 100.0, 1),
+            "vong_nguc": round(est_chest_m * scale_factor * 100.0, 1),
+            "vong_eo": round(est_waist_m * scale_factor * 100.0, 1),
+            "vong_hong": round(est_hips_m * scale_factor * 100.0, 1),
+            "rong_vai": round(shoulder_width_m * scale_factor * 100.0, 1),
+            "dai_tay_ao": round(arm_length_m * scale_factor * 100.0, 1),
+            "vong_bap_tay": round(est_bicep_m * scale_factor * 100.0, 1),
+            "vong_co_tay": round(est_wrist_m * scale_factor * 100.0, 1),
+            "vong_dui": round(est_thigh_m * scale_factor * 100.0, 1),
+            "vong_bap_chan": round(est_calf_m * scale_factor * 100.0, 1),
+            "vong_co_chan": round(est_ankle_m * scale_factor * 100.0, 1),
+            "dai_chan_inseam": round(leg_inseam_m * scale_factor * 100.0, 1),
+            "can_nang_uoc_tinh_kg": round(float(final_mass_kg), 1)
+        },
+        "smplx_betas": []
+    }
+
+
 def main():
     args = parse_args()
-    img_path = osp.abspath(args.image)
-    if not osp.exists(img_path):
-        raise FileNotFoundError(f"Không tìm thấy file ảnh: {img_path}")
 
     print("\n=======================================================")
     print("   HỆ THỐNG TRÍCH XUẤT SỐ ĐO MAY MẶC TỰ ĐỘNG (ISO 8559)")
     print("=======================================================")
-    print(f"Ảnh đầu vào: {img_path}")
 
-    original_img = cv2.imread(img_path)
-    if original_img is None:
-        raise ValueError(f"Không thể đọc file ảnh: {img_path}")
+    if args.mesh_obj:
+        obj_path = osp.abspath(args.mesh_obj)
+        if not osp.exists(obj_path):
+            raise FileNotFoundError(f"Không tìm thấy file mô hình 3D: {obj_path}")
+        print(f"Mô hình 3D đầu vào (.obj): {obj_path}")
+        results = compute_measurements_from_obj(
+            obj_path,
+            height_cm_input=args.height_cm,
+            weight_kg_input=args.weight_kg,
+            gender=args.gender,
+            device=args.device
+        )
+    else:
+        img_path = osp.abspath(args.image)
+        if not osp.exists(img_path):
+            raise FileNotFoundError(f"Không tìm thấy file ảnh: {img_path}")
+        print(f"Ảnh đầu vào: {img_path}")
 
-    detector = load_detector(args.device)
-    box_xywh = detect_person(detector, img_path)
-    print(f"[*] Đã phát hiện vị trí người (BBox: {box_xywh.astype(int).tolist()})")
+        original_img = cv2.imread(img_path)
+        if original_img is None:
+            raise ValueError(f"Không thể đọc file ảnh: {img_path}")
 
-    demoer = load_smpler_x_model(args.pretrained_model, args.device)
-    betas, _ = extract_3d_mesh(demoer, original_img, box_xywh, args.device)
-    print("[*] Đã tái tạo thành công hình thể 3D SMPL-X.")
+        detector = load_detector(args.device)
+        box_xywh = detect_person(detector, img_path)
+        print(f"[*] Đã phát hiện vị trí người (BBox: {box_xywh.astype(int).tolist()})")
 
-    print(f"[*] Đang tính toán thiết diện cắt ngang và khoảng cách giải phẫu (Giới tính: {args.gender})...")
-    results = compute_measurements(
-        betas,
-        height_cm_input=args.height_cm,
-        weight_kg_input=args.weight_kg,
-        gender=args.gender,
-        device=args.device,
-        save_mesh_path=args.save_mesh
-    )
+        demoer = load_smpler_x_model(args.pretrained_model, args.device)
+        betas, _ = extract_3d_mesh(demoer, original_img, box_xywh, args.device)
+        print("[*] Đã tái tạo thành công hình thể 3D SMPL-X.")
+
+        print(f"[*] Đang tính toán thiết diện cắt ngang và khoảng cách giải phẫu (Giới tính: {args.gender})...")
+        results = compute_measurements(
+            betas,
+            height_cm_input=args.height_cm,
+            weight_kg_input=args.weight_kg,
+            gender=args.gender,
+            device=args.device,
+            save_mesh_path=args.save_mesh
+        )
 
     sd = results["so_do_may_mac_cm"]
     tt = results["thong_tin_nhap"]
-    print("\n" + "=" * 50)
-    print("     KẾT QUẢ SỐ ĐO MAY MẶC (ĐƠN VỊ: CM / KG)")
-    print("=" * 50)
-    print(f"  * Giới tính mô hình    : {tt['gioi_tinh'].upper()}")
-    print(f"  1. Chiều cao toàn thân : {sd['chieu_cao']} cm")
-    print(f"  2. Vòng ngực           : {sd['vong_nguc']} cm")
-    print(f"  3. Vòng eo             : {sd['vong_eo']} cm")
-    print(f"  4. Vòng hông / mông    : {sd['vong_hong']} cm")
-    print(f"  5. Chiều rộng vai      : {sd['rong_vai']} cm")
-    print(f"  6. Chiều dài tay áo    : {sd['dai_tay_ao']} cm")
-    print(f"  7. Chiều dài chân trong: {sd['dai_chan_inseam']} cm (Đáy quần -> gót)")
-    print(f"  8. Cân nặng ước tính   : {sd['can_nang_uoc_tinh_kg']} kg")
-    print("=" * 50)
+    print("\n" + "=" * 55)
+    print("     KẾT QUẢ 13 SỐ ĐO MAY MẶC CHUẨN ISO 8559 (CM / KG)")
+    print("=" * 55)
+    print(f"  * Giới tính mô hình     : {tt['gioi_tinh'].upper()}")
+    print(f"  1.  Chiều cao toàn thân : {sd['chieu_cao']} cm")
+    print(f"  2.  Vòng ngực           : {sd['vong_nguc']} cm")
+    print(f"  3.  Vòng eo             : {sd['vong_eo']} cm")
+    print(f"  4.  Vòng hông / mông    : {sd['vong_hong']} cm")
+    print(f"  5.  Chiều rộng vai      : {sd['rong_vai']} cm")
+    print(f"  6.  Chiều dài tay áo    : {sd['dai_tay_ao']} cm")
+    print(f"  7.  Vòng bắp tay        : {sd['vong_bap_tay']} cm")
+    print(f"  8.  Vòng cổ tay         : {sd['vong_co_tay']} cm")
+    print(f"  9.  Vòng đùi            : {sd['vong_dui']} cm")
+    print(f"  10. Vòng bắp chân       : {sd['vong_bap_chan']} cm")
+    print(f"  11. Vòng cổ chân        : {sd['vong_co_chan']} cm")
+    print(f"  12. Chiều dài chân trong: {sd['dai_chan_inseam']} cm (Đáy quần -> gót)")
+    print(f"  13. Cân nặng ước tính   : {sd['can_nang_uoc_tinh_kg']} kg")
+    print("=" * 55)
 
     out_json = osp.abspath(args.output_json)
     with open(out_json, 'w', encoding='utf-8') as f:
