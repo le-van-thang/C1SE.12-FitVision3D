@@ -310,11 +310,11 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
         >
           {isLiveBackend ? (
             <>
-              <CheckCircle2 size={12} /> FastAPI SMPLer-X
+              <CheckCircle2 size={12} /> {t("dashx.sourceModel")}
             </>
           ) : (
             <>
-              <Zap size={12} /> ISO Biometrics Engine
+              <Zap size={12} /> {t("dashx.sourceFormula")}
             </>
           )}
         </span>

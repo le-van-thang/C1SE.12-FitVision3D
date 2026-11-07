@@ -411,6 +411,7 @@ export const Dashboard: React.FC = () => {
                   biometric={biometric}
                   activeMetric={activeMetric}
                   onSelectMetric={setActiveMetric}
+                  isLiveBackend={isLiveBackend}
                 />
 
                 {/* Quan's AI Garment Recommendation Card */}

@@ -685,8 +685,10 @@
     "oversized": "Dáng rất rộng"
   },
   "dashx": {
-    "engine": "Động cơ AI: ISO 8559",
-    "live": "FastAPI SMPLer-X: Trực tuyến"
+    "engine": "⚡ Công thức giải tích: ISO 8559",
+    "live": "🟢 Mô hình AI 3D: SMPLer-X (:8000)",
+    "sourceModel": "Nguồn: Mô hình AI 3D (SMPLer-X)",
+    "sourceFormula": "Nguồn: Công thức giải tích ISO 8559"
   },
   "tailor": {
     "badge": "Xưởng may B2B",

@@ -78,6 +78,7 @@ export interface MeasurementsPanelProps {
   activeMetric?: MetricKey | null;
   onSelectMetric?: (key: MetricKey) => void;
   id?: string;
+  isLiveBackend?: boolean;
 }
 
 export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
@@ -86,14 +87,32 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
   activeMetric,
   onSelectMetric,
   id = "measurements-panel",
+  isLiveBackend = false,
 }) => {
   const { t } = useI18n();
   const conf = measurement?.extraction_confidence;
 
   return (
     <section className="zf-card zf-card-pad" id={id} aria-label={t("meas.title")}>
-      <div className="zf-section-head" style={{ marginBottom: 4 }}>
-        <h2 className="zf-eyebrow">{t("meas.title")}</h2>
+      <div className="zf-section-head" style={{ marginBottom: 6 }}>
+        <div>
+          <h2 className="zf-eyebrow">{t("meas.title")}</h2>
+          {measurement && (
+            <div
+              style={{
+                fontSize: "11px",
+                color: isLiveBackend ? "#34d399" : "#38bdf8",
+                marginTop: "2px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                fontWeight: 500,
+              }}
+            >
+              <span>{isLiveBackend ? t("dashx.sourceModel") : t("dashx.sourceFormula")}</span>
+            </div>
+          )}
+        </div>
         {conf != null && (
           <span
             className={`zf-pill mono ${conf >= 0.85 ? "zf-pill--lime" : "zf-pill--teal"}`}

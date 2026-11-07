@@ -685,8 +685,10 @@
     "oversized": "Oversized fit"
   },
   "dashx": {
-    "engine": "AI Engine: ISO 8559",
-    "live": "FastAPI SMPLer-X: Online"
+    "engine": "⚡ Anthropometric Formula: ISO 8559",
+    "live": "🟢 3D AI Model: SMPLer-X (:8000)",
+    "sourceModel": "Source: 3D AI Model (SMPLer-X)",
+    "sourceFormula": "Source: Anthropometric Formula ISO 8559"
   },
   "tailor": {
     "badge": "B2B Atelier",

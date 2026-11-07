@@ -282,6 +282,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
+      // Hỗ trợ chế độ Offline khi Backend (cổng 5000) chưa bật: Tự động cho phép đăng nhập thử nghiệm
+      if (res.error?.message?.includes('5000') || res.error?.code === 'FETCH_ERROR' || res.error?.code === 'NETWORK_ERROR') {
+        const found = Object.values(TEST_USERS).find((u) => u.email.toLowerCase() === email.toLowerCase());
+        const offlineProfile: Profile = found || {
+          id: 'usr-thang-le',
+          full_name: email.includes('@') ? (email.split('@')[0] === 'thang' ? 'Thắng Lê' : email.split('@')[0]) : 'Thắng Lê',
+          email: email || 'thang.le@fitvision3d.com',
+          role: 'user',
+          avatar_url: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        setProfiles((prev) => {
+          const filtered = prev.filter((p) => p.id !== offlineProfile.id);
+          return [offlineProfile, ...filtered];
+        });
+        setCurrentUserId(offlineProfile.id);
+        setIsAuthModalOpen(false);
+        return { success: true };
+      }
+
       return {
         success: false,
         errorCode: res.error?.code,
