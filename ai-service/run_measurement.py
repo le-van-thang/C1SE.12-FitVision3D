@@ -216,6 +216,81 @@ def get_landmark_3d(triangles_np, landmark_dict, name):
     return (tri_verts * bc).sum(axis=0)
 
 
+def compute_surface_shoulder_and_sleeve(triangles_np, landmark_dict):
+    """
+    Đo Rộng vai (ISO 8559-1 5.3.4) và Dài tay áo (ISO 8559-1 5.4.18) dọc theo đường cong bề mặt lưới 3D:
+    - Rộng vai: Đo dọc theo bề mặt lưng trên qua đốt sống cổ C7 nối giữa hai mỏm vai ngoài (lateral acromion),
+      khắc phục sai số hụt ~4-5 cm khi đo đường thẳng cắt xuyên qua lồng ngực.
+    - Dài tay áo: Đo dọc theo đường cong mặt ngoài cánh tay từ mỏm vai qua mỏm cơ delta, cùi chỏ (olecranon)
+      đến mắt cá xương trụ cổ tay (distal ulnar styloid / vị trí măng-sết áo) kèm bù độ cong khuỷu tay.
+    """
+    pts_all = triangles_np.reshape(-1, 3)
+
+    sh_l = get_landmark_3d(triangles_np, landmark_dict, 'ShoulderLeft')
+    sh_r = get_landmark_3d(triangles_np, landmark_dict, 'ShoulderRight')
+    wr_l = get_landmark_3d(triangles_np, landmark_dict, 'WristLeft')
+    wr_r = get_landmark_3d(triangles_np, landmark_dict, 'WristRight')
+    ft_l = get_landmark_3d(triangles_np, landmark_dict, 'FingerTipLeft')
+    ft_r = get_landmark_3d(triangles_np, landmark_dict, 'FingerTipRight')
+
+    # 1. Rộng vai vòng qua lưng trên & đốt sống cổ C7 (ISO 8559-1 5.3.4)
+    half_sh_x = 0.5 * (abs(float(sh_l[0])) + abs(float(sh_r[0]))) * 1.04
+    y_sh = 0.5 * (float(sh_l[1]) + float(sh_r[1]))
+    n_sh_bins = 18
+    sh_curve = []
+    for i in range(n_sh_bins + 1):
+        x_target = -half_sh_x + (2.0 * half_sh_x) * (i / n_sh_bins)
+        mask = (
+            (np.abs(pts_all[:, 0] - x_target) < 0.015) &
+            (np.abs(pts_all[:, 1] - y_sh) < 0.025) &
+            (pts_all[:, 2] < 0.0)
+        )
+        band = pts_all[mask]
+        if len(band) > 0:
+            idx_min_z = int(np.argmin(band[:, 2]))
+            sh_curve.append(np.array([x_target, float(band[idx_min_z, 1]), float(band[idx_min_z, 2])], dtype=np.float32))
+
+    if len(sh_curve) >= 2:
+        sh_pts = np.stack(sh_curve, axis=0)
+        shoulder_width_m = float(np.linalg.norm(np.diff(sh_pts, axis=0), axis=1).sum())
+    else:
+        shoulder_width_m = float(np.linalg.norm(sh_l - sh_r) * 1.12)
+
+    # 2. Dài tay áo dọc mặt ngoài cánh tay từ mỏm vai qua cơ delta & cùi chỏ tới cổ tay áo (ISO 8559-1 5.4.18)
+    def _measure_single_sleeve(sh, wr, ft):
+        x_start = abs(float(sh[0])) * 0.90
+        x_end = abs(float(wr[0])) + 0.20 * (abs(float(ft[0])) - abs(float(wr[0])))
+        sign = 1.0 if float(sh[0]) >= 0.0 else -1.0
+        n_bins = 20
+        arm_curve = []
+        for i in range(n_bins + 1):
+            t = i / n_bins
+            x_abs = x_start + (x_end - x_start) * t
+            x_target = sign * x_abs
+            y_bone = float(sh[1]) * (1.0 - t) + float(wr[1]) * t
+            mask = (
+                (np.abs(pts_all[:, 0] - x_target) < 0.016) &
+                (np.abs(pts_all[:, 1] - y_bone) < 0.070)
+            )
+            band = pts_all[mask]
+            if len(band) > 0:
+                scores = band[:, 1] - 0.6 * band[:, 2]
+                idx_best = int(np.argmax(scores))
+                arm_curve.append(np.array([x_target, float(band[idx_best, 1]), float(band[idx_best, 2])], dtype=np.float32))
+
+        if len(arm_curve) >= 2:
+            arm_pts = np.stack(arm_curve, axis=0)
+            surf_len = float(np.linalg.norm(np.diff(arm_pts, axis=0), axis=1).sum())
+            return surf_len * 1.015
+        return float(np.linalg.norm(sh - wr) * 1.14)
+
+    sleeve_l = _measure_single_sleeve(sh_l, wr_l, ft_l)
+    sleeve_r = _measure_single_sleeve(sh_r, wr_r, ft_r)
+    arm_length_m = 0.5 * (sleeve_l + sleeve_r)
+
+    return shoulder_width_m, arm_length_m
+
+
 def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gender='neutral', device='cuda:0', save_mesh_path=None):
     """Tạo lưới SMPL-X T-pose, tối ưu hóa betas và trích xuất toàn bộ số đo may mặc ISO 8559."""
     from utils.human_models import smpl_x
@@ -356,14 +431,10 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
         landmarks_yaml = yaml.safe_load(f)
 
     tris_np = triangles.detach().cpu().numpy()[0]  # (20908, 3, 3)
-    pt_shoulder_l = get_landmark_3d(tris_np, landmarks_yaml, 'ShoulderLeft')
-    pt_shoulder_r = get_landmark_3d(tris_np, landmarks_yaml, 'ShoulderRight')
-    pt_wrist_l = get_landmark_3d(tris_np, landmarks_yaml, 'WristLeft')
     pt_crotch = get_landmark_3d(tris_np, landmarks_yaml, 'Crotch')
     pt_heel_l = get_landmark_3d(tris_np, landmarks_yaml, 'HeelLeft')
 
-    shoulder_width_m = float(np.linalg.norm(pt_shoulder_l - pt_shoulder_r))
-    arm_length_m = float(np.linalg.norm(pt_shoulder_l - pt_wrist_l))
+    shoulder_width_m, arm_length_m = compute_surface_shoulder_and_sleeve(tris_np, landmarks_yaml)
     leg_inseam_m = float(abs(pt_crotch[1] - pt_heel_l[1]))
 
     # Chuẩn hóa tỉ lệ (Scale Factor) nếu có chiều cao thực tế
@@ -473,14 +544,10 @@ def compute_measurements_from_obj(obj_path, height_cm_input=None, weight_kg_inpu
     with open(meas_verts_path, 'r') as f:
         landmarks_yaml = yaml.safe_load(f)
 
-    pt_shoulder_l = get_landmark_3d(tris_np, landmarks_yaml, 'ShoulderLeft')
-    pt_shoulder_r = get_landmark_3d(tris_np, landmarks_yaml, 'ShoulderRight')
-    pt_wrist_l = get_landmark_3d(tris_np, landmarks_yaml, 'WristLeft')
     pt_crotch = get_landmark_3d(tris_np, landmarks_yaml, 'Crotch')
     pt_heel_l = get_landmark_3d(tris_np, landmarks_yaml, 'HeelLeft')
 
-    shoulder_width_m = float(np.linalg.norm(pt_shoulder_l - pt_shoulder_r))
-    arm_length_m = float(np.linalg.norm(pt_shoulder_l - pt_wrist_l))
+    shoulder_width_m, arm_length_m = compute_surface_shoulder_and_sleeve(tris_np, landmarks_yaml)
     leg_inseam_m = float(abs(pt_crotch[1] - pt_heel_l[1]))
 
     scale_factor = (height_cm_input / 100.0) / est_height_m if has_height else 1.0
