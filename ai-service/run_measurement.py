@@ -17,7 +17,7 @@ HỆ THỐNG TRÍCH XUẤT SỐ ĐO MAY MẶC 1 CHẠM (END-TO-END BODY MEASUREM
 [LƯU Ý KHI CHỈNH SỬA (CONFLICT WARNINGS)]:
 - Không lấy trực tiếp `face_idx` trong smplx_measurements.yaml để truy xuất vào `vertices`
   vì `vertices` chỉ có 10.475 đỉnh trong khi `triangles` có 20.908 mặt. Luôn dùng hàm `get_landmark_3d()`.
-- Khi chạy tối ưu hóa betas (Adam 35 bước), chỉ tối ưu trên tư thế T-pose trung tính (zero_pose)
+- Khi chạy tối ưu hóa betas (Adam 70 bước, Cosine LR), chỉ tối ưu trên tư thế T-pose trung tính (zero_pose)
   để các mặt phẳng cắt ngang ngực/eo/hông không bị nghiêng theo tư thế đứng của người trong ảnh.
 ===============================================================================
 """
@@ -281,12 +281,15 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
             device=betas.device, dtype=torch.float32
         )
 
+        # Ngân sách bước Adam: tổng lr theo Cosine ~ n_iters * (lr + eta_min) / 2 ≈ 4.3 đơn vị beta,
+        # đủ để beta_1 phủ dải BMI 16–35 (bản 45 bước / lr 0.05 chỉ ~1.2, hụt tới -12 kg với BMI 31).
+        n_iters = 70
         init_betas = betas.clone().detach()
         opt_betas = betas.clone().detach().requires_grad_(True)
-        optimizer = torch.optim.Adam([opt_betas], lr=0.05)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=45, eta_min=0.002)
+        optimizer = torch.optim.Adam([opt_betas], lr=0.12)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_iters, eta_min=0.002)
 
-        for _ in range(45):
+        for _ in range(n_iters):
             optimizer.zero_grad()
             out_opt = smplx_layer(
                 betas=opt_betas, body_pose=zero_pose_body, global_orient=zero_pose_root,
@@ -295,15 +298,18 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
             )
             tris_opt = out_opt.vertices[:, faces_tensor]
 
-            cur_h = meas_module.compute_height(tris_opt)[0]
             loss = 0.0
             if has_height:
+                cur_h = meas_module.compute_height(tris_opt)[0]
                 loss = loss + 220.0 * (cur_h - target_h_m).pow(2).sum()
             if has_weight:
                 cur_m_raw = meas_module.compute_mass(tris_opt, custom_density=dynamic_density)
-                # Khử xung đột Scale-Volume bậc 3 (s^3): Quy chuẩn cân nặng tại đúng chiều cao mục tiêu
+                # Cân nặng bất biến tỉ lệ: m_eff = m_raw * (H_target / h)^3 đúng bằng khối lượng lưới
+                # SAU khi nhân scale_factor ở cuối. KHÔNG detach cur_h: gradient đầy đủ triệt tiêu
+                # thành phần "phóng to đồng đều" (beta_0), nên beta_0 chỉ do chiều cao điều khiển,
+                # còn cân nặng được hấp thụ bởi beta_1..beta_9 (độ dày mô).
                 if has_height:
-                    instant_scale = target_h_m / torch.clamp(cur_h.detach(), min=0.5)
+                    instant_scale = target_h_m / torch.clamp(cur_h, min=0.5)
                     cur_m_effective = cur_m_raw * (instant_scale.pow(3))
                 else:
                     cur_m_effective = cur_m_raw
@@ -363,7 +369,12 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
     # Chuẩn hóa tỉ lệ (Scale Factor) nếu có chiều cao thực tế
     scale_factor = (height_cm_input / 100.0) / est_height_m if has_height else 1.0
 
-    final_mass_kg = weight_kg_input if has_weight else (est_mass_kg * (scale_factor ** 3))
+    # Khối lượng thực của lưới 3D sau chuẩn hóa tỉ lệ (dùng để kiểm chứng độ hội tụ của tối ưu hóa)
+    mesh_mass_kg = est_mass_kg * (scale_factor ** 3)
+    final_mass_kg = weight_kg_input if has_weight else mesh_mass_kg
+    if has_weight and abs(mesh_mass_kg - weight_kg_input) > 2.0:
+        print(f"[!] Cảnh báo: lưới 3D chỉ đạt {mesh_mass_kg:.1f} kg so với {weight_kg_input:.1f} kg nhập vào "
+              f"(lệch {mesh_mass_kg - weight_kg_input:+.1f} kg) do giới hạn an toàn của beta.")
 
     if save_mesh_path:
         try:
@@ -382,6 +393,7 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
             "chieu_cao_nhap_cm": height_cm_input,
             "can_nang_nhap_kg": weight_kg_input,
             "mat_do_co_the_kg_m3": round(float(dynamic_density), 1),
+            "can_nang_luoi_3d_kg": round(float(mesh_mass_kg), 1),
             "scale_factor_hieu_chinh": round(float(scale_factor), 4)
         },
         "so_do_may_mac_cm": {
