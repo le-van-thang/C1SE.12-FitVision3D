@@ -58,7 +58,7 @@ export const Dashboard: React.FC = () => {
   const [lockedFeature, setLockedFeature] = useState<string | null>(null);
   const initBio = loadInitialBiometric();
 
-  const [measurement, setMeasurement] = useState<(Measurement & { arm_length_cm?: number | null }) | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement | null>(null);
   const [mesh, setMesh] = useState<MeshParameter | null>(null);
   const [biometric, setBiometric] = useState<BiometricInput | null>(null);
   const [garmentRec, setGarmentRec] = useState<AiMeasurementResponse["garment_size_recommendations"] | null>(null);
@@ -116,7 +116,15 @@ export const Dashboard: React.FC = () => {
           created_at: new Date().toISOString(),
         };
 
-        const newMeasurement: Measurement & { arm_length_cm: number } = {
+        const extMeas = meas as typeof meas & {
+          vong_bap_tay_cm?: number;
+          vong_co_tay_cm?: number;
+          vong_dui_cm?: number;
+          vong_bap_chan_cm?: number;
+          vong_co_chan_cm?: number;
+        };
+
+        const newMeasurement: Measurement = {
           id: `meas-${Date.now()}`,
           user_id: "usr-current",
           input_id: `inp-${Date.now()}`,
@@ -126,6 +134,11 @@ export const Dashboard: React.FC = () => {
           shoulder_breadth_cm: meas.rong_vai_cm,
           inseam_cm: dai_chan_inseam_cm_fallback(meas.dai_chan_inseam_cm, h),
           arm_length_cm: meas.dai_tay_cm,
+          bicep_circ_cm: extMeas.vong_bap_tay_cm ?? null,
+          wrist_circ_cm: extMeas.vong_co_tay_cm ?? null,
+          thigh_circ_cm: extMeas.vong_dui_cm ?? null,
+          calf_circ_cm: extMeas.vong_bap_chan_cm ?? null,
+          ankle_circ_cm: extMeas.vong_co_chan_cm ?? null,
           extraction_confidence: res.is_live_backend ? 0.98 : 0.94,
           created_at: new Date().toISOString(),
         };

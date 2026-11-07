@@ -17,14 +17,26 @@ export type MetricKey =
   | "hip_circ_cm"
   | "shoulder_breadth_cm"
   | "inseam_cm"
-  | "arm_length_cm";
+  | "arm_length_cm"
+  | "bicep_circ_cm"
+  | "wrist_circ_cm"
+  | "thigh_circ_cm"
+  | "calf_circ_cm"
+  | "ankle_circ_cm";
 
 export interface MannequinViewerProps {
   meshParams: MeshParameter | null;
   measurement: (Pick<
     Measurement,
     "chest_circ_cm" | "waist_circ_cm" | "hip_circ_cm" | "shoulder_breadth_cm" | "inseam_cm"
-  > & { arm_length_cm?: number | null }) | null;
+  > & {
+    arm_length_cm?: number | null;
+    bicep_circ_cm?: number | null;
+    wrist_circ_cm?: number | null;
+    thigh_circ_cm?: number | null;
+    calf_circ_cm?: number | null;
+    ankle_circ_cm?: number | null;
+  }) | null;
   isLoading?: boolean;
   height?: number | string;
   id?: string;
@@ -34,7 +46,18 @@ export interface MannequinViewerProps {
 }
 
 type ViewZone = "full_body" | "chest" | "waist" | "hips";
-type ActiveZoneKey = "chest" | "waist" | "hips" | "shoulders" | "inseam" | "arm_length";
+type ActiveZoneKey =
+  | "chest"
+  | "waist"
+  | "hips"
+  | "shoulders"
+  | "inseam"
+  | "arm_length"
+  | "bicep"
+  | "wrist"
+  | "thigh"
+  | "calf"
+  | "ankle";
 
 interface CameraPreset {
   target: THREE.Vector3;
@@ -81,6 +104,16 @@ function metricToZone(metric: MetricKey): ActiveZoneKey {
       return "inseam";
     case "arm_length_cm":
       return "arm_length";
+    case "bicep_circ_cm":
+      return "bicep";
+    case "wrist_circ_cm":
+      return "wrist";
+    case "thigh_circ_cm":
+      return "thigh";
+    case "calf_circ_cm":
+      return "calf";
+    case "ankle_circ_cm":
+      return "ankle";
   }
 }
 
@@ -91,6 +124,11 @@ interface AnatomicalLandmarks {
   shoulders: THREE.Vector3;
   inseam: THREE.Vector3;
   arm_length: THREE.Vector3;
+  bicep: THREE.Vector3;
+  wrist: THREE.Vector3;
+  thigh: THREE.Vector3;
+  calf: THREE.Vector3;
+  ankle: THREE.Vector3;
 }
 
 function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
@@ -105,6 +143,11 @@ function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
     shoulders: new THREE.Vector3(0.195 * sChest, 0.43, 0.0),
     inseam: new THREE.Vector3(-0.085 * sHips, -0.35, 0.0),
     arm_length: new THREE.Vector3(0.38 * sChest, 0.20, 0.0),
+    bicep: new THREE.Vector3(-0.27 * sChest, 0.28, 0.0),
+    wrist: new THREE.Vector3(-0.43 * sChest, 0.04, 0.015),
+    thigh: new THREE.Vector3(0.11 * sHips, -0.24, 0.015),
+    calf: new THREE.Vector3(0.10 * sHips, -0.52, -0.01),
+    ankle: new THREE.Vector3(0.09 * sHips, -0.74, 0.0),
   };
 }
 
@@ -117,11 +160,16 @@ interface CalloutDef {
 
 const CALLOUTS: CalloutDef[] = [
   { key: "chest_circ_cm", label: "Chest", side: "left", get3DPoint: (lm) => lm.chest },
+  { key: "bicep_circ_cm", label: "bicep", side: "left", get3DPoint: (lm) => lm.bicep },
   { key: "waist_circ_cm", label: "Waist", side: "left", get3DPoint: (lm) => lm.waist },
+  { key: "wrist_circ_cm", label: "wrist", side: "left", get3DPoint: (lm) => lm.wrist },
   { key: "inseam_cm", label: "Inseam", side: "left", get3DPoint: (lm) => lm.inseam },
   { key: "shoulder_breadth_cm", label: "Shoulders", side: "right", get3DPoint: (lm) => lm.shoulders },
   { key: "arm_length_cm", label: "arm_length", side: "right", get3DPoint: (lm) => lm.arm_length },
   { key: "hip_circ_cm", label: "Hips", side: "right", get3DPoint: (lm) => lm.hips },
+  { key: "thigh_circ_cm", label: "thigh", side: "right", get3DPoint: (lm) => lm.thigh },
+  { key: "calf_circ_cm", label: "calf", side: "right", get3DPoint: (lm) => lm.calf },
+  { key: "ankle_circ_cm", label: "ankle", side: "right", get3DPoint: (lm) => lm.ankle },
 ];
 
 import { useI18n } from "../../i18n";
