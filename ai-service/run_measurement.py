@@ -5,14 +5,16 @@
 HỆ THỐNG TRÍCH XUẤT SỐ ĐO MAY MẶC 1 CHẠM (END-TO-END BODY MEASUREMENT)
 -------------------------------------------------------------------------------
 [BẢNG CHỈ MỤC (INDEX) CÁC HÀM TRONG FILE]:
-1. parse_args()           : Nhận tham số dòng lệnh (--image, --height_cm, --weight_kg...).
-2. load_detector()        : Nạp mô hình Faster R-CNN (MMDetection) để tìm người trong ảnh 2D.
-3. load_smpler_x_model()  : Nạp mô hình SMPLer-X (ViTPose + Regressors) từ checkpoint .pth.tar.
-4. detect_person()        : Tìm khung hình chữ nhật (Bounding Box) chứa người lớn nhất trong ảnh.
-5. extract_3d_mesh()      : Cắt ảnh Affine (512x384) -> Chạy SMPLer-X -> Xuất 10 tham số hình thể (betas).
-6. get_landmark_3d()      : [ĐÃ SỬA LỖI] Nội suy tọa độ 3D chuẩn từ face_idx và trọng số bc (tránh IndexError).
-7. compute_measurements() : Tối ưu hóa betas theo chiều cao/cân nặng -> Đo chu vi 3D & khoảng cách giải phẫu.
-8. main()                 : Luồng điều phối chính (Ảnh -> BBox -> 3D Mesh -> Số đo -> JSON).
+1. parse_args()                          : Nhận tham số dòng lệnh (--image, --mesh_obj, --height_cm, --weight_kg...).
+2. load_detector()                       : Nạp mô hình Faster R-CNN (Torchvision PyTorch thuần, không phụ thuộc MMCV C++).
+3. load_smpler_x_model()                 : Nạp mô hình SMPLer-X (ViTPose + Regressors) từ checkpoint .pth.tar.
+4. detect_person()                       : Tìm khung hình chữ nhật (Bounding Box) chứa người lớn nhất trong ảnh.
+5. extract_3d_mesh()                     : Cắt ảnh Affine (512x384) -> Chạy SMPLer-X -> Xuất 10 tham số hình thể (betas).
+6. get_landmark_3d()                     : Nội suy tọa độ 3D chuẩn từ face_idx và trọng số Barycentric bc (tránh IndexError).
+7. compute_surface_shoulder_and_sleeve() : Đo Rộng vai (qua đốt sống cổ C7) & Dài tay áo dọc theo bề mặt lưới 3D (ISO 8559-1).
+8. compute_measurements()                : Tối ưu hóa betas (Anisotropic PCA + Scale-Coupled Mass) -> Trích xuất 13 số đo 3D.
+9. compute_measurements_from_obj()       : Trích xuất trực tiếp 13 số đo từ file lưới .obj độc lập (kiểm thử hình học).
+10. main()                               : Luồng điều phối chính (Ảnh/OBJ -> 3D Mesh -> 13 Số đo ISO 8559 -> JSON).
 
 [LƯU Ý KHI CHỈNH SỬA (CONFLICT WARNINGS)]:
 - Không lấy trực tiếp `face_idx` trong smplx_measurements.yaml để truy xuất vào `vertices`

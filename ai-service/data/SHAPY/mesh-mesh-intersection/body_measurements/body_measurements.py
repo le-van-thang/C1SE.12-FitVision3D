@@ -396,6 +396,11 @@ class BodyMeasurements(nn.Module):
         return output
 
     def compute_height(self, shaped_triangles: Tensor) -> Tuple[Tensor, Tensor]:
+        """
+        Đo chiều cao toàn thân (Stature - ISO 8559-1 5.1.1):
+        Tính khoảng cách dọc trục đứng Y từ đỉnh đầu (HeadTop) đến gót chân trái (HeelLeft)
+        thông qua nội suy trọng tâm tam giác (Barycentric Coordinates).
+        """
         head_top_tri = shaped_triangles[:, self.head_top_face_idx]
         head_top = (head_top_tri * self.head_top_bc.reshape(1, 3, 1)).sum(dim=1)
 
@@ -443,6 +448,13 @@ class BodyMeasurements(nn.Module):
         return float(np.clip(dynamic_density, 945.0, 1030.0))
 
     def compute_mass(self, tris: Tensor, custom_density: float = None) -> Tensor:
+        """
+        Tính khối lượng cơ thể 3D (Body Mass) bằng Định lý Phân kỳ (Divergence Theorem):
+        Tổng thể tích đại số của 20.908 tứ diện có hướng tạo bởi gốc tọa độ O(0,0,0) và mỗi mặt tam giác:
+            V = (1/6) * | sum_{f=1..F} det([v0, v1, v2]) |  (m^3)
+            Mass = V * active_density                       (kg)
+        Hàm khả vi hoàn toàn (Differentiable) phục vụ lan truyền ngược (Backpropagation) khi tối ưu betas.
+        """
         x = tris[:, :, :, 0]
         y = tris[:, :, :, 1]
         z = tris[:, :, :, 2]

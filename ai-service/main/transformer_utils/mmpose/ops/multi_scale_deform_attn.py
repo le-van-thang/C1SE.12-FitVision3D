@@ -332,14 +332,15 @@ class MultiScaleDeformableAttention_share_value(BaseModule):
             raise ValueError(
                 f'Last dim of reference_points must be'
                 f' 2 or 4, but get {reference_points.shape[-1]} instead.')
-        if torch.cuda.is_available():
+        # Tự động dùng CUDA C++ kernel nếu có ext_module, ngược lại fallback về PyTorch thuần (hỗ trợ mọi phiên bản CUDA mới & CPU)
+        if torch.cuda.is_available() and ext_module is not None and value.is_cuda:
             output = MultiScaleDeformableAttnFunction.apply(
                 value, spatial_shapes, level_start_index, sampling_locations,
                 attention_weights, self.im2col_step)
         else:
             output = multi_scale_deformable_attn_pytorch(
-                value, spatial_shapes, level_start_index, sampling_locations,
-                attention_weights, self.im2col_step)
+                value, spatial_shapes, sampling_locations,
+                attention_weights)
 
         output = self.output_proj(output)
 
@@ -554,14 +555,15 @@ class MultiScaleDeformableAttention_bottle_neck_v(BaseModule):
             raise ValueError(
                 f'Last dim of reference_points must be'
                 f' 2 or 4, but get {reference_points.shape[-1]} instead.')
-        if torch.cuda.is_available():
+        # Tự động dùng CUDA C++ kernel nếu có ext_module, ngược lại fallback về PyTorch thuần (hỗ trợ mọi phiên bản CUDA mới & CPU)
+        if torch.cuda.is_available() and ext_module is not None and value.is_cuda:
             output = MultiScaleDeformableAttnFunction.apply(
                 value, spatial_shapes, level_start_index, sampling_locations,
                 attention_weights, self.im2col_step)
         else:
             output = multi_scale_deformable_attn_pytorch(
-                value, spatial_shapes, level_start_index, sampling_locations,
-                attention_weights, self.im2col_step)
+                value, spatial_shapes, sampling_locations,
+                attention_weights)
 
         output = self.output_proj(output)
 
@@ -761,14 +763,15 @@ class MultiScaleDeformableAttention_post_value(BaseModule):
             raise ValueError(
                 f'Last dim of reference_points must be'
                 f' 2 or 4, but get {reference_points.shape[-1]} instead.')
-        if torch.cuda.is_available():
+        # Tự động dùng CUDA C++ kernel nếu có ext_module, ngược lại fallback về PyTorch thuần (hỗ trợ mọi phiên bản CUDA mới & CPU)
+        if torch.cuda.is_available() and ext_module is not None and value.is_cuda:
             output = MultiScaleDeformableAttnFunction.apply(
                 value, spatial_shapes, level_start_index, sampling_locations,
                 attention_weights, self.im2col_step)
         else:
             output = multi_scale_deformable_attn_pytorch(
-                value, spatial_shapes, level_start_index, sampling_locations,
-                attention_weights, self.im2col_step)
+                value, spatial_shapes, sampling_locations,
+                attention_weights)
 
         bs, num_q, ch = output.shape
         value_proj_weight = self.value_proj_weight.weight.clone()
