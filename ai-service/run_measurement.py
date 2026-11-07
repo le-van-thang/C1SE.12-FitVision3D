@@ -257,23 +257,36 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
     has_height = (height_cm_input is not None and height_cm_input > 0)
     has_weight = (weight_kg_input is not None and weight_kg_input > 0)
 
-    # Tối ưu hóa 10 tham số hình thể (betas) nếu người dùng nhập chiều cao hoặc cân nặng thật
+    target_h_m = (height_cm_input / 100.0) if has_height else None
+    target_m_kg = weight_kg_input if has_weight else None
+
+    # Tính khối lượng riêng sinh học động (Siri & Deurenberg) theo BMI & giới tính
+    dynamic_density = meas_module.compute_dynamic_density(
+        height_m=target_h_m, weight_kg=target_m_kg, gender=active_gender
+    )
+
+    # Tối ưu hóa 10 tham số hình thể (Anisotropic PCA & Scale-Coupled Betas Optimization)
     if has_height or has_weight:
         mode_str = []
         if has_height:
             mode_str.append(f"Chiều cao {height_cm_input:.1f} cm")
         if has_weight:
-            mode_str.append(f"Cân nặng {weight_kg_input:.1f} kg")
+            mode_str.append(f"Cân nặng {weight_kg_input:.1f} kg (Mật độ mô: {dynamic_density:.1f} kg/m³)")
         print(f"[*] Đang tinh chỉnh hình thể 3D (Betas Optimization) theo: {', '.join(mode_str)}...")
 
-        target_h_m = (height_cm_input / 100.0) if has_height else None
-        target_m_kg = weight_kg_input if has_weight else None
+        # Trọng số phạt phân tách không gian con PCA (Anisotropic Subspace Prior):
+        # Giải phóng beta_0 (chiều cao/khung xương) & beta_1 (độ dày mô/BMI), khóa chặt beta_2..beta_9 giữ dáng từ ảnh 2D
+        pca_reg_weights = torch.tensor(
+            [[0.08, 0.12, 0.80, 0.80, 1.20, 1.20, 2.00, 2.00, 2.00, 2.00]],
+            device=betas.device, dtype=torch.float32
+        )
 
         init_betas = betas.clone().detach()
         opt_betas = betas.clone().detach().requires_grad_(True)
-        optimizer = torch.optim.Adam([opt_betas], lr=0.04)
+        optimizer = torch.optim.Adam([opt_betas], lr=0.05)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=45, eta_min=0.002)
 
-        for _ in range(35):
+        for _ in range(45):
             optimizer.zero_grad()
             out_opt = smplx_layer(
                 betas=opt_betas, body_pose=zero_pose_body, global_orient=zero_pose_root,
@@ -282,17 +295,30 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
             )
             tris_opt = out_opt.vertices[:, faces_tensor]
 
+            cur_h = meas_module.compute_height(tris_opt)[0]
             loss = 0.0
             if has_height:
-                cur_h = meas_module.compute_height(tris_opt)[0]
-                loss = loss + 150.0 * (cur_h - target_h_m).pow(2).sum()
+                loss = loss + 220.0 * (cur_h - target_h_m).pow(2).sum()
             if has_weight:
-                cur_m = meas_module.compute_mass(tris_opt)
-                loss = loss + 2.0 * (cur_m - target_m_kg).pow(2).sum()
+                cur_m_raw = meas_module.compute_mass(tris_opt, custom_density=dynamic_density)
+                # Khử xung đột Scale-Volume bậc 3 (s^3): Quy chuẩn cân nặng tại đúng chiều cao mục tiêu
+                if has_height:
+                    instant_scale = target_h_m / torch.clamp(cur_h.detach(), min=0.5)
+                    cur_m_effective = cur_m_raw * (instant_scale.pow(3))
+                else:
+                    cur_m_effective = cur_m_raw
+                loss = loss + 2.5 * (cur_m_effective - target_m_kg).pow(2).sum()
 
-            loss = loss + 0.8 * (opt_betas - init_betas).pow(2).sum()
+            loss = loss + (pca_reg_weights * (opt_betas - init_betas).pow(2)).sum()
             loss.backward()
             optimizer.step()
+            scheduler.step()
+
+            # Giới hạn an toàn sinh học tránh biến dạng lưới khi đầu vào ngoại lai
+            with torch.no_grad():
+                opt_betas[:, 0:2].clamp_(-4.5, 4.5)
+                delta_high = torch.clamp(opt_betas[:, 2:] - init_betas[:, 2:], min=-1.5, max=1.5)
+                opt_betas[:, 2:].copy_(init_betas[:, 2:] + delta_high)
 
         betas = opt_betas.detach()
         print("[✓] Hoàn tất tinh chỉnh hình thể 3D.")
@@ -307,7 +333,7 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
     triangles = vertices[:, faces_tensor]
 
     # Đo chu vi (Ngực, Eo, Hông, Bắp tay, Cổ tay, Đùi, Bắp chân, Cổ chân), Chiều cao và Cân nặng bằng mặt phẳng cắt ngang 3D
-    meas_raw = meas_module(triangles)['measurements']
+    meas_raw = meas_module(triangles, custom_density=dynamic_density)['measurements']
     est_height_m = meas_raw['height']['tensor'].item()
     est_chest_m = meas_raw['chest']['tensor'].item()
     est_waist_m = meas_raw['waist']['tensor'].item()
@@ -355,6 +381,7 @@ def compute_measurements(betas, height_cm_input=None, weight_kg_input=None, gend
             "gioi_tinh": active_gender,
             "chieu_cao_nhap_cm": height_cm_input,
             "can_nang_nhap_kg": weight_kg_input,
+            "mat_do_co_the_kg_m3": round(float(dynamic_density), 1),
             "scale_factor_hieu_chinh": round(float(scale_factor), 4)
         },
         "so_do_may_mac_cm": {
@@ -411,7 +438,15 @@ def compute_measurements_from_obj(obj_path, height_cm_input=None, weight_kg_inpu
         'meas_vertices_path': meas_verts_path,
     }).to(target_device)
 
-    meas_raw = meas_module(triangles)['measurements']
+    has_height = (height_cm_input is not None and height_cm_input > 0)
+    has_weight = (weight_kg_input is not None and weight_kg_input > 0)
+    dynamic_density = meas_module.compute_dynamic_density(
+        height_m=(height_cm_input / 100.0) if has_height else None,
+        weight_kg=weight_kg_input if has_weight else None,
+        gender=gender
+    )
+
+    meas_raw = meas_module(triangles, custom_density=dynamic_density)['measurements']
     est_height_m = meas_raw['height']['tensor'].item()
     est_chest_m = meas_raw['chest']['tensor'].item()
     est_waist_m = meas_raw['waist']['tensor'].item()
@@ -436,8 +471,6 @@ def compute_measurements_from_obj(obj_path, height_cm_input=None, weight_kg_inpu
     arm_length_m = float(np.linalg.norm(pt_shoulder_l - pt_wrist_l))
     leg_inseam_m = float(abs(pt_crotch[1] - pt_heel_l[1]))
 
-    has_height = (height_cm_input is not None and height_cm_input > 0)
-    has_weight = (weight_kg_input is not None and weight_kg_input > 0)
     scale_factor = (height_cm_input / 100.0) / est_height_m if has_height else 1.0
     final_mass_kg = weight_kg_input if has_weight else (est_mass_kg * (scale_factor ** 3))
 
@@ -447,6 +480,7 @@ def compute_measurements_from_obj(obj_path, height_cm_input=None, weight_kg_inpu
             "chieu_cao_nhap_cm": height_cm_input,
             "can_nang_nhap_kg": weight_kg_input,
             "scale_factor_hieu_chinh": round(float(scale_factor), 4),
+            "mat_do_co_the_kg_m3": round(float(dynamic_density), 1),
             "nguon_du_lieu": osp.basename(obj_path)
         },
         "so_do_may_mac_cm": {
