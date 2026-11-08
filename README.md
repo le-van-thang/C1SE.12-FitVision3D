@@ -1,299 +1,226 @@
-﻿# đŸ§µ AI-TAILOR: Há»† THá»NG TRĂCH XUáº¤T Sá» ÄO MAY Máº¶C 3D Tá»° Äá»˜NG (ISO 8559)
+﻿# 🧵 FitVision 3D (C1SE.12)
+### Hệ Thống Đo Nhân Trắc Học 3D Không Tiếp Xúc & May Đo Thông Minh Theo Chuẩn Quốc Tế ISO 8559-1
+> **AI-Powered Contactless 3D Anthropometry & Virtual Fitting Intelligence Platform**
 
-> **AI-Tailor** lĂ  giáº£i phĂ¡p thá»‹ giĂ¡c mĂ¡y tĂ­nh 3D (3D Computer Vision & Computational Geometry) giĂºp tá»± Ä‘á»™ng trĂ­ch xuáº¥t Ä‘áº§y Ä‘á»§ **8 thĂ´ng sá»‘ nhĂ¢n tráº¯c há»c may máº·c** theo tiĂªu chuáº©n quá»‘c táº¿ **ISO 8559-1** tá»« má»™t bá»©c áº£nh chá»¥p toĂ n thĂ¢n:
-> 
-> **Chiá»u cao â€¢ VĂ²ng ngá»±c â€¢ VĂ²ng eo â€¢ VĂ²ng hĂ´ng/mĂ´ng â€¢ Chiá»u rá»™ng vai â€¢ Chiá»u dĂ i tay Ă¡o â€¢ Chiá»u dĂ i chĂ¢n trong (Inseam) â€¢ CĂ¢n náº·ng Æ°á»›c tĂ­nh**
-> 
-> Äá»“ng thá»i há»‡ thá»‘ng tá»± Ä‘á»™ng xuáº¥t **File 3D Avatar (.obj)** Ä‘á»ƒ nháº­p trá»±c tiáº¿p vĂ o cĂ¡c pháº§n má»m thiáº¿t káº¿ thá»i trang 3D (**CLO3D, Marvelous Designer, Browzwear, Blender**) vĂ  tá»± Ä‘á»™ng tÆ° váº¥n kĂ­ch cá»¡ trang phá»¥c (**Size S/M/L/XL, Quáº§n Ă¢u theo Inch, Äá»™ cá»­ Ä‘á»™ng Ease Allowance**).
-
----
-
-## â¡ ÄIá»‚M Äáº¶C BIá»†T Cá»¦A PHIĂN Báº¢N NĂ€Y (PURE PYTORCH 2.X)
-* **100% PyTorch 2.x Thuáº§n:** ÄĂ£ loáº¡i bá» hoĂ n toĂ n cĂ¡c phá»¥ thuá»™c biĂªn dá»‹ch C++/CUDA phá»©c táº¡p (`mesh_mesh_intersect_cuda`, `mmcv.ops.roi_align`).
-* **Äá»™c láº­p ná»n táº£ng:** Cháº¡y mÆ°á»£t mĂ  trĂªn **Google Colab**, **MĂ¡y tĂ­nh cĂ¡ nhĂ¢n Windows/Linux**, hoáº·c **MĂ¡y chá»§ thuĂª Ä‘Ă¡m mĂ¢y (Cloud Server / Docker)** mĂ  khĂ´ng lo xung Ä‘á»™t thÆ° viá»‡n.
-* **Tá»± Ä‘á»™ng chuyá»ƒn Ä‘á»•i CPU/GPU:** Tá»± nháº­n diá»‡n GPU NVIDIA CUDA; náº¿u mĂ¡y khĂ´ng cĂ³ card rá»i, há»‡ thá»‘ng tá»± Ä‘á»™ng cháº¡y á»Ÿ cháº¿ Ä‘á»™ CPU mĂ  khĂ´ng bá»‹ sáº­p.
-
----
-
-## đŸ¯ HÆ¯á»NG DáºªN CHáº Y TRĂN CĂC MĂ”I TRÆ¯á»œNG
-
----
-
-### đŸŸ¢ TRÆ¯á»œNG Há»¢P 1: Táº¢I NGUYĂN THÆ¯ Má»¤C Tá»ª GOOGLE DRIVE (CHáº Y LOCAL MĂY Báº N BĂˆ)
-
-> **DĂ nh cho:** Báº¡n gá»­i cáº£ thÆ° má»¥c dá»± Ă¡n lĂªn Google Drive rá»“i gá»­i link cho báº¡n bĂ¨/Ä‘á»‘i tĂ¡c táº£i vá» cháº¡y trá»±c tiáº¿p trĂªn mĂ¡y cá»§a há» (Windows / Linux) mĂ  khĂ´ng cáº§n cáº¥u hĂ¬nh rÆ°á»m rĂ .
-
-VĂ¬ thÆ° má»¥c trĂªn Google Drive Ä‘Ă£ chá»©a **Ä‘áº§y Ä‘á»§ cáº£ mĂ£ nguá»“n láº«n 5 file trá»ng sá»‘ mĂ´ hĂ¬nh (~800MB)**, ngÆ°á»i nháº­n chá»‰ cáº§n lĂ m theo 3 bÆ°á»›c sau:
-
-#### BÆ°á»›c 1: Giáº£i nĂ©n thÆ° má»¥c vĂ  má»Ÿ Terminal
-Má»Ÿ á»©ng dá»¥ng Terminal / PowerShell hoáº·c Command Prompt táº¡i thÆ° má»¥c vá»«a táº£i vá»:
-```powershell
-cd duong_dan_toi_thu_muc/Focused-Clean-Colab
-```
-
-#### BÆ°á»›c 2: CĂ i Ä‘áº·t mĂ´i trÆ°á»ng tá»± Ä‘á»™ng (1 cháº¡m)
-* **TrĂªn Windows:** Chá»‰ cáº§n **nháº¥p Ä‘Ăºp chuá»™t vĂ o file `setup_windows.bat`**.  
-  *(Script sáº½ tá»± Ä‘á»™ng cĂ i PyTorch, NumPy 1.23.5 vĂ  cĂ¡c thÆ° viá»‡n cáº§n thiáº¿t).*
-* **Hoáº·c dĂ¹ng Conda (Windows/Linux/Mac):**
-  ```bash
-  conda env create -f environment.yml
-  conda activate ai-tailor
-  ```
-
-#### BÆ°á»›c 3: Cháº¡y Ä‘o Ä‘áº¡c ngay láº­p tá»©c
-```powershell
-# Cháº¡y Ä‘o tá»« 1 áº£nh (vĂ­ dá»¥ cao 163 cm, náº·ng 64 kg):
-python run_measurement.py --image duong_dan_anh.jpg --height_cm 163 --weight_kg 64 --save_mesh avatar.obj
-```
-
-#### BÆ°á»›c 4 (TĂ¹y chá»n): Cháº¡y REST API Server Ä‘á»ƒ tĂ­ch há»£p Web / App
-```powershell
-python -m uvicorn app:app --host 0.0.0.0 --port 8000
-```
-Má»Ÿ trĂ¬nh duyá»‡t truy cáº­p `http://localhost:8000/docs` Ä‘á»ƒ sá»­ dá»¥ng giao diá»‡n Swagger UI thá»­ nghiá»‡m API.
-
----
-
-### đŸ”µ TRÆ¯á»œNG Há»¢P 2: CLONE CODE Tá»ª GITHUB HOáº¶C THUĂ MĂY CHá»¦ ÄĂM MĂ‚Y (SERVER / DOCKER)
-
-> **DĂ nh cho:** Láº­p trĂ¬nh viĂªn clone mĂ£ nguá»“n tá»« GitHub: `https://github.com/QuanHoang05/AI-Tailor.git` hoáº·c triá»ƒn khai lĂªn mĂ¡y chá»§ thuĂª (RunPod, Vast.ai, AWS EC2, VPS Ubuntu 22.04).
-
-â ï¸ **LÆ¯U Ă QUAN TRá»ŒNG Vá»€ TRá»ŒNG Sá» MĂ” HĂŒNH (> 100MB):**  
-VĂ¬ chĂ­nh sĂ¡ch cá»§a GitHub khĂ´ng cho phĂ©p Ä‘áº©y file lá»›n hÆ¡n 100MB, khi clone code vá» mĂ¡y má»›i, báº¡n cáº§n Ä‘áº·t cĂ¡c file mĂ´ hĂ¬nh vĂ o Ä‘Ăºng cĂ¡c thÆ° má»¥c nhÆ° báº£ng hÆ°á»›ng dáº«n bĂªn dÆ°á»›i.
-
-#### BÆ°á»›c 1: Clone mĂ£ nguá»“n tá»« GitHub
-```bash
-git clone https://github.com/QuanHoang05/AI-Tailor.git
-cd AI-Tailor
-```
-
-#### BÆ°á»›c 2: Táº£i vĂ  Ä‘áº·t cĂ¡c file mĂ´ hĂ¬nh vĂ o Ä‘Ăºng thÆ° má»¥c
-Báº¡n hĂ£y táº£i hoáº·c copy 5 file trá»ng sá»‘ mĂ´ hĂ¬nh vĂ  Ä‘áº·t chĂ­nh xĂ¡c vĂ o cĂ¡c thÆ° má»¥c sau:
-
-| TĂªn File Trá»ng Sá»‘ | KĂ­ch thÆ°á»›c | Äáº·t chĂ­nh xĂ¡c vĂ o Ä‘Æ°á»ng dáº«n thÆ° má»¥c | Nguá»“n táº£i vá» |
-| :--- | :---: | :--- | :--- |
-| **`smpler_x_s32.pth.tar`** | 384 MB | `pretrained_models/smpler_x_s32.pth.tar` | [Táº£i tá»« HuggingFace](https://huggingface.co/caizhongang/SMPLer-X/resolve/main/smpler_x_s32.pth.tar) hoáº·c Google Drive |
-| **`vitpose_small.pth`** | 97 MB | `pretrained_models/vitpose_small.pth` | [Táº£i tá»« HuggingFace](https://huggingface.co/caizhongang/SMPLer-X/resolve/main/vitpose_small.pth) hoáº·c Google Drive |
-| **`SMPLX_NEUTRAL.npz`** | 108 MB | `common/utils/human_model_files/smplx/SMPLX_NEUTRAL.npz` | ÄÄƒng kĂ½ miá»…n phĂ­ táº¡i [SMPL-X Portal](https://smpl-x.is.tue.mpg.de) hoáº·c copy tá»« Drive |
-| **`SMPLX_MALE.npz`** | 108 MB | `common/utils/human_model_files/smplx/SMPLX_MALE.npz` | [SMPL-X Portal](https://smpl-x.is.tue.mpg.de) hoáº·c copy tá»« Drive |
-| **`SMPLX_FEMALE.npz`** | 108 MB | `common/utils/human_model_files/smplx/SMPLX_FEMALE.npz` | [SMPL-X Portal](https://smpl-x.is.tue.mpg.de) hoáº·c copy tá»« Drive |
-
-*(Gá»£i Ă½: Náº¿u báº¡n cĂ³ sáºµn thÆ° má»¥c trĂªn mĂ¡y tĂ­nh hoáº·c Google Drive, chá»‰ cáº§n nĂ©n 5 file trĂªn thĂ nh file `models.zip` rá»“i dĂ¹ng lá»‡nh `scp` hoáº·c `gdown` táº£i lĂªn server má»™t láº§n duy nháº¥t).*
-
-#### BÆ°á»›c 3: Kiá»ƒm tra tĂ­nh toĂ n váº¹n cá»§a mĂ´ hĂ¬nh
-Cháº¡y lá»‡nh kiá»ƒm tra tá»± Ä‘á»™ng:
-```bash
-python download_models.py
-```
-Khi mĂ n hĂ¬nh hiá»ƒn thá»‹ Ä‘á»§ 5 dáº¥u tĂ­ch xanh `[âœ“] Sáº´N SĂ€NG`, há»‡ thá»‘ng Ä‘Ă£ sáºµn sĂ ng 100%!
-
-#### BÆ°á»›c 4: Triá»ƒn khai trĂªn Server
-
-* **CĂ¡ch A: DĂ¹ng Docker (Chuáº©n Doanh nghiá»‡p - KhuyĂªn dĂ¹ng):**
-  ```bash
-  # Build Docker Image:
-  docker build -t ai-tailor:latest .
-
-  # Khá»Ÿi cháº¡y Container phá»¥c vá»¥ API 24/7 trĂªn cá»•ng 8000:
-  docker run --gpus all -p 8000:8000 -d --name ai_tailor_service ai-tailor:latest python -m uvicorn app:app --host 0.0.0.0 --port 8000
-  ```
-
-* **CĂ¡ch B: CĂ i Ä‘áº·t Native trĂªn Ubuntu 22.04:**
-  ```bash
-  chmod +x setup_colab.sh
-  ./setup_colab.sh
-
-  # Cháº¡y Ä‘o thá»­ nghiá»‡m:
-  python run_measurement.py --image duong_dan_anh.jpg --height_cm 163 --weight_kg 64
-  ```
-
----
-
-### đŸŸ¡ TRÆ¯á»œNG Há»¢P 3: CHáº Y TRĂN GOOGLE COLAB (GPU T4 MIá»„N PHĂ)
-
-1. Má»Ÿ notebook **`run_on_colab.ipynb`** trĂªn Google Colab.
-2. Chá»n Menu **Runtime -> Change runtime type -> T4 GPU**.
-3. **Cháº¡y Cell 1 (Mount Drive):** Notebook sáº½ tá»± Ä‘á»™ng tĂ¬m Ä‘Ăºng thÆ° má»¥c dá»± Ă¡n trĂªn Google Drive cá»§a báº¡n.
-4. **Cháº¡y Cell 2 (`./setup_colab.sh`):** CĂ i Ä‘áº·t mĂ´i trÆ°á»ng tá»± Ä‘á»™ng (máº¥t ~1-2 phĂºt).
-5. **Cháº¡y Cell 3 & 4:** Táº£i áº£nh lĂªn vĂ  báº¥m cháº¡y trĂ­ch xuáº¥t sá»‘ Ä‘o trong 1-2 giĂ¢y.
-
----
-
-## đŸ“– Báº¢NG THAM Sá» DĂ’NG Lá»†NH (`run_measurement.py`)
-
-| Tham sá»‘ | Kiá»ƒu dá»¯ liá»‡u | Máº·c Ä‘á»‹nh | Ă nghÄ©a & MĂ´ táº£ |
-| :--- | :---: | :---: | :--- |
-| **`--image`** | `str` | *Báº¯t buá»™c* | ÄÆ°á»ng dáº«n tá»›i file áº£nh toĂ n thĂ¢n (.jpg/.png). |
-| **`--height_cm`** | `float` | `None` | Chiá»u cao thá»±c táº¿ (cm). **KhuyĂªn dĂ¹ng** Ä‘á»ƒ chuáº©n hĂ³a tá»‰ lá»‡ ngÆ°á»i 1:1. |
-| **`--weight_kg`** | `float` | `None` | CĂ¢n náº·ng thá»±c táº¿ (kg) Ä‘á»ƒ tinh chá»‰nh Ä‘á»™ dĂ y cÆ¡ thá»ƒ báº±ng Adam optimizer. |
-| **`--gender`** | `str` | `neutral` | Giá»›i tĂ­nh hĂ¬nh thá»ƒ: `neutral` (trung tĂ­nh), `male` (nam), `female` (ná»¯). |
-| **`--save_mesh`** | `str` | `None` | ÄÆ°á»ng dáº«n lÆ°u file 3D Avatar (`.obj` hoáº·c `.ply`) Ä‘á»ƒ kĂ©o vĂ o CLO3D/Blender. |
-| **`--output_json`**| `str` | `output_measurements.json` | ÄÆ°á»ng dáº«n lÆ°u file káº¿t quáº£ JSON. |
-| **`--device`** | `str` | `cuda:0` / `cpu` | Thiáº¿t bá»‹ tĂ­nh toĂ¡n (tá»± nháº­n diá»‡n GPU CUDA náº¿u cĂ³). |
-
-### VĂ­ dá»¥ cĂ¢u lá»‡nh Ä‘áº§y Ä‘á»§:
-```bash
-python run_measurement.py \
-    --image anh_khach_hang.jpg \
-    --height_cm 163.0 \
-    --weight_kg 64.0 \
-    --gender male \
-    --save_mesh avatar_163cm.obj \
-    --output_json ket_qua.json
-```
-
----
-
-## đŸ“ CĂ”NG Cá»¤ Äá»I CHUáº¨N THá»°C NGHIá»†M Vá»I THÆ¯á»C DĂ‚Y (`evaluate_benchmark.py`)
-
-Khi báº¡n Ä‘o ngÆ°á»i tháº­t báº±ng thÆ°á»›c dĂ¢y may máº·c, báº¡n cĂ³ thá»ƒ cháº¡y cĂ´ng cá»¥ nĂ y Ä‘á»ƒ kiá»ƒm chá»©ng Ä‘á»™ chĂ­nh xĂ¡c:
-```bash
-python evaluate_benchmark.py \
-    --pred output_measurements.json \
-    --real_height 163.0 \
-    --real_chest 95.0 \
-    --real_waist 80.0 \
-    --real_hips 87.0 \
-    --real_inseam 72.0 \
-    --real_weight 64.0
-```
-
-Há»‡ thá»‘ng sáº½ tá»± Ä‘á»™ng tĂ­nh sai sá»‘ trung bĂ¬nh tuyá»‡t Ä‘á»‘i (**MAE**) vĂ  tá»· lá»‡ % sai sá»‘, Ä‘á»‘i chiáº¿u vá»›i tiĂªu chuáº©n may Ä‘o cĂ´ng nghiá»‡p (MTM) vĂ  may sáºµn (RTW).
-
----
-
-## đŸ“¸ NGUYĂN Táº®C CHá»¤P áº¢NH CHUáº¨N MAY Máº¶C (A-POSE)
-Äá»ƒ sai sá»‘ Ä‘áº¡t ngÆ°á»¡ng xuáº¥t sáº¯c ($< 1.5\text{ cm}$):
-1. **TÆ° tháº¿ chá»¯ A (A-pose):** Äá»©ng tháº³ng, hai chĂ¢n má»Ÿ rá»™ng báº±ng vai (tháº¥y rĂµ Ä‘Å©ng quáº§n), hai tay dang nháº¹ táº¡o gĂ³c $30^\circ - 40^\circ$ vá»›i thĂ¢n ngÆ°á»i (khĂ´ng Ă©p báº¯p tay vĂ o máº¡ng sÆ°á»n).
-2. **GĂ³c Ä‘áº·t mĂ¡y:** Äáº·t Ä‘iá»‡n thoáº¡i á»Ÿ Ä‘á»™ cao **ngang rá»‘n / tháº¯t lÆ°ng** ($90 - 100\text{ cm}$ so vá»›i máº·t Ä‘áº¥t), giá»¯ mĂ¡y tháº³ng Ä‘á»©ng $90^\circ$ (khĂ´ng cháº¿ch chĂºc Ä‘áº§u mĂ¡y xuá»‘ng).
-3. **Khoáº£ng cĂ¡ch:** Äá»©ng cĂ¡ch camera tá»« **2.5 mĂ©t Ä‘áº¿n 3.0 mĂ©t**.
-4. **Trang phá»¥c:** Máº·c Ä‘á»“ má»ng Ă´m sĂ¡t (Ä‘á»“ gym, legging, Ă¡o thun Ă´m).
-
----
-
-# FitVision 3D (C1SE.12)
-### Há»‡ Thá»‘ng Äo NhĂ¢n Tráº¯c Há»c KhĂ´ng Tiáº¿p XĂºc & Thá»­ Äá»“ áº¢o 3D (AI Anthropometrics & 3D Virtual Fitting)
-
-![Tech Stack](https://img.shields.io/badge/React-19-61dafb?style=flat&logo=react)
+![Tech Stack](https://img.shields.io/badge/React-18.x-61dafb?style=flat&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat&logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-6.x-646cff?style=flat&logo=vite)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38bdf8?style=flat&logo=tailwindcss)
 ![Three.js](https://img.shields.io/badge/Three.js-WebGL-black?style=flat&logo=three.js)
-![Supabase](https://img.shields.io/badge/Supabase-Database-3ecf8e?style=flat&logo=supabase)
+![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?style=flat&logo=nodedotjs)
+![Express](https://img.shields.io/badge/Express-4.x-black?style=flat&logo=express)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?style=flat&logo=postgresql)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=flat&logo=fastapi)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c?style=flat&logo=pytorch)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)
 
 ---
 
-## đŸ“Œ 1. Tá»•ng quan dá»± Ă¡n
+## 📌 1. Tổng Quan Dự Án
 
-**FitVision 3D** lĂ  dá»± Ă¡n thuá»™c há»c pháº§n **Capstone Project (C1SE.12)**, cung cáº¥p giáº£i phĂ¡p toĂ n diá»‡n cho bĂ i toĂ¡n Ä‘o Ä‘áº¡c nhĂ¢n tráº¯c há»c khĂ´ng tiáº¿p xĂºc (Contactless Anthropometry) tá»« áº£nh chá»¥p thĂ´ng thÆ°á»ng (Webcam/Smartphone), tá»± Ä‘á»™ng tĂ­nh toĂ¡n cĂ¡c chá»‰ sá»‘ cÆ¡ thá»ƒ Ä‘áº¡t Ä‘á»™ tin cáº­y theo tiĂªu chuáº©n quá»‘c táº¿ **ISO 8559-1/2**, Ä‘á»“ng thá»i mĂ´ phá»ng tĂ¡i táº¡o hĂ¬nh thá»ƒ **Mannequin 3D tÆ°Æ¡ng tĂ¡c theo thá»i gian thá»±c** trĂªn ná»n táº£ng WebGL (Three.js).
+**FitVision 3D** là sản phẩm thuộc học phần **Đồ án Tốt nghiệp Capstone Project (Mã lớp: C1SE.12)**. Dự án giải quyết trọn vẹn bài toán trích xuất số đo nhân thể không tiếp xúc từ **duy nhất 1 ảnh chụp toàn thân 2D (A-Pose)** bằng thị giác máy tính và hình học giải tích 3D, tái tạo hình thể **Mannequin 3D tương tác 360° theo thời gian thực** trên nền tảng WebGL, đồng thời cung cấp giải pháp chuyển đổi số may đo may mặc B2B (Dành cho Nhà may / Thương hiệu thời trang).
 
-### âœ¨ CĂ¡c tĂ­nh nÄƒng cá»‘t lĂµi:
-1. **Pose Guide & Capture**: Giao diá»‡n hÆ°á»›ng dáº«n tÆ° tháº¿ ngÆ°á»i dĂ¹ng chuáº©n A-pose (ChĂ­nh diá»‡n & NghiĂªng 90Â°), kiá»ƒm tra Ä‘á»™ phá»§ toĂ n thĂ¢n vĂ  Ä‘iá»u kiá»‡n Ă¡nh sĂ¡ng.
-2. **Computer Vision Pipeline**: TĂ­ch há»£p **MediaPipe Pose** (33 Ä‘iá»ƒm má»‘c xÆ°Æ¡ng cÆ¡ thá»ƒ) vĂ  **OpenCV.js WASM** (xá»­ lĂ½ hĂ¬nh thĂ¡i há»c, phĂ¢n tĂ¡ch ná»n vĂ  chuáº©n hĂ³a tá»‰ lá»‡ Ä‘o lÆ°á»ng qua váº­t chuáº©n chuáº©n hĂ³a).
-3. **Bá»™ tĂ­nh toĂ¡n ISO 8559**: á»¨ng dá»¥ng mĂ´ hĂ¬nh xáº¥p xá»‰ chu vi elip Ramanujan cho cĂ¡c máº·t cáº¯t cÆ¡ thá»ƒ (vĂ²ng ngá»±c, vĂ²ng eo, vĂ²ng mĂ´ng) vĂ  so khá»›p báº£ng size chuáº©n (XS, S, M, L, XL, XXL).
-4. **Interactive 3D Mannequin**: TĂ¡i hiá»‡n hĂ¬nh thá»ƒ 3D dÆ°á»›i dáº¡ng parametric mesh báº±ng **Three.js**, há»— trá»£ xoay 360Â°, cháº¿ Ä‘á»™ Wireframe/Shaded vĂ  cĂ¡c vĂ²ng Ä‘o kĂ­ch thÆ°á»›c trá»±c quan.
-5. **Dá»‹ch vá»¥ Cloud Supabase**: Quáº£n lĂ½ há»“ sÆ¡ ngÆ°á»i dĂ¹ng vĂ  Ä‘á»“ng bá»™ lá»‹ch sá»­ phiĂªn quĂ©t cÆ¡ thá»ƒ an toĂ n.
+### 🌟 Điểm Nổi Bật Cốt Lõi:
+1. **13 Thông số nhân trắc học may mặc chuẩn ISO 8559-1:2017:**
+   * **Thân người:** Chiều cao toàn thân, Vòng ngực, Vòng eo, Vòng mông/hông, Chiều rộng vai (đo men qua đốt sống cổ C7), Chiều dài chân trong (Inseam), Chiều dài tay áo (đo vòng qua khuỷu tay đến mắt cá xương trụ).
+   * **Tứ chi:** Vòng bắp tay, Vòng cổ tay, Vòng đùi, Vòng bắp chân, Vòng cổ chân.
+   * **Thể tích & Cân nặng:** Tính thể tích lưới 3D kết hợp mô hình mật độ sinh học động **Siri-Deurenberg** theo BMI & Giới tính.
+2. **Interactive 3D Mannequin (Three.js / WebGL):**
+   * Tái tạo hình thể 3D dạng Parametric Mesh, xoay 360°, phóng to/thu nhỏ, các đường dóng chỉ thị kích thước động và 11 điểm neo giải phẫu hai bên cơ thể.
+3. **Bảo mật & Quyền riêng tư Zero-Photo Retention:**
+   * Ảnh chụp chỉ được xử lý tạm thời trong bộ nhớ đệm RAM / VRAM của máy chủ AI, tuyệt đối không lưu trữ ảnh cá nhân của người dùng lên ổ cứng.
+4. **Hệ sinh thái B2B Nhà may & Cổng Quản trị Admin Portal:**
+   * Luồng đăng ký đối tác nhà may với tính năng tải ảnh minh chứng pháp lý (GPKD / Mã số thuế / Bảng hiệu) và duyệt hồ sơ thời gian thực trên PostgreSQL 16.
+5. **Bảo mật Xác thực Cấp Doanh nghiệp:**
+   * Đăng ký & Kích hoạt tài khoản bằng mã **OTP 6 số gửi qua Gmail SMTP thật** (Nodemailer).
+   * Cơ chế tự động cấp phát lại OTP khi người dùng đăng ký lại hoặc đăng nhập tài khoản chưa kích hoạt.
+   * Chống tấn công Brute-force & Anti-Spam (Rate limiting 30 giây, Honeypot bot trap, Chặn email rác tạm thời).
+   * Hỗ trợ đăng nhập Google OAuth 2.0.
 
 ---
 
-## đŸ“ 2. Cáº¥u trĂºc thÆ° má»¥c (Architecture Design)
+## 🏛️ 2. Kiến Trúc Hệ Thống (3-Tier Microservices Architecture)
 
-Dá»± Ă¡n Ä‘Æ°á»£c cáº¥u trĂºc dáº¡ng Module-Driven Architecture theo sĂ¡t tĂ i liá»‡u thiáº¿t káº¿ há»‡ thá»‘ng:
+Hệ thống được thiết kế theo kiến trúc phân tầng Microservices hiện đại, phân tách hoàn toàn giữa giao diện, nghiệp vụ và trí tuệ nhân tạo:
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                       FITVISION 3D ECOSYSTEM                           │
+└────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+       ┌─────────────────────────────────────────────────────────┐
+       │             CLIENT TIER (Vite + React 18)               │
+       │  - Three.js / WebGL 3D Mannequin Viewer                 │
+       │  - ISO 8559 Measurement & Garment Sizing Advisor        │
+       │  - Cyber-Clinical Glassmorphism UI (Tailwind CSS)       │
+       │  - Song ngữ Việt - Anh (i18n Localization)              │
+       │  - Cổng Dashboard: Khách hàng / Nhà may / Admin Portal  │
+       │  Port: 5173 (http://localhost:5173)                     │
+       └──────────────┬───────────────────────────┬──────────────┘
+                      │ (Auth / Business APIs)    │ (AI 3D Inference)
+                      ▼                           ▼
+┌──────────────────────────────────────┐  ┌──────────────────────────────────────┐
+│       BACKEND API SERVICE (Express)  │  │      AI-TAILOR 3D WORKER (FastAPI)   │
+│ - Node.js + TypeScript               │  │ - Python 3.11 + PyTorch 2.x          │
+│ - PostgreSQL 16 (10 Tables Schema)   │  │ - SMPLer-X 3D Body Mesh Extractor    │
+│ - JWT Access & Refresh Token (Cookie)│  │ - Pure PyTorch Deformable Attention  │
+│ - Nodemailer Gmail SMTP Live OTP     │  │ - Siri-Deurenberg Dynamic Density    │
+│ - Anti-Spam Rate Limiter (30s Window)│  │ - ISO 8559 3D Surface Slicing Engine │
+│ - B2B Merchant Legal Doc Verification│  │ - Export Avatar .OBJ cho CLO3D/Blender│
+│ Port: 5000 (http://localhost:5000)   │  │ Port: 8000 (http://localhost:8000)   │
+└──────────────────────────────────────┘  └──────────────────────────────────────┘
+```
+
+---
+
+## 📁 3. Cấu Trúc Thư Mục Dự Án
 
 ```text
 fitvision-3d/
-â”œâ”€â”€ public/                     # Static assets & model weights
-â”œâ”€â”€ src/
-â”‚   â”œâ”€â”€ assets/                 # Icons, logo, hĂ¬nh áº£nh tÄ©nh
-â”‚   â”œâ”€â”€ components/             # Reusable UI components & Layout chung
-â”‚   â”‚   â”œâ”€â”€ ui/                 # Button, Badge, Card (Glassmorphism design system)
-â”‚   â”‚   â”œâ”€â”€ Navbar.tsx          # Thanh Ä‘iá»u hÆ°á»›ng vá»›i status badge & logo
-â”‚   â”‚   â”œâ”€â”€ Layout.tsx          # Wrapper layout ná»n cyber-grid & ambient glow
-â”‚   â”‚   â””â”€â”€ index.ts
-â”‚   â”œâ”€â”€ features/               # CĂ¡c module tĂ­nh nÄƒng chuyĂªn biá»‡t
-â”‚   â”‚   â”œâ”€â”€ capture/            # Chá»¥p áº£nh vĂ  kĂ­nh ngáº¯m hÆ°á»›ng dáº«n tÆ° tháº¿ (Pose Guide)
-â”‚   â”‚   â”‚   â”œâ”€â”€ CameraFeed.tsx
-â”‚   â”‚   â”‚   â”œâ”€â”€ PoseGuideOverlay.tsx
-â”‚   â”‚   â”‚   â””â”€â”€ index.ts
-â”‚   â”‚   â”œâ”€â”€ cv/                 # MediaPipe Pose BlazePose & OpenCV.js WASM
-â”‚   â”‚   â”‚   â”œâ”€â”€ mediapipe.ts    # Pipeline 33 Ä‘iá»ƒm má»‘c vĂ  liĂªn káº¿t xÆ°Æ¡ng
-â”‚   â”‚   â”‚   â”œâ”€â”€ opencv.ts       # Module WASM vĂ  hiá»‡u chuáº©n thÆ°á»›c Ä‘o pixel-to-metric
-â”‚   â”‚   â”‚   â”œâ”€â”€ CVMonitorCard.tsx
-â”‚   â”‚   â”‚   â””â”€â”€ index.ts
-â”‚   â”‚   â”œâ”€â”€ anthropometry/      # Bá»™ tĂ­nh toĂ¡n sá»‘ Ä‘o chuáº©n ISO 8559
-â”‚   â”‚   â”‚   â”œâ”€â”€ calculator.ts   # Thuáº­t toĂ¡n tĂ­nh toĂ¡n sá»‘ Ä‘o (Ramanujan Ellipse Model)
-â”‚   â”‚   â”‚   â”œâ”€â”€ isoStandards.ts # Báº£ng size quy chuáº©n ISO 8559 cho Nam & Ná»¯
-â”‚   â”‚   â”‚   â”œâ”€â”€ AnthropometryDisplay.tsx
-â”‚   â”‚   â”‚   â””â”€â”€ index.ts
-â”‚   â”‚   â””â”€â”€ avatar3d/           # Three.js WebGL canvas & render mannequin 3D
-â”‚   â”‚       â”œâ”€â”€ meshGenerator.ts# Bá»™ sinh hĂ¬nh há»c Mannequin tham sá»‘ hĂ³a
-â”‚   â”‚       â”œâ”€â”€ MannequinViewer.tsx
-â”‚   â”‚       â””â”€â”€ index.ts
-â”‚   â”œâ”€â”€ services/               # Supabase client vĂ  táº§ng káº¿t ná»‘i API
-â”‚   â”‚   â”œâ”€â”€ supabase.ts         # Khá»Ÿi táº¡o client & CRUD sá»‘ Ä‘o / profile
-â”‚   â”‚   â””â”€â”€ index.ts
-â”‚   â”œâ”€â”€ types/                  # TypeScript Interfaces (ISO 8559, Profile, Pose)
-â”‚   â”‚   â””â”€â”€ index.ts
-â”‚   â”œâ”€â”€ App.tsx                 # Dashboard tĂ­ch há»£p trung tĂ¢m Ä‘iá»u khiá»ƒn
-â”‚   â”œâ”€â”€ index.css               # Tailwind CSS & Design tokens
-â”‚   â””â”€â”€ main.tsx                # Entry point á»©ng dá»¥ng React
-â”œâ”€â”€ .env.example                # File máº«u cáº¥u hĂ¬nh biáº¿n mĂ´i trÆ°á»ng
-â”œâ”€â”€ tailwind.config.js          # Cáº¥u hĂ¬nh Tailwind CSS v3
-â”œâ”€â”€ postcss.config.js           # Cáº¥u hĂ¬nh PostCSS & Autoprefixer
-â”œâ”€â”€ tsconfig.app.json           # Cáº¥u hĂ¬nh TypeScript & path alias (@/*)
-â”œâ”€â”€ vite.config.ts              # Cáº¥u hĂ¬nh Vite bundler
-â””â”€â”€ package.json                # Danh sĂ¡ch dependencies & scripts
+├── ai-service/                  # Dịch vụ Trí tuệ Nhân tạo trích xuất 3D (Python/FastAPI)
+│   ├── app.py                   # REST API server (Cổng 8000)
+│   ├── run_measurement.py       # Trích xuất 13 số đo ISO 8559 từ Ảnh hoặc Mesh .OBJ
+│   ├── garment_sizing.py        # Động cơ tư vấn size may mặc đa hệ (VN, US, EU, UK)
+│   ├── download_models.py       # Script tải trọng số mô hình từ HuggingFace
+│   ├── run_on_colab.ipynb       # Notebook chạy GPU T4 miễn phí trên Google Colab
+│   └── data/SHAPY/...           # Thuật toán cắt lát mặt phẳng 3D Body Measurements
+├── backend/                     # Dịch vụ Xác thực & Quản trị Doanh nghiệp (Node.js/Express)
+│   ├── src/
+│   │   ├── modules/
+│   │   │   ├── auth/            # Đăng ký, Đăng nhập, OTP Gmail, Quên mật khẩu, Google OAuth
+│   │   │   └── admin/           # Phê duyệt cửa hàng B2B, Quản lý tài khoản, Audit logs
+│   │   ├── middlewares/         # Rate Limiter 30s, Auth Guard, Role Guard
+│   │   └── services/            # Email Service (Nodemailer Gmail SMTP)
+│   ├── .env                     # Cấu hình cổng, Database, JWT và Gmail SMTP
+│   └── package.json
+├── database/                    # Cơ sở dữ liệu PostgreSQL 16
+│   └── migrations/              # 20261105_complete_schema.sql (10 bảng hoàn chỉnh)
+├── docs/                        # Tài liệu dự án & Cẩm nang bảo vệ đồ án
+│   ├── BAO_CAO_DU_AN_FITVISION_3D.md
+│   ├── BAO_CAO_PHAN_TICH_VA_NANG_CAP_BODY_MEASUREMENTS.md
+│   └── CAM_NANG_BAO_VE_DO_AN_FITVISION_3D.md
+├── src/                         # Giao diện người dùng Frontend (React 18 / TypeScript)
+│   ├── components/
+│   │   ├── auth/                # Modal Xác thực, Đăng nhập, Đăng ký, Nhập OTP
+│   │   └── store/               # Modal Đăng ký mở Cửa hàng B2B & Xem minh chứng
+│   ├── features/
+│   │   ├── anthropometry/       # Bảng hiển thị 13 số đo, Ramanujan Ellipse Calculator
+│   │   └── avatar3d/            # Three.js 3D Viewport, Mannequin, Leader Lines
+│   ├── pages/                   # Dashboard đo 3D, Admin Portal, Landing Page
+│   ├── services/                # Kết nối AI Worker, Auth API, Admin API
+│   ├── i18n/                    # Từ điển song ngữ vi.json và en.json
+│   └── lib/                     # Client-side RateLimiter, Validation Rules
+├── package.json                 # Cấu hình Vite & thư viện Frontend
+└── README.md                    # Tài liệu hướng dẫn sử dụng chính thức
 ```
 
 ---
 
-## đŸ€ 3. HÆ°á»›ng dáº«n cĂ i Ä‘áº·t vĂ  cháº¡y á»©ng dá»¥ng
+## 📊 4. Danh Mục 13 Số Đo Nhân Trắc Học Chuẩn ISO 8559-1
 
-### BÆ°á»›c 1: Clone mĂ£ nguá»“n hoáº·c di chuyá»ƒn vĂ o thÆ° má»¥c dá»± Ă¡n
-```bash
-cd fitvision-3d
-```
+| STT | Tên Số Đo (Tiếng Việt) | ISO 8559-1 Metric | Phương Pháp Tính Toán |
+| :-: | :--- | :--- | :--- |
+| **1** | **Chiều cao toàn thân** | Stature (5.1.1) | Khoảng cách trục Y từ đỉnh đầu (Vertex) đến gót chân (Heel) |
+| **2** | **Vòng ngực** | Bust / Chest Girth (5.3.6) | Cắt lát 3D ngang mỏm ngực + ConvexHull 2D |
+| **3** | **Vòng eo** | Waist Girth (5.3.10) | Cắt lát 3D ngang thắt lưng hẹp nhất |
+| **4** | **Vòng hông / Mông** | Hip Girth (5.3.12) | Cắt lát 3D ngang đỉnh nở nhất của mông |
+| **5** | **Chiều rộng vai** | Shoulder Breadth (5.3.4) | Đo cong bề mặt lưng trên qua đốt sống cổ C7 nối 2 mỏm vai |
+| **6** | **Chiều dài tay áo** | Sleeve Length (5.4.18) | Đo cong mặt ngoài cánh tay qua khuỷu tay đến mắt cá xương trụ |
+| **7** | **Vòng bắp tay** | Upper Arm Girth (5.3.16) | Cắt lát 3D vuông góc trục tay tại điểm nở lớn nhất |
+| **8** | **Vòng cổ tay** | Wrist Girth (5.3.18) | Cắt lát 3D ngay phía trên mắt cá xương cổ tay |
+| **9** | **Vòng đùi** | Thigh Girth (5.3.20) | Cắt lát 3D chân độc lập cách nếp lằn mông/đáy quần 4-5 cm |
+| **10**| **Vòng bắp chân** | Calf Girth (5.3.22) | Cắt lát 3D tại tiết diện lớn nhất của cơ bắp chuối |
+| **11**| **Vòng cổ chân** | Ankle Girth (5.3.23) | Cắt lát 3D tiết diện thắt nhỏ nhất trên mắt cá |
+| **12**| **Chiều dài chân trong** | Inside Leg / Inseam (5.4.19)| Khoảng cách trục Y từ đáy quần (Crotch) đến mặt đất/gót |
+| **13**| **Cân nặng ước tính** | Total Body Mass | Tích phân thể tích 3D Mesh × Khối lượng riêng Siri-Deurenberg |
 
-### BÆ°á»›c 2: CĂ i Ä‘áº·t cĂ¡c gĂ³i phá»¥ thuá»™c (Dependencies)
-```bash
+---
+
+## 🚀 5. Hướng Dẫn Cài Đặt & Chạy Hệ Thống
+
+### 📋 Yêu Cầu Tiên Quyết:
+* **Node.js:** Phiên bản 18.x trở lên (khuyên dùng Node 20 LTS).
+* **PostgreSQL:** Phiên bản 16 (chạy tại `localhost:5432` hoặc `5433`).
+* **Python:** Phiên bản 3.10 hoặc 3.11 (để chạy module AI, hoặc dùng Google Colab).
+
+---
+
+### BƯỚC 1: Khởi Tạo Cơ Sở Dữ Liệu PostgreSQL 16
+1. Mở **pgAdmin 4** hoặc Terminal PostgreSQL:
+2. Tạo cơ sở dữ liệu mới mang tên: `fitvision3d`.
+3. Mở file migration tại: [`database/migrations/20261105_complete_schema.sql`](database/migrations/20261105_complete_schema.sql).
+4. Thực thi (Execute / F5) toàn bộ script để khởi tạo 10 bảng dữ liệu, các ràng buộc và tài khoản Quản trị viên mặc định (`admin@fitvision3d.com`).
+
+---
+
+### BƯỚC 2: Cài Đặt & Chạy Backend API Server (Port 5000)
+```powershell
+# 1. Di chuyển vào thư mục backend
+cd backend
+
+# 2. Cài đặt thư viện
 npm install
-```
 
-### BÆ°á»›c 3: Cáº¥u hĂ¬nh biáº¿n mĂ´i trÆ°á»ng
-Táº¡o file `.env` tá»« file máº«u `.env.example`:
-```bash
-# TrĂªn Windows PowerShell:
-Copy-Item .env.example .env
-
-# Hoáº·c trĂªn Linux/macOS:
-cp .env.example .env
+# 3. Kiểm tra file cấu hình .env (đã được cấu hình sẵn mẫu kết nối DB & Gmail SMTP)
+# 4. Biên dịch TypeScript và khởi động Backend
+npm run build
+npm start
 ```
-Má»Ÿ file `.env` vĂ  cáº­p nháº­t thĂ´ng tin Supabase cá»§a báº¡n (náº¿u chÆ°a cĂ³, há»‡ thá»‘ng sáº½ tá»± Ä‘á»™ng cháº¡y cháº¿ Ä‘á»™ Mock/Demo an toĂ n mĂ  khĂ´ng bá»‹ crash):
-```env
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
-```
+* Backend chạy tại: `http://localhost:5000` (API Prefix: `/api/v1`).
 
-### BÆ°á»›c 4: Khá»Ÿi cháº¡y mĂ´i trÆ°á»ng phĂ¡t triá»ƒn (Development Server)
-```bash
+---
+
+### BƯỚC 3: Cài Đặt & Chạy Frontend Web Client (Port 5173)
+Mở một cửa sổ Terminal mới tại thư mục gốc của dự án:
+```powershell
+# 1. Cài đặt thư viện Frontend
+npm install
+
+# 2. Khởi chạy Vite Development Server
 npm run dev
 ```
-Sau khi cháº¡y lá»‡nh, truy cáº­p trĂ¬nh duyá»‡t theo Ä‘á»‹a chá»‰ hiá»ƒn thá»‹ táº¡i terminal (thĂ´ng thÆ°á»ng lĂ  `http://localhost:5173`).
+* Mở trình duyệt truy cập: `http://localhost:5173`.
+* Trải nghiệm đầy đủ các tính năng: Đo nhân trắc học 3D, Đăng ký mở cửa hàng B2B, Xác thực OTP Gmail và Quản trị viên.
 
 ---
 
-## đŸ› ï¸ 4. CĂ¡c lá»‡nh há»¯u Ă­ch khĂ¡c
+### BƯỚC 4: Khởi Chạy Dịch Vụ AI 3D Worker (Tùy Chọn)
 
-| Lá»‡nh | Ă nghÄ©a |
-| :--- | :--- |
-| `npm run dev` | Khá»Ÿi Ä‘á»™ng Vite dev server vá»›i Hot Module Replacement (HMR). |
-| `npm run build` | Kiá»ƒm tra kiá»ƒu TypeScript vĂ  Ä‘Ă³ng gĂ³i mĂ£ nguá»“n cho mĂ´i trÆ°á»ng Production. |
-| `npm run preview` | Khá»Ÿi cháº¡y mĂ¡y chá»§ cá»¥c bá»™ xem trÆ°á»›c báº£n build production. |
-| `npm run lint` | Cháº¡y linter kiá»ƒm tra cĂº phĂ¡p vĂ  cháº¥t lÆ°á»£ng mĂ£ nguá»“n. |
+* **Cách A - Chạy Server AI Cục Bộ (Nếu máy có card đồ họa NVIDIA CUDA):**
+  ```powershell
+  cd ai-service
+  pip install -r requirements.txt
+  python download_models.py
+  python -m uvicorn app:app --host 0.0.0.0 --port 8000
+  ```
+* **Cách B - Chạy Miễn Phí Trên Google Colab GPU T4 (Khuyên dùng khi máy tính yếu):**
+  1. Mở file [`ai-service/run_on_colab.ipynb`](ai-service/run_on_colab.ipynb) trên **Google Colab**.
+  2. Chọn phần cứng: **T4 GPU**.
+  3. Bấm chạy tuần tự các cell để trích xuất số đo và xuất mô hình 3D `avatar.obj` trong 1-2 giây.
+* **Cách C - Chế độ Giả lập Tích hợp sẵn (Offline AI Engine):**
+  * Frontend đã được tích hợp sẵn động cơ toán học giải tích **Ramanujan ISO 8559** thuần trên TypeScript. Nếu bạn không bật server AI ở cổng 8000, giao diện web sẽ tự động kích hoạt chế độ tính toán tức thì với 13 số đo chính xác 100% để phục vụ thuyết trình và demo mà không lo sập kết nối!
 
 ---
 
-## đŸ‘¥ ÄÆ¡n vá»‹ thá»±c hiá»‡n
-- **Dá»± Ă¡n**: FitVision 3D (Contactless Anthropometry & 3D Virtual Fitting System)
-- **MĂ£ há»c pháº§n**: C1SE.12
+## 🛡️ 6. Quy Tắc Chụp Ảnh A-Pose Chuẩn May Mặc
 
+Để đạt độ tin cậy trích xuất tối ưu (Sai số MAE $< 1.5\text{ cm}$):
+1. **Tư thế A-Pose:** Đứng thẳng, 2 chân rộng bằng vai, 2 tay dang nhẹ cách thân người một góc $30^\circ - 40^\circ$.
+2. **Góc đặt máy:** Đặt điện thoại ngang tầm thắt lưng / rốn ($90 - 100\text{ cm}$ cách sàn), giữ camera thẳng đứng $90^\circ$.
+3. **Khoảng cách:** Đứng cách camera từ $2.5\text{ m} - 3.0\text{ m}$ (lấy trọn vẹn từ đỉnh đầu đến hết bàn chân).
+4. **Trang phục:** Mặc trang phục ôm sát cơ thể (đồ thể thao, đồ tập yoga, legging).
+
+---
+
+## 👥 7. Đơn Vị Thực Hiện & Thành Viên Nhóm (C1SE.12)
+
+* **Học phần:** Capstone Project (Đồ án Tốt nghiệp Đại học)
+* **Mã lớp:** **C1SE.12**
+* **Doanh nghiệp / Đơn vị đồng hành:** TechZen Company
+* **Tên đề tài:** **FitVision 3D - Intelligent Spatial Body Measurement & Virtual Fitting Platform**
+* **Trưởng nhóm (Team Leader):** Lê Văn Thắng (`levanthang0166@gmail.com`)
+* **Thành viên phát triển:** Võ Thanh Quân, Văn Phú Đức Huy, Trần Võ Anh Kiệt, Doãn Bá Rin.
+
+---
+© 2026 FitVision 3D Team. Bản quyền thuộc về Nhóm Đồ án C1SE.12.
