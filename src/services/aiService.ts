@@ -89,11 +89,6 @@ export async function runAiMeasurement(params: {
       const vong_mong = Number(rawMeas.vong_hong || rawMeas.vong_mong || rawMeas.vong_mong_cm || 94.0);
       const rong_vai = Number(rawMeas.rong_vai || rawMeas.rong_vai_cm || 42.0);
       const dai_tay = Number(rawMeas.dai_tay_ao || rawMeas.dai_tay || rawMeas.dai_tay_cm || 58.0);
-      const vong_bap_tay = rawMeas.vong_bap_tay != null ? Number(rawMeas.vong_bap_tay) : undefined;
-      const vong_co_tay = rawMeas.vong_co_tay != null ? Number(rawMeas.vong_co_tay) : undefined;
-      const vong_dui = rawMeas.vong_dui != null ? Number(rawMeas.vong_dui) : undefined;
-      const vong_bap_chan = rawMeas.vong_bap_chan != null ? Number(rawMeas.vong_bap_chan) : undefined;
-      const vong_co_chan = rawMeas.vong_co_chan != null ? Number(rawMeas.vong_co_chan) : undefined;
       const dai_chan = Number(rawMeas.dai_chan_inseam || rawMeas.dai_chan_inseam_cm || 76.0);
       const can_nang = Number(rawMeas.can_nang_uoc_tinh_kg || weight_kg);
 
