@@ -26,6 +26,11 @@ def parse_args():
     parser.add_argument('--real_hips', type=float, default=None, help="Vòng hông/mông đo thực tế (cm)")
     parser.add_argument('--real_shoulder', type=float, default=None, help="Chiều rộng vai đo thực tế (cm)")
     parser.add_argument('--real_sleeve', type=float, default=None, help="Dài tay đo thực tế (cm)")
+    parser.add_argument('--real_bicep', type=float, default=None, help="Vòng bắp tay đo thực tế (cm)")
+    parser.add_argument('--real_wrist', type=float, default=None, help="Vòng cổ tay đo thực tế (cm)")
+    parser.add_argument('--real_thigh', type=float, default=None, help="Vòng đùi đo thực tế (cm)")
+    parser.add_argument('--real_calf', type=float, default=None, help="Vòng bắp chân đo thực tế (cm)")
+    parser.add_argument('--real_ankle', type=float, default=None, help="Vòng cổ chân đo thực tế (cm)")
     parser.add_argument('--real_inseam', type=float, default=None, help="Dài chân trong (inseam) thực tế (cm)")
     parser.add_argument('--real_weight', type=float, default=None, help="Cân nặng thực tế (kg)")
     return parser.parse_args()
@@ -49,6 +54,11 @@ def main():
         "vong_hong": ("Vòng hông / mông (cm)", args.real_hips, 2.0),
         "rong_vai": ("Chiều rộng vai (cm)", args.real_shoulder, 1.5),
         "dai_tay_ao": ("Chiều dài tay áo (cm)", args.real_sleeve, 1.5),
+        "vong_bap_tay": ("Vòng bắp tay (cm)", args.real_bicep, 1.5),
+        "vong_co_tay": ("Vòng cổ tay (cm)", args.real_wrist, 1.0),
+        "vong_dui": ("Vòng đùi (cm)", args.real_thigh, 2.0),
+        "vong_bap_chan": ("Vòng bắp chân (cm)", args.real_calf, 1.5),
+        "vong_co_chan": ("Vòng cổ chân (cm)", args.real_ankle, 1.0),
         "dai_chan_inseam": ("Dài chân trong (Inseam) (cm)", args.real_inseam, 1.5),
         "can_nang_uoc_tinh_kg": ("Cân nặng ước tính (kg)", args.real_weight, 2.0)
     }

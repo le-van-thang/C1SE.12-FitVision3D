@@ -3,7 +3,8 @@
 // Replaces laptop webcam with high-resolution mobile photo upload
 // Single-View 3D Body Mesh Recovery (SMPLer-X / ISO 8559)
 // ============================================================
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useI18n } from "../../i18n";
 import {
   UploadCloud,
   CheckCircle2,
@@ -34,16 +35,71 @@ export interface PhotoUploadCaptureProps {
 export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
   onScan,
   isProcessing,
-  initialHeight = 172,
-  initialWeight = 70,
+  initialHeight,
+  initialWeight,
   initialGender = "male",
 }) => {
+  const { t } = useI18n();
   const [frontImage, setFrontImage] = useState<{ file: File | Blob; url: string; name: string } | null>(null);
-  const [height, setHeight] = useState<number>(initialHeight);
-  const [weight, setWeight] = useState<number>(initialWeight);
+  const [height, setHeight] = useState<string>(initialHeight ? String(initialHeight) : "");
+  const [weight, setWeight] = useState<string>(initialWeight ? String(initialWeight) : "");
   const [gender, setGender] = useState<"male" | "female" | "neutral">(initialGender);
   const [showGuide, setShowGuide] = useState<boolean>(false);
   const [dragActive, setDragActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (initialHeight) setHeight(String(initialHeight));
+  }, [initialHeight]);
+
+  useEffect(() => {
+    if (initialWeight) setWeight(String(initialWeight));
+  }, [initialWeight]);
+
+  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    // Cho phép người dùng xóa trắng trường input để gõ lại từ đầu (không bị nhảy về số 0)
+    if (val === '') {
+      setHeight('');
+      return;
+    }
+    // Xóa số 0 thừa ở đầu nếu gõ số mới (ví dụ "02" -> "2", "0172" -> "172")
+    if (/^0+[1-9]/.test(val)) {
+      val = val.replace(/^0+/, '');
+    }
+    setHeight(val);
+  };
+
+  const handleHeightBlur = () => {
+    if (!height.trim()) return;
+    const num = parseFloat(height);
+    if (isNaN(num) || num <= 0) {
+      setHeight('');
+    } else {
+      setHeight(String(num));
+    }
+  };
+
+  const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    if (val === '') {
+      setWeight('');
+      return;
+    }
+    if (/^0+[1-9]/.test(val)) {
+      val = val.replace(/^0+/, '');
+    }
+    setWeight(val);
+  };
+
+  const handleWeightBlur = () => {
+    if (!weight.trim()) return;
+    const num = parseFloat(weight);
+    if (isNaN(num) || num <= 0) {
+      setWeight('');
+    } else {
+      setWeight(String(num));
+    }
+  };
 
   const frontInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,10 +142,12 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 
   const handleStartScan = () => {
     if (!frontImage) return;
+    const finalHeight = parseFloat(height) || initialHeight || 172;
+    const finalWeight = parseFloat(weight) || initialWeight || 70;
     onScan({
       frontFile: frontImage.file,
-      height_cm: height,
-      weight_kg: weight,
+      height_cm: finalHeight,
+      weight_kg: finalWeight,
       gender,
     });
   };
@@ -101,7 +159,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
           <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--foreground, #f8fafc)", display: "flex", alignItems: "center", gap: "6px" }}>
             <FileImage size={15} style={{ color: "#38bdf8" }} />
-            Ảnh toàn thân chính diện (A-Pose) <span style={{ color: "#ef4444" }}>*</span>
+            {t("cap.frontLabel")} <span style={{ color: "#ef4444" }}>*</span>
           </label>
           {!frontImage && (
             <button
@@ -121,7 +179,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               }}
             >
               <Sparkles size={12} />
-              Nạp ảnh mẫu A-Pose
+              {t("cap.loadSample")}
             </button>
           )}
         </div>
@@ -177,7 +235,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
                   gap: "4px",
                 }}
               >
-                <Trash2 size={12} /> Xóa ảnh
+                <Trash2 size={12} /> {t("cap.deletePhoto")}
               </button>
             </div>
             <div
@@ -196,7 +254,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
                 gap: "5px",
               }}
             >
-              <CheckCircle2 size={12} /> A-Pose Chính Diện (1 Ảnh Chuẩn)
+              <CheckCircle2 size={12} /> {t("cap.photoVerified")}
             </div>
           </div>
         ) : (
@@ -245,10 +303,10 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               <UploadCloud size={24} />
             </div>
             <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 600, color: "var(--foreground, #f8fafc)" }}>
-              Chọn hoặc kéo thả ảnh chụp toàn thân
+              {t("cap.uploadPrompt")}
             </p>
             <p style={{ margin: 0, fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-              1 ảnh dáng chữ A nhìn thẳng • Tự động tái tạo hình thể 3D
+              {t("cap.uploadSub")}
             </p>
           </div>
         )}
@@ -264,19 +322,22 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
         }}
       >
         <span style={{ fontSize: "12px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "10px" }}>
-          Thông số hiệu chuẩn nhân trắc học
+          {t("cap.calibTitle")}
         </span>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
           <div>
             <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-              <Ruler size={13} style={{ color: "#38bdf8" }} /> Chiều cao (cm)
+              <Ruler size={13} style={{ color: "#38bdf8" }} /> {t("cap.heightLabel")}
             </label>
             <input
               type="number"
-              min={120}
-              max={230}
+              min={100}
+              max={250}
+              placeholder="VD: 172"
               value={height}
-              onChange={(e) => setHeight(Number(e.target.value))}
+              onChange={handleHeightChange}
+              onBlur={handleHeightBlur}
+              className="zf-calib-input"
               style={{
                 width: "100%",
                 background: "var(--surface, #0f172a)",
@@ -291,14 +352,17 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           </div>
           <div>
             <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-              <Scale size={13} style={{ color: "#38bdf8" }} /> Cân nặng (kg)
+              <Scale size={13} style={{ color: "#38bdf8" }} /> {t("cap.weightLabel")}
             </label>
             <input
               type="number"
-              min={35}
-              max={160}
+              min={30}
+              max={250}
+              placeholder="VD: 70"
               value={weight}
-              onChange={(e) => setWeight(Number(e.target.value))}
+              onChange={handleWeightChange}
+              onBlur={handleWeightBlur}
+              className="zf-calib-input"
               style={{
                 width: "100%",
                 background: "var(--surface, #0f172a)",
@@ -315,11 +379,11 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 
         <div>
           <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-            <User size={13} style={{ color: "#38bdf8" }} /> Giới tính giải phẫu
+            <User size={13} style={{ color: "#38bdf8" }} /> {t("cap.genderLabel")}
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
             {(["male", "female", "neutral"] as const).map((g) => {
-              const label = g === "male" ? "Nam" : g === "female" ? "Nữ" : "Unisex";
+              const label = g === "male" ? t("cap.male") : g === "female" ? t("cap.female") : t("cap.unisex");
               const isSel = gender === g;
               return (
                 <button
@@ -371,17 +435,17 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           }}
         >
           <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <HelpCircle size={14} style={{ color: "#38bdf8" }} /> Hướng dẫn chụp ảnh chuẩn ISO 8559
+            <HelpCircle size={14} style={{ color: "#38bdf8" }} /> {t("cap.guideTitle")}
           </span>
           {showGuide ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {showGuide && (
           <div style={{ padding: "0 12px 12px", fontSize: "11px", color: "#94a3b8", lineHeight: 1.6 }}>
             <ul style={{ margin: 0, paddingLeft: "16px" }}>
-              <li><strong>Số lượng ảnh:</strong> Chỉ cần <strong>duy nhất 1 ảnh</strong> toàn thân chính diện (A-Pose). AI sẽ tự động tái tạo khối 3D toàn diện.</li>
-              <li><strong>Khoảng cách:</strong> Đứng cách camera 2.5m - 3m, thấy rõ từ đỉnh đầu đến gót chân.</li>
-              <li><strong>Dáng đứng chữ A (A-Pose):</strong> Hai tay dang nhẹ 30° - 40° so với thân, hai chân rộng bằng vai.</li>
-              <li><strong>Trang phục:</strong> Mặc quần áo thun ôm sát (gym, yoga) để AI nhận diện đường cong chính xác nhất.</li>
+              <li>{t("cap.guidePhotos")}</li>
+              <li>{t("cap.guideDist")}</li>
+              <li>{t("cap.guidePose")}</li>
+              <li>{t("cap.guideWear")}</li>
             </ul>
           </div>
         )}
@@ -424,12 +488,12 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
                 animation: "spin 0.8s linear infinite",
               }}
             />
-            Đang phân tích hình thể &amp; tính toán ISO 8559...
+            {t("cap.scanningBtn")}
           </>
         ) : (
           <>
             <Sparkles size={16} />
-            Phân tích &amp; Dựng hình thể 3D (AI Scan)
+            {t("cap.scanBtn")}
           </>
         )}
       </button>

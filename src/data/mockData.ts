@@ -4,7 +4,7 @@
 // ============================================================
 import type {
   Profile, BiometricInput, Measurement, MeshParameter, Recommendation,
-  TailorDossier, SystemAuditLog, GarmentCategory, BrandSizeChart,
+  TailorDossier, SystemAuditLog, GarmentCategory, BrandSizeChart, Store,
 } from "../types/database.types";
 
 export const bmi = (weight_kg: number, stature_cm: number): number =>
@@ -21,6 +21,12 @@ export const DEMO_MEASUREMENT: Measurement = {
   id: "mea-001", user_id: "usr-001", input_id: "bio-001",
   chest_circ_cm: 92.4, waist_circ_cm: 76.8, hip_circ_cm: 96.2,
   inseam_cm: 78.5, shoulder_breadth_cm: 42.1,
+  arm_length_cm: 58.5,
+  bicep_circ_cm: 29.4,
+  wrist_circ_cm: 16.6,
+  thigh_circ_cm: 55.3,
+  calf_circ_cm: 36.6,
+  ankle_circ_cm: 21.4,
   extraction_confidence: 0.94, created_at: "2026-10-18T14:30:02Z",
 };
 
@@ -121,6 +127,11 @@ export type SizeRow = Pick<
   "size_label" | "min_chest" | "max_chest" | "min_waist" | "max_waist" | "min_hip" | "max_hip"
 > & { id: string };
 
+// CHÚ THÍCH QUAN TRỌNG:
+// BASE_ROWS dưới đây là bảng tham chiếu demo dành riêng cho Size Chart Manager / Xưởng may đối tác,
+// KHÔNG dùng để tính kích cỡ may mặc đề xuất cho người dùng.
+// Logic tính size chuẩn quốc tế (Châu Á, US, EU, UK) được quản lý tập trung tại `shared/size-charts.json`
+// và thực thi qua `src/utils/garmentSizeCalculator.ts`.
 const BASE_ROWS: Array<[string, number, number, number, number, number, number]> = [
   ["XS", 84, 88, 68, 72, 88, 92],
   ["S",  88, 92, 72, 76, 92, 96],
@@ -139,3 +150,85 @@ export const buildSizeRows = (brand: string): SizeRow[] => {
     min_hip: e + o, max_hip: f + o,
   }));
 };
+
+// ── Pre-populated RBAC & Merchant Test States ───────────────
+export const TEST_USERS: Record<string, Profile> = {
+  regular: {
+    id: "usr-regular",
+    full_name: "Hoàng Minh Quân",
+    email: "quan.hoang@fitvision3d.com",
+    role: "user",
+    avatar_url: null,
+    created_at: "2026-10-01T08:00:00Z",
+    updated_at: "2026-10-01T08:00:00Z",
+  },
+  pending: {
+    id: "usr-pending",
+    full_name: "Lê Thu Hà (Nhà May Hà Nội)",
+    email: "ha.le@ateliervietnam.vn",
+    role: "user",
+    avatar_url: null,
+    created_at: "2026-10-05T09:00:00Z",
+    updated_at: "2026-10-05T09:00:00Z",
+  },
+  store: {
+    id: "usr-store",
+    full_name: "Bùi Thanh Sơn (Tailor Master)",
+    email: "son.bui@urbanatelier.com",
+    role: "store",
+    avatar_url: null,
+    created_at: "2026-09-15T10:00:00Z",
+    updated_at: "2026-09-15T10:00:00Z",
+  },
+  admin: {
+    id: "usr-admin",
+    full_name: "Lê Văn Thắng",
+    email: "levanthang0166@gmail.com",
+    role: "admin",
+    avatar_url: null,
+    created_at: "2026-08-01T00:00:00Z",
+    updated_at: "2026-08-01T00:00:00Z",
+  },
+};
+
+export const INITIAL_MOCK_STORES: Store[] = [
+  {
+    id: "store-001",
+    user_id: "usr-pending",
+    brand_name: "Atelier Hà Nội Bespoke",
+    phone: "0912345678",
+    address: "45 Tràng Tiền, Quận Hoàn Kiếm, Hà Nội",
+    verification_doc: "https://atelier-hanoi.vn (GPKD: 0108928374)",
+    status: "PENDING",
+    is_approved: false,
+    rejection_reason: null,
+    created_at: "2026-11-01T09:30:00Z",
+    updated_at: "2026-11-01T09:30:00Z",
+  },
+  {
+    id: "store-002",
+    user_id: "usr-store",
+    brand_name: "Urban Atelier Sài Gòn",
+    phone: "0987654321",
+    address: "128 Đồng Khởi, Quận 1, TP. Hồ Chí Minh",
+    verification_doc: "https://urbanatelier.com (GPKD: 0314829103)",
+    status: "APPROVED",
+    is_approved: true,
+    rejection_reason: null,
+    created_at: "2026-10-15T10:30:00Z",
+    updated_at: "2026-10-15T10:30:00Z",
+  },
+  {
+    id: "store-003",
+    user_id: "usr-rejected",
+    brand_name: "Fast Fashion Clone Ltd",
+    phone: "0905123456",
+    address: "12 Chợ Đêm Đồng Xuân, Hà Nội",
+    verification_doc: "Không có link hoặc giấy phép hợp lệ",
+    status: "REJECTED",
+    is_approved: false,
+    rejection_reason: "Giấy phép kinh doanh không khớp thông tin đăng ký doanh nghiệp quốc gia và địa chỉ chưa được xác thực.",
+    created_at: "2026-10-20T14:00:00Z",
+    updated_at: "2026-10-20T14:00:00Z",
+  },
+];

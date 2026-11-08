@@ -15,6 +15,8 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+from pathlib import Path
+import json
 
 # Nạp các đường dẫn module nội bộ
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -48,53 +50,8 @@ MODELS = {
 }
 
 
-def recommend_garment_sizes(results_dict: Dict[str, Any], gender: str = "neutral") -> Dict[str, Any]:
-    """Hàm tính toán và gợi ý kích cỡ trang phục theo bảng size quốc tế và Việt Nam."""
-    meas = results_dict.get("so_do_may_mac_cm", results_dict)
-    chest = meas.get("vong_nguc", meas.get("vong_nguc_cm", 95.0))
-    waist = meas.get("vong_eo", meas.get("vong_eo_cm", 80.0))
-    inseam = meas.get("dai_chan_inseam", meas.get("dai_chan_inseam_cm", 72.0))
-
-    # 1. Size áo sơ mi / áo thun (Topwear)
-    if chest < 88.0:
-        top_size = "XS"
-    elif chest <= 92.5:
-        top_size = "S"
-    elif chest <= 97.5:
-        top_size = "M"
-    elif chest <= 103.0:
-        top_size = "L"
-    elif chest <= 109.0:
-        top_size = "XL"
-    else:
-        top_size = "XXL"
-
-    # 2. Size quần âu / quần jean (Bottomwear theo Inch)
-    waist_inch = int(round(waist / 2.54))
-    inseam_inch = int(round(inseam / 2.54))
-    trouser_tag = f"Size {waist_inch} ({waist_inch}W x {inseam_inch}L)"
-
-    # 3. Phân loại form dáng cơ thể (Body Fit Classification)
-    ratio = chest / (waist if waist > 0 else 1)
-    if ratio > 1.20:
-        fit_type = "V-Shape / Athletic (Thể thao, ngực nở eo thon)"
-    elif ratio >= 1.05:
-        fit_type = "Regular / Balanced (Cân đối tiêu chuẩn)"
-    else:
-        fit_type = "Comfort / Relaxed Fit (Bụng đầy đặn)"
-
-    return {
-        "topwear_shirt_size": top_size,
-        "bottomwear_trouser_size": trouser_tag,
-        "waist_inches": waist_inch,
-        "inseam_inches": inseam_inch,
-        "body_shape_classification": fit_type,
-        "ease_allowance_recommendation": {
-            "slim_fit_chest_cm": round(chest + 5.0, 1),
-            "regular_fit_chest_cm": round(chest + 8.0, 1),
-            "trouser_waist_ease_cm": round(waist + 2.0, 1)
-        }
-    }
+# Nạp module tính toán kích cỡ may mặc đa hệ (Châu Á, US, EU, UK) chuẩn ISO 8559
+from garment_sizing import recommend_garment_sizes, normalize_inseam, SIZE_CHARTS
 
 
 @app.on_event("startup")
@@ -129,7 +86,7 @@ async def extract_measurements(
     gender: Optional[str] = Form("neutral", description="Giới tính giải phẫu: neutral, male, hoặc female")
 ):
     """
-    Endpoint tiếp nhận ảnh và trích xuất bảng số đo may mặc 8 thông số ISO 8559.
+    Endpoint tiếp nhận ảnh và trích xuất bảng số đo may mặc 13 thông số ISO 8559-1.
     """
     if MODELS["demoer"] is None:
         startup_event()
@@ -156,7 +113,7 @@ async def extract_measurements(
     # 2. Cắt ảnh và hồi quy vector 3D betas
     betas, _ = extract_3d_mesh(demoer, img, box_xywh, device)
 
-    # 3. Tính toán toàn bộ 8 số đo may mặc ISO 8559
+    # 3. Tính toán toàn bộ 13 số đo may mặc ISO 8559-1
     results = compute_measurements(
         betas=betas,
         height_cm_input=height_cm,

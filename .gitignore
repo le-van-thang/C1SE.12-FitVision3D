@@ -1,5 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments & Virtual Envs
+.venv/
+venv/
+ENV/
+env/
+.env
+*.local
+dist-ssr
+
+# Node & Frontend dependencies
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,24 +29,40 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-.env
-
-# Editor directories and files
+# Editor & OS files
+.idea/
 .vscode/*
 !.vscode/extensions.json
-.idea
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
 *.suo
-*.ntvs*
-*.njsproj
 *.sln
-*.sw?
 
-# AI Service & Model Weights (>50MB, avoids GitHub 100MB limit)
+# Large Pretrained Weights & Checkpoints (> 50MB, avoids GitHub 100MB limit)
+pretrained_models/
+*.pth
+*.pth.tar
+*.ckpt
+*.bin
+
+# 3D Human Models (SMPL-X files > 100MB)
+*.npz
+*.pkl
+common/utils/human_model_files/smplx/*.npz
+
+# Build artifacts & Egg
+*.egg-info/
+*.egg
+
+# Output & Temp evaluation artifacts
+output/
+output_measurements.json
+.ipynb_checkpoints/
+backend/.data/
+
+# AI Service submodule paths
 ai-service/pretrained_models/
 ai-service/**/*.pth
 ai-service/**/*.pth.tar

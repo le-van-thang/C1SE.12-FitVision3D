@@ -3,6 +3,12 @@
    No gradients, no glow, no decorative badges.
    ================================================================ */
 @import "./styles/tokens.css";
+@tailwind components;
+@tailwind utilities;
+
+:root, html, body, input, select, textarea {
+  color-scheme: dark !important;
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
@@ -210,3 +216,365 @@ button { font-family: inherit; }
   .zf-spec-grid, .zf-config, .zf-sim { grid-template-columns: 1fr; }
 }
 
+
+
+/* ── Modal, Dropdown & Form Dialog Primitives ── */
+.zf-modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  background: rgba(5, 8, 10, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.zf-modal-card {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 480px !important;
+  background: #11191E !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  color: #FFFFFF !important;
+  padding: 28px !important;
+  overflow: hidden !important;
+}
+
+.zf-modal-card--lg {
+  max-width: 580px !important;
+}
+
+.zf-modal-close {
+  position: absolute !important;
+  top: 16px !important;
+  right: 16px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: grid !important;
+  place-items: center !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--label) !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: color .15s, background .15s !important;
+}
+.zf-modal-close:hover {
+  color: #FFFFFF !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.zf-auth-tabs {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  background: #0A0F12 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  margin-bottom: 20px !important;
+}
+
+.zf-auth-tab {
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--label) !important;
+  cursor: pointer !important;
+  transition: all .15s !important;
+}
+.zf-auth-tab.active {
+  background: #162229 !important;
+  color: var(--teal) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.zf-input-group {
+  margin-bottom: 14px !important;
+}
+.zf-input-group label {
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  color: var(--label) !important;
+  margin-bottom: 6px !important;
+}
+.zf-input-wrap {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+}
+.zf-input-icon {
+  position: absolute !important;
+  left: 12px !important;
+  color: var(--muted) !important;
+  pointer-events: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+.zf-form-input {
+  width: 100% !important;
+  height: 40px !important;
+  padding: 0 12px 0 38px !important;
+  background: #0A0F12 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  color: #FFFFFF !important;
+  font-size: 13px !important;
+  font-family: inherit !important;
+  outline: none !important;
+  transition: border-color .15s !important;
+}
+.zf-form-input:focus {
+  border-color: var(--teal) !important;
+}
+.zf-form-input::placeholder {
+  color: #475569 !important;
+}
+.zf-calib-input::placeholder {
+  color: #64748B !important;
+  opacity: 0.65 !important;
+  font-style: italic !important;
+}
+
+.zf-demo-box {
+  margin-top: 22px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.zf-demo-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  margin-top: 8px !important;
+}
+.zf-demo-card {
+  padding: 8px 10px !important;
+  text-align: left !important;
+  background: #162229 !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: border-color .15s, background .15s !important;
+}
+.zf-demo-card:hover {
+  background: #1D2D36 !important;
+  border-color: rgba(79, 209, 197, 0.4) !important;
+}
+.zf-demo-card-title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #FFFFFF !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.zf-demo-card-sub {
+  font-size: 10px !important;
+  color: var(--label) !important;
+  font-family: var(--font-mono) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  margin-top: 2px !important;
+}
+
+/* ── Floating Dropdown Menu ── */
+.zf-dropdown-menu {
+  position: absolute !important;
+  right: 0 !important;
+  top: calc(100% + 8px) !important;
+  width: 290px !important;
+  background: #11191E !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8) !important;
+  padding: 16px !important;
+  color: #FFFFFF !important;
+  z-index: 100 !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+
+/* ── Full-Screen Auth View (Giao diện đăng nhập Toàn màn hình) ── */
+.zf-auth-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  background: #070B0E !important;
+  color: #FFFFFF !important;
+  overflow: hidden !important;
+}
+
+@media (min-width: 1024px) {
+  .zf-auth-fullscreen {
+    grid-template-columns: minmax(440px, 46%) 1fr !important;
+  }
+}
+
+.zf-auth-showcase-pane {
+  display: none !important;
+  background: radial-gradient(circle at 25% 20%, rgba(79, 209, 197, 0.08) 0%, transparent 55%), #0A0F14 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 44px 40px !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  position: relative !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+@media (min-width: 1024px) {
+  .zf-auth-showcase-pane {
+    display: flex !important;
+  }
+}
+
+.zf-auth-form-pane {
+  background: #111827 !important;
+  height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  overflow-y: auto !important;
+}
+
+/* ── Prevent Browser Light Autofill Overrides (Chống đổi màu nền khi autofill) ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #030712 inset !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  caret-color: #4FD1C5 !important;
+  border-color: #4FD1C5 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── Auth full-screen polish ── */
+.zf-auth-grid {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background-image:
+    linear-gradient(rgba(79,209,197,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79,209,197,.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(circle at 50% 45%, #000 20%, transparent 75%);
+}
+.zf-auth-orb {
+  position: absolute; right: -120px; bottom: -120px; width: 380px; height: 380px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(38,53,107,.55) 0%, transparent 70%);
+  filter: blur(10px); pointer-events: none; z-index: 1;
+  animation: zfAuthFloat 9s ease-in-out infinite;
+}
+.zf-auth-scan {
+  position: absolute; left: 0; right: 0; height: 120px; pointer-events: none; z-index: 1;
+  background: linear-gradient(180deg, transparent, rgba(79,209,197,.07), transparent);
+  animation: zfAuthScan 7s linear infinite;
+}
+@keyframes zfAuthScan { 0% { top: -120px; } 100% { top: 100%; } }
+@keyframes zfAuthFloat { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px,-24px); } }
+@keyframes zfAuthRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+.zf-auth-chip {
+  padding: 10px 12px; border-radius: 12px; text-align: center;
+  background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(6px);
+}
+.zf-auth-chip b { display: block; font-family: var(--font-mono); font-size: 15px; font-weight: 600; color: #4FD1C5; }
+.zf-auth-chip small { display: block; margin-top: 2px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #94A3B8; }
+
+.zf-auth-form-pane {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(79,209,197,.10) 0%, transparent 42%),
+    radial-gradient(circle at 10% 95%, rgba(38,53,107,.30) 0%, transparent 45%),
+    #111827 !important;
+}
+.zf-auth-card {
+  padding: 34px 32px;
+  background: rgba(15,23,42,.62);
+  border: 1px solid rgba(51,65,85,.7);
+  border-radius: 20px;
+  box-shadow: 0 30px 70px -25px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter: blur(14px);
+  animation: zfAuthRise .5s ease both;
+}
+.zf-auth-form-pane input:not([type=checkbox]) { transition: border-color .2s, box-shadow .2s, background .2s !important; }
+.zf-auth-form-pane input:not([type=checkbox]):focus {
+  box-shadow: 0 0 0 1000px #030712 inset, 0 0 0 3px rgba(79,209,197,.16), 0 0 18px rgba(79,209,197,.10) !important;
+}
+.zf-auth-form-pane button[type=submit] {
+  background: linear-gradient(135deg, #4FD1C5 0%, #38B2AC 55%, #3B82F6 140%) !important;
+  box-shadow: 0 8px 22px -6px rgba(79,209,197,.55) !important;
+  transition: transform .18s, box-shadow .18s !important;
+}
+.zf-auth-form-pane button[type=submit]:hover { transform: translateY(-1px); box-shadow: 0 12px 28px -6px rgba(79,209,197,.7) !important; }
+.zf-auth-form-pane button[type=submit]:active { transform: translateY(0); }
+@media (max-width: 520px) { .zf-auth-card { padding: 24px 18px; } }
+
+/* ── Auth: fit viewport + right pane polish ── */
+.zf-auth-fullscreen { height: 100dvh !important; max-height: 100dvh !important; width: 100% !important; }
+.zf-auth-showcase-pane { height: 100dvh !important; padding: 28px 36px !important; gap: 12px; }
+.zf-auth-form-pane { height: 100dvh !important; }
+@media (max-height: 760px) { .zf-auth-chip { display: none !important; } .zf-auth-showcase-pane { padding: 20px 32px !important; } }
+@media (max-height: 640px) { .zf-auth-showcase-pane h2 { display: none; } }
+
+.zf-auth-badge {
+  width: 52px; height: 52px; margin: 0 auto 14px; display: grid; place-items: center; border-radius: 16px;
+  color: #4FD1C5; background: linear-gradient(145deg, rgba(79,209,197,.22), rgba(79,209,197,.05));
+  border: 1px solid rgba(79,209,197,.4);
+  box-shadow: 0 0 28px rgba(79,209,197,.28), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.zf-auth-card {
+  position: relative; max-width: 440px !important;
+  background: linear-gradient(180deg, rgba(30,41,59,.55), rgba(15,23,42,.7)) !important;
+}
+.zf-auth-card::before {
+  content: ''; position: absolute; left: 24px; right: 24px; top: 0; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #4FD1C5, transparent);
+}
+.zf-auth-foot { margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(51,65,85,.7); text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.zf-auth-trust { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.zf-auth-trust span {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px;
+  font-size: 10.5px; font-family: var(--font-mono); color: #94A3B8;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
+}
+.zf-auth-trust svg { color: #4FD1C5; }
+
+
+/* ── Final Autofill Safeguard ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+input:-internal-autofill-selected,
+.zf-auth-form-pane input:-webkit-autofill,
+.zf-auth-form-pane input:-webkit-autofill:hover,
+.zf-auth-form-pane input:-webkit-autofill:focus,
+.zf-auth-form-pane input:-webkit-autofill:active,
+.zf-auth-form-pane input:-internal-autofill-selected {
+  -webkit-box-shadow: 0 0 0 1000px #030712 inset !important;
+  box-shadow: 0 0 0 1000px #030712 inset, 0 0 0 3px rgba(79,209,197,.2) !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  color: #FFFFFF !important;
+  caret-color: #4FD1C5 !important;
+  background-color: #030712 !important;
+  transition: background-color 5000000s ease-in-out 0s !important;
+}

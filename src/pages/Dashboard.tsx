@@ -16,39 +16,49 @@ import {
   Cpu,
   RotateCcw,
   Sparkles,
+  Lock,
 } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
+import { LoginRequiredDialog } from "../components/common/LoginRequiredDialog";
+import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../i18n";
 import { PhotoUploadCapture } from "../features/capture/PhotoUploadCapture";
 import { MannequinViewer, type MetricKey } from "../features/avatar3d/MannequinViewer";
 import { MeasurementsPanel } from "../features/anthropometry/MeasurementsPanel";
 import { AiGarmentCard } from "../features/anthropometry/AiGarmentCard";
 import { runAiMeasurement, type AiMeasurementResponse } from "../services/aiService";
+import { recommendGarmentSizes } from "../utils/garmentSizeCalculator";
 import { DEMO_BIOMETRIC, DEMO_MEASUREMENT, DEMO_MESH, bmi } from "../data/mockData";
 import type { BiometricInput, Measurement, MeshParameter, SystemAuditLog } from "../types/database.types";
 
 type Tab = "capture" | "mesh" | "metrics";
 
 /** Biometric inputs cached from landing page */
-const loadInitialBiometric = (): { height: number; weight: number; gender: "male" | "female" | "neutral" } => {
+const loadInitialBiometric = (): { height?: number; weight?: number; gender: "male" | "female" | "neutral" } => {
   try {
     const raw = sessionStorage.getItem("fv3d_estimator");
-    if (!raw) return { height: 172, weight: 70, gender: "male" };
+    if (!raw) return { height: undefined, weight: undefined, gender: "male" };
     const e = JSON.parse(raw);
     return {
-      height: Number(e.stature_cm) || 172,
-      weight: Number(e.weight_kg) || 70,
+      height: e.stature_cm ? Number(e.stature_cm) : undefined,
+      weight: e.weight_kg ? Number(e.weight_kg) : undefined,
       gender: (e.gender === "female" ? "female" : "male") as "male" | "female",
     };
   } catch {
-    return { height: 172, weight: 70, gender: "male" };
+    return { height: undefined, weight: undefined, gender: "male" };
   }
 };
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, openSignIn } = useAuth();
+  const { t } = useI18n();
+  // Guests may scan + view the 3D model only. Measurements / size charts stay locked and are never stored.
+  const locked = !isAuthenticated;
+  const [lockedFeature, setLockedFeature] = useState<string | null>(null);
   const initBio = loadInitialBiometric();
 
-  const [measurement, setMeasurement] = useState<(Measurement & { arm_length_cm?: number | null }) | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement | null>(null);
   const [mesh, setMesh] = useState<MeshParameter | null>(null);
   const [biometric, setBiometric] = useState<BiometricInput | null>(null);
   const [garmentRec, setGarmentRec] = useState<AiMeasurementResponse["garment_size_recommendations"] | null>(null);
@@ -76,7 +86,8 @@ export const Dashboard: React.FC = () => {
         const elapsed = (performance.now() - t0) / 1000;
 
         const meas = res.iso_8559_measurements;
-        const h = params.height_cm || meas.chieu_cao_cm || 172;
+        let h = params.height_cm || meas.chieu_cao_cm || 172;
+        if (h > 0 && h < 3.0) h = Math.round(h * 100.0 * 10) / 10;
         const w = params.weight_kg || meas.can_nang_kg || 70;
         const calcBmi = bmi(w, h);
 
@@ -106,7 +117,15 @@ export const Dashboard: React.FC = () => {
           created_at: new Date().toISOString(),
         };
 
-        const newMeasurement: Measurement & { arm_length_cm: number } = {
+        const extMeas = meas as typeof meas & {
+          vong_bap_tay_cm?: number;
+          vong_co_tay_cm?: number;
+          vong_dui_cm?: number;
+          vong_bap_chan_cm?: number;
+          vong_co_chan_cm?: number;
+        };
+
+        const newMeasurement: Measurement = {
           id: `meas-${Date.now()}`,
           user_id: "usr-current",
           input_id: `inp-${Date.now()}`,
@@ -116,6 +135,11 @@ export const Dashboard: React.FC = () => {
           shoulder_breadth_cm: meas.rong_vai_cm,
           inseam_cm: dai_chan_inseam_cm_fallback(meas.dai_chan_inseam_cm, h),
           arm_length_cm: meas.dai_tay_cm,
+          bicep_circ_cm: meas.vong_bap_tay_cm ?? extMeas.vong_bap_tay_cm ?? null,
+          wrist_circ_cm: meas.vong_co_tay_cm ?? extMeas.vong_co_tay_cm ?? null,
+          thigh_circ_cm: meas.vong_dui_cm ?? extMeas.vong_dui_cm ?? null,
+          calf_circ_cm: meas.vong_bap_chan_cm ?? extMeas.vong_bap_chan_cm ?? null,
+          ankle_circ_cm: meas.vong_co_chan_cm ?? extMeas.vong_co_chan_cm ?? null,
           extraction_confidence: res.is_live_backend ? 0.98 : 0.94,
           created_at: new Date().toISOString(),
         };
@@ -171,17 +195,27 @@ export const Dashboard: React.FC = () => {
       arm_length_cm: 58.5,
     });
     setMesh(DEMO_MESH);
+
+    const demoSizing = recommendGarmentSizes({
+      gender: "male",
+      height_cm: DEMO_BIOMETRIC.stature_cm,
+      weight_kg: DEMO_BIOMETRIC.weight_kg,
+      chest_cm: DEMO_MEASUREMENT.chest_circ_cm,
+      waist_cm: DEMO_MEASUREMENT.waist_circ_cm,
+      hips_cm: DEMO_MEASUREMENT.hip_circ_cm,
+      shoulder_cm: DEMO_MEASUREMENT.shoulder_breadth_cm ?? undefined,
+      inseam_cm: DEMO_MEASUREMENT.inseam_cm ?? undefined,
+    });
+
     setGarmentRec({
-      topwear_shirt_size: "M",
-      bottomwear_trouser_size: "Size 31 (31W x 31L)",
-      waist_inches: 31,
-      inseam_inches: 31,
-      body_shape_classification: "V-Shape / Athletic (Thể thao, ngực nở eo thon)",
-      ease_allowance_recommendation: {
-        slim_fit_chest_cm: 97.4,
-        regular_fit_chest_cm: 100.4,
-        trouser_waist_ease_cm: 80.8,
-      },
+      topwear_shirt_size: demoSizing.topwear.recommended_label,
+      bottomwear_trouser_size: demoSizing.bottomwear.tag,
+      waist_inches: demoSizing.bottomwear.waist_inches,
+      inseam_inches: demoSizing.bottomwear.inseam_inches,
+      body_shape_classification: demoSizing.body_shape_classification,
+      ease_allowance_recommendation: demoSizing.ease_allowance_recommendation,
+      topwear: demoSizing.topwear,
+      bottomwear: demoSizing.bottomwear,
     });
     setIsLiveBackend(false);
     setExecutionTime(0.85);
@@ -216,10 +250,10 @@ export const Dashboard: React.FC = () => {
         >
           <div>
             <h1 className="zf-title" style={{ fontSize: "20px" }}>
-              Studio Nhân Trắc Học 3D (AI-Tailor Studio)
+              {t("app.dash.title")}
             </h1>
             <p className="zf-sub" style={{ fontSize: "12px", marginTop: "2px" }}>
-              Trích xuất số đo may mặc 3D tự động từ 1 ảnh chụp di động theo chuẩn quốc tế ISO 8559-1:2017.
+              {t("app.dash.sub")}
             </p>
           </div>
 
@@ -238,7 +272,7 @@ export const Dashboard: React.FC = () => {
               }}
             >
               <ShieldCheck size={14} strokeWidth={2} />
-              Zero-Retention: Ảnh không lưu máy chủ
+              {t("app.dash.zeroBadge")}
             </span>
 
             <span
@@ -255,7 +289,7 @@ export const Dashboard: React.FC = () => {
               }}
             >
               <Cpu size={14} />
-              {isLiveBackend ? "FastAPI SMPLer-X: Online" : "AI Engine: ISO 8559"}
+              {isLiveBackend ? t("dashx.live") : t("dashx.engine")}
             </span>
 
             {measurement && (
@@ -265,7 +299,7 @@ export const Dashboard: React.FC = () => {
                 className="zf-btn zf-btn--ghost"
                 style={{ padding: "4px 10px", fontSize: "12px", height: "auto" }}
               >
-                <RotateCcw size={13} /> Chụp lại / Đo lại
+                <RotateCcw size={13} /> {t("app.dash.retake")}
               </button>
             )}
           </div>
@@ -277,8 +311,8 @@ export const Dashboard: React.FC = () => {
           <section className={`zf-col ${tab === "capture" ? "tab-active" : ""}`} aria-label="Photo Studio">
             <div className="zf-card zf-card-pad">
               <div className="zf-section-head" style={{ marginBottom: "12px" }}>
-                <h2 className="zf-eyebrow">Tải ảnh chụp từ điện thoại</h2>
-                <span className="zf-pill zf-pill--teal">1 Ảnh A-Pose Chuẩn</span>
+                <h2 className="zf-eyebrow">{t("app.dash.uploadTitle")}</h2>
+                <span className="zf-pill zf-pill--teal">{t("app.dash.uploadPill")}</span>
               </div>
 
               <PhotoUploadCapture
@@ -295,17 +329,20 @@ export const Dashboard: React.FC = () => {
           <section className={`zf-col ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
             <div className="zf-card zf-card-pad" style={{ position: "relative" }}>
               <div className="zf-section-head">
-                <h2 className="zf-eyebrow">Hình Thể 3D ZOZOFIT</h2>
+                <h2 className="zf-eyebrow">{t("app.dash.meshTitle")}</h2>
                 <span className="zf-pill mono">
                   {mesh
-                    ? `Chest x${mesh.scale_chest.toFixed(2)} · Waist x${mesh.scale_waist.toFixed(2)} · Hips x${mesh.scale_hips.toFixed(2)}`
-                    : "A-Pose Standby"}
+                    ? t("app.dash.meshScales")
+                        .replace("{c}", mesh.scale_chest.toFixed(2))
+                        .replace("{w}", mesh.scale_waist.toFixed(2))
+                        .replace("{h}", mesh.scale_hips.toFixed(2))
+                    : t("app.dash.standby")}
                 </span>
               </div>
 
               <MannequinViewer
                 meshParams={mesh}
-                measurement={measurement}
+                measurement={locked ? null : measurement}
                 isLoading={processing}
                 height={580}
                 activeMetric={activeMetric}
@@ -319,67 +356,163 @@ export const Dashboard: React.FC = () => {
             className={`zf-col ${tab === "metrics" ? "tab-active" : ""}`}
             aria-label="Measurements and recommendations"
           >
-            {/* ISO 8559 Anthropometric Table */}
-            <MeasurementsPanel
-              measurement={measurement}
-              biometric={biometric}
-              activeMetric={activeMetric}
-              onSelectMetric={setActiveMetric}
-            />
+            {locked ? (
+              <>
+                {/* Locked state for guests: no measurements, no size recommendation */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  id="locked-measurements"
+                  onClick={() => setLockedFeature(t("app.dash.featMeasure"))}
+                  onKeyDown={(e) => e.key === "Enter" && setLockedFeature(t("app.dash.featMeasure"))}
+                  style={{ position: "relative", cursor: "pointer" }}
+                >
+                  <div style={{ filter: "blur(3px)", opacity: 0.45, pointerEvents: "none", userSelect: "none" }}>
+                    <MeasurementsPanel
+                      measurement={null}
+                      biometric={null}
+                      activeMetric={activeMetric}
+                      onSelectMetric={() => undefined}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      textAlign: "center",
+                      padding: 16,
+                      borderRadius: 12,
+                      background: "rgba(10, 15, 18, 0.55)",
+                    }}
+                  >
+                    <Lock size={26} style={{ color: "#4FD1C5" }} />
+                    <strong style={{ fontSize: 14 }}>{t("app.dash.lockedTitle")}</strong>
+                    <span style={{ fontSize: 12, color: "#94A3B8", maxWidth: 240 }}>
+                      {t("app.dash.lockedDesc")}
+                    </span>
+                  </div>
+                </div>
 
-            {/* Quan's AI Garment Recommendation Card */}
-            {garmentRec ? (
-              <AiGarmentCard
-                data={garmentRec}
-                executionTime={executionTime}
-                isLiveBackend={isLiveBackend}
-              />
+                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                  <button
+                    id="btn-export-dossier"
+                    className="zf-btn zf-btn--secondary"
+                    style={{ flex: 1, opacity: 0.6 }}
+                    onClick={() => setLockedFeature(t("app.dash.featDossier"))}
+                  >
+                    <Lock size={15} strokeWidth={1.8} /> {t("app.dash.featDossier")}
+                  </button>
+                  <button
+                    id="btn-size-charts"
+                    className="zf-btn zf-btn--ghost"
+                    style={{ opacity: 0.6 }}
+                    onClick={() => setLockedFeature(t("app.dash.featSize"))}
+                  >
+                    <Lock size={15} strokeWidth={1.8} /> {t("app.dash.featSize")}
+                  </button>
+                </div>
+              </>
             ) : (
-              <div
-                style={{
-                  padding: "16px",
-                  borderRadius: "10px",
-                  border: "1px dashed rgba(255, 255, 255, 0.12)",
-                  background: "rgba(255, 255, 255, 0.02)",
-                  textAlign: "center",
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                }}
-              >
-                <Sparkles size={20} style={{ color: "#38bdf8", margin: "0 auto 8px" }} />
-                Tải ảnh và nhấn "Phân tích &amp; Dựng hình thể 3D" để nhận tư vấn size quần áo và số đo may mặc tự động.
-              </div>
-            )}
+              <>
+                {/* ISO 8559 Anthropometric Table */}
+                <MeasurementsPanel
+                  measurement={measurement}
+                  biometric={biometric}
+                  activeMetric={activeMetric}
+                  onSelectMetric={setActiveMetric}
+                  isLiveBackend={isLiveBackend}
+                />
 
-            {/* Quick Actions */}
-            <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
-              <button
-                id="btn-export-dossier"
-                className="zf-btn zf-btn--secondary"
-                style={{ flex: 1 }}
-                onClick={() => navigate("/tailor")}
-              >
-                <FileText size={16} strokeWidth={1.5} /> Hồ sơ may đo
-              </button>
-              <button
-                id="btn-size-charts"
-                className="zf-btn zf-btn--ghost"
-                onClick={() => navigate("/size-charts")}
-              >
-                <Table2 size={16} strokeWidth={1.5} /> Bảng size
-              </button>
-            </div>
+                {/* Quan's AI Garment Recommendation Card */}
+                {garmentRec ? (
+                  <AiGarmentCard
+                    data={garmentRec}
+                    executionTime={executionTime}
+                    isLiveBackend={isLiveBackend}
+                    measurements={
+                      measurement
+                        ? {
+                            chieu_cao_cm: biometric?.stature_cm || 172,
+                            vong_nguc_cm: measurement.chest_circ_cm,
+                            vong_eo_cm: measurement.waist_circ_cm,
+                            vong_mong_cm: measurement.hip_circ_cm,
+                            rong_vai_cm: measurement.shoulder_breadth_cm,
+                            dai_chan_inseam_cm: measurement.inseam_cm,
+                            can_nang_kg: biometric?.weight_kg || 70,
+                          }
+                        : undefined
+                    }
+                    gender={
+                      biometric?.gender === "female"
+                        ? "female"
+                        : biometric?.gender === "male"
+                        ? "male"
+                        : "neutral"
+                    }
+                  />
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "10px",
+                      border: "1px dashed rgba(255, 255, 255, 0.12)",
+                      background: "rgba(255, 255, 255, 0.02)",
+                      textAlign: "center",
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <Sparkles size={20} style={{ color: "#38bdf8", margin: "0 auto 8px" }} />
+                    {t("app.dash.emptyRec")}
+                  </div>
+                )}
+
+                {/* Quick Actions */}
+                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                  <button
+                    id="btn-export-dossier"
+                    className="zf-btn zf-btn--secondary"
+                    style={{ flex: 1 }}
+                    onClick={() => navigate("/tailor")}
+                  >
+                    <FileText size={16} strokeWidth={1.5} /> {t("app.dash.featDossier")}
+                  </button>
+                  <button
+                    id="btn-size-charts"
+                    className="zf-btn zf-btn--ghost"
+                    onClick={() => navigate("/size-charts")}
+                  >
+                    <Table2 size={16} strokeWidth={1.5} /> {t("app.dash.featSize")}
+                  </button>
+                </div>
+              </>
+            )}
           </section>
         </div>
       </main>
+
+      <LoginRequiredDialog
+        open={lockedFeature !== null}
+        feature={lockedFeature ?? undefined}
+        onBack={() => setLockedFeature(null)}
+        onSignIn={() => {
+          setLockedFeature(null);
+          openSignIn();
+        }}
+      />
 
       {/* Mobile Bottom Tab Navigation */}
       <nav className="zf-tabs no-print" aria-label="View selector">
         {(
           [
-            ["capture", "Tải ảnh", ScanLine],
-            ["mesh", "Mô hình 3D", Box],
-            ["metrics", "Kết quả số đo", ListChecks],
+            ["capture", t("app.dash.tabUpload"), ScanLine],
+            ["mesh", t("app.dash.tabMesh"), Box],
+            ["metrics", t("app.dash.tabMetrics"), ListChecks],
           ] as const
         ).map(([k, label, Icon]) => (
           <button

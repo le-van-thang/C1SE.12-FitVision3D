@@ -5,6 +5,8 @@
 // Automatically falls back to high-precision local calculation if server is offline
 // ============================================================
 
+import { recommendGarmentSizes, GarmentSizeOutput } from '@/utils/garmentSizeCalculator';
+
 export interface AiMeasurementResponse {
   status: "success" | "error";
   subject_metadata: {
@@ -19,6 +21,11 @@ export interface AiMeasurementResponse {
     vong_mong_cm: number;
     rong_vai_cm: number;
     dai_tay_cm: number;
+    vong_bap_tay_cm?: number;
+    vong_co_tay_cm?: number;
+    vong_dui_cm?: number;
+    vong_bap_chan_cm?: number;
+    vong_co_chan_cm?: number;
     dai_chan_inseam_cm: number;
     can_nang_kg?: number;
   };
@@ -33,6 +40,8 @@ export interface AiMeasurementResponse {
       regular_fit_chest_cm: number;
       trouser_waist_ease_cm: number;
     };
+    topwear?: GarmentSizeOutput["topwear"];
+    bottomwear?: GarmentSizeOutput["bottomwear"];
   };
   execution_time_seconds: number;
   is_live_backend?: boolean;
@@ -83,6 +92,62 @@ export async function runAiMeasurement(params: {
       const dai_chan = Number(rawMeas.dai_chan_inseam || rawMeas.dai_chan_inseam_cm || 76.0);
       const can_nang = Number(rawMeas.can_nang_uoc_tinh_kg || weight_kg);
 
+      const isMaleLive = gender !== "female";
+      const liveBmi = can_nang / Math.pow(chieu_cao / 100, 2);
+      const liveBmiFactor = Math.sqrt(Math.max(liveBmi / 22.0, 0.75));
+      const liveBoneFactor = 0.5 + 0.5 * liveBmiFactor;
+
+      const vong_bap_tay = Number(
+        rawMeas.vong_bap_tay ||
+        rawMeas.vong_bap_tay_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.165 : 0.150) * liveBmiFactor * 10) / 10
+      );
+      const vong_co_tay = Number(
+        rawMeas.vong_co_tay ||
+        rawMeas.vong_co_tay_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.095 : 0.088) * liveBoneFactor * 10) / 10
+      );
+      const vong_dui = Number(
+        rawMeas.vong_dui ||
+        rawMeas.vong_dui_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.310 : 0.320) * liveBmiFactor * 10) / 10
+      );
+      const vong_bap_chan = Number(
+        rawMeas.vong_bap_chan ||
+        rawMeas.vong_bap_chan_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.205 : 0.200) * liveBmiFactor * 10) / 10
+      );
+      const vong_co_chan = Number(
+        rawMeas.vong_co_chan ||
+        rawMeas.vong_co_chan_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.122 : 0.116) * liveBoneFactor * 10) / 10
+      );
+
+      // Tự động làm giàu các hệ size nếu backend trả về cấu trúc cũ
+      let garmentRecs = data.garment_size_recommendations;
+      if (!garmentRecs || !garmentRecs.topwear) {
+        const enriched = recommendGarmentSizes({
+          gender,
+          height_cm: chieu_cao,
+          weight_kg: can_nang,
+          chest_cm: vong_nguc,
+          waist_cm: vong_eo,
+          hips_cm: vong_mong,
+          shoulder_cm: rong_vai,
+          inseam_cm: dai_chan,
+        });
+        garmentRecs = {
+          topwear_shirt_size: enriched.topwear.recommended_label,
+          bottomwear_trouser_size: enriched.bottomwear.tag,
+          waist_inches: enriched.bottomwear.waist_inches,
+          inseam_inches: enriched.bottomwear.inseam_inches,
+          body_shape_classification: enriched.body_shape_classification,
+          ease_allowance_recommendation: enriched.ease_allowance_recommendation,
+          topwear: enriched.topwear,
+          bottomwear: enriched.bottomwear,
+        };
+      }
+
       return {
         status: "success",
         is_live_backend: true,
@@ -98,21 +163,15 @@ export async function runAiMeasurement(params: {
           vong_mong_cm: vong_mong,
           rong_vai_cm: rong_vai,
           dai_tay_cm: dai_tay,
+          vong_bap_tay_cm: vong_bap_tay,
+          vong_co_tay_cm: vong_co_tay,
+          vong_dui_cm: vong_dui,
+          vong_bap_chan_cm: vong_bap_chan,
+          vong_co_chan_cm: vong_co_chan,
           dai_chan_inseam_cm: dai_chan,
           can_nang_kg: can_nang,
         },
-        garment_size_recommendations: data.garment_size_recommendations || {
-          topwear_shirt_size: "M",
-          bottomwear_trouser_size: `Size 31 (31W x 30L)`,
-          waist_inches: 31,
-          inseam_inches: 30,
-          body_shape_classification: "Regular / Balanced (Cân đối tiêu chuẩn)",
-          ease_allowance_recommendation: {
-            slim_fit_chest_cm: vong_nguc + 5,
-            regular_fit_chest_cm: vong_nguc + 8,
-            trouser_waist_ease_cm: vong_eo + 2,
-          },
-        },
+        garment_size_recommendations: garmentRecs,
         execution_time_seconds: data.execution_time_seconds || 1.25,
       };
     }
@@ -122,13 +181,15 @@ export async function runAiMeasurement(params: {
   }
 
   // 2. Local ISO 8559 / Ramanujan anthropometric calculus fallback
-  const h = height_cm || 172.0;
-  const w = weight_kg || 70.0;
+  let h = height_cm || 172.0;
+  if (h > 0 && h < 3.0) h = Math.round(h * 100.0 * 10) / 10; // Tự động đổi mét (1.67m) sang cm (167cm)
+  let w = weight_kg || 70.0;
   const isMale = gender !== "female";
 
   // Anthropometric regression model based on ISO 8559-1:2017 & SMPL-X priors
   const calcBmi = w / Math.pow(h / 100, 2);
   const bmiFactor = Math.sqrt(Math.max(calcBmi / 22.0, 0.75));
+  const boneBmiFactor = 0.5 + 0.5 * bmiFactor;
 
   const chest = isMale
     ? Math.round((h * 0.54 * bmiFactor) * 10) / 10
@@ -142,27 +203,33 @@ export async function runAiMeasurement(params: {
   const shoulders = Math.round((h * (isMale ? 0.255 : 0.235)) * 10) / 10;
   const inseam = Math.round((h * 0.46) * 10) / 10;
   const arm = Math.round((h * 0.35) * 10) / 10;
+  const bicep = isMale
+    ? Math.round((h * 0.165 * bmiFactor) * 10) / 10
+    : Math.round((h * 0.150 * bmiFactor) * 10) / 10;
+  const wrist = isMale
+    ? Math.round((h * 0.095 * boneBmiFactor) * 10) / 10
+    : Math.round((h * 0.088 * boneBmiFactor) * 10) / 10;
+  const thigh = isMale
+    ? Math.round((h * 0.310 * bmiFactor) * 10) / 10
+    : Math.round((h * 0.320 * bmiFactor) * 10) / 10;
+  const calf = isMale
+    ? Math.round((h * 0.205 * bmiFactor) * 10) / 10
+    : Math.round((h * 0.200 * bmiFactor) * 10) / 10;
+  const ankle = isMale
+    ? Math.round((h * 0.122 * boneBmiFactor) * 10) / 10
+    : Math.round((h * 0.116 * boneBmiFactor) * 10) / 10;
 
-  // Garment Sizing Logic matching Quan's recommend_garment_sizes
-  let topSize = "M";
-  if (chest < 88.0) topSize = "XS";
-  else if (chest <= 92.5) topSize = "S";
-  else if (chest <= 97.5) topSize = "M";
-  else if (chest <= 103.0) topSize = "L";
-  else if (chest <= 109.0) topSize = "XL";
-  else topSize = "XXL";
-
-  const waistInch = Math.round(waist / 2.54);
-  const inseamInch = Math.round(inseam / 2.54);
-  const trouserTag = `Size ${waistInch} (${waistInch}W x ${inseamInch}L)`;
-
-  const ratio = chest / (waist > 0 ? waist : 1);
-  let fitType = "Regular / Balanced (Cân đối tiêu chuẩn)";
-  if (ratio > 1.20) {
-    fitType = "V-Shape / Athletic (Thể thao, ngực nở eo thon)";
-  } else if (ratio < 1.05) {
-    fitType = "Comfort / Relaxed Fit (Bụng đầy đặn)";
-  }
+  // Garment Sizing Logic sử dụng pure engine đa hệ chuẩn quốc tế
+  const garmentResult = recommendGarmentSizes({
+    gender,
+    height_cm: h,
+    weight_kg: w,
+    chest_cm: chest,
+    waist_cm: waist,
+    hips_cm: hips,
+    shoulder_cm: shoulders,
+    inseam_cm: inseam,
+  });
 
   return {
     status: "success",
@@ -179,20 +246,23 @@ export async function runAiMeasurement(params: {
       vong_mong_cm: hips,
       rong_vai_cm: shoulders,
       dai_tay_cm: arm,
+      vong_bap_tay_cm: bicep,
+      vong_co_tay_cm: wrist,
+      vong_dui_cm: thigh,
+      vong_bap_chan_cm: calf,
+      vong_co_chan_cm: ankle,
       dai_chan_inseam_cm: inseam,
       can_nang_kg: w,
     },
     garment_size_recommendations: {
-      topwear_shirt_size: topSize,
-      bottomwear_trouser_size: trouserTag,
-      waist_inches: waistInch,
-      inseam_inches: inseamInch,
-      body_shape_classification: fitType,
-      ease_allowance_recommendation: {
-        slim_fit_chest_cm: Math.round((chest + 5.0) * 10) / 10,
-        regular_fit_chest_cm: Math.round((chest + 8.0) * 10) / 10,
-        trouser_waist_ease_cm: Math.round((waist + 2.0) * 10) / 10,
-      },
+      topwear_shirt_size: garmentResult.topwear.recommended_label,
+      bottomwear_trouser_size: garmentResult.bottomwear.tag,
+      waist_inches: garmentResult.bottomwear.waist_inches,
+      inseam_inches: garmentResult.bottomwear.inseam_inches,
+      body_shape_classification: garmentResult.body_shape_classification,
+      ease_allowance_recommendation: garmentResult.ease_allowance_recommendation,
+      topwear: garmentResult.topwear,
+      bottomwear: garmentResult.bottomwear,
     },
     execution_time_seconds: 1.35,
   };

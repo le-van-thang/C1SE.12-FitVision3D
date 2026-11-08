@@ -43,3 +43,7 @@ dependencies:
       - pycocotools
       - joblib
       - numba
+      - fastapi
+      - uvicorn
+      - python-multipart
+      - pydantic

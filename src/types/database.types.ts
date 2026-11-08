@@ -5,6 +5,8 @@
 // IMPORTANT: Property names MUST match DB column names exactly
 // ============================================================
 
+export type UserRole = 'user' | 'store' | 'admin' | 'customer' | 'tailor' | 'retailer';
+
 // ----------------------------------------------------------
 // TABLE: profiles
 // ----------------------------------------------------------
@@ -12,10 +14,27 @@ export interface Profile {
   id: string;                   // uuid pk
   full_name: string;            // varchar(100) NOT NULL
   email: string;                // varchar(255) UNIQUE NOT NULL
-  role: 'customer' | 'tailor' | 'retailer' | 'admin'; // varchar(20) NOT NULL
+  role: UserRole;               // varchar(20) NOT NULL
   avatar_url: string | null;    // text
   created_at: string;           // timestamptz NOT NULL
   updated_at: string;           // timestamptz NOT NULL
+}
+
+// ----------------------------------------------------------
+// TABLE: stores
+// ----------------------------------------------------------
+export interface Store {
+  id: string;                   // uuid pk
+  user_id: string;              // uuid NOT NULL -> profiles.id (UNIQUE FK)
+  brand_name: string;           // varchar(100) NOT NULL UNIQUE
+  phone: string;                // varchar(20) NOT NULL UNIQUE
+  address: string;              // text NOT NULL
+  verification_doc: string;     // text NOT NULL (Business license ID or Partner Website/Fanpage URL)
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  is_approved?: boolean;        // boolean flag (true when status === 'APPROVED')
+  rejection_reason?: string | null; // text (mandatory when status === 'REJECTED')
+  created_at: string;           // timestamptz NOT NULL
+  updated_at?: string;          // timestamptz
 }
 
 // ----------------------------------------------------------
@@ -43,6 +62,12 @@ export interface Measurement {
   hip_circ_cm: number;          // numeric(5,2) NOT NULL
   inseam_cm: number | null;     // numeric(5,2)
   shoulder_breadth_cm: number | null; // numeric(5,2)
+  arm_length_cm?: number | null; // numeric(5,2) - Chiều dài tay áo
+  bicep_circ_cm?: number | null; // numeric(5,2) - Vòng bắp tay (ISO 8559-1 5.3.16)
+  wrist_circ_cm?: number | null; // numeric(5,2) - Vòng cổ tay (ISO 8559-1 5.3.18)
+  thigh_circ_cm?: number | null; // numeric(5,2) - Vòng đùi (ISO 8559-1 5.3.20)
+  calf_circ_cm?: number | null;  // numeric(5,2) - Vòng bắp chân (ISO 8559-1 5.3.22)
+  ankle_circ_cm?: number | null; // numeric(5,2) - Vòng cổ chân (ISO 8559-1 5.3.23)
   extraction_confidence: number; // numeric(3,2) NOT NULL [0.00-1.00]
   created_at: string;           // timestamptz NOT NULL
 }
@@ -141,6 +166,11 @@ export interface Database {
         Row: Profile;
         Insert: Omit<Profile, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Profile>;
+      };
+      stores: {
+        Row: Store;
+        Insert: Omit<Store, 'id' | 'created_at'>;
+        Update: Partial<Store>;
       };
       biometric_inputs: {
         Row: BiometricInput;

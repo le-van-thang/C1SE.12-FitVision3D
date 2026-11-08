@@ -16,23 +16,48 @@ export type MetricKey =
   | "waist_circ_cm"
   | "hip_circ_cm"
   | "shoulder_breadth_cm"
-  | "inseam_cm";
+  | "inseam_cm"
+  | "arm_length_cm"
+  | "bicep_circ_cm"
+  | "wrist_circ_cm"
+  | "thigh_circ_cm"
+  | "calf_circ_cm"
+  | "ankle_circ_cm";
 
 export interface MannequinViewerProps {
   meshParams: MeshParameter | null;
-  measurement: Pick<
+  measurement: (Pick<
     Measurement,
     "chest_circ_cm" | "waist_circ_cm" | "hip_circ_cm" | "shoulder_breadth_cm" | "inseam_cm"
-  > | null;
+  > & {
+    arm_length_cm?: number | null;
+    bicep_circ_cm?: number | null;
+    wrist_circ_cm?: number | null;
+    thigh_circ_cm?: number | null;
+    calf_circ_cm?: number | null;
+    ankle_circ_cm?: number | null;
+  }) | null;
   isLoading?: boolean;
   height?: number | string;
   id?: string;
   activeMetric?: MetricKey | null;
   onSelectMetric?: (metric: MetricKey) => void;
+  zonePillAlign?: "center" | "left" | "right";
 }
 
 type ViewZone = "full_body" | "chest" | "waist" | "hips";
-type ActiveZoneKey = "chest" | "waist" | "hips" | "shoulders" | "inseam";
+type ActiveZoneKey =
+  | "chest"
+  | "waist"
+  | "hips"
+  | "shoulders"
+  | "inseam"
+  | "arm_length"
+  | "bicep"
+  | "wrist"
+  | "thigh"
+  | "calf"
+  | "ankle";
 
 interface CameraPreset {
   target: THREE.Vector3;
@@ -41,20 +66,20 @@ interface CameraPreset {
 
 const VIEW_PRESETS: Record<ViewZone, CameraPreset> = {
   full_body: {
-    target: new THREE.Vector3(0, 0.0, 0),
-    pos: new THREE.Vector3(0, 0.05, 2.35),
+    target: new THREE.Vector3(0, -0.02, 0),
+    pos: new THREE.Vector3(0, 0.04, 3.20),
   },
   chest: {
     target: new THREE.Vector3(0, 0.30, 0),
-    pos: new THREE.Vector3(0, 0.32, 1.15),
+    pos: new THREE.Vector3(0, 0.32, 1.35),
   },
   waist: {
     target: new THREE.Vector3(0, 0.08, 0),
-    pos: new THREE.Vector3(0, 0.10, 1.05),
+    pos: new THREE.Vector3(0, 0.10, 1.25),
   },
   hips: {
     target: new THREE.Vector3(0, -0.09, 0),
-    pos: new THREE.Vector3(0, -0.07, 1.18),
+    pos: new THREE.Vector3(0, -0.07, 1.35),
   },
 };
 
@@ -77,6 +102,18 @@ function metricToZone(metric: MetricKey): ActiveZoneKey {
       return "shoulders";
     case "inseam_cm":
       return "inseam";
+    case "arm_length_cm":
+      return "arm_length";
+    case "bicep_circ_cm":
+      return "bicep";
+    case "wrist_circ_cm":
+      return "wrist";
+    case "thigh_circ_cm":
+      return "thigh";
+    case "calf_circ_cm":
+      return "calf";
+    case "ankle_circ_cm":
+      return "ankle";
   }
 }
 
@@ -86,6 +123,12 @@ interface AnatomicalLandmarks {
   hips: THREE.Vector3;
   shoulders: THREE.Vector3;
   inseam: THREE.Vector3;
+  arm_length: THREE.Vector3;
+  bicep: THREE.Vector3;
+  wrist: THREE.Vector3;
+  thigh: THREE.Vector3;
+  calf: THREE.Vector3;
+  ankle: THREE.Vector3;
 }
 
 function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
@@ -99,6 +142,12 @@ function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
     hips: new THREE.Vector3(0.178 * sHips, -0.09, -0.005),
     shoulders: new THREE.Vector3(0.195 * sChest, 0.43, 0.0),
     inseam: new THREE.Vector3(-0.085 * sHips, -0.35, 0.0),
+    arm_length: new THREE.Vector3(0.38 * sChest, 0.20, 0.0),
+    bicep: new THREE.Vector3(-0.27 * sChest, 0.28, 0.0),
+    wrist: new THREE.Vector3(-0.43 * sChest, 0.04, 0.015),
+    thigh: new THREE.Vector3(0.11 * sHips, -0.24, 0.015),
+    calf: new THREE.Vector3(0.10 * sHips, -0.52, -0.01),
+    ankle: new THREE.Vector3(0.09 * sHips, -0.74, 0.0),
   };
 }
 
@@ -111,11 +160,19 @@ interface CalloutDef {
 
 const CALLOUTS: CalloutDef[] = [
   { key: "chest_circ_cm", label: "Chest", side: "left", get3DPoint: (lm) => lm.chest },
+  { key: "bicep_circ_cm", label: "bicep", side: "left", get3DPoint: (lm) => lm.bicep },
   { key: "waist_circ_cm", label: "Waist", side: "left", get3DPoint: (lm) => lm.waist },
+  { key: "wrist_circ_cm", label: "wrist", side: "left", get3DPoint: (lm) => lm.wrist },
   { key: "inseam_cm", label: "Inseam", side: "left", get3DPoint: (lm) => lm.inseam },
   { key: "shoulder_breadth_cm", label: "Shoulders", side: "right", get3DPoint: (lm) => lm.shoulders },
+  { key: "arm_length_cm", label: "arm_length", side: "right", get3DPoint: (lm) => lm.arm_length },
   { key: "hip_circ_cm", label: "Hips", side: "right", get3DPoint: (lm) => lm.hips },
+  { key: "thigh_circ_cm", label: "thigh", side: "right", get3DPoint: (lm) => lm.thigh },
+  { key: "calf_circ_cm", label: "calf", side: "right", get3DPoint: (lm) => lm.calf },
+  { key: "ankle_circ_cm", label: "ankle", side: "right", get3DPoint: (lm) => lm.ankle },
 ];
+
+import { useI18n } from "../../i18n";
 
 export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   meshParams,
@@ -125,7 +182,9 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   id = "zozofit-viewport",
   activeMetric: controlledMetric,
   onSelectMetric,
+  zonePillAlign = "center",
 }) => {
+  const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const leftCalloutRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -198,7 +257,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 50);
     const initialPreset = VIEW_PRESETS.full_body;
-    camera.position.set(0, 0.05, 2.35);
+    camera.position.copy(initialPreset.pos);
     camera.lookAt(initialPreset.target);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -215,7 +274,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     controls.maxPolarAngle = Math.PI * 0.65;
     controls.minPolarAngle = Math.PI * 0.25;
     controls.minDistance = 0.8;
-    controls.maxDistance = 5.0;
+    controls.maxDistance = 6.0;
     controls.enablePan = false;
 
     // Subtle radial ground platform under feet (y = -0.86)
@@ -396,8 +455,11 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
         style={{
           position: "absolute",
           top: "14px",
-          left: "50%",
-          transform: "translateX(-50%)",
+          ...(zonePillAlign === "center"
+            ? { left: "50%", transform: "translateX(-50%)" }
+            : zonePillAlign === "left"
+              ? { left: "14px" }
+              : { right: "14px" }),
           zIndex: 30,
         }}
       >
@@ -423,7 +485,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               transition: "border-color 0.15s",
             }}
           >
-            <span>{VIEW_LABELS[currentZone]}</span>
+            <span>{t(`viewer.zone.${currentZone}`)}</span>
             <ChevronDown size={14} strokeWidth={2} style={{ color: "#94A3B8" }} />
           </button>
 
@@ -432,8 +494,11 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               style={{
                 position: "absolute",
                 top: "calc(100% + 6px)",
-                left: "50%",
-                transform: "translateX(-50%)",
+                ...(zonePillAlign === "center"
+                  ? { left: "50%", transform: "translateX(-50%)" }
+                  : zonePillAlign === "left"
+                    ? { left: 0 }
+                    : { right: 0 }),
                 background: "#11191E",
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 borderRadius: "10px",
@@ -464,7 +529,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                     transition: "background 0.15s, color 0.15s",
                   }}
                 >
-                  {VIEW_LABELS[z]}
+                  {t(`viewer.zone.${z}`)}
                 </button>
               ))}
             </div>
@@ -556,7 +621,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                   transition: "color 0.2s",
                 }}
               >
-                {c.label}
+                {t(`viewer.${c.label.toLowerCase()}`)}
               </span>
               <span
                 className="mono"
@@ -622,7 +687,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                   transition: "color 0.2s",
                 }}
               >
-                {c.label}
+                {t(`viewer.${c.label.toLowerCase()}`)}
               </span>
               <span
                 className="mono"
@@ -657,7 +722,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           zIndex: 15,
         }}
       >
-        DRAG TO ROTATE · SCROLL TO ZOOM
+        {t("viewer.drag")}
       </div>
 
       {/* 7. Loading Overlay */}
@@ -687,7 +752,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
             }}
           />
           <span style={{ color: "#94A3B8", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
-            LOADING ANATOMICAL HUMANOID...
+            {t("viewer.loading")}
           </span>
         </div>
       )}

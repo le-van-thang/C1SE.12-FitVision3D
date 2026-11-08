@@ -99,7 +99,19 @@ export function createSkinnedZozofitMaterial(): THREE.ShaderMaterial {
  */
 export function loadRealHumanModel(
   params: HumanBodyParams,
-  activeZone: 'chest' | 'waist' | 'hips' | 'shoulders' | 'inseam' = 'waist',
+  activeZone:
+    | 'chest'
+    | 'waist'
+    | 'hips'
+    | 'shoulders'
+    | 'inseam'
+    | 'arm_length'
+    | 'bicep'
+    | 'wrist'
+    | 'thigh'
+    | 'calf'
+    | 'ankle'
+    | string = 'waist',
   onLoaded: (group: THREE.Group) => void
 ): void {
   const loader = new GLTFLoader();

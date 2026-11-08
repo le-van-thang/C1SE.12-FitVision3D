@@ -1,4 +1,4 @@
-import type { BodyMeasurements, PoseLandmark2D, Gender } from '@/types';
+﻿import type { BodyMeasurements, PoseLandmark2D, Gender } from '@/types';
 
 /**
  * Ramanujan First Approximation for Ellipse Perimeter:
@@ -107,15 +107,47 @@ export class AnthropometryCalculator {
     const hipSemiMinorCm = hipSemiMajorCm * 0.74;
     const rawHipCirc = calculateRamanujanPerimeter(hipSemiMajorCm, hipSemiMinorCm);
 
+    // Limb cross-sectional Ramanujan ellipses (ISO 8559-1 5.3.16 - 5.3.23):
+    // 1. Bicep Level (50% midpoint between acromion and olecranon)
+    const bicepSemiMajorCm = (shoulderBreadthCm * 0.33) / 2;
+    const bicepSemiMinorCm = bicepSemiMajorCm * 0.90;
+    const rawBicepCirc = calculateRamanujanPerimeter(bicepSemiMajorCm, bicepSemiMinorCm);
+
+    // 2. Wrist Level (92% from elbow to styloid process)
+    const wristSemiMajorCm = (shoulderBreadthCm * 0.205) / 2;
+    const wristSemiMinorCm = wristSemiMajorCm * 0.76;
+    const rawWristCirc = calculateRamanujanPerimeter(wristSemiMajorCm, wristSemiMinorCm);
+
+    // 3. Thigh Level (6% of inseam below crotch / gluteal fold)
+    const thighSemiMajorCm = hipSemiMajorCm * 0.58;
+    const thighSemiMinorCm = thighSemiMajorCm * 0.92;
+    const rawThighCirc = calculateRamanujanPerimeter(thighSemiMajorCm, thighSemiMinorCm);
+
+    // 4. Calf Level (56% of inseam below crotch - maximum gastrocnemius girth)
+    const calfSemiMajorCm = hipSemiMajorCm * 0.38;
+    const calfSemiMinorCm = calfSemiMajorCm * 0.94;
+    const rawCalfCirc = calculateRamanujanPerimeter(calfSemiMajorCm, calfSemiMinorCm);
+
+    // 5. Ankle Level (84% of inseam below crotch - minimum girth above malleoli)
+    const ankleSemiMajorCm = hipSemiMajorCm * 0.23;
+    const ankleSemiMinorCm = ankleSemiMajorCm * 0.88;
+    const rawAnkleCirc = calculateRamanujanPerimeter(ankleSemiMajorCm, ankleSemiMinorCm);
+
     // 4. Volume Penalty Garment Correction
     // Approximate integrated volume of body ellipsoids
     const estimatedMeshVolumeCm3 = (Math.PI * chestSemiMajorCm * chestSemiMinorCm * (statureHeightCm * 0.4)) * 1.6;
     const kPenalty = calculateVolumePenalty(weightKg, estimatedMeshVolumeCm3);
+    const kBonePenalty = Math.sqrt(kPenalty); // Distal bony joints (wrist, ankle) have lower soft-tissue variance
 
     // Corrected final circumferences
     const chestGirthCm = Math.round(rawChestCirc * kPenalty * 10) / 10;
     const waistGirthCm = Math.round(rawWaistCirc * kPenalty * 10) / 10;
     const hipGirthCm = Math.round(rawHipCirc * kPenalty * 10) / 10;
+    const bicepGirthCm = Math.round(rawBicepCirc * kPenalty * 10) / 10;
+    const wristGirthCm = Math.round(rawWristCirc * kBonePenalty * 10) / 10;
+    const thighGirthCm = Math.round(rawThighCirc * kPenalty * 10) / 10;
+    const calfGirthCm = Math.round(rawCalfCirc * kPenalty * 10) / 10;
+    const ankleGirthCm = Math.round(rawAnkleCirc * kBonePenalty * 10) / 10;
 
     return {
       unit: 'cm',
@@ -127,7 +159,11 @@ export class AnthropometryCalculator {
       armLength: armLengthCm || 61.0,
       insideLegLength: insideLegLengthCm || 79.5,
       neckGirth: 38.5,
-      thighGirth: 55.0,
+      bicepGirth: bicepGirthCm || (gender === 'female' ? 26.0 : 29.4),
+      wristGirth: wristGirthCm || (gender === 'female' ? 15.0 : 16.6),
+      thighGirth: thighGirthCm || (gender === 'female' ? 53.0 : 55.3),
+      calfGirth: calfGirthCm || (gender === 'female' ? 34.5 : 36.6),
+      ankleGirth: ankleGirthCm || (gender === 'female' ? 20.0 : 21.4),
       confidenceScore: 0.96,
       calibrationScaleRatio: scaleRatioPxToCm,
       createdAt: new Date().toISOString(),
