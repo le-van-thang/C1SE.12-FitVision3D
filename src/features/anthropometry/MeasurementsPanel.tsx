@@ -159,15 +159,6 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("shoulder_breadth_cm")}
         />
         <MetricRow
-          label={t("meas.inseam")}
-          sublabel={t("meas.inseamSub") || undefined}
-          field="inseam_cm"
-          value={measurement?.inseam_cm}
-          unit="cm"
-          isActive={activeMetric === "inseam_cm"}
-          onClick={() => onSelectMetric?.("inseam_cm")}
-        />
-        <MetricRow
           label={t("meas.armLength")}
           sublabel={t("meas.armLengthSub") || undefined}
           field="arm_length_cm"
@@ -175,6 +166,60 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           unit="cm"
           isActive={activeMetric === "arm_length_cm"}
           onClick={() => onSelectMetric?.("arm_length_cm")}
+        />
+        <MetricRow
+          label={t("meas.bicep")}
+          sublabel={t("meas.bicepSub") || undefined}
+          field="bicep_circ_cm"
+          value={measurement?.bicep_circ_cm}
+          unit="cm"
+          isActive={activeMetric === "bicep_circ_cm"}
+          onClick={() => onSelectMetric?.("bicep_circ_cm")}
+        />
+        <MetricRow
+          label={t("meas.wrist")}
+          sublabel={t("meas.wristSub") || undefined}
+          field="wrist_circ_cm"
+          value={measurement?.wrist_circ_cm}
+          unit="cm"
+          isActive={activeMetric === "wrist_circ_cm"}
+          onClick={() => onSelectMetric?.("wrist_circ_cm")}
+        />
+        <MetricRow
+          label={t("meas.thigh")}
+          sublabel={t("meas.thighSub") || undefined}
+          field="thigh_circ_cm"
+          value={measurement?.thigh_circ_cm}
+          unit="cm"
+          isActive={activeMetric === "thigh_circ_cm"}
+          onClick={() => onSelectMetric?.("thigh_circ_cm")}
+        />
+        <MetricRow
+          label={t("meas.calf")}
+          sublabel={t("meas.calfSub") || undefined}
+          field="calf_circ_cm"
+          value={measurement?.calf_circ_cm}
+          unit="cm"
+          isActive={activeMetric === "calf_circ_cm"}
+          onClick={() => onSelectMetric?.("calf_circ_cm")}
+        />
+        <MetricRow
+          label={t("meas.ankle")}
+          sublabel={t("meas.ankleSub") || undefined}
+          field="ankle_circ_cm"
+          value={measurement?.ankle_circ_cm}
+          unit="cm"
+          isActive={activeMetric === "ankle_circ_cm"}
+          onClick={() => onSelectMetric?.("ankle_circ_cm")}
+        />
+        <MetricRow
+          label={t("meas.inseam")}
+          sublabel={t("meas.inseamSub") || undefined}
+          field="inseam_cm"
+          value={measurement?.inseam_cm}
+          unit="cm"
+          isActive={activeMetric === "inseam_cm"}
+          onClick={() => onSelectMetric?.("inseam_cm")}
         />
       </div>
 

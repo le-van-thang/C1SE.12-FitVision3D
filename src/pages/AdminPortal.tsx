@@ -72,6 +72,7 @@ export const AdminPortal: React.FC = () => {
   // Modals & Action States
   const [rejectingStore, setRejectingStore] = useState<AdminStoreItem | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [viewProofImage, setViewProofImage] = useState<{ brand: string; url: string } | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -626,19 +627,44 @@ export const AdminPortal: React.FC = () => {
                               </div>
                             </td>
 
-                            {/* Verification Doc / Tax Code */}
+                            {/* Verification Doc / Tax Code / Image Proof */}
                             <td className="py-4 px-4 text-slate-300">
-                              <div className="flex items-center gap-1.5">
-                                <FileCheck2 size={13} className="text-emerald-400 shrink-0" />
-                                <span className="font-mono text-xs font-semibold text-slate-200">
-                                  {store.business_license_no || 'Đang cập nhật'}
-                                </span>
-                              </div>
-                              {store.tax_code && (
-                                <div className="text-[10px] font-mono text-slate-400 mt-0.5">
-                                  Mã số thuế: {store.tax_code}
-                                </div>
-                              )}
+                              {(() => {
+                                const raw = store.business_license_no || '';
+                                const hasImage = raw.includes('data:image') || raw.includes('http://') || raw.includes('https://');
+                                const textPart = raw.includes('|') ? raw.split('|')[0].trim() : (hasImage ? '' : raw);
+                                const imagePart = hasImage ? (raw.includes('|') ? raw.split('|')[1].trim() : raw) : null;
+
+                                return (
+                                  <div className="flex flex-col gap-1.5">
+                                    {textPart && (
+                                      <div className="flex items-center gap-1.5">
+                                        <FileCheck2 size={13} className="text-emerald-400 shrink-0" />
+                                        <span className="font-mono text-xs font-semibold text-slate-200">
+                                          {textPart}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {imagePart && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setViewProofImage({ brand: store.shop_name, url: imagePart })}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-medium transition cursor-pointer w-fit"
+                                      >
+                                        <span>👁️ Xem ảnh minh chứng</span>
+                                      </button>
+                                    )}
+                                    {!textPart && !imagePart && (
+                                      <span className="text-xs text-slate-400">Đang cập nhật</span>
+                                    )}
+                                    {store.tax_code && (
+                                      <div className="text-[10px] font-mono text-slate-400">
+                                        Mã số thuế: {store.tax_code}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </td>
 
                             {/* Status */}
@@ -1071,6 +1097,42 @@ export const AdminPortal: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Xem ảnh Minh chứng Pháp lý / GPKD */}
+        {viewProofImage && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+            onClick={() => setViewProofImage(null)}
+          >
+            <div
+              className="relative max-w-2xl w-full bg-[#11191E] border border-white/20 rounded-2xl p-5 shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div className="flex items-center gap-2">
+                  <FileCheck2 className="text-amber-400" size={20} />
+                  <h3 className="text-base font-bold text-white">
+                    Ảnh minh chứng: {viewProofImage.brand}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewProofImage(null)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="max-h-[70vh] overflow-auto rounded-lg bg-black/60 p-2 flex items-center justify-center">
+                <img
+                  src={viewProofImage.url}
+                  alt={`Minh chứng ${viewProofImage.brand}`}
+                  className="max-h-[65vh] w-auto object-contain rounded"
+                />
+              </div>
             </div>
           </div>
         )}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FitVision 3D (C1SE.12) - Core Type Definitions
  * Based on System Architecture Design & ISO 8559 Anthropometric Standards
  */
@@ -34,8 +34,11 @@ export interface BodyMeasurements {
   armLength: number;             // Chiều dài cánh tay (Acromion to wrist)
   insideLegLength: number;       // Dài đáy / Chiều dài chân trong (Inseam)
   neckGirth?: number;            // Vòng cổ
-  thighGirth?: number;           // Vòng đùi
-  bicepGirth?: number;           // Vòng bắp tay
+  bicepGirth?: number;           // Vòng bắp tay (ISO 8559-1 5.3.16)
+  wristGirth?: number;           // Vòng cổ tay (ISO 8559-1 5.3.18)
+  thighGirth?: number;           // Vòng đùi (ISO 8559-1 5.3.20)
+  calfGirth?: number;            // Vòng bắp chân (ISO 8559-1 5.3.22)
+  ankleGirth?: number;           // Vòng cổ chân (ISO 8559-1 5.3.23)
   
   // Extraction metadata
   confidenceScore: number;       // Độ tin cậy tính toán (0.0 - 1.0)

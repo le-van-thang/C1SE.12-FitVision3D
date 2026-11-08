@@ -210,6 +210,15 @@ export function checkHoneypot(trapValue?: string): boolean {
  * Client-side Rate Limiter
  * Limits requests per action (e.g. max 5 attempts in 10 minutes)
  */
+export interface RateLimitResult {
+  allowed: boolean;
+  waitSeconds?: number;
+  waitMinutes?: number;
+  remainingAttempts?: number;
+  maxAttempts?: number;
+  message?: string;
+}
+
 export class RateLimiter {
   private static STORAGE_KEY = 'fv3d_rate_limits';
 
@@ -230,24 +239,41 @@ export class RateLimiter {
     }
   }
 
-  public static checkLimit(action: string, maxAttempts = 5, windowMinutes = 2): { allowed: boolean; waitMinutes?: number } {
+  public static checkLimit(
+    action: string,
+    maxAttempts = 5,
+    windowSeconds = 30
+  ): RateLimitResult {
     const now = Date.now();
-    const windowMs = windowMinutes * 60 * 1000;
+    const windowMs = windowSeconds * 1000;
     const history = this.getHistory();
     const timestamps = (history[action] || []).filter((ts) => now - ts < windowMs);
 
     if (timestamps.length >= maxAttempts) {
       const oldestInWindow = timestamps[0];
       const waitMs = windowMs - (now - oldestInWindow);
-      const waitMinutes = Math.ceil(waitMs / 60000);
-      return { allowed: false, waitMinutes };
+      const waitSeconds = Math.max(1, Math.ceil(waitMs / 1000));
+      const waitMinutes = Math.ceil(waitSeconds / 60);
+      return {
+        allowed: false,
+        waitSeconds,
+        waitMinutes,
+        remainingAttempts: 0,
+        maxAttempts,
+        message: `Bạn đã thao tác quá ${maxAttempts} lần. Vui lòng chờ ${waitSeconds} giây trước khi thử lại.`,
+      };
     }
 
     timestamps.push(now);
     history[action] = timestamps;
     this.saveHistory(history);
 
-    return { allowed: true };
+    const remainingAttempts = Math.max(0, maxAttempts - timestamps.length);
+    return {
+      allowed: true,
+      remainingAttempts,
+      maxAttempts,
+    };
   }
 
   public static reset(action: string) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Lock,
@@ -47,6 +47,7 @@ export const AuthModal: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [termsAgreed, setTermsAgreed] = useState(true);
   const [websiteTrap, setWebsiteTrap] = useState('');
+  const formPaneRef = useRef<HTMLDivElement>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}); // Honeypot trap
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -163,6 +164,57 @@ export const AuthModal: React.FC = () => {
     return rawMsg || t('app.authErrors.DEFAULT_ERROR');
   };
 
+  const renderInlineError = () => {
+    if (!errorMessage) return null;
+    return (
+      <div
+        style={{
+          padding: '10px 14px',
+          borderRadius: 8,
+          background: 'rgba(239, 68, 68, 0.15)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+          color: '#FCA5A5',
+          fontSize: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          marginBottom: 10,
+          marginTop: 4,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertCircle size={16} className="shrink-0 text-red-400" />
+          <span style={{ flex: 1, lineHeight: 1.4 }}>{errorMessage}</span>
+        </div>
+        {(errorMessage.includes('chưa được kích hoạt') ||
+          errorMessage.toLowerCase().includes('activated') ||
+          errorMessage.includes('OTP')) && (
+          <button
+            type="button"
+            onClick={() => openVerifyEmail(email)}
+            style={{
+              alignSelf: 'flex-start',
+              background: '#4FD1C5',
+              color: '#0A0F12',
+              border: 'none',
+              borderRadius: 6,
+              padding: '5px 12px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              marginTop: 2,
+            }}
+          >
+            👉 Nhập mã kích hoạt OTP ngay
+          </button>
+        )}
+      </div>
+    );
+  };
+
   if (!isAuthModalOpen) return null;
 
   // 1. Handle Sign In
@@ -178,8 +230,10 @@ export const AuthModal: React.FC = () => {
     if (!res.success) {
       if (res.errorCode === 'AUTH_EMAIL_NOT_VERIFIED') {
         setErrorMessage(getLocalizedErrorMessage('AUTH_EMAIL_NOT_VERIFIED', res.error));
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         setErrorMessage(getLocalizedErrorMessage((res as any).errorCode, res.error));
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
   };
@@ -207,6 +261,7 @@ export const AuthModal: React.FC = () => {
       openVerifyEmail(email);
     } else {
       setErrorMessage(getLocalizedErrorMessage((res as any)?.errorCode, res.error));
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -520,7 +575,7 @@ export const AuthModal: React.FC = () => {
       </div>
 
       {/* ── CỘT PHẢI: FORM VIEW TOÀN MÀN HÌNH ── */}
-      <div className="zf-auth-form-pane">
+      <div ref={formPaneRef} className="zf-auth-form-pane">
         {/* Top bar with Back button and Close [X] */}
         <div
           style={{

@@ -92,10 +92,13 @@ CREATE TABLE IF NOT EXISTS shops (
     shop_address VARCHAR(255) NOT NULL,
     city VARCHAR(100) NULL,
     contact_email VARCHAR(255) NULL,
-    tax_code VARCHAR(20) NULL,
-    business_license_no VARCHAR(50) NULL,
+    tax_code VARCHAR(50) NULL,
+    business_license_no TEXT NULL,
     logo_url VARCHAR(255) NULL,
     description TEXT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CONSTRAINT chk_shops_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    rejection_reason TEXT NULL,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     approved_at TIMESTAMPTZ NULL,
 

@@ -9,6 +9,7 @@ import {
   RateLimiter,
 } from '@/lib/validationRules';
 import { authApi } from '@/services/authApi';
+import { adminApi } from '@/services/adminApi';
 
 const STORAGE_KEY_PROFILES = 'fv3d_auth_profiles_v1';
 const STORAGE_KEY_STORES = 'fv3d_auth_stores_v1';
@@ -65,9 +66,9 @@ export interface AuthContextType {
   signInWithGoogle: (data: { email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => Promise<{ success: boolean; error?: string }>;
 
   // Merchant Onboarding & Admin
-  applyMerchant: (payload: MerchantOnboardingPayload) => { success: boolean; error?: string };
-  approveStore: (storeId: string) => { success: boolean; error?: string };
-  rejectStore: (storeId: string, reason: string) => { success: boolean; error?: string };
+  applyMerchant: (payload: MerchantOnboardingPayload) => Promise<{ success: boolean; error?: string }>;
+  approveStore: (storeId: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
+  rejectStore: (storeId: string, reason: string) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
 
   // Demo Switcher
   switchDemoRole: (role: 'user' | 'pending' | 'store' | 'admin' | 'guest') => void;
@@ -251,12 +252,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, errorCode: 'BOT_DETECTED', error: 'Phát hiện hoạt động bot đáng ngờ (Honeypot Triggered).' };
       }
 
-      const limit = RateLimiter.checkLimit('login', 5, 1);
+      const limit = RateLimiter.checkLimit('login', 5, 30);
       if (!limit.allowed) {
         return {
           success: false,
           errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
-          error: `Đăng nhập quá số lần cho phép. Vui lòng thử lại sau ${limit.waitMinutes} phút.`,
+          error: limit.message || `Đăng nhập quá 5 lần cho phép. Vui lòng thử lại sau ${limit.waitSeconds || 30} giây.`,
         };
       }
 
@@ -334,12 +335,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, errorCode: 'AUTH_PASSWORD_MISMATCH', error: 'Mật khẩu xác nhận không trùng khớp với mật khẩu đã nhập.' };
       }
 
-      const limit = RateLimiter.checkLimit('register', 5, 2);
+      const limit = RateLimiter.checkLimit('register', 5, 30);
       if (!limit.allowed) {
         return {
           success: false,
           errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
-          error: `Quá số lần đăng ký cho phép. Vui lòng đợi ${limit.waitMinutes} phút trước khi thử lại.`,
+          error: limit.message || `Quá 5 lần đăng ký cho phép. Vui lòng đợi ${limit.waitSeconds || 30} giây trước khi thử lại.`,
         };
       }
 
@@ -465,7 +466,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 8. Merchant Onboarding (Apply for Store)
   const applyMerchant = useCallback(
-    (payload: MerchantOnboardingPayload) => {
+    async (payload: MerchantOnboardingPayload): Promise<{ success: boolean; error?: string }> => {
       if (!currentUser) {
         return { success: false, error: 'Vui lòng đăng nhập trước khi nộp hồ sơ mở cửa hàng.' };
       }
@@ -474,11 +475,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Phát hiện bot tự động (Honeypot Triggered).' };
       }
 
-      const limit = RateLimiter.checkLimit('apply_store', 5, 2);
+      const limit = RateLimiter.checkLimit('apply_store', 5, 30);
       if (!limit.allowed) {
         return {
           success: false,
-          error: `Bạn đã nộp hồ sơ quá nhiều lần. Vui lòng chờ ${limit.waitMinutes} phút.`,
+          error: limit.message || `Bạn đã nộp hồ sơ quá 5 lần. Vui lòng chờ ${limit.waitSeconds || 30} giây trước khi thao tác tiếp.`,
         };
       }
 
@@ -507,8 +508,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (verificationDoc.length < 3) {
         return {
           success: false,
-          error: 'Vui lòng cung cấp mã số GPKD hoặc link Website/Fanpage để xác thực đối tác.',
+          error: 'Vui lòng cung cấp mã số GPKD, mã số thuế hoặc ảnh minh chứng giấy phép.',
         };
+      }
+
+      // Gửi đồng bộ trực tiếp vào cơ sở dữ liệu PostgreSQL (qua backend API)
+      try {
+        await adminApi.applyStore({
+          shopName: brandName,
+          phoneNumber: payload.phone.trim(),
+          shopAddress: address,
+          businessLicenseNo: verificationDoc,
+        });
+      } catch (dbErr) {
+        console.warn('[applyMerchant] PostgreSQL API sync warning:', dbErr);
       }
 
       const existingStore = stores.find((s) => s.user_id === currentUser.id);

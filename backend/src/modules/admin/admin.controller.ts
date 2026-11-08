@@ -14,18 +14,18 @@ export const adminController = {
   },
 
   async approveStore(req: Request, res: Response) {
-    const { id } = req.params;
-    const adminUserId = req.user?.userId;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const adminUserId = (req.user?.sub || 'system');
     const store = await adminService.approveStore(id, adminUserId);
-    sendSuccess(res, store, 'Hồ sơ cửa hàng đã được phê duyệt thành công.');
+    sendSuccess(res, store, 200);
   },
 
   async rejectStore(req: Request, res: Response) {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { reason } = req.body;
-    const adminUserId = req.user?.userId;
+    const adminUserId = (req.user?.sub || 'system');
     const store = await adminService.rejectStore(id, reason, adminUserId);
-    sendSuccess(res, store, 'Hồ sơ cửa hàng đã bị từ chối.');
+    sendSuccess(res, store, 200);
   },
 
   async getUsers(req: Request, res: Response) {
@@ -34,19 +34,19 @@ export const adminController = {
   },
 
   async updateUserStatus(req: Request, res: Response) {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { status } = req.body;
-    const adminUserId = req.user?.userId;
+    const adminUserId = (req.user?.sub || 'system');
     const user = await adminService.updateUserStatus(id, status, adminUserId);
-    sendSuccess(res, user, 'Trạng thái người dùng đã được cập nhật.');
+    sendSuccess(res, user, 200);
   },
 
   async updateUserRole(req: Request, res: Response) {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { role } = req.body;
-    const adminUserId = req.user?.userId;
+    const adminUserId = (req.user?.sub || 'system');
     const user = await adminService.updateUserRole(id, role, adminUserId);
-    sendSuccess(res, user, 'Vai trò người dùng đã được cập nhật.');
+    sendSuccess(res, user, 200);
   },
 
   async getAuditLogs(req: Request, res: Response) {
@@ -56,7 +56,7 @@ export const adminController = {
   },
 
   async applyShop(req: Request, res: Response) {
-    const userId = req.user?.userId;
+    const userId = (req.user?.sub || 'system');
     if (!userId) {
       throw new Error('Yêu cầu xác thực.');
     }
@@ -67,7 +67,7 @@ export const adminController = {
       shopAddress,
       businessLicenseNo,
     });
-    sendSuccess(res, shop, 'Hồ sơ đã được gửi thành công và đang chờ xét duyệt.');
+    sendSuccess(res, shop, 201);
   },
 };
 

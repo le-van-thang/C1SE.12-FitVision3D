@@ -22,6 +22,11 @@ export const DEMO_MEASUREMENT: Measurement = {
   chest_circ_cm: 92.4, waist_circ_cm: 76.8, hip_circ_cm: 96.2,
   inseam_cm: 78.5, shoulder_breadth_cm: 42.1,
   arm_length_cm: 58.5,
+  bicep_circ_cm: 30.1,
+  wrist_circ_cm: 16.9,
+  thigh_circ_cm: 54.2,
+  calf_circ_cm: 37.0,
+  ankle_circ_cm: 22.4,
   extraction_confidence: 0.94, created_at: "2026-10-18T14:30:02Z",
 };
 

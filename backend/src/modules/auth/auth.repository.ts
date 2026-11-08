@@ -299,6 +299,30 @@ export const authRepository = {
     if (u) u.lockout_until = lockoutUntil;
   },
 
+  async updatePendingUser(email: string, fullName: string, passwordHash: string): Promise<UserEntity | null> {
+    const cleanEmail = email.toLowerCase().trim();
+    const now = new Date();
+    if (await isDbAvailable()) {
+      const rows = await query<UserEntity>(
+        `UPDATE users SET full_name = $1, password_hash = $2, updated_at = $3
+         WHERE LOWER(email) = LOWER($4) AND status = 'PENDING_VERIFY'
+         RETURNING *`,
+        [fullName, passwordHash, now, cleanEmail]
+      );
+      return rows[0] || null;
+    }
+    for (const u of memUsers.values()) {
+      if (u.email.toLowerCase() === cleanEmail && u.status === 'PENDING_VERIFY') {
+        u.full_name = fullName;
+        u.password_hash = passwordHash;
+        u.updated_at = now;
+        saveStore();
+        return u;
+      }
+    }
+    return null;
+  },
+
   async activateUser(email: string): Promise<UserEntity | null> {
     const cleanEmail = email.toLowerCase().trim();
     if (await isDbAvailable()) {

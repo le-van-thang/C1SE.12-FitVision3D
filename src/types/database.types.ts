@@ -63,6 +63,11 @@ export interface Measurement {
   inseam_cm: number | null;     // numeric(5,2)
   shoulder_breadth_cm: number | null; // numeric(5,2)
   arm_length_cm?: number | null; // numeric(5,2) - Chiều dài tay áo
+  bicep_circ_cm?: number | null; // numeric(5,2) - Vòng bắp tay
+  wrist_circ_cm?: number | null; // numeric(5,2) - Vòng cổ tay
+  thigh_circ_cm?: number | null; // numeric(5,2) - Vòng đùi
+  calf_circ_cm?: number | null; // numeric(5,2) - Vòng bắp chân
+  ankle_circ_cm?: number | null; // numeric(5,2) - Vòng cổ chân
   extraction_confidence: number; // numeric(3,2) NOT NULL [0.00-1.00]
   created_at: string;           // timestamptz NOT NULL
 }

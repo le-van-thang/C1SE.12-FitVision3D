@@ -86,7 +86,8 @@ export const Dashboard: React.FC = () => {
         const elapsed = (performance.now() - t0) / 1000;
 
         const meas = res.iso_8559_measurements;
-        const h = params.height_cm || meas.chieu_cao_cm || 172;
+        let h = params.height_cm || meas.chieu_cao_cm || 172;
+        if (h > 0 && h < 3.0) h = Math.round(h * 100.0 * 10) / 10;
         const w = params.weight_kg || meas.can_nang_kg || 70;
         const calcBmi = bmi(w, h);
 
@@ -126,6 +127,11 @@ export const Dashboard: React.FC = () => {
           shoulder_breadth_cm: meas.rong_vai_cm,
           inseam_cm: dai_chan_inseam_cm_fallback(meas.dai_chan_inseam_cm, h),
           arm_length_cm: meas.dai_tay_cm,
+          bicep_circ_cm: meas.vong_bap_tay_cm,
+          wrist_circ_cm: meas.vong_co_tay_cm,
+          thigh_circ_cm: meas.vong_dui_cm,
+          calf_circ_cm: meas.vong_bap_chan_cm,
+          ankle_circ_cm: meas.vong_co_chan_cm,
           extraction_confidence: res.is_live_backend ? 0.98 : 0.94,
           created_at: new Date().toISOString(),
         };

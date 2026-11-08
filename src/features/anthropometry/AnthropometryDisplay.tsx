@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Ruler, Sparkles, Check } from 'lucide-react';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -19,6 +19,11 @@ export const AnthropometryDisplay: React.FC<AnthropometryDisplayProps> = ({
     shoulderBreadth: 43.5,
     armLength: 61.0,
     insideLegLength: 79.5,
+    bicepGirth: 29.4,
+    wristGirth: 16.6,
+    thighGirth: 55.3,
+    calfGirth: 36.6,
+    ankleGirth: 21.4,
     unit: 'cm',
     confidenceScore: 0.95,
   },
@@ -40,8 +45,12 @@ export const AnthropometryDisplay: React.FC<AnthropometryDisplayProps> = ({
     { label: t('measurements.hips'), value: measurements.hipGirth, unit: 'cm', note: 'ISO 8559-1 #3.4' },
     { label: t('measurements.shoulder'), value: measurements.shoulderBreadth, unit: 'cm', note: 'Bi-acromial' },
     { label: t('measurements.armLength'), value: measurements.armLength, unit: 'cm', note: 'Acromion to wrist' },
+    { label: t('meas.bicep'), value: measurements.bicepGirth ?? 29.4, unit: 'cm', note: 'ISO 8559-1 #5.3.16' },
+    { label: t('meas.wrist'), value: measurements.wristGirth ?? 16.6, unit: 'cm', note: 'ISO 8559-1 #5.3.18' },
+    { label: t('meas.thigh'), value: measurements.thighGirth ?? 55.3, unit: 'cm', note: 'ISO 8559-1 #5.3.20' },
+    { label: t('meas.calf'), value: measurements.calfGirth ?? 36.6, unit: 'cm', note: 'ISO 8559-1 #5.3.22' },
+    { label: t('meas.ankle'), value: measurements.ankleGirth ?? 21.4, unit: 'cm', note: 'ISO 8559-1 #5.3.23' },
     { label: t('measurements.inseam'), value: measurements.insideLegLength, unit: 'cm', note: 'Crotch to ankle' },
-    { label: t('measurements.confidence'), value: Math.round(measurements.confidenceScore * 100), unit: '%', note: 'p95: 2.14s' },
   ];
 
   return (

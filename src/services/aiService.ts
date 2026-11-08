@@ -21,6 +21,11 @@ export interface AiMeasurementResponse {
     vong_mong_cm: number;
     rong_vai_cm: number;
     dai_tay_cm: number;
+    vong_bap_tay_cm?: number;
+    vong_co_tay_cm?: number;
+    vong_dui_cm?: number;
+    vong_bap_chan_cm?: number;
+    vong_co_chan_cm?: number;
     dai_chan_inseam_cm: number;
     can_nang_kg?: number;
   };
@@ -84,6 +89,11 @@ export async function runAiMeasurement(params: {
       const vong_mong = Number(rawMeas.vong_hong || rawMeas.vong_mong || rawMeas.vong_mong_cm || 94.0);
       const rong_vai = Number(rawMeas.rong_vai || rawMeas.rong_vai_cm || 42.0);
       const dai_tay = Number(rawMeas.dai_tay_ao || rawMeas.dai_tay || rawMeas.dai_tay_cm || 58.0);
+      const vong_bap_tay = rawMeas.vong_bap_tay != null ? Number(rawMeas.vong_bap_tay) : undefined;
+      const vong_co_tay = rawMeas.vong_co_tay != null ? Number(rawMeas.vong_co_tay) : undefined;
+      const vong_dui = rawMeas.vong_dui != null ? Number(rawMeas.vong_dui) : undefined;
+      const vong_bap_chan = rawMeas.vong_bap_chan != null ? Number(rawMeas.vong_bap_chan) : undefined;
+      const vong_co_chan = rawMeas.vong_co_chan != null ? Number(rawMeas.vong_co_chan) : undefined;
       const dai_chan = Number(rawMeas.dai_chan_inseam || rawMeas.dai_chan_inseam_cm || 76.0);
       const can_nang = Number(rawMeas.can_nang_uoc_tinh_kg || weight_kg);
 
@@ -127,6 +137,11 @@ export async function runAiMeasurement(params: {
           vong_mong_cm: vong_mong,
           rong_vai_cm: rong_vai,
           dai_tay_cm: dai_tay,
+          vong_bap_tay_cm: vong_bap_tay,
+          vong_co_tay_cm: vong_co_tay,
+          vong_dui_cm: vong_dui,
+          vong_bap_chan_cm: vong_bap_chan,
+          vong_co_chan_cm: vong_co_chan,
           dai_chan_inseam_cm: dai_chan,
           can_nang_kg: can_nang,
         },
@@ -140,8 +155,9 @@ export async function runAiMeasurement(params: {
   }
 
   // 2. Local ISO 8559 / Ramanujan anthropometric calculus fallback
-  const h = height_cm || 172.0;
-  const w = weight_kg || 70.0;
+  let h = height_cm || 172.0;
+  if (h > 0 && h < 3.0) h = Math.round(h * 100.0 * 10) / 10; // Tự động đổi mét (1.67m) sang cm (167cm)
+  let w = weight_kg || 70.0;
   const isMale = gender !== "female";
 
   // Anthropometric regression model based on ISO 8559-1:2017 & SMPL-X priors
@@ -160,6 +176,11 @@ export async function runAiMeasurement(params: {
   const shoulders = Math.round((h * (isMale ? 0.255 : 0.235)) * 10) / 10;
   const inseam = Math.round((h * 0.46) * 10) / 10;
   const arm = Math.round((h * 0.35) * 10) / 10;
+  const bicep = Math.round((h * 0.175 * bmiFactor) * 10) / 10;
+  const wrist = Math.round((h * 0.098) * 10) / 10;
+  const thigh = Math.round((h * 0.315 * bmiFactor) * 10) / 10;
+  const calf = Math.round((h * 0.215 * bmiFactor) * 10) / 10;
+  const ankle = Math.round((h * 0.13) * 10) / 10;
 
   // Garment Sizing Logic sử dụng pure engine đa hệ chuẩn quốc tế
   const garmentResult = recommendGarmentSizes({
@@ -188,6 +209,11 @@ export async function runAiMeasurement(params: {
       vong_mong_cm: hips,
       rong_vai_cm: shoulders,
       dai_tay_cm: arm,
+      vong_bap_tay_cm: bicep,
+      vong_co_tay_cm: wrist,
+      vong_dui_cm: thigh,
+      vong_bap_chan_cm: calf,
+      vong_co_chan_cm: ankle,
       dai_chan_inseam_cm: inseam,
       can_nang_kg: w,
     },
