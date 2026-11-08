@@ -97,6 +97,37 @@ export async function runAiMeasurement(params: {
       const dai_chan = Number(rawMeas.dai_chan_inseam || rawMeas.dai_chan_inseam_cm || 76.0);
       const can_nang = Number(rawMeas.can_nang_uoc_tinh_kg || weight_kg);
 
+      const isMaleLive = gender !== "female";
+      const liveBmi = can_nang / Math.pow(chieu_cao / 100, 2);
+      const liveBmiFactor = Math.sqrt(Math.max(liveBmi / 22.0, 0.75));
+      const liveBoneFactor = 0.5 + 0.5 * liveBmiFactor;
+
+      const vong_bap_tay = Number(
+        rawMeas.vong_bap_tay ||
+        rawMeas.vong_bap_tay_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.165 : 0.150) * liveBmiFactor * 10) / 10
+      );
+      const vong_co_tay = Number(
+        rawMeas.vong_co_tay ||
+        rawMeas.vong_co_tay_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.095 : 0.088) * liveBoneFactor * 10) / 10
+      );
+      const vong_dui = Number(
+        rawMeas.vong_dui ||
+        rawMeas.vong_dui_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.310 : 0.320) * liveBmiFactor * 10) / 10
+      );
+      const vong_bap_chan = Number(
+        rawMeas.vong_bap_chan ||
+        rawMeas.vong_bap_chan_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.205 : 0.200) * liveBmiFactor * 10) / 10
+      );
+      const vong_co_chan = Number(
+        rawMeas.vong_co_chan ||
+        rawMeas.vong_co_chan_cm ||
+        Math.round(chieu_cao * (isMaleLive ? 0.122 : 0.116) * liveBoneFactor * 10) / 10
+      );
+
       // Tự động làm giàu các hệ size nếu backend trả về cấu trúc cũ
       let garmentRecs = data.garment_size_recommendations;
       if (!garmentRecs || !garmentRecs.topwear) {
@@ -163,6 +194,7 @@ export async function runAiMeasurement(params: {
   // Anthropometric regression model based on ISO 8559-1:2017 & SMPL-X priors
   const calcBmi = w / Math.pow(h / 100, 2);
   const bmiFactor = Math.sqrt(Math.max(calcBmi / 22.0, 0.75));
+  const boneBmiFactor = 0.5 + 0.5 * bmiFactor;
 
   const chest = isMale
     ? Math.round((h * 0.54 * bmiFactor) * 10) / 10
@@ -176,11 +208,21 @@ export async function runAiMeasurement(params: {
   const shoulders = Math.round((h * (isMale ? 0.255 : 0.235)) * 10) / 10;
   const inseam = Math.round((h * 0.46) * 10) / 10;
   const arm = Math.round((h * 0.35) * 10) / 10;
-  const bicep = Math.round((h * 0.175 * bmiFactor) * 10) / 10;
-  const wrist = Math.round((h * 0.098) * 10) / 10;
-  const thigh = Math.round((h * 0.315 * bmiFactor) * 10) / 10;
-  const calf = Math.round((h * 0.215 * bmiFactor) * 10) / 10;
-  const ankle = Math.round((h * 0.13) * 10) / 10;
+  const bicep = isMale
+    ? Math.round((h * 0.165 * bmiFactor) * 10) / 10
+    : Math.round((h * 0.150 * bmiFactor) * 10) / 10;
+  const wrist = isMale
+    ? Math.round((h * 0.095 * boneBmiFactor) * 10) / 10
+    : Math.round((h * 0.088 * boneBmiFactor) * 10) / 10;
+  const thigh = isMale
+    ? Math.round((h * 0.310 * bmiFactor) * 10) / 10
+    : Math.round((h * 0.320 * bmiFactor) * 10) / 10;
+  const calf = isMale
+    ? Math.round((h * 0.205 * bmiFactor) * 10) / 10
+    : Math.round((h * 0.200 * bmiFactor) * 10) / 10;
+  const ankle = isMale
+    ? Math.round((h * 0.122 * boneBmiFactor) * 10) / 10
+    : Math.round((h * 0.116 * boneBmiFactor) * 10) / 10;
 
   // Garment Sizing Logic sử dụng pure engine đa hệ chuẩn quốc tế
   const garmentResult = recommendGarmentSizes({

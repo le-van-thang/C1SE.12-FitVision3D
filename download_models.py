@@ -46,6 +46,18 @@ MODELS_INFO = [
         "path": os.path.join(BASE_DIR, "common", "utils", "human_model_files", "smplx", "SMPLX_FEMALE.npz"),
         "url": "https://huggingface.co/camenduru/SMPLer-X/resolve/main/SMPLX_FEMALE.npz",
         "description": "Lưới 3D nhân trắc học nữ giới"
+    },
+    {
+        "name": "Ma trận khớp J14 Regressor (1.5MB)",
+        "path": os.path.join(BASE_DIR, "common", "utils", "human_model_files", "smplx", "SMPLX_to_J14.pkl"),
+        "url": "https://huggingface.co/camenduru/SMPLer-X/resolve/main/SMPLX_to_J14.pkl",
+        "description": "Ma trận ánh xạ 10.475 đỉnh sang 14 khớp chính J14"
+    },
+    {
+        "name": "Chỉ số đỉnh bàn tay MANO (20KB)",
+        "path": os.path.join(BASE_DIR, "common", "utils", "human_model_files", "smplx", "MANO_SMPLX_vertex_ids.pkl"),
+        "url": "https://huggingface.co/camenduru/SMPLer-X/resolve/main/MANO_SMPLX_vertex_ids.pkl",
+        "description": "Tập chỉ số đỉnh ánh xạ mô hình bàn tay MANO sang SMPL-X"
     }
 ]
 

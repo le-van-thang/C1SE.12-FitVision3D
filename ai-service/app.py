@@ -86,7 +86,7 @@ async def extract_measurements(
     gender: Optional[str] = Form("neutral", description="Giới tính giải phẫu: neutral, male, hoặc female")
 ):
     """
-    Endpoint tiếp nhận ảnh và trích xuất bảng số đo may mặc 8 thông số ISO 8559.
+    Endpoint tiếp nhận ảnh và trích xuất bảng số đo may mặc 13 thông số ISO 8559-1.
     """
     if MODELS["demoer"] is None:
         startup_event()
@@ -113,7 +113,7 @@ async def extract_measurements(
     # 2. Cắt ảnh và hồi quy vector 3D betas
     betas, _ = extract_3d_mesh(demoer, img, box_xywh, device)
 
-    # 3. Tính toán toàn bộ 8 số đo may mặc ISO 8559
+    # 3. Tính toán toàn bộ 13 số đo may mặc ISO 8559-1
     results = compute_measurements(
         betas=betas,
         height_cm_input=height_cm,

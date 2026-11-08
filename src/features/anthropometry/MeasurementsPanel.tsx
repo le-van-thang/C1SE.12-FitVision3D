@@ -73,7 +73,7 @@ export const MetricRow: React.FC<{
 };
 
 export interface MeasurementsPanelProps {
-  measurement: (Measurement & { arm_length_cm?: number | null }) | null;
+  measurement: Measurement | null;
   biometric: BiometricInput | null;
   activeMetric?: MetricKey | null;
   onSelectMetric?: (key: MetricKey) => void;
