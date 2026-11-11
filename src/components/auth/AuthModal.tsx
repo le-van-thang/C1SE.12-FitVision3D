@@ -611,7 +611,7 @@ export const AuthModal: React.FC = () => {
             <span>{t('app.auth.back')}</span>
           </button>
 
-          <LanguageSwitcher size="md" />
+          <LanguageSwitcher size="md" variant="dark" />
 
           <button
             type="button"

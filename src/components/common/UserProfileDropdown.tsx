@@ -136,7 +136,7 @@ export const UserProfileDropdown: React.FC<{ variant?: 'light' | 'dark' }> = ({ 
       {/* Floating Dropdown */}
       {isOpen && (
         <div
-          className="zf-dropdown-menu animate-fade-in"
+          className={isLight ? "zf-dropdown-menu--light animate-fade-in" : "zf-dropdown-menu animate-fade-in"}
           style={{
             position: 'absolute',
             right: 0,
@@ -145,7 +145,7 @@ export const UserProfileDropdown: React.FC<{ variant?: 'light' | 'dark' }> = ({ 
             background: isLight ? '#FFFFFF' : '#11191E',
             border: isLight ? '1px solid #E7E5E4' : '1px solid rgba(255, 255, 255, 0.12)',
             borderRadius: 16,
-            boxShadow: isLight ? '0 20px 45px -10px rgba(0, 0, 0, 0.15)' : '0 20px 45px -10px rgba(0, 0, 0, 0.85)',
+            boxShadow: isLight ? '0 20px 45px -10px rgba(28, 25, 23, 0.15)' : '0 20px 45px -10px rgba(0, 0, 0, 0.85)',
             padding: 16,
             color: isLight ? '#1C1917' : '#FFFFFF',
             zIndex: 1000,
