@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ShoppingBag,
   Sparkles,
@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   SlidersHorizontal,
   ChevronRight,
+  ChevronLeft,
   Ruler,
   ShieldCheck,
   Search,
@@ -33,6 +34,42 @@ import { MerchantOnboardingModal } from '@/components/store/MerchantOnboardingMo
 import { UserProfileDropdown } from '@/components/common/UserProfileDropdown';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { useI18n } from '@/i18n';
+
+// ── DYNAMIC 3D ANTHROPOMETRY TECH SLIDER DATA ──
+const TECH_BANNER_SLIDES = [
+  {
+    id: 'iso',
+    tag: 'ISO 8559-1',
+    badgeColor: 'bg-blue-600 text-white',
+    titleKey: 'ecommerce.hero.ticker.slide1Title',
+    descKey: 'ecommerce.hero.ticker.slide1Desc',
+    icon: Sparkles,
+  },
+  {
+    id: 'privacy',
+    tag: 'RAM In-Memory',
+    badgeColor: 'bg-emerald-600 text-white',
+    titleKey: 'ecommerce.hero.ticker.slide2Title',
+    descKey: 'ecommerce.hero.ticker.slide2Desc',
+    icon: ShieldCheck,
+  },
+  {
+    id: 'ramanujan',
+    tag: 'Ramanujan 3D',
+    badgeColor: 'bg-indigo-600 text-white',
+    titleKey: 'ecommerce.hero.ticker.slide3Title',
+    descKey: 'ecommerce.hero.ticker.slide3Desc',
+    icon: Ruler,
+  },
+  {
+    id: 'ease',
+    tag: 'Ease Allowance',
+    badgeColor: 'bg-amber-600 text-white',
+    titleKey: 'ecommerce.hero.ticker.slide4Title',
+    descKey: 'ecommerce.hero.ticker.slide4Desc',
+    icon: Scissors,
+  },
+];
 
 export const FashionStoreHome: React.FC = () => {
   const { isAuthenticated, userRole, openSignIn, openOnboarding } = useAuth();
@@ -65,6 +102,18 @@ export const FashionStoreHome: React.FC = () => {
   const [isAnalysisOpen, setIsAnalysisOpen] = useState<boolean>(false);
   const [isBiometricModalOpen, setIsBiometricModalOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
+  // Dynamic Tech Banner State
+  const [activeSlide, setActiveSlide] = useState<number>(0);
+  const [isTickerPaused, setIsTickerPaused] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isTickerPaused) return;
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % TECH_BANNER_SLIDES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isTickerPaused]);
 
   // Save body changes
   const handleSaveBody = (newBody: UserBodyProfile) => {
@@ -148,19 +197,7 @@ export const FashionStoreHome: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAFAF9] text-[#1C1917] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900 pb-20 md:pb-0">
       
-      {/* ── TOP ANNOUNCEMENT BAR (LUXURY ATELIER PERKS) ── */}
-      <aside
-        aria-label="Announcement"
-        style={{ backgroundColor: '#1E3A8A', color: '#FFFFFF' }}
-        className="text-white text-[11px] md:text-xs py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 shadow-xs"
-      >
-        <Sparkles size={14} className="text-amber-300 animate-pulse flex-shrink-0" />
-        <span>
-          {t('ecommerce.announcement.text', 'Trải nghiệm may đo thông minh 3D & gợi ý size chính xác chuẩn ISO 8559-1 • Miễn phí vận chuyển toàn quốc')}
-        </span>
-      </aside>
-
-      {/* ── ATELIER LIGHT NAVBAR ── */}
+      {/* ── ATELIER LIGHT NAVBAR (CLEAN TOP POSITION) ── */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 sm:gap-4">
           
@@ -239,18 +276,18 @@ export const FashionStoreHome: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200/70 border border-stone-200/80 text-stone-700 transition-all flex items-center justify-center cursor-pointer flex-shrink-0"
+              className="relative w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200/80 border border-stone-200/80 text-stone-700 transition-all duration-200 ease-out transform hover:-translate-y-0.5 hover:shadow-xs active:scale-95 flex items-center justify-center cursor-pointer flex-shrink-0"
               aria-label={t('ecommerce.nav.cart', 'Giỏ hàng')}
             >
               <ShoppingBag size={18} />
               {totalCartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow animate-in zoom-in-50 duration-200">
                   {totalCartCount}
                 </span>
               )}
             </button>
 
-            {/* Auth Button or User Profile */}
+            {/* Auth Button or User Profile with Professional Micro-Interactions */}
             {isAuthenticated ? (
               <UserProfileDropdown variant="light" />
             ) : (
@@ -258,10 +295,10 @@ export const FashionStoreHome: React.FC = () => {
                 type="button"
                 onClick={openSignIn}
                 style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 transition-all cursor-pointer group flex-shrink-0"
+                className="relative overflow-hidden inline-flex items-center gap-1.5 px-4 py-2 rounded-full hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer group flex-shrink-0 before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
               >
-                <LogIn size={14} className="text-white group-hover:scale-110 transition-transform flex-shrink-0" />
-                <span className="whitespace-nowrap">{t('ecommerce.nav.login', 'Đăng Nhập')}</span>
+                <LogIn size={14} className="text-white group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
+                <span className="whitespace-nowrap tracking-tight">{t('ecommerce.nav.login', 'Đăng Nhập')}</span>
               </button>
             )}
 
@@ -365,9 +402,76 @@ export const FashionStoreHome: React.FC = () => {
             {/* Left Column: Thesis & Value Prop */}
             <div className="lg:col-span-7 space-y-6 text-left">
               
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-900 text-xs font-semibold">
-                <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
-                <span>{t('ecommerce.hero.badge', 'Sàn Thời Trang 3D Chuẩn Nhân Trắc Học ISO 8559-1')}</span>
+              {/* Dynamic 3D Anthropometry Tech Motion Banner */}
+              <div
+                onMouseEnter={() => setIsTickerPaused(true)}
+                onMouseLeave={() => setIsTickerPaused(false)}
+                className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/40 to-stone-50 border border-blue-200/90 p-3 sm:p-3.5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-blue-300 group/banner"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  
+                  {/* Left: Animated Icon & Dynamic Content */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-blue-200/80 shadow-2xs flex items-center justify-center text-blue-600 flex-shrink-0 transition-transform duration-300 group-hover/banner:scale-105">
+                      {React.createElement(TECH_BANNER_SLIDES[activeSlide].icon, {
+                        size: 18,
+                        className: "text-blue-600 transition-all duration-300",
+                      })}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${TECH_BANNER_SLIDES[activeSlide].badgeColor}`}>
+                          {TECH_BANNER_SLIDES[activeSlide].tag}
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-stone-900 tracking-tight truncate">
+                          {t(TECH_BANNER_SLIDES[activeSlide].titleKey, 'Công Nghệ May Đo 3D')}
+                        </span>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-stone-600 truncate mt-0.5 font-normal">
+                        {t(TECH_BANNER_SLIDES[activeSlide].descKey, 'Phân tích nhân trắc học chính xác')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right: Slide Controls & Progress Dots */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSlide((prev) => (prev - 1 + TECH_BANNER_SLIDES.length) % TECH_BANNER_SLIDES.length)}
+                      aria-label="Previous Slide"
+                      className="w-7 h-7 rounded-lg bg-white/90 hover:bg-white border border-stone-200 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+
+                    <div className="flex items-center gap-1 px-1">
+                      {TECH_BANNER_SLIDES.map((slide, idx) => (
+                        <button
+                          key={slide.id}
+                          type="button"
+                          onClick={() => setActiveSlide(idx)}
+                          aria-label={`Slide ${idx + 1}`}
+                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                            idx === activeSlide
+                              ? 'w-5 bg-blue-600'
+                              : 'w-1.5 bg-stone-300 hover:bg-stone-400'
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveSlide((prev) => (prev + 1) % TECH_BANNER_SLIDES.length)}
+                      aria-label="Next Slide"
+                      className="w-7 h-7 rounded-lg bg-white/90 hover:bg-white border border-stone-200 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+
+                </div>
               </div>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-stone-900 leading-[1.2] sm:leading-[1.18]">
@@ -379,21 +483,21 @@ export const FashionStoreHome: React.FC = () => {
                 {t('ecommerce.hero.desc', 'Không còn nỗi lo chọn nhầm size hay phiền phức đổi trả. Thuật toán Trí Tuệ Nhân Tạo tự động phân tích vóc dáng và so khớp độ cử động (Ease Allowance) với từng đường kim mũi chỉ của nhà may.')}
               </p>
 
-              {/* Action Buttons */}
+              {/* Action Buttons with Professional Micro-Animations */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <a
                   href="/dashboard"
                   style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                  className="px-6 py-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all"
+                  className="relative overflow-hidden px-6 py-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm shadow-md shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 group cursor-pointer before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
                 >
-                  <Camera size={16} className="text-white" />
+                  <Camera size={16} className="text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200" />
                   <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng Bằng AI')}</span>
-                  <ChevronRight size={16} className="text-white" />
+                  <ChevronRight size={16} className="text-white group-hover:translate-x-1 transition-transform duration-200" />
                 </a>
 
                 <a
                   href="#catalog"
-                  className="px-6 py-3.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 font-semibold text-sm border border-stone-300 transition-all"
+                  className="px-6 py-3.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 font-semibold text-sm border border-stone-300/80 hover:border-stone-400 hover:shadow-md transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer"
                 >
                   {t('ecommerce.hero.ctaExplore', 'Khám Phá Bộ Sưu Tập')}
                 </a>
@@ -401,9 +505,9 @@ export const FashionStoreHome: React.FC = () => {
                 <button
                   type="button"
                   onClick={openOnboarding}
-                  className="px-4 py-3.5 rounded-xl bg-transparent hover:bg-stone-100 text-stone-600 hover:text-stone-900 text-xs font-semibold border border-transparent hover:border-stone-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-4 py-3.5 rounded-xl bg-transparent hover:bg-stone-100 active:scale-95 text-stone-700 hover:text-stone-900 text-xs font-semibold border border-transparent hover:border-stone-200 flex items-center gap-1.5 transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer group"
                 >
-                  <Store size={14} className="text-stone-500" />
+                  <Store size={14} className="text-stone-500 group-hover:text-blue-600 group-hover:scale-110 transition-all duration-200" />
                   <span>{t('ecommerce.hero.ctaMerchant', 'Đăng ký gian hàng may đo')}</span>
                 </button>
               </div>
@@ -515,7 +619,7 @@ export const FashionStoreHome: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsBiometricModalOpen(true)}
-              className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-xs flex items-center gap-1.5 transition-all duration-200 ease-out transform hover:-translate-y-0.5 hover:shadow-xs active:scale-95 cursor-pointer"
             >
               <SlidersHorizontal size={13} />
               <span>{t('ecommerce.biometricsBar.editMeasurements', 'Chỉnh sửa số đo')}</span>
@@ -570,7 +674,7 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         </div>
 
-        {/* Category Pills */}
+        {/* Category Pills with Micro-Interactions */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
           {[
             { id: 'all', label: t('ecommerce.catalog.tabAll', 'Tất Cả Sản Phẩm') },
@@ -584,10 +688,10 @@ export const FashionStoreHome: React.FC = () => {
               key={cat.id}
               type="button"
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer ${
                 activeCategory === cat.id
-                  ? 'bg-stone-900 text-white shadow-sm'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-400 hover:text-stone-900'
+                  ? 'bg-stone-900 text-white shadow-md'
+                  : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-400 hover:text-stone-900 hover:shadow-2xs'
               }`}
             >
               {cat.label}
@@ -660,7 +764,7 @@ export const FashionStoreHome: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenAnalysis(product)}
-                      className="absolute inset-x-3 bottom-3 py-2 px-3 rounded-xl bg-white/95 text-blue-700 font-bold text-xs shadow-md border border-stone-200/80 backdrop-blur opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-1.5 hover:bg-white cursor-pointer"
+                      className="absolute inset-x-3 bottom-3 py-2 px-3 rounded-xl bg-white/95 text-blue-700 font-bold text-xs shadow-md border border-stone-200/80 backdrop-blur opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-1.5 hover:bg-white cursor-pointer"
                     >
                       <Ruler size={13} className="text-blue-600" />
                       <span>{t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}</span>
@@ -719,10 +823,10 @@ export const FashionStoreHome: React.FC = () => {
                         type="button"
                         onClick={() => handleAddToCart(product, product.recommendedVariant)}
                         style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                        className="py-2 px-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer group"
+                        className="relative overflow-hidden py-2 px-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 ease-out transform hover:-translate-y-0.5 flex items-center gap-1.5 cursor-pointer group before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
                         title={t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)}
                       >
-                        <ShoppingBag size={13} className="text-white group-hover:scale-110 transition-transform" />
+                        <ShoppingBag size={13} className="text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200" />
                         <span className="tracking-tight">
                           {t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)}
                         </span>
@@ -791,42 +895,96 @@ export const FashionStoreHome: React.FC = () => {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="bg-stone-900 text-stone-400 text-xs py-10 border-t border-stone-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-1 text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-2 text-white font-bold text-sm">
-              <Scissors size={16} className="text-blue-400" />
-              <span>FitVision 3D (C1SE.12)</span>
+      {/* ── FOOTER (ENHANCED HIGH-CONTRAST MODERN DARK DESIGN) ── */}
+      <footer className="bg-stone-950 text-stone-200 text-xs py-12 border-t border-stone-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-stone-800/80">
+            {/* Brand & Capstone Information */}
+            <div className="space-y-2 text-left max-w-xl">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/30">
+                  <Scissors size={18} strokeWidth={2.2} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-lg text-white tracking-tight">
+                    FitVision <span className="text-blue-400">3D</span>
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/80">
+                    C1SE.12
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-stone-300 font-normal leading-relaxed">
+                {t('ecommerce.footer.capstone', 'Đồ Án Tốt Nghiệp Capstone: Nền Tảng Đo Nhân Trắc Học 3D & Sàn Thương Mại May Đo Thông Minh')}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-900 border border-stone-700/80 text-stone-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span className="text-stone-400">{t('ecommerce.footer.leader', 'Trưởng nhóm')}:</span>
+                  <span className="text-white font-bold">Lê Văn Thắng</span>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-900 border border-stone-700/80 text-stone-200">
+                  <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                  <span className="text-stone-400">{t('ecommerce.footer.advisor', 'GVHD')}:</span>
+                  <span className="text-white font-bold">TS. Lê Minh Thái</span>
+                </div>
+              </div>
             </div>
-            <p className="text-[11px] text-stone-500">
-              {t('ecommerce.footer.capstone', 'Đồ Án Tốt Nghiệp Capstone: Nền Tảng Đo Nhân Trắc Học 3D & Sàn Thương Mại May Đo Thông Minh')}
-            </p>
-            <p className="text-[10px] text-stone-600">
-              {t('ecommerce.footer.credits', 'Trưởng nhóm: Lê Văn Thắng • GVHD: TS. Lê Minh Thái')}
+
+            {/* Quick Navigation Action Links */}
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href="/dashboard"
+                className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-100 hover:text-white font-semibold transition-all duration-200 border border-stone-700/80 hover:border-blue-500/50 shadow-sm flex items-center gap-2 transform hover:-translate-y-0.5 active:scale-95"
+              >
+                <Camera size={14} className="text-blue-400" />
+                <span>{t('ecommerce.footer.booth', 'Buồng Quét 3D')}</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={openOnboarding}
+                className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-100 hover:text-white font-semibold transition-all duration-200 border border-stone-700/80 hover:border-emerald-500/50 shadow-sm flex items-center gap-2 cursor-pointer transform hover:-translate-y-0.5 active:scale-95"
+              >
+                <Store size={14} className="text-emerald-400" />
+                <span>{t('ecommerce.footer.registerMerchant', 'Đăng Ký Gian Hàng')}</span>
+              </button>
+
+              <a
+                href="https://github.com/le-van-thang/C1SE.12-FitVision3D"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-100 hover:text-white font-semibold transition-all duration-200 border border-stone-700/80 hover:border-purple-500/50 shadow-sm flex items-center gap-2 transform hover:-translate-y-0.5 active:scale-95"
+              >
+                <Layers size={14} className="text-purple-400" />
+                <span>{t('ecommerce.footer.github', 'GitHub Repository')}</span>
+              </a>
+            </div>
+
+          </div>
+
+          {/* Bottom Copyright and Standards */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-stone-300">
+            <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+              <span className="font-medium text-stone-200">© 2026 FitVision 3D</span>
+              <span className="text-stone-600">•</span>
+              <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-700 text-stone-200 font-mono text-[10px]">
+                {t('ecommerce.footer.isoBadge', 'Chuẩn ISO 8559-1:2014')}
+              </span>
+              <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 font-mono text-[10px]">
+                {t('ecommerce.footer.privacyBadge', 'Bảo Mật RAM 100%')}
+              </span>
+            </div>
+
+            <p className="text-stone-300 text-center sm:text-right font-medium">
+              {t('ecommerce.footer.tagline', 'Chuẩn Hóa Số Đo May Đo Cho Người Việt')}
             </p>
           </div>
 
-          <div className="flex items-center gap-6 text-[11px]">
-            <a href="/dashboard" className="hover:text-white transition-colors">
-              {t('ecommerce.footer.booth', 'Buồng Quét 3D')}
-            </a>
-            <button
-              type="button"
-              onClick={openOnboarding}
-              className="hover:text-white transition-colors bg-transparent border-0 cursor-pointer"
-            >
-              {t('ecommerce.footer.registerMerchant', 'Đăng Ký Gian Hàng')}
-            </button>
-            <a
-              href="https://github.com/le-van-thang/C1SE.12-FitVision3D"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-white transition-colors"
-            >
-              {t('ecommerce.footer.github', 'GitHub Repository')}
-            </a>
-          </div>
         </div>
       </footer>
 

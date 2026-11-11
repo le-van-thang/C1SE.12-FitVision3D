@@ -181,10 +181,10 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
               <button
                 onClick={onCheckout}
                 style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                className="w-full py-3.5 px-4 rounded-xl hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="relative overflow-hidden group w-full py-3.5 px-4 rounded-xl hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 flex items-center justify-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
               >
                 <span>{t('ecommerce.drawer.checkout', 'Tiến Hành Đặt Hàng Ngay')}</span>
-                <ArrowRight size={16} />
+                <ArrowRight size={16} className="text-white group-hover:translate-x-1 transition-transform duration-200" />
               </button>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-stone-500">

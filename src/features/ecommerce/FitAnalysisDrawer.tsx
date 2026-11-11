@@ -126,15 +126,15 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                     <button
                       key={v.id}
                       onClick={() => onSelectSize(v)}
-                      className={`relative py-2.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                      className={`relative py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 ease-out transform active:scale-95 cursor-pointer ${
                         isSelected
-                          ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
-                          : 'bg-white text-stone-700 border-stone-200 hover:border-stone-400'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 scale-[1.02]'
+                          : 'bg-white text-stone-700 border-stone-200 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700 hover:shadow-2xs'
                       }`}
                     >
                       {v.size_label}
                       {isRecommended && (
-                        <span className="absolute -top-1.5 -right-1 px-1.5 py-0.2 bg-emerald-600 text-white text-[9px] font-bold rounded-full">
+                        <span className="absolute -top-2 -right-1 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-extrabold rounded-full shadow-2xs">
                           AI
                         </span>
                       )}
@@ -254,12 +254,12 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 onClose();
               }}
               style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-              className="w-full py-3.5 px-4 rounded-xl hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="relative overflow-hidden group w-full py-3.5 px-4 rounded-xl hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 flex items-center justify-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
             >
               <span>
                 {t('ecommerce.drawer.addToCartSize', 'Thêm Size {size} Vào Giỏ Hàng').replace('{size}', selectedVariant.size_label)}
               </span>
-              <ChevronRight size={16} />
+              <ChevronRight size={16} className="text-white group-hover:translate-x-1 transition-transform duration-200" />
             </button>
             <p className="text-[11px] text-center text-stone-400">
               {t('ecommerce.drawer.backedBy', 'Được bảo chứng bởi thuật toán AI Sizing Engine v2.5')}

@@ -828,6 +828,16 @@
     },
     "hero": {
       "badge": "Sàn Thời Trang 3D Chuẩn Nhân Trắc Học ISO 8559-1",
+      "ticker": {
+        "slide1Title": "Đo Nhân Trắc Học Chuẩn Y Khoa ISO 8559-1",
+        "slide1Desc": "Trích xuất 13 mốc giải phẫu may mặc chính xác chỉ từ 2 góc chụp không tiếp xúc",
+        "slide2Title": "Bảo Mật Quyền Riêng Tư RAM Tuyệt Đối",
+        "slide2Desc": "Xoá sạch ảnh ngay sau khi đo đạc, không lưu trữ dữ liệu nhạy cảm trên máy chủ",
+        "slide3Title": "Mô Phỏng Cắt Lớp Elip Ramanujan 3D",
+        "slide3Desc": "Tính chu vi ngực, eo, hông bằng tích phân elip bậc hai với sai số dưới 1.2%",
+        "slide4Title": "Độ Cử Động May Đo Thực Tế (+3cm ~ +6cm)",
+        "slide4Desc": "Tự động bù trừ độ chùng vải theo cấu trúc sợi dệt giúp tôn dáng và cử động êm ái"
+      },
       "title1": "Thời Trang Vừa Vặn",
       "titleHighlight": "Tuyệt Đối",
       "title2": "Từng Centimet.",
@@ -889,10 +899,15 @@
     },
     "footer": {
       "capstone": "Đồ Án Tốt Nghiệp Capstone: Nền Tảng Đo Nhân Trắc Học 3D & Sàn Thương Mại May Đo Thông Minh",
+      "leader": "Trưởng nhóm",
+      "advisor": "GVHD",
       "credits": "Trưởng nhóm: Lê Văn Thắng • GVHD: TS. Lê Minh Thái",
       "booth": "Buồng Quét 3D",
       "registerMerchant": "Đăng Ký Gian Hàng",
-      "github": "GitHub Repository"
+      "github": "GitHub Repository",
+      "isoBadge": "Chuẩn ISO 8559-1:2014",
+      "privacyBadge": "Bảo Mật RAM 100%",
+      "tagline": "Chuẩn Hóa Số Đo May Đo Cho Người Việt"
     },
     "mobileNav": {
       "explore": "Khám phá",

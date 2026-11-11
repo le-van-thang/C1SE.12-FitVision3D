@@ -828,6 +828,16 @@
     },
     "hero": {
       "badge": "3D Fashion Platform Powered by ISO 8559-1 Anthropometry",
+      "ticker": {
+        "slide1Title": "ISO 8559-1 Medical-Grade 3D Anthropometry",
+        "slide1Desc": "Contact-free extraction of 13 anatomical garment landmarks from just 2 photos",
+        "slide2Title": "100% In-Memory RAM Privacy Guarantee",
+        "slide2Desc": "Instant photo destruction from RAM after sizing, zero sensitive imagery on servers",
+        "slide3Title": "3D Ramanujan Elliptical Slice Modeling",
+        "slide3Desc": "Calculates chest, waist, and hip circumferences via quadratic integrals (< 1.2% error)",
+        "slide4Title": "Artisan Tailor Ease Allowance (+3cm to +6cm)",
+        "slide4Desc": "Dynamic garment ease computed per weave structure for impeccable drape & comfort"
+      },
       "title1": "Flawlessly Fitted Fashion",
       "titleHighlight": "Down To",
       "title2": "Every Centimeter.",
@@ -889,10 +899,15 @@
     },
     "footer": {
       "capstone": "Capstone Graduation Project: 3D Anthropometric Sizing Platform & Smart Tailored eCommerce",
+      "leader": "Team Leader",
+      "advisor": "Advisor",
       "credits": "Team Leader: Le Van Thang • Advisor: Dr. Le Minh Thai",
       "booth": "3D Scan Booth",
       "registerMerchant": "Merchant Registration",
-      "github": "GitHub Repository"
+      "github": "GitHub Repository",
+      "isoBadge": "ISO 8559-1:2014 Standard",
+      "privacyBadge": "100% RAM Privacy",
+      "tagline": "Standardizing Custom Sizing for Vietnamese & Global Body Types"
     },
     "mobileNav": {
       "explore": "Explore",

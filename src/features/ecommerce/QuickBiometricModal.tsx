@@ -178,16 +178,16 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-100 transition-all duration-200 active:scale-95 cursor-pointer"
               >
                 {t('ecommerce.biometricModal.cancel', 'Hủy bỏ')}
               </button>
               <button
                 type="submit"
                 style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                className="px-5 py-2.5 rounded-lg text-xs font-semibold hover:bg-blue-700 text-white transition-all shadow flex items-center gap-1.5 cursor-pointer"
+                className="relative overflow-hidden px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer group before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:transition-transform before:duration-700"
               >
-                <Check size={14} />
+                <Check size={14} className="text-white group-hover:scale-110 transition-transform duration-200" />
                 <span>{t('ecommerce.biometricModal.save', 'Lưu & Tự Động Cập Nhật Size')}</span>
               </button>
             </div>
