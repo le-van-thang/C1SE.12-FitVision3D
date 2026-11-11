@@ -930,13 +930,14 @@
       "sizePrefix": "Cỡ",
       "aiRec": "AI khuyên dùng",
       "fitScorePrefix": "Độ vừa vặn:",
-      "subtotal": "Tạm tính:",
-      "shipping": "Phí vận chuyển:",
-      "free": "Miễn phí",
+      "fitMatchBadge": "Vừa vặn {score}%",
+      "subtotal": "Tạm tính ({count} món):",
+      "shipping": "Phí giao hàng toàn quốc:",
+      "free": "Miễn phí (Ưu đãi Capstone)",
       "totalAmount": "Tổng thanh toán:",
-      "checkout": "Tiến Hành Đặt May & Thanh Toán",
+      "checkout": "Tiến Hành Đặt Hàng Ngay",
       "checkoutDemoNotice": "Tính năng thanh toán demo: Đơn hàng đã được ghi nhận với các size tối ưu theo AI!",
-      "checkoutProtected": "Được bảo đảm bởi chính sách May Đo Vừa Vặn FitVision 3D"
+      "checkoutProtected": "Bảo hiểm vừa vặn 100% đổi trả tận nhà miễn phí"
     },
     "biometricModal": {
       "title": "Hồ Sơ Nhân Trắc Học 3D Của Bạn",

@@ -18,6 +18,7 @@ export interface ProductVariant {
   id: string;
   size_label: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
   color_name: string;
+  color_name_en?: string;
   color_hex: string;
   sku: string;
   stock: number;
@@ -28,6 +29,7 @@ export interface FashionProduct {
   id: string;
   brand_name: string;
   name: string;
+  name_en?: string;
   slug: string;
   category: 'all' | 'shirt' | 'polo' | 'pants' | 'dress' | 'tailored';
   gender_target: 'male' | 'female' | 'unisex';
@@ -36,10 +38,12 @@ export interface FashionProduct {
   rating: number;
   reviews_count: number;
   fabric_material: string;
+  fabric_material_en?: string;
   stretch_type: 'Không co giãn' | 'Co giãn nhẹ (2-3%)' | 'Co giãn tốt (4-way)';
   image_url: string;
   secondary_image_url?: string;
   description: string;
+  description_en?: string;
   variants: ProductVariant[];
   is_bestseller?: boolean;
   is_bespoke?: boolean;

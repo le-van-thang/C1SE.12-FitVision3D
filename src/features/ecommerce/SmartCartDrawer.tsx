@@ -20,9 +20,11 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
   onUpdateQuantity,
   onCheckout,
 }) => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   if (!isOpen) return null;
+
+  const isEn = locale === 'en';
 
   const totalAmount = items.reduce(
     (sum, item) => sum + (item.product.sale_price || item.product.price) * item.quantity,
@@ -109,7 +111,7 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                         </button>
                       </div>
                       <h5 className="text-xs font-medium text-stone-900 line-clamp-1 mt-0.5">
-                        {item.product.name}
+                        {isEn && item.product.name_en ? item.product.name_en : item.product.name}
                       </h5>
 
                       {/* Size & AI Badge */}
@@ -120,7 +122,9 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                         {item.is_ai_recommended && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <Sparkles size={10} />
-                            <span>{t('ecommerce.drawer.fitScorePrefix', 'Độ vừa vặn:')} {item.fit_score}%</span>
+                            <span>
+                              {t('ecommerce.drawer.fitMatchBadge', 'Vừa vặn {score}%').replace('{score}', String(item.fit_score))}
+                            </span>
                           </span>
                         )}
                       </div>
@@ -161,12 +165,12 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
             <div className="p-6 border-t border-stone-200 bg-stone-50/50 space-y-3">
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-stone-500">
-                  <span>{t('ecommerce.drawer.subtotal', 'Tạm tính:')} ({items.length})</span>
+                  <span>{t('ecommerce.drawer.subtotal', 'Tạm tính ({count} món):').replace('{count}', String(items.length))}</span>
                   <span>{totalAmount.toLocaleString('vi-VN')} ₫</span>
                 </div>
                 <div className="flex justify-between text-stone-500">
-                  <span>{t('ecommerce.drawer.shipping', 'Phí vận chuyển:')}</span>
-                  <span className="text-emerald-700 font-medium">{t('ecommerce.drawer.free', 'Miễn phí')}</span>
+                  <span>{t('ecommerce.drawer.shipping', 'Phí giao hàng toàn quốc:')}</span>
+                  <span className="text-emerald-700 font-medium">{t('ecommerce.drawer.free', 'Miễn phí (Ưu đãi Capstone)')}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-stone-900 pt-2 border-t border-stone-200">
                   <span>{t('ecommerce.drawer.totalAmount', 'Tổng thanh toán:')}</span>
@@ -179,13 +183,13 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                 style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
                 className="w-full py-3.5 px-4 rounded-xl hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <span>{t('ecommerce.drawer.checkout', 'Tiến Hành Đặt May & Thanh Toán')}</span>
+                <span>{t('ecommerce.drawer.checkout', 'Tiến Hành Đặt Hàng Ngay')}</span>
                 <ArrowRight size={16} />
               </button>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-stone-500">
                 <ShieldCheck size={13} className="text-emerald-600" />
-                <span>{t('ecommerce.drawer.checkoutProtected', 'Được bảo đảm bởi chính sách May Đo Vừa Vặn FitVision 3D')}</span>
+                <span>{t('ecommerce.drawer.checkoutProtected', 'Bảo hiểm vừa vặn 100% đổi trả tận nhà miễn phí')}</span>
               </div>
             </div>
           )}

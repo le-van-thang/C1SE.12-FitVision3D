@@ -83,8 +83,12 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
                   {product.brand_name}
                 </span>
-                <h4 className="text-sm font-medium text-stone-900 line-clamp-1">{product.name}</h4>
-                <p className="text-xs text-stone-500 mt-0.5">{product.fabric_material}</p>
+                <h4 className="text-sm font-medium text-stone-900 line-clamp-1">
+                  {isEn && product.name_en ? product.name_en : product.name}
+                </h4>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {isEn && product.fabric_material_en ? product.fabric_material_en : product.fabric_material}
+                </p>
                 <p className="text-sm font-semibold text-stone-900 mt-1">
                   {product.price.toLocaleString('vi-VN')} ₫
                 </p>

@@ -930,13 +930,14 @@
       "sizePrefix": "Size",
       "aiRec": "AI Recommended",
       "fitScorePrefix": "Fit score:",
-      "subtotal": "Subtotal:",
-      "shipping": "Shipping:",
-      "free": "Free",
-      "totalAmount": "Total:",
-      "checkout": "Proceed to Tailor & Checkout",
+      "fitMatchBadge": "{score}% Match",
+      "subtotal": "Subtotal ({count} items):",
+      "shipping": "Nationwide delivery:",
+      "free": "Free (Capstone perk)",
+      "totalAmount": "Total amount:",
+      "checkout": "Proceed to Checkout",
       "checkoutDemoNotice": "Demo checkout: Order recorded with AI-optimized sizes!",
-      "checkoutProtected": "Protected by FitVision 3D Perfect Fit Guarantee"
+      "checkoutProtected": "100% Fit Guarantee with free doorstep exchange"
     },
     "biometricModal": {
       "title": "Your 3D Anthropometric Profile",

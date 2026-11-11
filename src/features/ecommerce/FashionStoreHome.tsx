@@ -72,6 +72,11 @@ export const FashionStoreHome: React.FC = () => {
     sessionStorage.setItem('fv3d_user_body', JSON.stringify(newBody));
   };
 
+  // Helpers for bilingual product representation
+  const getProductName = (p: FashionProduct) => (locale === 'en' && p.name_en ? p.name_en : p.name);
+  const getProductFabric = (p: FashionProduct) => (locale === 'en' && p.fabric_material_en ? p.fabric_material_en : p.fabric_material);
+  const getProductDesc = (p: FashionProduct) => (locale === 'en' && p.description_en ? p.description_en : p.description);
+
   // Pre-calculate fit scores for all products
   const productsWithFit = useMemo(() => {
     return MOCK_PRODUCTS.map((prod) => {
@@ -84,20 +89,20 @@ export const FashionStoreHome: React.FC = () => {
         recommendedVariant,
       };
     });
-  }, [userBody]);
+  }, [userBody, locale]);
 
   // Filtered products
   const filteredProducts = useMemo(() => {
     return productsWithFit.filter((item) => {
       const matchCat = activeCategory === 'all' || item.category === activeCategory;
       const matchSearch =
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getProductName(item).toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.brand_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.fabric_material.toLowerCase().includes(searchQuery.toLowerCase());
+        getProductFabric(item).toLowerCase().includes(searchQuery.toLowerCase());
       const matchFit = !filterByMyFitOnly || item.fitResult.match_percentage >= 90;
       return matchCat && matchSearch && matchFit;
     });
-  }, [productsWithFit, activeCategory, searchQuery, filterByMyFitOnly]);
+  }, [productsWithFit, activeCategory, searchQuery, filterByMyFitOnly, locale]);
 
   // Cart Actions
   const handleAddToCart = (product: FashionProduct, variant?: ProductVariant) => {
@@ -666,10 +671,10 @@ export const FashionStoreHome: React.FC = () => {
                   <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
                     <div>
                       <h4 className="font-bold text-xs sm:text-sm text-stone-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
-                        {product.name}
+                        {getProductName(product)}
                       </h4>
                       <p className="text-xs text-stone-600 font-medium mt-1 line-clamp-1">
-                        {product.fabric_material}
+                        {getProductFabric(product)}
                       </p>
                     </div>
 
@@ -930,7 +935,7 @@ export const FashionStoreHome: React.FC = () => {
           );
         }}
         onCheckout={() => {
-          alert('Tính năng thanh toán demo: Đơn hàng đã được ghi nhận với các size tối ưu theo AI!');
+          alert(t('ecommerce.drawer.checkoutDemoNotice', 'Tính năng thanh toán demo: Đơn hàng đã được ghi nhận với các size tối ưu theo AI!'));
           setCartItems([]);
           setIsCartOpen(false);
         }}
