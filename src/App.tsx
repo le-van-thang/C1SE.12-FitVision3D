@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { I18nProvider } from "./i18n";
 import { Landing } from "./landing/Landing";
+import { FashionStoreHome } from "./features/ecommerce/FashionStoreHome";
 import { Dashboard } from "./pages/Dashboard";
 import { TailorStudio } from "./pages/TailorStudio";
 import { SizeChartManager } from "./pages/SizeChartManager";
@@ -39,7 +40,8 @@ export const App: React.FC = () => (
     <I18nProvider>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<FashionStoreHome />} />
+          <Route path="/legacy-landing" element={<Landing />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
           <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
