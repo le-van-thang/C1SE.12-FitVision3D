@@ -142,26 +142,26 @@ export const FashionStoreHome: React.FC = () => {
     <div className="min-h-screen bg-[#FAFAF9] text-[#1C1917] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900 pb-20 md:pb-0">
       
       {/* ── TOP ANNOUNCEMENT BAR ── */}
-      <aside aria-label="Announcement" className="bg-[#1C1917] text-white text-[11px] md:text-xs py-1.5 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2">
-        <Sparkles size={13} className="text-amber-400" />
+      <aside aria-label="Announcement" className="bg-stone-900 text-stone-200 text-[11px] md:text-xs py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2">
+        <Sparkles size={13} className="text-amber-400 flex-shrink-0" />
         <span>
           Đồ Án Capstone C1SE.12: Trải nghiệm công nghệ thử kích cỡ 3D đầu tiên tại Việt Nam chuẩn ISO 8559-1
         </span>
       </aside>
 
       {/* ── ATELIER LIGHT NAVBAR ── */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-stone-200/80 transition-all">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
           {/* Brand Logo */}
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-lg bg-blue-700 flex items-center justify-center text-white shadow-sm group-hover:bg-blue-800 transition-colors">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm group-hover:bg-blue-700 transition-colors">
                 <Scissors size={18} strokeWidth={2} />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-base md:text-lg tracking-tight text-stone-900 flex items-center gap-1">
-                  FitVision <span className="text-blue-700 font-extrabold">3D</span>
+                <span className="font-extrabold text-base md:text-lg tracking-tight text-stone-900 flex items-center gap-1">
+                  FitVision <span className="text-blue-600">3D</span>
                 </span>
                 <span className="text-[9px] font-semibold uppercase tracking-wider text-stone-400 -mt-1 hidden sm:block">
                   Atelier & 3D Sizing
@@ -170,44 +170,37 @@ export const FashionStoreHome: React.FC = () => {
             </a>
           </div>
 
-          {/* Center Navigation Links (Desktop) */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold text-stone-600">
-            <button
-              onClick={() => setActiveCategory('all')}
-              className={`hover:text-blue-700 transition-colors ${activeCategory === 'all' ? 'text-blue-700 font-bold' : ''}`}
-            >
-              Bộ Sưu Tập
-            </button>
-            <button
-              onClick={() => setActiveCategory('shirt')}
-              className={`hover:text-blue-700 transition-colors ${activeCategory === 'shirt' ? 'text-blue-700 font-bold' : ''}`}
-            >
-              Áo Sơ Mi Nam
-            </button>
-            <button
-              onClick={() => setActiveCategory('polo')}
-              className={`hover:text-blue-700 transition-colors ${activeCategory === 'polo' ? 'text-blue-700 font-bold' : ''}`}
-            >
-              Áo Polo Lụa
-            </button>
-            <button
-              onClick={() => setActiveCategory('pants')}
-              className={`hover:text-blue-700 transition-colors ${activeCategory === 'pants' ? 'text-blue-700 font-bold' : ''}`}
-            >
-              Quần Tây Ý
-            </button>
-            <button
-              onClick={() => setActiveCategory('dress')}
-              className={`hover:text-blue-700 transition-colors ${activeCategory === 'dress' ? 'text-blue-700 font-bold' : ''}`}
-            >
-              Đầm Lụa Nữ
-            </button>
+          {/* Center Navigation Links (Desktop Segmented Control) */}
+          <nav className="hidden lg:flex items-center gap-1 p-1 bg-stone-100 rounded-full border border-stone-200/80 text-xs font-semibold">
+            {[
+              { id: 'all', label: 'Bộ Sưu Tập' },
+              { id: 'shirt', label: 'Áo Sơ Mi Nam' },
+              { id: 'polo', label: 'Áo Polo Lụa' },
+              { id: 'pants', label: 'Quần Tây Ý' },
+              { id: 'dress', label: 'Đầm Lụa Nữ' },
+            ].map((cat) => {
+              const isActive = activeCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-white text-stone-900 font-bold shadow-xs border border-stone-200/70'
+                      : 'text-stone-600 hover:text-stone-900 hover:bg-white/50 border border-transparent'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
             <a
               href="/dashboard"
-              className="text-stone-500 hover:text-blue-700 flex items-center gap-1 transition-colors"
+              className="px-3 py-1.5 rounded-full text-stone-600 hover:text-blue-600 hover:bg-white/50 flex items-center gap-1 transition-all"
             >
               <span>Phòng Lab Đo 3D</span>
-              <span className="text-[9px] px-1 py-0.2 bg-stone-100 rounded text-stone-600 font-mono">
+              <span className="text-[9px] px-1 py-0.2 bg-blue-50 text-blue-700 font-bold rounded border border-blue-200">
                 ISO
               </span>
             </a>
@@ -217,8 +210,9 @@ export const FashionStoreHome: React.FC = () => {
           <div className="flex items-center gap-2.5">
             {/* Quick Biometrics Status Pill (Desktop) */}
             <button
+              type="button"
               onClick={() => setIsBiometricModalOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-100 hover:bg-stone-200/80 border border-stone-200 text-xs font-medium text-stone-700 transition-all"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white hover:bg-stone-50 border border-stone-200 text-xs font-medium text-stone-700 shadow-2xs transition-all cursor-pointer"
               title="Xem và chỉnh sửa số đo cơ thể"
             >
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -231,7 +225,7 @@ export const FashionStoreHome: React.FC = () => {
             {/* Camera Scan Action Button */}
             <a
               href="/dashboard"
-              className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-50 text-blue-800 hover:bg-blue-100 font-semibold text-xs border border-blue-200 transition-all"
+              className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs border border-blue-200 transition-all"
             >
               <Camera size={14} />
               <span>Quét Lại 3D</span>
@@ -239,13 +233,14 @@ export const FashionStoreHome: React.FC = () => {
 
             {/* Shopping Cart Button */}
             <button
+              type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2 rounded-lg hover:bg-stone-100 text-stone-700 transition-colors flex items-center justify-center"
+              className="relative w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200/70 border border-stone-200/80 text-stone-700 transition-all flex items-center justify-center cursor-pointer"
               aria-label="Giỏ hàng"
             >
-              <ShoppingBag size={20} />
+              <ShoppingBag size={18} />
               {totalCartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-700 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow">
                   {totalCartCount}
                 </span>
               )}
@@ -253,11 +248,12 @@ export const FashionStoreHome: React.FC = () => {
 
             {/* Auth Button or User Profile */}
             {isAuthenticated ? (
-              <UserProfileDropdown />
+              <UserProfileDropdown variant="light" />
             ) : (
               <button
+                type="button"
                 onClick={openSignIn}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-black text-white text-xs font-semibold shadow-sm transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-900 hover:bg-black text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
               >
                 <LogIn size={13} />
                 <span className="hidden sm:inline">Đăng Nhập</span>
@@ -266,13 +262,14 @@ export const FashionStoreHome: React.FC = () => {
 
             {/* Language Switcher */}
             <div className="hidden sm:block">
-              <LanguageSwitcher />
+              <LanguageSwitcher variant="light" />
             </div>
 
             {/* Mobile Menu Toggle */}
             <button
+              type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-stone-100 text-stone-700"
+              className="lg:hidden p-2 rounded-lg hover:bg-stone-100 text-stone-700 cursor-pointer"
               aria-label="Menu"
             >
               {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -286,38 +283,42 @@ export const FashionStoreHome: React.FC = () => {
           <div className="lg:hidden border-t border-stone-200 bg-white p-4 space-y-3 animate-in slide-in-from-top-2">
             <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
               <button
+                type="button"
                 onClick={() => {
                   setActiveCategory('all');
                   setIsMobileMenuOpen(false);
                 }}
-                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left"
+                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left cursor-pointer"
               >
                 Tất Cả Sản Phẩm
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setActiveCategory('shirt');
                   setIsMobileMenuOpen(false);
                 }}
-                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left"
+                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left cursor-pointer"
               >
                 Áo Sơ Mi Nam
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setActiveCategory('polo');
                   setIsMobileMenuOpen(false);
                 }}
-                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left"
+                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left cursor-pointer"
               >
                 Áo Polo Lụa
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setActiveCategory('pants');
                   setIsMobileMenuOpen(false);
                 }}
-                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left"
+                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left cursor-pointer"
               >
                 Quần Tây May Đo
               </button>
@@ -325,21 +326,23 @@ export const FashionStoreHome: React.FC = () => {
 
             <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
               <button
+                type="button"
                 onClick={() => {
                   setIsBiometricModalOpen(true);
                   setIsMobileMenuOpen(false);
                 }}
-                className="text-xs font-semibold text-blue-700 flex items-center gap-1"
+                className="text-xs font-semibold text-blue-600 flex items-center gap-1 cursor-pointer"
               >
                 <Ruler size={14} />
                 <span>Số đo: {userBody.height_cm}cm / {userBody.weight_kg}kg</span>
               </button>
               <button
+                type="button"
                 onClick={() => {
                   openOnboarding();
                   setIsMobileMenuOpen(false);
                 }}
-                className="text-xs font-semibold text-stone-600 flex items-center gap-1"
+                className="text-xs font-semibold text-stone-600 flex items-center gap-1 cursor-pointer"
               >
                 <Store size={14} />
                 <span>Mở Gian Hàng B2B</span>
@@ -357,14 +360,14 @@ export const FashionStoreHome: React.FC = () => {
             {/* Left Column: Thesis & Value Prop */}
             <div className="lg:col-span-7 space-y-6 text-left">
               
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-blue-900 text-xs font-semibold">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-900 text-xs font-semibold">
                 <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
-                <span>Sàn Thời Trang 3D Ứng Dụng Nhân Trắc Học ISO 8559-1</span>
+                <span>Sàn Thời Trang 3D Chuẩn Nhân Trắc Học ISO 8559-1</span>
               </div>
 
-              <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight text-stone-900 leading-[1.12]">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-stone-900 leading-[1.2] sm:leading-[1.18]">
                 Thời Trang Vừa Vặn <br className="hidden sm:inline" />
-                <span className="text-blue-700 italic font-serif">Tuyệt Đối</span> Từng Centimet.
+                <span className="text-blue-600">Tuyệt Đối</span> Từng Centimet.
               </h1>
 
               <p className="text-stone-600 text-sm sm:text-base leading-relaxed max-w-xl">
@@ -375,7 +378,7 @@ export const FashionStoreHome: React.FC = () => {
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <a
                   href="/dashboard"
-                  className="px-6 py-3.5 rounded-xl bg-blue-700 hover:bg-blue-800 active:scale-95 text-white font-semibold text-sm shadow-md shadow-blue-700/20 flex items-center gap-2 transition-all"
+                  className="px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all"
                 >
                   <Camera size={16} />
                   <span>Quét Vóc Dáng Bằng AI</span>
@@ -384,16 +387,17 @@ export const FashionStoreHome: React.FC = () => {
 
                 <a
                   href="#catalog"
-                  className="px-6 py-3.5 rounded-xl bg-white hover:bg-stone-50 active:scale-95 text-stone-800 font-semibold text-sm border border-stone-300 transition-all"
+                  className="px-6 py-3.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 font-semibold text-sm border border-stone-300 transition-all"
                 >
                   Khám Phá Bộ Sưu Tập
                 </a>
 
                 <button
+                  type="button"
                   onClick={openOnboarding}
-                  className="px-4 py-3.5 rounded-xl text-stone-500 hover:text-stone-900 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  className="px-4 py-3.5 rounded-xl bg-transparent hover:bg-stone-100 text-stone-600 hover:text-stone-900 text-xs font-semibold border border-transparent hover:border-stone-200 flex items-center gap-1.5 transition-all cursor-pointer"
                 >
-                  <Store size={14} />
+                  <Store size={14} className="text-stone-500" />
                   <span>Đăng ký gian hàng may đo</span>
                 </button>
               </div>
@@ -447,7 +451,7 @@ export const FashionStoreHome: React.FC = () => {
                 </div>
 
                 {/* Floating AI Fit Score Badge (Core Hero Feature) */}
-                <div className="absolute -top-4 -left-4 sm:-left-6 bg-white p-3.5 rounded-xl shadow-lg border border-stone-200 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-xs">
+                <div className="absolute -top-4 -left-4 sm:-left-6 bg-white/95 backdrop-blur-sm p-3.5 rounded-xl shadow-xl border border-stone-200/90 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-xs z-10">
                   <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-mono font-bold text-base flex-shrink-0">
                     98%
                   </div>
@@ -457,13 +461,13 @@ export const FashionStoreHome: React.FC = () => {
                       <CheckCircle2 size={13} className="text-emerald-600" />
                     </div>
                     <p className="text-[11px] text-stone-500">
-                      Gợi ý: <b>Size L</b> (Ngực 96cm | Eo 78cm)
+                      Gợi ý: <b className="text-stone-900">Size L</b> (Ngực 96cm | Eo 78cm)
                     </p>
                   </div>
                 </div>
 
                 {/* Floating Tape Measure Pill */}
-                <div className="absolute -bottom-4 -right-4 sm:-right-6 bg-white py-2.5 px-4 rounded-xl shadow-lg border border-stone-200 flex items-center gap-2">
+                <div className="absolute -bottom-4 -right-4 sm:-right-6 bg-white/95 backdrop-blur-sm py-2.5 px-4 rounded-xl shadow-xl border border-stone-200/90 flex items-center gap-2 z-10">
                   <Ruler size={16} className="text-amber-700" />
                   <span className="text-xs font-mono font-semibold text-stone-800">
                     Dài tay: 58.5cm • Rộng vai: 43cm
@@ -500,10 +504,12 @@ export const FashionStoreHome: React.FC = () => {
             </div>
 
             <button
+              type="button"
               onClick={() => setIsBiometricModalOpen(true)}
-              className="text-blue-700 hover:text-blue-900 font-semibold underline decoration-blue-300"
+              className="text-blue-700 hover:text-blue-900 font-semibold text-xs flex items-center gap-1 hover:underline cursor-pointer"
             >
-              Chỉnh sửa số đo
+              <SlidersHorizontal size={13} />
+              <span>Chỉnh sửa số đo</span>
             </button>
           </div>
 
@@ -514,7 +520,7 @@ export const FashionStoreHome: React.FC = () => {
                 type="checkbox"
                 checked={filterByMyFitOnly}
                 onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-700 focus:ring-blue-600 border-stone-300"
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-stone-300 accent-blue-600 cursor-pointer"
               />
               <span className="font-medium text-stone-800">
                 Chỉ hiển thị trang phục vừa chuẩn vóc dáng tôi (≥ 90%)
@@ -531,10 +537,10 @@ export const FashionStoreHome: React.FC = () => {
         {/* Section Heading & Category Tabs */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-widest text-amber-800">
+            <span className="text-xs font-bold uppercase tracking-widest text-amber-800">
               Bộ Sưu Tập Thời Trang Thông Minh
             </span>
-            <h2 className="text-2xl sm:text-3xl font-serif font-medium text-stone-900 mt-1">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight mt-1">
               Khám Phá Kích Cỡ Dành Riêng Cho Bạn
             </h2>
             <p className="text-xs sm:text-sm text-stone-500 mt-1">
@@ -567,11 +573,12 @@ export const FashionStoreHome: React.FC = () => {
           ].map((cat) => (
             <button
               key={cat.id}
+              type="button"
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 activeCategory === cat.id
                   ? 'bg-stone-900 text-white shadow-sm'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-400'
+                  : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-400 hover:text-stone-900'
               }`}
             >
               {cat.label}
@@ -642,8 +649,9 @@ export const FashionStoreHome: React.FC = () => {
 
                     {/* Quick Fit Peek Action on Hover */}
                     <button
+                      type="button"
                       onClick={() => handleOpenAnalysis(product)}
-                      className="absolute inset-x-3 bottom-3 py-2 px-3 rounded-xl bg-white/95 text-stone-900 font-semibold text-xs shadow-md backdrop-blur opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-1.5 hover:bg-white"
+                      className="absolute inset-x-3 bottom-3 py-2 px-3 rounded-xl bg-white/95 text-stone-900 font-semibold text-xs shadow-md backdrop-blur opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-1.5 hover:bg-white cursor-pointer"
                     >
                       <Ruler size={13} className="text-blue-700" />
                       <span>Xem Độ Vừa Vặn 3D</span>
@@ -694,8 +702,9 @@ export const FashionStoreHome: React.FC = () => {
                       </div>
 
                       <button
+                        type="button"
                         onClick={() => handleAddToCart(product, product.recommendedVariant)}
-                        className="py-1.5 px-3 rounded-lg bg-stone-900 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold transition-all flex items-center gap-1 shadow-2xs"
+                        className="py-1.5 px-3 rounded-lg bg-stone-900 hover:bg-blue-600 active:scale-95 text-white text-xs font-semibold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
                       >
                         <ShoppingBag size={12} />
                         <span className="hidden sm:inline">Chọn Size {fit.recommended_size}</span>
@@ -720,7 +729,7 @@ export const FashionStoreHome: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-widest text-blue-700">
               Công Nghệ Đằng Sau Sự Vừa Vặn
             </span>
-            <h2 className="text-2xl sm:text-3xl font-serif font-medium text-stone-900 mt-1">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight mt-1">
               Tại Sao FitVision 3D Chuẩn Xác Hơn Bảng Size Thông Thường?
             </h2>
           </div>
@@ -777,7 +786,7 @@ export const FashionStoreHome: React.FC = () => {
 
           <div className="flex items-center gap-6 text-[11px]">
             <a href="/dashboard" className="hover:text-white transition-colors">Buồng Quét 3D</a>
-            <button onClick={openOnboarding} className="hover:text-white transition-colors">Đăng Ký Gian Hàng</button>
+            <button type="button" onClick={openOnboarding} className="hover:text-white transition-colors bg-transparent border-0 cursor-pointer">Đăng Ký Gian Hàng</button>
             <a href="https://github.com/le-van-thang/C1SE.12-FitVision3D" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub Repository</a>
           </div>
         </div>
@@ -786,16 +795,18 @@ export const FashionStoreHome: React.FC = () => {
       {/* ── MOBILE BOTTOM THUMB NAVIGATION BAR (UI/UX PRO MAX PRIORITY 2) ── */}
       <nav aria-label="Mobile Navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-2 flex items-center justify-around shadow-lg">
         <button
+          type="button"
           onClick={() => setActiveCategory('all')}
-          className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-700 min-w-[50px] min-h-[44px] justify-center"
+          className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center bg-transparent border-0 cursor-pointer"
         >
           <Scissors size={18} />
           <span>Khám phá</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setIsBiometricModalOpen(true)}
-          className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-700 min-w-[50px] min-h-[44px] justify-center"
+          className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center bg-transparent border-0 cursor-pointer"
         >
           <Ruler size={18} />
           <span>Số đo</span>
@@ -806,20 +817,21 @@ export const FashionStoreHome: React.FC = () => {
           href="/dashboard"
           className="flex flex-col items-center -mt-5 group"
         >
-          <div className="w-12 h-12 rounded-full bg-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-700/30 group-hover:scale-105 active:scale-95 transition-all">
+          <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 group-hover:scale-105 active:scale-95 transition-all">
             <Camera size={22} />
           </div>
-          <span className="text-[9px] font-bold text-blue-800 mt-1">Quét 3D</span>
+          <span className="text-[9px] font-bold text-blue-700 mt-1">Quét 3D</span>
         </a>
 
         <button
+          type="button"
           onClick={() => setIsCartOpen(true)}
-          className="relative flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-700 min-w-[50px] min-h-[44px] justify-center"
+          className="relative flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center bg-transparent border-0 cursor-pointer"
         >
           <ShoppingBag size={18} />
           <span>Giỏ hàng</span>
           {totalCartCount > 0 && (
-            <span className="absolute top-1 right-2 w-4 h-4 rounded-full bg-blue-700 text-white text-[9px] font-bold flex items-center justify-center">
+            <span className="absolute top-1 right-2 w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
               {totalCartCount}
             </span>
           )}
@@ -828,15 +840,16 @@ export const FashionStoreHome: React.FC = () => {
         {isAuthenticated ? (
           <a
             href="/dashboard"
-            className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-700 min-w-[50px] min-h-[44px] justify-center"
+            className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center"
           >
             <UserIcon size={18} />
             <span>Hồ sơ</span>
           </a>
         ) : (
           <button
+            type="button"
             onClick={openSignIn}
-            className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-700 min-w-[50px] min-h-[44px] justify-center"
+            className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center bg-transparent border-0 cursor-pointer"
           >
             <LogIn size={18} />
             <span>Đăng nhập</span>

@@ -13,12 +13,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { useNavigate } from 'react-router-dom';
 
-export const UserProfileDropdown: React.FC = () => {
+export const UserProfileDropdown: React.FC<{ variant?: 'light' | 'dark' }> = ({ variant = 'dark' }) => {
   const {
     currentUser,
     currentStore,
     signOut,
-        openOnboarding,
+    openOnboarding,
     openStatusModal,
   } = useAuth();
 
@@ -26,6 +26,7 @@ export const UserProfileDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const isLight = variant === 'light';
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -53,8 +54,15 @@ export const UserProfileDropdown: React.FC = () => {
       ? t('app.role.pendingStore')
       : t('app.role.user');
 
-  const roleBadgeStyle: React.CSSProperties =
-    role === 'admin'
+  const roleBadgeStyle: React.CSSProperties = isLight
+    ? role === 'admin'
+      ? { background: '#EEF2FF', color: '#4F46E5', borderColor: '#C7D2FE' }
+      : isApprovedStore
+      ? { background: '#ECFDF5', color: '#059669', borderColor: '#A7F3D0' }
+      : isPendingStore
+      ? { background: '#FFFBEB', color: '#D97706', borderColor: '#FDE68A' }
+      : { background: '#F5F5F4', color: '#57534E', borderColor: '#E7E5E4' }
+    : role === 'admin'
       ? { background: 'rgba(99, 102, 241, 0.2)', color: '#A5B4FC', borderColor: 'rgba(99, 102, 241, 0.35)' }
       : isApprovedStore
       ? { background: 'rgba(79, 209, 197, 0.2)', color: '#4FD1C5', borderColor: 'rgba(79, 209, 197, 0.35)' }
@@ -77,13 +85,13 @@ export const UserProfileDropdown: React.FC = () => {
           height: 36,
           padding: '0 12px 0 6px',
           borderRadius: 999,
-          background: '#162229',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          color: '#FFFFFF',
+          background: isLight ? '#FFFFFF' : '#162229',
+          border: isLight ? '1px solid #E7E5E4' : '1px solid rgba(255, 255, 255, 0.12)',
+          color: isLight ? '#1C1917' : '#FFFFFF',
           fontSize: 12,
           fontWeight: 500,
           cursor: 'pointer',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.06)' : '0 1px 3px rgba(0,0,0,0.3)',
           userSelect: 'none',
         }}
         id="user-profile-pill"
@@ -93,9 +101,9 @@ export const UserProfileDropdown: React.FC = () => {
             width: 24,
             height: 24,
             borderRadius: '50%',
-            background: 'rgba(79, 209, 197, 0.2)',
-            border: '1px solid rgba(79, 209, 197, 0.4)',
-            color: '#4FD1C5',
+            background: isLight ? '#EFF6FF' : 'rgba(79, 209, 197, 0.2)',
+            border: isLight ? '1px solid #BFDBFE' : '1px solid rgba(79, 209, 197, 0.4)',
+            color: isLight ? '#1D4ED8' : '#4FD1C5',
             fontWeight: 700,
             fontSize: 11,
             display: 'flex',
@@ -105,7 +113,7 @@ export const UserProfileDropdown: React.FC = () => {
         >
           {initial}
         </div>
-        <span style={{ fontWeight: 600, color: '#FFFFFF', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontWeight: 600, color: isLight ? '#1C1917' : '#FFFFFF', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {currentUser.full_name}
         </span>
         <span
@@ -122,7 +130,7 @@ export const UserProfileDropdown: React.FC = () => {
         >
           {roleLabel}
         </span>
-        <ChevronDown size={14} style={{ color: '#94A3B8', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+        <ChevronDown size={14} style={{ color: isLight ? '#78716C' : '#94A3B8', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
       </button>
 
       {/* Floating Dropdown */}
@@ -134,27 +142,27 @@ export const UserProfileDropdown: React.FC = () => {
             right: 0,
             top: 'calc(100% + 8px)',
             width: 300,
-            background: '#11191E',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
+            background: isLight ? '#FFFFFF' : '#11191E',
+            border: isLight ? '1px solid #E7E5E4' : '1px solid rgba(255, 255, 255, 0.12)',
             borderRadius: 16,
-            boxShadow: '0 20px 45px -10px rgba(0, 0, 0, 0.85)',
+            boxShadow: isLight ? '0 20px 45px -10px rgba(0, 0, 0, 0.15)' : '0 20px 45px -10px rgba(0, 0, 0, 0.85)',
             padding: 16,
-            color: '#FFFFFF',
+            color: isLight ? '#1C1917' : '#FFFFFF',
             zIndex: 1000,
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
           }}
         >
           {/* User Details Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: 12, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: 12, borderBottom: isLight ? '1px solid #F5F5F4' : '1px solid rgba(255, 255, 255, 0.08)' }}>
             <div
               style={{
                 width: 38,
                 height: 38,
                 borderRadius: 10,
-                background: 'linear-gradient(135deg, rgba(79, 209, 197, 0.3), rgba(38, 53, 107, 0.4))',
-                border: '1px solid rgba(79, 209, 197, 0.4)',
-                color: '#4FD1C5',
+                background: isLight ? '#EFF6FF' : 'linear-gradient(135deg, rgba(79, 209, 197, 0.3), rgba(38, 53, 107, 0.4))',
+                border: isLight ? '1px solid #BFDBFE' : '1px solid rgba(79, 209, 197, 0.4)',
+                color: isLight ? '#1D4ED8' : '#4FD1C5',
                 fontWeight: 700,
                 fontSize: 15,
                 display: 'flex',
@@ -166,10 +174,10 @@ export const UserProfileDropdown: React.FC = () => {
               {initial}
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: isLight ? '#1C1917' : '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {currentUser.full_name}
               </div>
-              <div style={{ fontSize: 11, color: '#94A3B8', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 11, color: isLight ? '#78716C' : '#94A3B8', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {currentUser.email}
               </div>
               <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -188,7 +196,7 @@ export const UserProfileDropdown: React.FC = () => {
                   {roleLabel}
                 </span>
                 {currentStore && (
-                  <span style={{ fontSize: 11, color: '#4FD1C5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 11, color: isLight ? '#2563EB' : '#4FD1C5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     • {currentStore.brand_name}
                   </span>
                 )}
@@ -212,9 +220,9 @@ export const UserProfileDropdown: React.FC = () => {
                   justifyContent: 'space-between',
                   padding: '8px 10px',
                   borderRadius: 8,
-                  background: 'rgba(246, 173, 85, 0.1)',
-                  border: '1px solid rgba(246, 173, 85, 0.3)',
-                  color: '#FCD34D',
+                  background: isLight ? '#FEF3C7' : 'rgba(246, 173, 85, 0.1)',
+                  border: isLight ? '1px solid #FDE68A' : '1px solid rgba(246, 173, 85, 0.3)',
+                  color: isLight ? '#B45309' : '#FCD34D',
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -224,7 +232,7 @@ export const UserProfileDropdown: React.FC = () => {
                   <StoreIcon size={14} />
                   <span>{t('app.menu.partner')}</span>
                 </span>
-                <span style={{ fontSize: 9, textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontWeight: 700, background: 'rgba(246, 173, 85, 0.2)', padding: '2px 5px', borderRadius: 4 }}>
+                <span style={{ fontSize: 9, textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontWeight: 700, background: isLight ? '#FDE68A' : 'rgba(246, 173, 85, 0.2)', padding: '2px 5px', borderRadius: 4 }}>
                   B2B
                 </span>
               </button>
@@ -244,9 +252,9 @@ export const UserProfileDropdown: React.FC = () => {
                   justifyContent: 'space-between',
                   padding: '8px 10px',
                   borderRadius: 8,
-                  background: 'rgba(246, 173, 85, 0.12)',
-                  border: '1px solid rgba(246, 173, 85, 0.3)',
-                  color: '#FCD34D',
+                  background: isLight ? '#FEF3C7' : 'rgba(246, 173, 85, 0.12)',
+                  border: isLight ? '1px solid #FDE68A' : '1px solid rgba(246, 173, 85, 0.3)',
+                  color: isLight ? '#B45309' : '#FCD34D',
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -274,9 +282,9 @@ export const UserProfileDropdown: React.FC = () => {
                   justifyContent: 'space-between',
                   padding: '8px 10px',
                   borderRadius: 8,
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  color: '#F87171',
+                  background: isLight ? '#FEE2E2' : 'rgba(239, 68, 68, 0.12)',
+                  border: isLight ? '1px solid #FECACA' : '1px solid rgba(239, 68, 68, 0.3)',
+                  color: isLight ? '#DC2626' : '#F87171',
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -304,9 +312,9 @@ export const UserProfileDropdown: React.FC = () => {
                   justifyContent: 'space-between',
                   padding: '8px 10px',
                   borderRadius: 8,
-                  background: 'rgba(99, 102, 241, 0.15)',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
-                  color: '#A5B4FC',
+                  background: isLight ? '#EEF2FF' : 'rgba(99, 102, 241, 0.15)',
+                  border: isLight ? '1px solid #C7D2FE' : '1px solid rgba(99, 102, 241, 0.3)',
+                  color: isLight ? '#4F46E5' : '#A5B4FC',
                   fontSize: 12,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -321,9 +329,8 @@ export const UserProfileDropdown: React.FC = () => {
             )}
           </div>
 
-
           {/* Sign Out Button */}
-          <div style={{ paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <div style={{ paddingTop: 8, borderTop: isLight ? '1px solid #F5F5F4' : '1px solid rgba(255, 255, 255, 0.08)' }}>
             <button
               type="button"
               onClick={() => {
@@ -340,7 +347,7 @@ export const UserProfileDropdown: React.FC = () => {
                 borderRadius: 8,
                 fontSize: 12,
                 fontWeight: 600,
-                color: '#F87171',
+                color: '#EF4444',
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
