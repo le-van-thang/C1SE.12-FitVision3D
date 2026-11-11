@@ -35,39 +35,108 @@ import { UserProfileDropdown } from '@/components/common/UserProfileDropdown';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { useI18n } from '@/i18n';
 
-// ── DYNAMIC 3D ANTHROPOMETRY TECH SLIDER DATA ──
-const TECH_BANNER_SLIDES = [
+// ── SHOPEE-STYLE PRODUCT CAMPAIGN BANNER SLIDES ──
+interface HeroProductSlide {
+  id: string;
+  productId: string;
+  categoryTagVi: string;
+  categoryTagEn: string;
+  titleVi: string;
+  titleEn: string;
+  fabricVi: string;
+  fabricEn: string;
+  price: number;
+  originalPrice?: number;
+  fitPercentage: number;
+  fitSize: string;
+  fitChest: number;
+  fitWaist: number;
+  imageUrl: string;
+  badgeLabelVi: string;
+  badgeLabelEn: string;
+  badgeColor: string;
+}
+
+const HERO_PRODUCT_SLIDES: HeroProductSlide[] = [
   {
-    id: 'iso',
-    tag: 'ISO 8559-1',
+    id: 'slide-blazer',
+    productId: 'prod-05',
+    categoryTagVi: 'BST SARTORIA THU ĐÔNG',
+    categoryTagEn: 'SARTORIA FALL/WINTER',
+    titleVi: 'Áo Blazer Cấu Trúc Nhẹ Deconstructed Linen Pháp',
+    titleEn: 'French Deconstructed Linen Lightweight Blazer',
+    fabricVi: '100% Linen Thuần Pháp (Normandy Flax)',
+    fabricEn: '100% French Normandy Flax Linen',
+    price: 1650000,
+    originalPrice: 1950000,
+    fitPercentage: 98,
+    fitSize: 'L',
+    fitChest: 96,
+    fitWaist: 78,
+    imageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1000&q=85',
+    badgeLabelVi: 'BESTSELLER MAY ĐO',
+    badgeLabelEn: 'BESPOKE BESTSELLER',
+    badgeColor: 'bg-amber-500 text-white',
+  },
+  {
+    id: 'slide-oxford',
+    productId: 'prod-01',
+    categoryTagVi: 'ROYAL TAILORED SHIRT',
+    categoryTagEn: 'ROYAL TAILORED SHIRT',
+    titleVi: 'Áo Sơ Mi Oxford Dệt Nổi Royal Tailored',
+    titleEn: 'Royal Tailored Oxford Textured Shirt',
+    fabricVi: '100% Giza Cotton Ai Cập (Sợi chải kỹ 80/2)',
+    fabricEn: '100% Egyptian Giza Cotton (80/2 Combed Yarn)',
+    price: 590000,
+    originalPrice: 680000,
+    fitPercentage: 97,
+    fitSize: 'M',
+    fitChest: 96,
+    fitWaist: 78,
+    imageUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1000&q=85',
+    badgeLabelVi: 'ƯU ĐÃI HOT -15%',
+    badgeLabelEn: 'HOT DEAL -15%',
+    badgeColor: 'bg-red-500 text-white',
+  },
+  {
+    id: 'slide-trouser',
+    productId: 'prod-03',
+    categoryTagVi: 'SARTORIA MILAN TAILORING',
+    categoryTagEn: 'SARTORIA MILAN TAILORING',
+    titleVi: 'Quần Tây Tapered Fit Xếp Ly Đôi Ý',
+    titleEn: 'Italian Double-Pleated Tapered Trousers',
+    fabricVi: 'Wool Blend Úc Cao Cấp (70% Wool Úc + 30% Spun Poly)',
+    fabricEn: 'Premium Australian Wool Blend (70% Wool)',
+    price: 765000,
+    originalPrice: 850000,
+    fitPercentage: 96,
+    fitSize: 'M',
+    fitChest: 96,
+    fitWaist: 78,
+    imageUrl: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=1000&q=85',
+    badgeLabelVi: 'THIẾT KẾ ĐỘC QUYỀN',
+    badgeLabelEn: 'EXCLUSIVE DESIGN',
     badgeColor: 'bg-blue-600 text-white',
-    titleKey: 'ecommerce.hero.ticker.slide1Title',
-    descKey: 'ecommerce.hero.ticker.slide1Desc',
-    icon: Sparkles,
   },
   {
-    id: 'privacy',
-    tag: 'RAM In-Memory',
-    badgeColor: 'bg-emerald-600 text-white',
-    titleKey: 'ecommerce.hero.ticker.slide2Title',
-    descKey: 'ecommerce.hero.ticker.slide2Desc',
-    icon: ShieldCheck,
-  },
-  {
-    id: 'ramanujan',
-    tag: 'Ramanujan 3D',
-    badgeColor: 'bg-indigo-600 text-white',
-    titleKey: 'ecommerce.hero.ticker.slide3Title',
-    descKey: 'ecommerce.hero.ticker.slide3Desc',
-    icon: Ruler,
-  },
-  {
-    id: 'ease',
-    tag: 'Ease Allowance',
-    badgeColor: 'bg-amber-600 text-white',
-    titleKey: 'ecommerce.hero.ticker.slide4Title',
-    descKey: 'ecommerce.hero.ticker.slide4Desc',
-    icon: Scissors,
+    id: 'slide-dress',
+    productId: 'prod-04',
+    categoryTagVi: 'L\'ÉTOILE ATELIER HAUTE COUTURE',
+    categoryTagEn: 'L\'ÉTOILE ATELIER HAUTE COUTURE',
+    titleVi: 'Đầm Lụa Satin Cổ Đổ Silk Bias Cut',
+    titleEn: 'Mulberry Silk Cowl-Neck Bias Cut Dress',
+    fabricVi: '100% Lụa Tằm Dâu Mulberry Satin 19 Momme',
+    fabricEn: '100% Mulberry Silk Satin 19 Momme',
+    price: 1250000,
+    originalPrice: 1450000,
+    fitPercentage: 98,
+    fitSize: 'XS',
+    fitChest: 86,
+    fitWaist: 68,
+    imageUrl: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=1000&q=85',
+    badgeLabelVi: 'LỤA TƠ TẰM THỦ CÔNG',
+    badgeLabelEn: 'HANDMADE SILK',
+    badgeColor: 'bg-rose-500 text-white',
   },
 ];
 
@@ -103,17 +172,17 @@ export const FashionStoreHome: React.FC = () => {
   const [isBiometricModalOpen, setIsBiometricModalOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  // Dynamic Tech Banner State
-  const [activeSlide, setActiveSlide] = useState<number>(0);
-  const [isTickerPaused, setIsTickerPaused] = useState<boolean>(false);
+  // Shopee-style Auto-sliding Product Campaign Banner State
+  const [activeBannerSlide, setActiveBannerSlide] = useState<number>(0);
+  const [isBannerPaused, setIsBannerPaused] = useState<boolean>(false);
 
   useEffect(() => {
-    if (isTickerPaused) return;
+    if (isBannerPaused) return;
     const interval = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % TECH_BANNER_SLIDES.length);
-    }, 4000);
+      setActiveBannerSlide((prev) => (prev + 1) % HERO_PRODUCT_SLIDES.length);
+    }, 3600);
     return () => clearInterval(interval);
-  }, [isTickerPaused]);
+  }, [isBannerPaused]);
 
   // Save body changes
   const handleSaveBody = (newBody: UserBodyProfile) => {
@@ -402,76 +471,10 @@ export const FashionStoreHome: React.FC = () => {
             {/* Left Column: Thesis & Value Prop */}
             <div className="lg:col-span-7 space-y-6 text-left">
               
-              {/* Dynamic 3D Anthropometry Tech Motion Banner */}
-              <div
-                onMouseEnter={() => setIsTickerPaused(true)}
-                onMouseLeave={() => setIsTickerPaused(false)}
-                className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/40 to-stone-50 border border-blue-200/90 p-3 sm:p-3.5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-blue-300 group/banner"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  
-                  {/* Left: Animated Icon & Dynamic Content */}
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-blue-200/80 shadow-2xs flex items-center justify-center text-blue-600 flex-shrink-0 transition-transform duration-300 group-hover/banner:scale-105">
-                      {React.createElement(TECH_BANNER_SLIDES[activeSlide].icon, {
-                        size: 18,
-                        className: "text-blue-600 transition-all duration-300",
-                      })}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${TECH_BANNER_SLIDES[activeSlide].badgeColor}`}>
-                          {TECH_BANNER_SLIDES[activeSlide].tag}
-                        </span>
-                        <span className="text-xs sm:text-sm font-bold text-stone-900 tracking-tight truncate">
-                          {t(TECH_BANNER_SLIDES[activeSlide].titleKey, 'Công Nghệ May Đo 3D')}
-                        </span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-stone-600 truncate mt-0.5 font-normal">
-                        {t(TECH_BANNER_SLIDES[activeSlide].descKey, 'Phân tích nhân trắc học chính xác')}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right: Slide Controls & Progress Dots */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setActiveSlide((prev) => (prev - 1 + TECH_BANNER_SLIDES.length) % TECH_BANNER_SLIDES.length)}
-                      aria-label="Previous Slide"
-                      className="w-7 h-7 rounded-lg bg-white/90 hover:bg-white border border-stone-200 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-
-                    <div className="flex items-center gap-1 px-1">
-                      {TECH_BANNER_SLIDES.map((slide, idx) => (
-                        <button
-                          key={slide.id}
-                          type="button"
-                          onClick={() => setActiveSlide(idx)}
-                          aria-label={`Slide ${idx + 1}`}
-                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                            idx === activeSlide
-                              ? 'w-5 bg-blue-600'
-                              : 'w-1.5 bg-stone-300 hover:bg-stone-400'
-                          }`}
-                        />
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveSlide((prev) => (prev + 1) % TECH_BANNER_SLIDES.length)}
-                      aria-label="Next Slide"
-                      className="w-7 h-7 rounded-lg bg-white/90 hover:bg-white border border-stone-200 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
-                    >
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-
-                </div>
+              {/* Prestigious 3D ISO Badge */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/90 text-blue-900 text-xs font-bold shadow-2xs">
+                <Sparkles size={14} className="text-blue-600 animate-pulse" />
+                <span>{t('ecommerce.hero.badge', 'Sàn Thời Trang 3D Chuẩn Nhân Trắc Học ISO 8559-1')}</span>
               </div>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-stone-900 leading-[1.2] sm:leading-[1.18]">
@@ -483,12 +486,12 @@ export const FashionStoreHome: React.FC = () => {
                 {t('ecommerce.hero.desc', 'Không còn nỗi lo chọn nhầm size hay phiền phức đổi trả. Thuật toán Trí Tuệ Nhân Tạo tự động phân tích vóc dáng và so khớp độ cử động (Ease Allowance) với từng đường kim mũi chỉ của nhà may.')}
               </p>
 
-              {/* Action Buttons with Professional Micro-Animations */}
+              {/* Action Buttons with Distinct Colors and Micro-Animations */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <a
                   href="/dashboard"
                   style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                  className="relative overflow-hidden px-6 py-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm shadow-md shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 group cursor-pointer before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
+                  className="relative overflow-hidden px-6 py-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white font-bold text-sm shadow-md shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 group cursor-pointer before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
                 >
                   <Camera size={16} className="text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200" />
                   <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng Bằng AI')}</span>
@@ -497,18 +500,19 @@ export const FashionStoreHome: React.FC = () => {
 
                 <a
                   href="#catalog"
-                  className="px-6 py-3.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 font-semibold text-sm border border-stone-300/80 hover:border-stone-400 hover:shadow-md transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer"
+                  className="px-6 py-3.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 font-bold text-sm border border-stone-300 hover:border-stone-400 hover:shadow-md transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer"
                 >
                   {t('ecommerce.hero.ctaExplore', 'Khám Phá Bộ Sưu Tập')}
                 </a>
 
+                {/* Merchant Button: Prominent Colored Button (Not blurry/faded) */}
                 <button
                   type="button"
                   onClick={openOnboarding}
-                  className="px-4 py-3.5 rounded-xl bg-transparent hover:bg-stone-100 active:scale-95 text-stone-700 hover:text-stone-900 text-xs font-semibold border border-transparent hover:border-stone-200 flex items-center gap-1.5 transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer group"
+                  className="px-5 py-3.5 rounded-xl bg-amber-50 hover:bg-amber-600 text-amber-900 hover:text-white font-bold text-xs border-2 border-amber-300 hover:border-amber-600 shadow-xs hover:shadow-lg hover:shadow-amber-500/25 flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer group"
                 >
-                  <Store size={14} className="text-stone-500 group-hover:text-blue-600 group-hover:scale-110 transition-all duration-200" />
-                  <span>{t('ecommerce.hero.ctaMerchant', 'Đăng ký gian hàng may đo')}</span>
+                  <Store size={15} className="text-amber-700 group-hover:text-white transition-colors duration-200 flex-shrink-0" />
+                  <span className="whitespace-nowrap">{t('ecommerce.hero.ctaMerchant', 'Đăng ký gian hàng may đo')}</span>
                 </button>
               </div>
 
@@ -536,53 +540,141 @@ export const FashionStoreHome: React.FC = () => {
 
             </div>
 
-            {/* Right Column: Hero Fashion Lookbook Showcase */}
+            {/* Right Column: Shopee-style Auto-sliding Product Campaign Banner Carousel */}
             <div className="lg:col-span-5 relative">
-              <div className="relative mx-auto max-w-md lg:max-w-none">
-                
-                {/* Main Model Photo */}
-                <div className="aspect-[4/5] rounded-2xl overflow-hidden shadow-xl border border-stone-200/80 bg-stone-100 relative group">
-                  <img
-                    src="https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1000&q=85"
-                    alt="FitVision 3D Luxury Fashion"
-                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+              <div
+                onMouseEnter={() => setIsBannerPaused(true)}
+                onMouseLeave={() => setIsBannerPaused(false)}
+                className="relative mx-auto max-w-md lg:max-w-none aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl border border-stone-200/90 bg-stone-900 group select-none"
+              >
+                {/* Banner Slide Layers with Smooth Cross-Fade & Zoom Transition */}
+                {HERO_PRODUCT_SLIDES.map((slide, idx) => {
+                  const isActive = idx === activeBannerSlide;
+                  return (
+                    <div
+                      key={slide.id}
+                      className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                        isActive ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 pointer-events-none z-0'
+                      }`}
+                    >
+                      <img
+                        src={slide.imageUrl}
+                        alt={locale === 'en' ? slide.titleEn : slide.titleVi}
+                        className="w-full h-full object-cover object-top"
+                      />
+                      {/* Dark Gradient Overlay for perfect text contrast */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/15 pointer-events-none" />
 
-                  {/* Overlaid Atelier Badge */}
-                  <div className="absolute bottom-4 left-4 right-4 text-white p-3.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 space-y-1">
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-amber-300">
-                      {t('ecommerce.hero.lookbookCollection', 'Bộ Sưu Tập Sartoria Thu Đông')}
-                    </span>
-                    <h3 className="text-sm font-semibold text-white">
-                      {t('ecommerce.hero.lookbookItem', 'Áo Blazer Deconstructed Linen Pháp')}
-                    </h3>
-                  </div>
+                      {/* Top Campaign Pills */}
+                      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider shadow-md ${slide.badgeColor}`}>
+                          {locale === 'en' ? slide.badgeLabelEn : slide.badgeLabelVi}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-black/60 text-white backdrop-blur border border-white/20">
+                          {locale === 'en' ? slide.categoryTagEn : slide.categoryTagVi}
+                        </span>
+                      </div>
+
+                      {/* Bottom Product Info Card & 3D Size CTA */}
+                      <div className="absolute bottom-4 left-4 right-4 z-20 p-4 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 text-white space-y-2.5 shadow-lg">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm sm:text-base font-bold text-white line-clamp-1 drop-shadow-sm">
+                              {locale === 'en' ? slide.titleEn : slide.titleVi}
+                            </h3>
+                            <p className="text-[11px] text-stone-200 line-clamp-1 font-medium mt-0.5">
+                              {locale === 'en' ? slide.fabricEn : slide.fabricVi}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <span className="block font-black text-sm sm:text-base text-amber-300">
+                              {slide.price.toLocaleString('vi-VN')} ₫
+                            </span>
+                            {slide.originalPrice && (
+                              <span className="text-[10px] text-stone-300 line-through">
+                                {slide.originalPrice.toLocaleString('vi-VN')} ₫
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-white/20">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const targetProd = MOCK_PRODUCTS.find((p) => p.id === slide.productId);
+                              if (targetProd) handleOpenAnalysis(targetProd);
+                            }}
+                            className="relative overflow-hidden w-full py-2.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-900/40 hover:shadow-lg flex items-center justify-center gap-1.5 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer group/cta before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
+                          >
+                            <Sparkles size={13} className="text-amber-300" />
+                            <span>{t('ecommerce.hero.bannerTryFit', 'Thử Size 3D Ngay')}</span>
+                            <ChevronRight size={13} className="group-hover/cta:translate-x-1 transition-transform duration-200" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Left & Right Glassmorphic Chevrons */}
+                <button
+                  type="button"
+                  onClick={() => setActiveBannerSlide((prev) => (prev - 1 + HERO_PRODUCT_SLIDES.length) % HERO_PRODUCT_SLIDES.length)}
+                  aria-label="Previous Banner"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur border border-white/20 transition-all duration-200 transform hover:scale-110 active:scale-90 cursor-pointer shadow-md opacity-0 group-hover:opacity-100"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveBannerSlide((prev) => (prev + 1) % HERO_PRODUCT_SLIDES.length)}
+                  aria-label="Next Banner"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur border border-white/20 transition-all duration-200 transform hover:scale-110 active:scale-90 cursor-pointer shadow-md opacity-0 group-hover:opacity-100"
+                >
+                  <ChevronRight size={16} />
+                </button>
+
+                {/* Shopee-style Indicator Dots at Bottom */}
+                <div className="absolute bottom-2 inset-x-0 z-30 flex items-center justify-center gap-1.5 pointer-events-auto">
+                  {HERO_PRODUCT_SLIDES.map((slide, idx) => (
+                    <button
+                      key={slide.id}
+                      type="button"
+                      onClick={() => setActiveBannerSlide(idx)}
+                      aria-label={`Go to slide ${idx + 1}`}
+                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        idx === activeBannerSlide
+                          ? 'w-6 bg-white shadow-sm'
+                          : 'w-1.5 bg-white/40 hover:bg-white/70'
+                      }`}
+                    />
+                  ))}
                 </div>
 
-                {/* Floating AI Fit Score Badge (Core Hero Feature) */}
-                <div className="absolute -top-4 -left-4 sm:-left-6 bg-white/95 backdrop-blur-sm p-3.5 rounded-xl shadow-xl border border-stone-200/90 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-xs z-10">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-mono font-bold text-base flex-shrink-0">
-                    98%
+                {/* Floating AI Fit Score Badge (Reactive to active slide) */}
+                <div className="absolute -top-4 -left-4 sm:-left-6 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-xl border border-stone-200/90 flex items-center gap-2.5 max-w-xs z-30 transition-all duration-300 hover:scale-105">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-mono font-bold text-sm flex-shrink-0">
+                    {HERO_PRODUCT_SLIDES[activeBannerSlide].fitPercentage}%
                   </div>
                   <div>
                     <div className="flex items-center gap-1">
                       <span className="text-xs font-bold text-stone-900">{t('ecommerce.hero.fitBadgeTitle', 'Vừa Vặn Tuyệt Đối')}</span>
-                      <CheckCircle2 size={13} className="text-emerald-600" />
+                      <CheckCircle2 size={12} className="text-emerald-600" />
                     </div>
-                    <p className="text-[11px] text-stone-500">
+                    <p className="text-[10px] text-stone-500 font-medium">
                       {t('ecommerce.hero.fitBadgeAdvice', 'Gợi ý: Size {size} (Ngực {chest}cm | Eo {waist}cm)')
-                        .replace('{size}', 'L')
-                        .replace('{chest}', '96')
-                        .replace('{waist}', '78')}
+                        .replace('{size}', HERO_PRODUCT_SLIDES[activeBannerSlide].fitSize)
+                        .replace('{chest}', String(HERO_PRODUCT_SLIDES[activeBannerSlide].fitChest))
+                        .replace('{waist}', String(HERO_PRODUCT_SLIDES[activeBannerSlide].fitWaist))}
                     </p>
                   </div>
                 </div>
 
                 {/* Floating Tape Measure Pill */}
-                <div className="absolute -bottom-4 -right-4 sm:-right-6 bg-white/95 backdrop-blur-sm py-2.5 px-4 rounded-xl shadow-xl border border-stone-200/90 flex items-center gap-2 z-10">
-                  <Ruler size={16} className="text-amber-700" />
-                  <span className="text-xs font-mono font-semibold text-stone-800">
+                <div className="absolute -bottom-4 -right-4 sm:-right-6 bg-white/95 backdrop-blur-sm py-2 px-3.5 rounded-xl shadow-xl border border-stone-200/90 flex items-center gap-2 z-30">
+                  <Ruler size={14} className="text-amber-700" />
+                  <span className="text-[11px] font-mono font-bold text-stone-800">
                     {t('ecommerce.hero.tapeMeasure', 'Dài tay: 58.5cm • Rộng vai: 43cm')}
                   </span>
                 </div>
@@ -895,13 +987,13 @@ export const FashionStoreHome: React.FC = () => {
         </div>
       </section>
 
-      {/* ── FOOTER (ENHANCED HIGH-CONTRAST MODERN DARK DESIGN) ── */}
-      <footer className="bg-stone-950 text-stone-200 text-xs py-12 border-t border-stone-800">
+      {/* ── FOOTER (PROFESSIONAL E-COMMERCE ATELIER FOOTER) ── */}
+      <footer className="bg-stone-950 text-stone-300 text-xs py-12 border-t border-stone-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-stone-800/80">
-            {/* Brand & Capstone Information */}
-            <div className="space-y-2 text-left max-w-xl">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-stone-800/80">
+            {/* Brand & Vision */}
+            <div className="md:col-span-2 space-y-3 text-left">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/30">
                   <Scissors size={18} strokeWidth={2.2} />
@@ -911,58 +1003,82 @@ export const FashionStoreHome: React.FC = () => {
                     FitVision <span className="text-blue-400">3D</span>
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/80">
-                    C1SE.12
+                    Smart Atelier
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-stone-300 font-normal leading-relaxed">
-                {t('ecommerce.footer.capstone', 'Đồ Án Tốt Nghiệp Capstone: Nền Tảng Đo Nhân Trắc Học 3D & Sàn Thương Mại May Đo Thông Minh')}
+              <p className="text-xs text-stone-400 font-normal leading-relaxed max-w-md">
+                {t('ecommerce.footer.desc', 'Nền tảng thương mại điện tử thời trang may đo ứng dụng công nghệ quét 3D và nhân trắc học ISO 8559-1. Đảm bảo trang phục vừa vặn hoàn hảo từng centimet, xóa bỏ nỗi lo chọn nhầm kích cỡ.')}
               </p>
 
-              <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-900 border border-stone-700/80 text-stone-200">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <span className="text-stone-400">{t('ecommerce.footer.leader', 'Trưởng nhóm')}:</span>
-                  <span className="text-white font-bold">Lê Văn Thắng</span>
-                </div>
-
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-900 border border-stone-700/80 text-stone-200">
-                  <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-                  <span className="text-stone-400">{t('ecommerce.footer.advisor', 'GVHD')}:</span>
-                  <span className="text-white font-bold">TS. Lê Minh Thái</span>
+              <div className="flex items-center gap-3 pt-1">
+                <div className="px-3 py-1.5 rounded-lg bg-stone-900 border border-stone-800 text-[11px] text-stone-300 flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-emerald-400" />
+                  <span>{t('ecommerce.footer.guarantee', 'Cam kết vừa vặn 100% đổi trả miễn phí')}</span>
                 </div>
               </div>
             </div>
 
-            {/* Quick Navigation Action Links */}
-            <div className="flex flex-wrap items-center gap-3">
-              <a
-                href="/dashboard"
-                className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-100 hover:text-white font-semibold transition-all duration-200 border border-stone-700/80 hover:border-blue-500/50 shadow-sm flex items-center gap-2 transform hover:-translate-y-0.5 active:scale-95"
-              >
-                <Camera size={14} className="text-blue-400" />
-                <span>{t('ecommerce.footer.booth', 'Buồng Quét 3D')}</span>
-              </a>
+            {/* Customer Care Links */}
+            <div className="space-y-2.5 text-left">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                {t('ecommerce.footer.services', 'Dịch Vụ & Đo Đạc')}
+              </h4>
+              <ul className="space-y-2 text-stone-400">
+                <li>
+                  <a href="/dashboard" className="hover:text-white transition-colors duration-200 flex items-center gap-1.5">
+                    <Camera size={13} className="text-blue-400" />
+                    <span>{t('ecommerce.footer.booth', 'Buồng Quét 3D Online')}</span>
+                  </a>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setIsBiometricModalOpen(true)}
+                    className="hover:text-white transition-colors duration-200 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left p-0 text-xs text-stone-400"
+                  >
+                    <Ruler size={13} className="text-amber-400" />
+                    <span>{t('ecommerce.footer.sizingGuide', 'Hướng Dẫn Lấy Số Đo')}</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={openOnboarding}
+                    className="hover:text-white transition-colors duration-200 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left p-0 text-xs text-stone-400"
+                  >
+                    <Store size={13} className="text-emerald-400" />
+                    <span>{t('ecommerce.footer.registerMerchant', 'Dành Cho Nhà May & Đối Tác')}</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
 
-              <button
-                type="button"
-                onClick={openOnboarding}
-                className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-100 hover:text-white font-semibold transition-all duration-200 border border-stone-700/80 hover:border-emerald-500/50 shadow-sm flex items-center gap-2 cursor-pointer transform hover:-translate-y-0.5 active:scale-95"
-              >
-                <Store size={14} className="text-emerald-400" />
-                <span>{t('ecommerce.footer.registerMerchant', 'Đăng Ký Gian Hàng')}</span>
-              </button>
-
-              <a
-                href="https://github.com/le-van-thang/C1SE.12-FitVision3D"
-                target="_blank"
-                rel="noreferrer"
-                className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-100 hover:text-white font-semibold transition-all duration-200 border border-stone-700/80 hover:border-purple-500/50 shadow-sm flex items-center gap-2 transform hover:-translate-y-0.5 active:scale-95"
-              >
-                <Layers size={14} className="text-purple-400" />
-                <span>{t('ecommerce.footer.github', 'GitHub Repository')}</span>
-              </a>
+            {/* Quick Actions & Repository */}
+            <div className="space-y-2.5 text-left">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                {t('ecommerce.footer.connect', 'Kết Nối & Hỗ Trợ')}
+              </h4>
+              <ul className="space-y-2 text-stone-400">
+                <li>
+                  <a
+                    href="https://github.com/le-van-thang/C1SE.12-FitVision3D"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-white transition-colors duration-200 flex items-center gap-1.5"
+                  >
+                    <Layers size={13} className="text-purple-400" />
+                    <span>{t('ecommerce.footer.github', 'GitHub Repository')}</span>
+                  </a>
+                </li>
+                <li className="text-[11px] text-stone-400">
+                  {t('ecommerce.footer.supportEmail', 'Hỗ trợ: support@fitvision3d.com')}
+                </li>
+                <li className="text-[11px] text-stone-400">
+                  {t('ecommerce.footer.hours', 'Hoạt động: 8:00 - 21:00 (T2 - CN)')}
+                </li>
+              </ul>
             </div>
 
           </div>
@@ -970,8 +1086,8 @@ export const FashionStoreHome: React.FC = () => {
           {/* Bottom Copyright and Standards */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-stone-300">
             <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
-              <span className="font-medium text-stone-200">© 2026 FitVision 3D</span>
-              <span className="text-stone-600">•</span>
+              <span className="font-semibold text-white">© 2026 FitVision 3D Inc.</span>
+              <span className="text-stone-700">•</span>
               <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-700 text-stone-200 font-mono text-[10px]">
                 {t('ecommerce.footer.isoBadge', 'Chuẩn ISO 8559-1:2014')}
               </span>
@@ -980,8 +1096,8 @@ export const FashionStoreHome: React.FC = () => {
               </span>
             </div>
 
-            <p className="text-stone-300 text-center sm:text-right font-medium">
-              {t('ecommerce.footer.tagline', 'Chuẩn Hóa Số Đo May Đo Cho Người Việt')}
+            <p className="text-stone-400 text-center sm:text-right font-medium">
+              {t('ecommerce.footer.tagline', 'Thời Trang Vừa Vặn Chuẩn Xác Cho Mọi Vóc Dáng')}
             </p>
           </div>
 

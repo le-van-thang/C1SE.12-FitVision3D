@@ -855,7 +855,9 @@
       "lookbookItem": "French Deconstructed Linen Blazer",
       "fitBadgeTitle": "Flawless Fit",
       "fitBadgeAdvice": "Recommended: Size {size} (Chest {chest}cm | Waist {waist}cm)",
-      "tapeMeasure": "Sleeve: 58.5cm • Shoulder: 43cm"
+      "tapeMeasure": "Sleeve: 58.5cm • Shoulder: 43cm",
+      "bannerTryFit": "Try 3D Fit Now",
+      "bannerSaleTag": "HOT DEAL"
     },
     "biometricsBar": {
       "label": "Active Body Profile:",
@@ -898,16 +900,19 @@
       "f3Desc": "Garments should never cling like a second skin. FitVision 3D precisely factors ease allowance (+3cm to +6cm) to ensure you look sharp while staying comfortable throughout the day."
     },
     "footer": {
-      "capstone": "Capstone Graduation Project: 3D Anthropometric Sizing Platform & Smart Tailored eCommerce",
-      "leader": "Team Leader",
-      "advisor": "Advisor",
-      "credits": "Team Leader: Le Van Thang • Advisor: Dr. Le Minh Thai",
-      "booth": "3D Scan Booth",
-      "registerMerchant": "Merchant Registration",
+      "desc": "Smart bespoke fashion eCommerce platform powered by 3D contactless scanning & ISO 8559-1 anthropometry. Ensuring millimeter-precise garment fit and eliminating size guesswork.",
+      "services": "Services & Sizing",
+      "connect": "Connect & Support",
+      "booth": "Online 3D Scan Booth",
+      "sizingGuide": "Measurement Guide",
+      "registerMerchant": "For Tailors & Brands",
       "github": "GitHub Repository",
+      "supportEmail": "Support: support@fitvision3d.com",
+      "hours": "Hours: 8:00 AM - 9:00 PM (Mon - Sun)",
+      "guarantee": "100% Perfect Fit or Free Return Guarantee",
       "isoBadge": "ISO 8559-1:2014 Standard",
       "privacyBadge": "100% RAM Privacy",
-      "tagline": "Standardizing Custom Sizing for Vietnamese & Global Body Types"
+      "tagline": "Precision Tailored Fashion for Every Body Type"
     },
     "mobileNav": {
       "explore": "Explore",

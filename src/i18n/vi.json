@@ -855,7 +855,9 @@
       "lookbookItem": "Áo Blazer Deconstructed Linen Pháp",
       "fitBadgeTitle": "Vừa Vặn Tuyệt Đối",
       "fitBadgeAdvice": "Gợi ý: Size {size} (Ngực {chest}cm | Eo {waist}cm)",
-      "tapeMeasure": "Dài tay: 58.5cm • Rộng vai: 43cm"
+      "tapeMeasure": "Dài tay: 58.5cm • Rộng vai: 43cm",
+      "bannerTryFit": "Thử Size 3D Ngay",
+      "bannerSaleTag": "HOT DEAL"
     },
     "biometricsBar": {
       "label": "Hồ sơ vóc dáng đang áp dụng:",
@@ -898,16 +900,19 @@
       "f3Desc": "Áo quần không bao giờ may bằng khít với da thịt. FitVision 3D tính toán chính xác độ chùng vải (ease: +3cm đến +6cm) để đảm bảo bạn mặc đẹp nhưng vẫn cử động thoải mái khi làm việc."
     },
     "footer": {
-      "capstone": "Đồ Án Tốt Nghiệp Capstone: Nền Tảng Đo Nhân Trắc Học 3D & Sàn Thương Mại May Đo Thông Minh",
-      "leader": "Trưởng nhóm",
-      "advisor": "GVHD",
-      "credits": "Trưởng nhóm: Lê Văn Thắng • GVHD: TS. Lê Minh Thái",
-      "booth": "Buồng Quét 3D",
-      "registerMerchant": "Đăng Ký Gian Hàng",
+      "desc": "Nền tảng thương mại điện tử thời trang may đo ứng dụng công nghệ quét 3D và nhân trắc học ISO 8559-1. Đảm bảo trang phục vừa vặn hoàn hảo từng centimet, xóa bỏ nỗi lo chọn nhầm kích cỡ.",
+      "services": "Dịch Vụ & Đo Đạc",
+      "connect": "Kết Nối & Hỗ Trợ",
+      "booth": "Buồng Quét 3D Online",
+      "sizingGuide": "Hướng Dẫn Lấy Số Đo",
+      "registerMerchant": "Dành Cho Nhà May & Đối Tác",
       "github": "GitHub Repository",
+      "supportEmail": "Hỗ trợ: support@fitvision3d.com",
+      "hours": "Hoạt động: 8:00 - 21:00 (T2 - CN)",
+      "guarantee": "Cam kết vừa vặn 100% đổi trả miễn phí",
       "isoBadge": "Chuẩn ISO 8559-1:2014",
       "privacyBadge": "Bảo Mật RAM 100%",
-      "tagline": "Chuẩn Hóa Số Đo May Đo Cho Người Việt"
+      "tagline": "Thời Trang Vừa Vặn Chuẩn Xác Cho Mọi Vóc Dáng"
     },
     "mobileNav": {
       "explore": "Khám phá",
