@@ -21,10 +21,6 @@ export default {
           DEFAULT: 'var(--ink)',
           2: 'var(--ink-2)',
         },
-        indigo: {
-          DEFAULT: 'var(--indigo)',
-          hover: 'var(--indigo-hover)',
-        },
         vermilion: {
           DEFAULT: 'var(--vermilion)',
           hover: 'var(--vermilion-hover)',

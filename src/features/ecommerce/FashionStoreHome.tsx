@@ -142,7 +142,11 @@ export const FashionStoreHome: React.FC = () => {
     <div className="min-h-screen bg-[#FAFAF9] text-[#1C1917] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900 pb-20 md:pb-0">
       
       {/* ── TOP ANNOUNCEMENT BAR (LUXURY ATELIER PERKS) ── */}
-      <aside aria-label="Announcement" className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white text-[11px] md:text-xs py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 shadow-xs">
+      <aside
+        aria-label="Announcement"
+        style={{ backgroundColor: '#1E3A8A', color: '#FFFFFF' }}
+        className="text-white text-[11px] md:text-xs py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 shadow-xs"
+      >
         <Sparkles size={14} className="text-amber-300 animate-pulse flex-shrink-0" />
         <span>
           Trải nghiệm may đo thông minh 3D & gợi ý size chính xác chuẩn ISO 8559-1 • Miễn phí vận chuyển toàn quốc
@@ -253,9 +257,10 @@ export const FashionStoreHome: React.FC = () => {
               <button
                 type="button"
                 onClick={openSignIn}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 transition-all cursor-pointer group"
+                style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 transition-all cursor-pointer group"
               >
-                <LogIn size={14} className="text-blue-100 group-hover:scale-110 transition-transform" />
+                <LogIn size={14} className="text-white group-hover:scale-110 transition-transform" />
                 <span>Đăng Nhập</span>
               </button>
             )}
@@ -378,11 +383,12 @@ export const FashionStoreHome: React.FC = () => {
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <a
                   href="/dashboard"
-                  className="px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all"
+                  style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+                  className="px-6 py-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all"
                 >
-                  <Camera size={16} />
+                  <Camera size={16} className="text-white" />
                   <span>Quét Vóc Dáng Bằng AI</span>
-                  <ChevronRight size={16} />
+                  <ChevronRight size={16} className="text-white" />
                 </a>
 
                 <a
@@ -709,10 +715,11 @@ export const FashionStoreHome: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleAddToCart(product, product.recommendedVariant)}
-                        className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 transition-all flex items-center gap-1.5 cursor-pointer group"
+                        style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+                        className="py-2 px-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer group"
                         title={`Chọn mua ngay Size ${fit.recommended_size}`}
                       >
-                        <ShoppingBag size={13} className="text-blue-100 group-hover:scale-110 transition-transform" />
+                        <ShoppingBag size={13} className="text-white group-hover:scale-110 transition-transform" />
                         <span className="tracking-tight">Chọn Size {fit.recommended_size}</span>
                       </button>
                     </div>
@@ -822,8 +829,11 @@ export const FashionStoreHome: React.FC = () => {
           href="/dashboard"
           className="flex flex-col items-center -mt-5 group"
         >
-          <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 group-hover:scale-105 active:scale-95 transition-all">
-            <Camera size={22} />
+          <div
+            style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+            className="w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg shadow-blue-600/30 group-hover:scale-105 active:scale-95 transition-all"
+          >
+            <Camera size={22} className="text-white" />
           </div>
           <span className="text-[9px] font-bold text-blue-700 mt-1">Quét 3D</span>
         </a>
