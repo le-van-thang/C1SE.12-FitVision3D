@@ -14,8 +14,10 @@ export function calculateProductFit(
       match_percentage: 90,
       fit_verdict: 'REGULAR' as any,
       verdict_label_vi: 'Vừa vặn tiêu chuẩn',
+      verdict_label_en: 'Standard Regular Fit',
       deltas: { chest_diff_cm: 4, waist_diff_cm: 5, shoulder_diff_cm: 1 },
       advisor_advice_vi: 'Kích cỡ tiêu chuẩn phù hợp với vóc dáng của bạn.',
+      advisor_advice_en: 'Standard size tailored to your overall proportions.',
     };
   }
 
@@ -75,31 +77,41 @@ export function calculateProductFit(
     }
   }
 
-  // Determine Verdict & Advice
-  let verdictLabel = 'Vừa vặn tuyệt đối';
-  let advice = '';
+  // Determine Verdict & Advice (Bilingual)
+  let verdictLabelVi = 'Vừa vặn tuyệt đối';
+  let verdictLabelEn = 'Perfect Golden Ratio Fit';
+  let adviceVi = '';
+  let adviceEn = '';
 
   if (highestScore >= 95) {
     bestVerdict = 'PERFECT_FIT';
-    verdictLabel = 'Vừa vặn hoàn hảo (98%)';
-    advice = `Size ${bestVariant.size_label} ôm khít bờ vai và lồng ngực ${user.chest_cm}cm của bạn, độ cử động ${bestDeltas.chest_diff_cm > 0 ? '+' : ''}${bestDeltas.chest_diff_cm}cm đạt tỉ lệ vàng tôn vóc dáng.`;
+    verdictLabelVi = 'Vừa vặn hoàn hảo (98%)';
+    verdictLabelEn = 'Perfect Golden Ratio Fit (98%)';
+    adviceVi = `Size ${bestVariant.size_label} ôm khít bờ vai và lồng ngực ${user.chest_cm}cm của bạn, độ cử động ${bestDeltas.chest_diff_cm > 0 ? '+' : ''}${bestDeltas.chest_diff_cm}cm đạt tỉ lệ vàng tôn vóc dáng.`;
+    adviceEn = `Size ${bestVariant.size_label} aligns precisely with your ${user.chest_cm}cm chest and shoulders, with +${bestDeltas.chest_diff_cm}cm ease ratio sculpting your silhouette.`;
   } else if (highestScore >= 85) {
     bestVerdict = 'SLIGHTLY_SNUG';
-    verdictLabel = 'Phom gọn gàng (Slim)';
-    advice = `Size ${bestVariant.size_label} phom dáng thon gọn. Vòng eo vừa vặn chuẩn xác, cử động ngực vừa đủ, thích hợp mặc sơ vin hoặc phong cách lịch lãm.`;
+    verdictLabelVi = 'Phom gọn gàng (Slim)';
+    verdictLabelEn = 'Crisp Tailored Slim Fit';
+    adviceVi = `Size ${bestVariant.size_label} phom dáng thon gọn. Vòng eo vừa vặn chuẩn xác, cử động ngực vừa đủ, thích hợp mặc sơ vin hoặc phong cách lịch lãm.`;
+    adviceEn = `Size ${bestVariant.size_label} delivers a crisp tailored contour with exact waist fit and comfortable chest ease for refined formal wear.`;
   } else {
     bestVerdict = 'RELAXED';
-    verdictLabel = 'Phom suông thoải mái';
-    advice = `Size ${bestVariant.size_label} mang lại cảm giác rộng rãi, thoáng mát suốt ngày dài năng động mà không bị thùng thình.`;
+    verdictLabelVi = 'Phom suông thoải mái';
+    verdictLabelEn = 'Relaxed Comfort Fit';
+    adviceVi = `Size ${bestVariant.size_label} mang lại cảm giác rộng rãi, thoáng mát suốt ngày dài năng động mà không bị thùng thình.`;
+    adviceEn = `Size ${bestVariant.size_label} offers airy ease and comfortable movement throughout active days without looking oversized.`;
   }
 
   return {
     recommended_size: bestVariant.size_label,
     match_percentage: highestScore,
     fit_verdict: bestVerdict,
-    verdict_label_vi: verdictLabel,
+    verdict_label_vi: verdictLabelVi,
+    verdict_label_en: verdictLabelEn,
     deltas: bestDeltas,
-    advisor_advice_vi: advice,
+    advisor_advice_vi: adviceVi,
+    advisor_advice_en: adviceEn,
   };
 }
 

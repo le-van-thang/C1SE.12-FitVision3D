@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Camera, Sparkles, Check, RefreshCw } from 'lucide-react';
 import type { UserBodyProfile } from './types';
+import { useI18n } from '@/i18n';
 
 interface QuickBiometricModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
   onSaveBody,
   onNavigateToCameraScan,
 }) => {
+  const { t } = useI18n();
   const [form, setForm] = useState<UserBodyProfile>(currentBody);
 
   if (!isOpen) return null;
@@ -45,13 +47,17 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
                 <Sparkles size={16} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-stone-900">Hồ Sơ Nhân Trắc Học 3D Của Bạn</h3>
-                <p className="text-xs text-stone-500">Cơ sở để AI tự động so khớp kích cỡ trang phục chuẩn xác</p>
+                <h3 className="text-base font-bold text-stone-900">
+                  {t('ecommerce.biometricModal.title', 'Hồ Sơ Nhân Trắc Học 3D Của Bạn')}
+                </h3>
+                <p className="text-xs text-stone-500">
+                  {t('ecommerce.biometricModal.subtitle', 'Cơ sở để AI tự động so khớp kích cỡ trang phục chuẩn xác')}
+                </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-400 hover:text-stone-700"
+              className="w-8 h-8 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-400 hover:text-stone-700 cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -61,32 +67,38 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
           <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-blue-900 to-indigo-900 text-white flex items-center justify-between shadow-md">
             <div>
               <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white mb-1">
-                Công nghệ cốt lõi ISO 8559
+                {t('ecommerce.biometricModal.bannerBadge', 'Công nghệ cốt lõi ISO 8559')}
               </span>
-              <h4 className="text-sm font-semibold">Quét Toàn Thân 3D Bằng Camera</h4>
-              <p className="text-xs text-blue-200 mt-0.5">Trích xuất tự động 13 số đo chỉ trong 30 giây</p>
+              <h4 className="text-sm font-semibold">
+                {t('ecommerce.biometricModal.bannerTitle', 'Quét Toàn Thân 3D Bằng Camera')}
+              </h4>
+              <p className="text-xs text-blue-200 mt-0.5">
+                {t('ecommerce.biometricModal.bannerDesc', 'Trích xuất tự động 13 số đo chỉ trong 30 giây')}
+              </p>
             </div>
             <button
               onClick={() => {
                 onClose();
                 onNavigateToCameraScan();
               }}
-              className="px-3.5 py-2 rounded-lg bg-white text-blue-900 font-bold text-xs hover:bg-blue-50 active:scale-95 transition-all flex items-center gap-1.5 shadow"
+              className="px-3.5 py-2 rounded-lg bg-white text-blue-900 font-bold text-xs hover:bg-blue-50 active:scale-95 transition-all flex items-center gap-1.5 shadow cursor-pointer"
             >
               <Camera size={14} />
-              <span>Quét Ngay</span>
+              <span>{t('ecommerce.biometricModal.bannerCta', 'Quét Ngay')}</span>
             </button>
           </div>
 
           {/* Quick Adjustment Form */}
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
-              Hoặc cập nhật nhanh số đo thủ công:
+              {t('ecommerce.biometricModal.formHeading', 'Hoặc cập nhật nhanh số đo thủ công:')}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">Chiều cao (cm)</label>
+                <label className="block text-xs font-medium text-stone-700 mb-1">
+                  {t('ecommerce.biometricModal.height', 'Chiều cao (cm)')}
+                </label>
                 <input
                   type="number"
                   value={form.height_cm}
@@ -97,7 +109,9 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">Cân nặng (kg)</label>
+                <label className="block text-xs font-medium text-stone-700 mb-1">
+                  {t('ecommerce.biometricModal.weight', 'Cân nặng (kg)')}
+                </label>
                 <input
                   type="number"
                   value={form.weight_kg}
@@ -108,7 +122,9 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">Vòng ngực (cm)</label>
+                <label className="block text-xs font-medium text-stone-700 mb-1">
+                  {t('ecommerce.biometricModal.chest', 'Vòng ngực (cm)')}
+                </label>
                 <input
                   type="number"
                   value={form.chest_cm}
@@ -119,7 +135,9 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">Vòng eo (cm)</label>
+                <label className="block text-xs font-medium text-stone-700 mb-1">
+                  {t('ecommerce.biometricModal.waist', 'Vòng eo (cm)')}
+                </label>
                 <input
                   type="number"
                   value={form.waist_cm}
@@ -130,7 +148,9 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">Vòng mông (cm)</label>
+                <label className="block text-xs font-medium text-stone-700 mb-1">
+                  {t('ecommerce.biometricModal.hip', 'Vòng mông (cm)')}
+                </label>
                 <input
                   type="number"
                   value={form.hip_cm}
@@ -141,7 +161,9 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">Rộng vai (cm)</label>
+                <label className="block text-xs font-medium text-stone-700 mb-1">
+                  {t('ecommerce.biometricModal.shoulder', 'Rộng vai (cm)')}
+                </label>
                 <input
                   type="number"
                   value={form.shoulder_cm}
@@ -156,16 +178,17 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-100 transition-colors"
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
               >
-                Hủy bỏ
+                {t('ecommerce.biometricModal.cancel', 'Hủy bỏ')}
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-lg text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white transition-all shadow flex items-center gap-1.5"
+                style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+                className="px-5 py-2.5 rounded-lg text-xs font-semibold hover:bg-blue-700 text-white transition-all shadow flex items-center gap-1.5 cursor-pointer"
               >
                 <Check size={14} />
-                <span>Lưu & Tự Động Cập Nhật Size</span>
+                <span>{t('ecommerce.biometricModal.save', 'Lưu & Tự Động Cập Nhật Size')}</span>
               </button>
             </div>
           </form>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, CheckCircle2, Sparkles, AlertCircle, Ruler, ChevronRight } from 'lucide-react';
 import type { FashionProduct, UserBodyProfile, FitMatchResult, ProductVariant } from './types';
+import { useI18n } from '@/i18n';
 
 interface FitAnalysisDrawerProps {
   isOpen: boolean;
@@ -23,10 +24,16 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   onSelectSize,
   onAddToCart,
 }) => {
+  const { t, locale } = useI18n();
+
   if (!isOpen || !product || !selectedVariant || !fitResult) return null;
 
   const spec = selectedVariant.spec;
   const isPants = product.category === 'pants';
+  const isEn = locale === 'en';
+
+  const verdictLabel = isEn && fitResult.verdict_label_en ? fitResult.verdict_label_en : fitResult.verdict_label_vi;
+  const advisorAdvice = isEn && fitResult.advisor_advice_en ? fitResult.advisor_advice_en : fitResult.advisor_advice_vi;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -46,13 +53,17 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 <Sparkles size={16} />
               </div>
               <div>
-                <h3 className="font-semibold text-stone-900 text-base">Đối Chiếu Độ Vừa Vặn 3D</h3>
-                <p className="text-xs text-stone-500">Chuẩn nhân trắc học may mặc ISO 8559-1</p>
+                <h3 className="font-semibold text-stone-900 text-base">
+                  {t('ecommerce.drawer.fitTitle', 'Đối Chiếu Độ Vừa Vặn 3D')}
+                </h3>
+                <p className="text-xs text-stone-500">
+                  {t('ecommerce.drawer.fitSubtitle', 'Chuẩn nhân trắc học may mặc ISO 8559-1')}
+                </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-stone-200/60 flex items-center justify-center text-stone-500 transition-colors"
+              className="w-8 h-8 rounded-full hover:bg-stone-200/60 flex items-center justify-center text-stone-500 transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -86,7 +97,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-emerald-600" />
                   <span className="font-semibold text-emerald-800 text-sm">
-                    {fitResult.verdict_label_vi}
+                    {verdictLabel}
                   </span>
                 </div>
                 <span className="font-mono text-xl font-bold text-emerald-700">
@@ -94,14 +105,14 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 </span>
               </div>
               <p className="text-xs text-stone-700 leading-relaxed">
-                {fitResult.advisor_advice_vi}
+                {advisorAdvice}
               </p>
             </div>
 
             {/* Size Selector in Drawer */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-2">
-                Chọn kích cỡ đối chiếu:
+                {t('ecommerce.drawer.selectSize', 'Chọn kích cỡ đối chiếu:')}
               </label>
               <div className="grid grid-cols-4 gap-2">
                 {product.variants.map((v) => {
@@ -111,7 +122,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                     <button
                       key={v.id}
                       onClick={() => onSelectSize(v)}
-                      className={`relative py-2.5 rounded-lg border text-xs font-semibold transition-all ${
+                      className={`relative py-2.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
                           : 'bg-white text-stone-700 border-stone-200 hover:border-stone-400'
@@ -132,8 +143,10 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
             {/* Detailed Delta Metrics Breakdown */}
             <div className="space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-600 flex items-center justify-between">
-                <span>So Sánh Chi Tiết Chỉ Số (cm)</span>
-                <span className="text-[10px] text-stone-400 font-normal">Cơ thể vs Áo thực tế</span>
+                <span>{t('ecommerce.drawer.metricsTitle', 'So Sánh Chi Tiết Chỉ Số (cm)')}</span>
+                <span className="text-[10px] text-stone-400 font-normal">
+                  {t('ecommerce.drawer.metricsSub', 'Cơ thể vs Áo thực tế')}
+                </span>
               </h4>
 
               {!isPants && (
@@ -141,9 +154,11 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   {/* Chest */}
                   <div className="p-3 rounded-lg border border-stone-100 bg-stone-50/60 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-medium text-stone-900 block">Vòng ngực (Bust/Chest)</span>
+                      <span className="font-medium text-stone-900 block">
+                        {t('ecommerce.drawer.chest', 'Vòng ngực (Bust/Chest)')}
+                      </span>
                       <span className="text-[11px] text-stone-500">
-                        Cơ thể: <b className="font-mono text-stone-800">{userBody.chest_cm}cm</b> ➔ Áo:{' '}
+                        {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-stone-800">{userBody.chest_cm}cm</b> ➔ {t('ecommerce.drawer.garmentLabel', 'Áo:')}{' '}
                         <b className="font-mono text-stone-800">{spec.chest_cm}cm</b>
                       </span>
                     </div>
@@ -151,16 +166,20 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                       <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800">
                         +{spec.chest_cm - userBody.chest_cm} cm
                       </span>
-                      <span className="block text-[10px] text-stone-400 mt-0.5">Độ cử động êm</span>
+                      <span className="block text-[10px] text-stone-400 mt-0.5">
+                        {t('ecommerce.drawer.easeSmooth', 'Độ cử động êm')}
+                      </span>
                     </div>
                   </div>
 
                   {/* Shoulder */}
                   <div className="p-3 rounded-lg border border-stone-100 bg-stone-50/60 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-medium text-stone-900 block">Rộng vai (Shoulder)</span>
+                      <span className="font-medium text-stone-900 block">
+                        {t('ecommerce.drawer.shoulder', 'Rộng vai (Shoulder)')}
+                      </span>
                       <span className="text-[11px] text-stone-500">
-                        Cơ thể: <b className="font-mono text-stone-800">{userBody.shoulder_cm}cm</b> ➔ Áo:{' '}
+                        {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-stone-800">{userBody.shoulder_cm}cm</b> ➔ {t('ecommerce.drawer.garmentLabel', 'Áo:')}{' '}
                         <b className="font-mono text-stone-800">{spec.shoulder_cm}cm</b>
                       </span>
                     </div>
@@ -168,7 +187,9 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                       <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-blue-100 text-blue-800">
                         +{(spec.shoulder_cm - userBody.shoulder_cm).toFixed(1)} cm
                       </span>
-                      <span className="block text-[10px] text-stone-400 mt-0.5">Vừa khít cầu vai</span>
+                      <span className="block text-[10px] text-stone-400 mt-0.5">
+                        {t('ecommerce.drawer.shoulderFit', 'Vừa khít cầu vai')}
+                      </span>
                     </div>
                   </div>
                 </>
@@ -177,9 +198,11 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
               {/* Waist */}
               <div className="p-3 rounded-lg border border-stone-100 bg-stone-50/60 flex items-center justify-between text-xs">
                 <div>
-                  <span className="font-medium text-stone-900 block">Vòng eo (Waist)</span>
+                  <span className="font-medium text-stone-900 block">
+                    {t('ecommerce.drawer.waist', 'Vòng eo (Waist)')}
+                  </span>
                   <span className="text-[11px] text-stone-500">
-                    Cơ thể: <b className="font-mono text-stone-800">{userBody.waist_cm}cm</b> ➔ Phom:{' '}
+                    {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-stone-800">{userBody.waist_cm}cm</b> ➔ {t('ecommerce.drawer.pantWaistLabel', 'Phom:')}{' '}
                     <b className="font-mono text-stone-800">{spec.waist_cm}cm</b>
                   </span>
                 </div>
@@ -187,15 +210,21 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800">
                     +{spec.waist_cm - userBody.waist_cm} cm
                   </span>
-                  <span className="block text-[10px] text-stone-400 mt-0.5">Thoải mái khi ngồi</span>
+                  <span className="block text-[10px] text-stone-400 mt-0.5">
+                    {t('ecommerce.drawer.waistComfort', 'Thoải mái khi ngồi')}
+                  </span>
                 </div>
               </div>
 
               {/* Garment Length */}
               <div className="p-3 rounded-lg border border-stone-100 bg-stone-50/60 flex items-center justify-between text-xs">
                 <div>
-                  <span className="font-medium text-stone-900 block">Chiều dài trang phục</span>
-                  <span className="text-[11px] text-stone-500">Chuẩn may đo thiết kế</span>
+                  <span className="font-medium text-stone-900 block">
+                    {t('ecommerce.drawer.length', 'Chiều dài trang phục')}
+                  </span>
+                  <span className="text-[11px] text-stone-500">
+                    {t('ecommerce.drawer.lengthSub', 'Chuẩn may đo thiết kế')}
+                  </span>
                 </div>
                 <span className="font-mono font-bold text-stone-800 text-xs">
                   {spec.length_cm} cm
@@ -207,7 +236,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
             <div className="p-3 rounded-lg bg-amber-50/80 border border-amber-200/80 flex items-start gap-2 text-xs text-amber-900">
               <Ruler size={16} className="text-amber-700 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Cam kết FitVision 3D:</strong> Dữ liệu đã hiệu chuẩn theo thước đo Ramanujan ISO 8559-1. Đảm bảo vừa vặn trên 97% hoặc miễn phí đổi size tận nhà.
+                {t('ecommerce.drawer.guarantee', 'Cam kết FitVision 3D: Dữ liệu đã hiệu chuẩn theo thước đo Ramanujan ISO 8559-1. Đảm bảo vừa vặn trên 97% hoặc miễn phí đổi size tận nhà.')}
               </span>
             </div>
 
@@ -220,13 +249,16 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 onAddToCart();
                 onClose();
               }}
-              className="w-full py-3.5 px-4 rounded-xl bg-blue-700 hover:bg-blue-800 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-700/20 flex items-center justify-center gap-2 transition-all"
+              style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+              className="w-full py-3.5 px-4 rounded-xl hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
-              <span>Thêm Size {selectedVariant.size_label} Vào Giỏ Hàng</span>
+              <span>
+                {t('ecommerce.drawer.addToCartSize', 'Thêm Size {size} Vào Giỏ Hàng').replace('{size}', selectedVariant.size_label)}
+              </span>
               <ChevronRight size={16} />
             </button>
             <p className="text-[11px] text-center text-stone-400">
-              Được bảo chứng bởi thuật toán AI Sizing Engine v2.5
+              {t('ecommerce.drawer.backedBy', 'Được bảo chứng bởi thuật toán AI Sizing Engine v2.5')}
             </p>
           </div>
 

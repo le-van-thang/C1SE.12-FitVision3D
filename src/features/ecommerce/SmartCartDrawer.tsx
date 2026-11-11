@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import type { CartItem } from './types';
+import { useI18n } from '@/i18n';
 
 interface SmartCartDrawerProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
   onUpdateQuantity,
   onCheckout,
 }) => {
+  const { t } = useI18n();
+
   if (!isOpen) return null;
 
   const totalAmount = items.reduce(
@@ -44,13 +47,17 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                 <ShoppingBag size={16} />
               </div>
               <div>
-                <h3 className="font-semibold text-stone-900 text-base">Giỏ Hàng Thông Minh</h3>
-                <p className="text-xs text-stone-500">{items.length} sản phẩm vừa vặn số đo</p>
+                <h3 className="font-semibold text-stone-900 text-base">
+                  {t('ecommerce.drawer.cartTitle', 'Giỏ Hàng Thông Minh')}
+                </h3>
+                <p className="text-xs text-stone-500">
+                  {t('ecommerce.drawer.cartItemsCount', '{count} sản phẩm vừa vặn số đo').replace('{count}', String(items.length))}
+                </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-stone-200/60 flex items-center justify-center text-stone-500 transition-colors"
+              className="w-8 h-8 rounded-full hover:bg-stone-200/60 flex items-center justify-center text-stone-500 transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -63,15 +70,17 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                 <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center mx-auto text-stone-400">
                   <ShoppingBag size={28} />
                 </div>
-                <h4 className="font-medium text-stone-800 text-sm">Giỏ hàng của bạn đang trống</h4>
+                <h4 className="font-medium text-stone-800 text-sm">
+                  {t('ecommerce.drawer.cartEmpty', 'Giỏ hàng của bạn đang trống')}
+                </h4>
                 <p className="text-xs text-stone-500 max-w-xs mx-auto">
-                  Hãy chọn những bộ trang phục thời thượng và để AI ướm thử độ vừa vặn cho bạn!
+                  {t('ecommerce.drawer.cartEmptyDesc', 'Hãy chọn những bộ trang phục thời thượng và để AI ướm thử độ vừa vặn cho bạn!')}
                 </p>
                 <button
                   onClick={onClose}
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800"
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800 cursor-pointer"
                 >
-                  <span>Khám phá bộ sưu tập ngay</span>
+                  <span>{t('ecommerce.drawer.cartExploreNow', 'Khám phá bộ sưu tập ngay')}</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
@@ -94,7 +103,7 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                         </span>
                         <button
                           onClick={() => onRemoveItem(item.id)}
-                          className="text-stone-400 hover:text-red-600 transition-colors p-0.5"
+                          className="text-stone-400 hover:text-red-600 transition-colors p-0.5 cursor-pointer"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -106,12 +115,12 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                       {/* Size & AI Badge */}
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-stone-100 text-stone-800 border border-stone-200">
-                          Size: {item.variant.size_label}
+                          {t('ecommerce.drawer.sizePrefix', 'Cỡ')}: {item.variant.size_label}
                         </span>
                         {item.is_ai_recommended && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <Sparkles size={10} />
-                            <span>Vừa vặn {item.fit_score}%</span>
+                            <span>{t('ecommerce.drawer.fitScorePrefix', 'Độ vừa vặn:')} {item.fit_score}%</span>
                           </span>
                         )}
                       </div>
@@ -121,7 +130,7 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                       <div className="flex items-center border border-stone-200 rounded-lg overflow-hidden bg-stone-50">
                         <button
                           onClick={() => onUpdateQuantity(item.id, -1)}
-                          className="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:bg-stone-200"
+                          className="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:bg-stone-200 cursor-pointer"
                         >
                           -
                         </button>
@@ -130,7 +139,7 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                         </span>
                         <button
                           onClick={() => onUpdateQuantity(item.id, 1)}
-                          className="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:bg-stone-200"
+                          className="w-6 h-6 flex items-center justify-center text-xs text-stone-600 hover:bg-stone-200 cursor-pointer"
                         >
                           +
                         </button>
@@ -152,30 +161,31 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
             <div className="p-6 border-t border-stone-200 bg-stone-50/50 space-y-3">
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-stone-500">
-                  <span>Tạm tính ({items.length} món):</span>
+                  <span>{t('ecommerce.drawer.subtotal', 'Tạm tính:')} ({items.length})</span>
                   <span>{totalAmount.toLocaleString('vi-VN')} ₫</span>
                 </div>
                 <div className="flex justify-between text-stone-500">
-                  <span>Phí giao hàng toàn quốc:</span>
-                  <span className="text-emerald-700 font-medium">Miễn phí (Ưu đãi Capstone)</span>
+                  <span>{t('ecommerce.drawer.shipping', 'Phí vận chuyển:')}</span>
+                  <span className="text-emerald-700 font-medium">{t('ecommerce.drawer.free', 'Miễn phí')}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-stone-900 pt-2 border-t border-stone-200">
-                  <span>Tổng thanh toán:</span>
+                  <span>{t('ecommerce.drawer.totalAmount', 'Tổng thanh toán:')}</span>
                   <span className="text-base text-blue-700">{totalAmount.toLocaleString('vi-VN')} ₫</span>
                 </div>
               </div>
 
               <button
                 onClick={onCheckout}
-                className="w-full py-3.5 px-4 rounded-xl bg-blue-700 hover:bg-blue-800 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-700/20 flex items-center justify-center gap-2 transition-all"
+                style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+                className="w-full py-3.5 px-4 rounded-xl hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <span>Tiến Hành Đặt Hàng Ngay</span>
+                <span>{t('ecommerce.drawer.checkout', 'Tiến Hành Đặt May & Thanh Toán')}</span>
                 <ArrowRight size={16} />
               </button>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-stone-500">
                 <ShieldCheck size={13} className="text-emerald-600" />
-                <span>Bảo hiểm vừa vặn 100% đổi trả tận nhà miễn phí</span>
+                <span>{t('ecommerce.drawer.checkoutProtected', 'Được bảo đảm bởi chính sách May Đo Vừa Vặn FitVision 3D')}</span>
               </div>
             </div>
           )}

@@ -61,12 +61,14 @@ export interface FitMatchResult {
   match_percentage: number;
   fit_verdict: 'PERFECT_FIT' | 'SLIGHTLY_SNUG' | 'RELAXED' | 'OUT_OF_RANGE';
   verdict_label_vi: string;
+  verdict_label_en: string;
   deltas: {
     chest_diff_cm: number; // Garment chest - Body chest (Ease allowance)
     waist_diff_cm: number;
     shoulder_diff_cm: number;
   };
   advisor_advice_vi: string;
+  advisor_advice_en: string;
 }
 
 export interface CartItem {
