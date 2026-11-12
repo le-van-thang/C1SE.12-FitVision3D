@@ -829,38 +829,41 @@ export const FashionStoreHome: React.FC = () => {
           </div>
 
           {/* Search & Filter Control Group */}
-          <div className="flex items-center gap-2.5 w-full md:w-auto">
-            {/* High-Contrast Search Bar with Integrated Centered Icon & Clear Button */}
-            <div className="relative flex items-center flex-1 md:w-84 h-12 rounded-xl bg-stone-50 hover:bg-white border-2 border-stone-800 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/20 shadow-sm transition-all">
-              <div className="pl-3.5 pr-2 flex items-center justify-center pointer-events-none text-stone-900 flex-shrink-0">
-                <Search size={18} strokeWidth={2.6} />
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* Glowing Animated Light Border Beam Search Container */}
+            <div className="search-beam-card flex-1 md:w-88 group">
+              <div className="search-beam-light" />
+              <div className="search-beam-inner">
+                <div className="mr-2 flex items-center justify-center pointer-events-none text-blue-600 group-hover:text-blue-500 transition-colors flex-shrink-0">
+                  <Search size={18} strokeWidth={2.6} />
+                </div>
+                <input
+                  type="text"
+                  placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-bold text-stone-950 placeholder:text-stone-500 focus:outline-none focus:ring-0 pr-6"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="p-1 rounded-full text-stone-600 hover:text-stone-950 hover:bg-stone-200 cursor-pointer transition-colors"
+                  >
+                    <X size={15} strokeWidth={2.5} />
+                  </button>
+                )}
               </div>
-              <input
-                type="text"
-                placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-bold text-stone-950 placeholder:text-stone-500 focus:outline-none focus:ring-0 pr-8"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 p-1 rounded-full text-stone-600 hover:text-stone-950 hover:bg-stone-200 cursor-pointer transition-colors"
-                >
-                  <X size={15} strokeWidth={2.5} />
-                </button>
-              )}
             </div>
 
             {/* Dedicated Filter Button */}
             <button
               type="button"
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`h-12 px-4 sm:px-5 rounded-xl border-2 font-black text-xs sm:text-sm flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer flex-shrink-0 shadow-sm ${
+              className={`h-12 px-4 sm:px-5 rounded-2xl border-2 font-black text-xs sm:text-sm flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer flex-shrink-0 shadow-sm ${
                 isFilterOpen || activeFilterCount > 0
                   ? 'bg-blue-600 text-white border-blue-700 shadow-md shadow-blue-500/30'
-                  : 'bg-white hover:bg-stone-100 text-stone-900 border-2 border-stone-800'
+                  : 'bg-white hover:bg-stone-100 text-stone-900 border-2 border-stone-800 hover:border-blue-600 hover:text-blue-600'
               }`}
             >
               <SlidersHorizontal size={16} strokeWidth={2.5} className={isFilterOpen || activeFilterCount > 0 ? 'text-white' : 'text-blue-600'} />

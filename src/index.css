@@ -605,3 +605,57 @@ input:-internal-autofill-selected,
   background-color: #030712 !important;
   transition: background-color 5000000s ease-in-out 0s !important;
 }
+
+/* ── Search Bar Glowing Animated Light Border Beam ── */
+@keyframes beam-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.search-beam-card {
+  position: relative;
+  border-radius: 16px;
+  padding: 2.5px;
+  overflow: hidden;
+  background: #334155;
+  box-shadow: 0 4px 18px -2px rgba(37, 99, 235, 0.25), 0 2px 6px -1px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.search-beam-card:hover,
+.search-beam-card:focus-within {
+  box-shadow: 0 0 28px 4px rgba(59, 130, 246, 0.45), 0 6px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.search-beam-light {
+  position: absolute;
+  inset: -200%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    transparent 220deg,
+    #2563EB 270deg,
+    #38BDF8 310deg,
+    #00F0FF 340deg,
+    #FFFFFF 360deg
+  );
+  animation: beam-rotate 3s linear infinite;
+  pointer-events: none;
+}
+
+.search-beam-inner {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  height: 46px;
+  border-radius: 13.5px;
+  background-color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+}
