@@ -157,29 +157,44 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
       {/* Upload Zone: Single Front A-Pose (SMPLer-X Standard) */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--foreground, #f8fafc)", display: "flex", alignItems: "center", gap: "6px" }}>
-            <FileImage size={15} style={{ color: "#38bdf8" }} />
-            {t("cap.frontLabel")} <span style={{ color: "#ef4444" }}>*</span>
+          <label style={{ fontSize: "13px", fontWeight: 700, color: "#FFFFFF", display: "flex", alignItems: "center", gap: "6px" }}>
+            <FileImage size={16} style={{ color: "#38BDF8" }} />
+            {t("cap.frontLabel")} <span style={{ color: "#F87171" }}>*</span>
           </label>
           {!frontImage && (
             <button
               type="button"
               onClick={loadSamplePhoto}
               style={{
-                background: "rgba(56, 189, 248, 0.12)",
-                border: "1px solid rgba(56, 189, 248, 0.3)",
-                color: "#38bdf8",
-                fontSize: "11px",
-                padding: "3px 8px",
-                borderRadius: "6px",
+                background: "linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(6, 182, 212, 0.25) 100%)",
+                border: "1.5px solid #38BDF8",
+                color: "#38BDF8",
+                fontSize: "12px",
+                fontWeight: 700,
+                padding: "5px 12px",
+                borderRadius: "8px",
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "4px",
+                gap: "6px",
+                boxShadow: "0 0 14px rgba(56, 189, 248, 0.25)",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)";
+                e.currentTarget.style.color = "#FFFFFF";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 4px 16px rgba(6, 182, 212, 0.45)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(6, 182, 212, 0.25) 100%)";
+                e.currentTarget.style.color = "#38BDF8";
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "0 0 14px rgba(56, 189, 248, 0.25)";
               }}
             >
-              <Sparkles size={12} />
-              {t("cap.loadSample")}
+              <Sparkles size={13} style={{ color: "#FACC15" }} />
+              <span>{t("cap.loadSample", "Nạp ảnh mẫu A-Pose")}</span>
             </button>
           )}
         </div>
@@ -271,13 +286,24 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
             }}
             onClick={() => frontInputRef.current?.click()}
             style={{
-              border: `2px dashed ${dragActive ? "#38bdf8" : "rgba(255, 255, 255, 0.15)"}`,
-              borderRadius: "10px",
-              background: dragActive ? "rgba(56, 189, 248, 0.05)" : "rgba(255, 255, 255, 0.02)",
+              border: `2px dashed ${dragActive ? "#38bdf8" : "rgba(56, 189, 248, 0.4)"}`,
+              borderRadius: "14px",
+              background: dragActive ? "rgba(56, 189, 248, 0.12)" : "rgba(15, 23, 42, 0.55)",
               padding: "36px 16px",
               textAlign: "center",
               cursor: "pointer",
-              transition: "border-color 0.2s, background 0.2s",
+              transition: "all 0.25s ease",
+              boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.5)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#38bdf8";
+              e.currentTarget.style.background = "rgba(56, 189, 248, 0.08)";
+              e.currentTarget.style.transform = "translateY(-1px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "rgba(56, 189, 248, 0.4)";
+              e.currentTarget.style.background = "rgba(15, 23, 42, 0.55)";
+              e.currentTarget.style.transform = "none";
             }}
           >
             <input
@@ -289,23 +315,25 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
             />
             <div
               style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "50%",
-                background: "rgba(56, 189, 248, 0.12)",
+                width: "56px",
+                height: "56px",
+                borderRadius: "16px",
+                background: "rgba(56, 189, 248, 0.16)",
+                border: "1.5px solid rgba(56, 189, 248, 0.45)",
                 color: "#38bdf8",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 margin: "0 auto 12px",
+                boxShadow: "0 0 20px rgba(56, 189, 248, 0.25)",
               }}
             >
-              <UploadCloud size={24} />
+              <UploadCloud size={28} />
             </div>
-            <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 600, color: "var(--foreground, #f8fafc)" }}>
+            <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 700, color: "#FFFFFF" }}>
               {t("cap.uploadPrompt")}
             </p>
-            <p style={{ margin: 0, fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
+            <p style={{ margin: 0, fontSize: "12px", color: "#94A3B8" }}>
               {t("cap.uploadSub")}
             </p>
           </div>
@@ -315,19 +343,20 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
       {/* Biometric Calibration Inputs */}
       <div
         style={{
-          background: "rgba(255, 255, 255, 0.02)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          borderRadius: "10px",
-          padding: "14px",
+          background: "rgba(15, 23, 42, 0.75)",
+          border: "1.5px solid rgba(56, 189, 248, 0.25)",
+          borderRadius: "14px",
+          padding: "16px",
+          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.3)",
         }}
       >
-        <span style={{ fontSize: "12px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "10px" }}>
+        <span style={{ fontSize: "12px", fontWeight: 800, color: "#38BDF8", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "12px" }}>
           {t("cap.calibTitle")}
         </span>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
           <div>
-            <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-              <Ruler size={13} style={{ color: "#38bdf8" }} /> {t("cap.heightLabel")}
+            <label style={{ fontSize: "12px", fontWeight: 700, color: "#E2E8F0", display: "flex", alignItems: "center", gap: "5px", marginBottom: "6px" }}>
+              <Ruler size={14} style={{ color: "#38bdf8" }} /> {t("cap.heightLabel")}
             </label>
             <input
               type="number"
@@ -340,19 +369,23 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               className="zf-calib-input"
               style={{
                 width: "100%",
-                background: "var(--surface, #0f172a)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "6px",
-                color: "#f8fafc",
-                padding: "8px 10px",
-                fontSize: "13px",
+                background: "#080F16",
+                border: "1.5px solid rgba(56, 189, 248, 0.35)",
+                borderRadius: "8px",
+                color: "#FFFFFF",
+                padding: "9px 12px",
+                fontSize: "14px",
+                fontWeight: 700,
+                fontFamily: "var(--font-mono)",
                 boxSizing: "border-box",
+                outline: "none",
+                transition: "all 0.2s ease",
               }}
             />
           </div>
           <div>
-            <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-              <Scale size={13} style={{ color: "#38bdf8" }} /> {t("cap.weightLabel")}
+            <label style={{ fontSize: "12px", fontWeight: 700, color: "#E2E8F0", display: "flex", alignItems: "center", gap: "5px", marginBottom: "6px" }}>
+              <Scale size={14} style={{ color: "#38bdf8" }} /> {t("cap.weightLabel")}
             </label>
             <input
               type="number"
@@ -365,23 +398,27 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               className="zf-calib-input"
               style={{
                 width: "100%",
-                background: "var(--surface, #0f172a)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "6px",
-                color: "#f8fafc",
-                padding: "8px 10px",
-                fontSize: "13px",
+                background: "#080F16",
+                border: "1.5px solid rgba(56, 189, 248, 0.35)",
+                borderRadius: "8px",
+                color: "#FFFFFF",
+                padding: "9px 12px",
+                fontSize: "14px",
+                fontWeight: 700,
+                fontFamily: "var(--font-mono)",
                 boxSizing: "border-box",
+                outline: "none",
+                transition: "all 0.2s ease",
               }}
             />
           </div>
         </div>
 
         <div>
-          <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-            <User size={13} style={{ color: "#38bdf8" }} /> {t("cap.genderLabel")}
+          <label style={{ fontSize: "12px", fontWeight: 700, color: "#E2E8F0", display: "flex", alignItems: "center", gap: "5px", marginBottom: "6px" }}>
+            <User size={14} style={{ color: "#38bdf8" }} /> {t("cap.genderLabel")}
           </label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
             {(["male", "female", "neutral"] as const).map((g) => {
               const label = g === "male" ? t("cap.male") : g === "female" ? t("cap.female") : t("cap.unisex");
               const isSel = gender === g;
@@ -391,14 +428,16 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
                   type="button"
                   onClick={() => setGender(g)}
                   style={{
-                    background: isSel ? "rgba(56, 189, 248, 0.15)" : "transparent",
-                    border: `1px solid ${isSel ? "#38bdf8" : "rgba(255, 255, 255, 0.12)"}`,
-                    color: isSel ? "#38bdf8" : "#94a3b8",
-                    padding: "6px",
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                    fontWeight: isSel ? 600 : 400,
+                    background: isSel ? "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)" : "rgba(255, 255, 255, 0.05)",
+                    border: `1.5px solid ${isSel ? "#38bdf8" : "rgba(255, 255, 255, 0.15)"}`,
+                    color: isSel ? "#FFFFFF" : "#94A3B8",
+                    padding: "8px 6px",
+                    borderRadius: "8px",
+                    fontSize: "12.5px",
+                    fontWeight: isSel ? 700 : 500,
                     cursor: "pointer",
+                    boxShadow: isSel ? "0 0 14px rgba(14, 165, 233, 0.4)" : "none",
+                    transition: "all 0.2s ease",
                   }}
                 >
                   {label}
@@ -412,9 +451,9 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
       {/* Guide Accordion */}
       <div
         style={{
-          borderRadius: "8px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          background: "rgba(255, 255, 255, 0.01)",
+          borderRadius: "10px",
+          border: "1.5px solid rgba(56, 189, 248, 0.22)",
+          background: "rgba(15, 23, 42, 0.5)",
           overflow: "hidden",
         }}
       >
@@ -423,24 +462,25 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           onClick={() => setShowGuide(!showGuide)}
           style={{
             width: "100%",
-            padding: "10px 12px",
+            padding: "11px 14px",
             background: "none",
             border: "none",
-            color: "var(--muted, #94a3b8)",
+            color: "#E2E8F0",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             cursor: "pointer",
-            fontSize: "12px",
+            fontSize: "12.5px",
+            fontWeight: 600,
           }}
         >
-          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <HelpCircle size={14} style={{ color: "#38bdf8" }} /> {t("cap.guideTitle")}
+          <span style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+            <HelpCircle size={15} style={{ color: "#38bdf8" }} /> {t("cap.guideTitle")}
           </span>
-          {showGuide ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {showGuide ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </button>
         {showGuide && (
-          <div style={{ padding: "0 12px 12px", fontSize: "11px", color: "#94a3b8", lineHeight: 1.6 }}>
+          <div style={{ padding: "0 14px 14px", fontSize: "11.5px", color: "#94a3b8", lineHeight: 1.6 }}>
             <ul style={{ margin: 0, paddingLeft: "16px" }}>
               <li>{t("cap.guidePhotos")}</li>
               <li>{t("cap.guideDist")}</li>
@@ -451,49 +491,72 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
         )}
       </div>
 
-      {/* Scan CTA Trigger */}
+      {/* Scan CTA Trigger - High Voltage Animated Action Button */}
       <button
         type="button"
-        disabled={!frontImage || isProcessing}
-        onClick={handleStartScan}
+        disabled={isProcessing}
+        onClick={frontImage ? handleStartScan : loadSamplePhoto}
         style={{
           width: "100%",
-          padding: "12px",
-          borderRadius: "8px",
+          padding: "14px",
+          borderRadius: "12px",
           background: frontImage && !isProcessing
-            ? "linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)"
-            : "rgba(255, 255, 255, 0.05)",
-          border: frontImage && !isProcessing ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.1)",
-          color: frontImage && !isProcessing ? "#ffffff" : "#64748b",
-          fontWeight: 600,
-          fontSize: "14px",
-          cursor: frontImage && !isProcessing ? "pointer" : "not-allowed",
+            ? "linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)"
+            : "linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(6, 182, 212, 0.25) 100%)",
+          border: frontImage && !isProcessing ? "2px solid #38BDF8" : "1.5px dashed rgba(56, 189, 248, 0.55)",
+          color: "#FFFFFF",
+          fontWeight: 800,
+          fontSize: "14.5px",
+          cursor: isProcessing ? "not-allowed" : "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "8px",
-          boxShadow: frontImage && !isProcessing ? "0 4px 14px rgba(2, 132, 199, 0.35)" : "none",
-          transition: "all 0.2s ease",
+          gap: "10px",
+          boxShadow: frontImage && !isProcessing
+            ? "0 0 28px rgba(6, 182, 212, 0.5), 0 4px 16px rgba(37, 99, 235, 0.4)"
+            : "0 0 14px rgba(56, 189, 248, 0.2)",
+          transition: "all 0.25s ease",
+        }}
+        onMouseEnter={(e) => {
+          if (!isProcessing) {
+            e.currentTarget.style.transform = "translateY(-1.5px)";
+            if (frontImage) {
+              e.currentTarget.style.boxShadow = "0 0 34px rgba(6, 182, 212, 0.65), 0 6px 20px rgba(37, 99, 235, 0.5)";
+            }
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isProcessing) {
+            e.currentTarget.style.transform = "none";
+            if (frontImage) {
+              e.currentTarget.style.boxShadow = "0 0 28px rgba(6, 182, 212, 0.5), 0 4px 16px rgba(37, 99, 235, 0.4)";
+            }
+          }
         }}
       >
         {isProcessing ? (
           <>
             <div
               style={{
-                width: "16px",
-                height: "16px",
-                border: "2px solid #ffffff",
+                width: "18px",
+                height: "18px",
+                border: "2.5px solid #ffffff",
                 borderTopColor: "transparent",
                 borderRadius: "50%",
                 animation: "spin 0.8s linear infinite",
               }}
             />
-            {t("cap.scanningBtn")}
+            <span>{t("cap.scanningBtn")}</span>
+          </>
+        ) : frontImage ? (
+          <>
+            <Sparkles size={18} style={{ color: "#FACC15" }} />
+            <span>{t("cap.scanBtn")}</span>
           </>
         ) : (
           <>
-            <Sparkles size={16} />
-            {t("cap.scanBtn")}
+            <Sparkles size={18} style={{ color: "#38BDF8" }} />
+            <span>{t("cap.loadSamplePrompt", "⚡ Nạp Ảnh Mẫu & Bắt Đầu Quét 3D")}</span>
           </>
         )}
       </button>

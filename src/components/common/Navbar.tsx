@@ -10,6 +10,7 @@ import {
   Clock,
   LogIn,
   AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -140,11 +141,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
           {onDemoMode && (
             <button
               id="btn-demo-mode"
-              className="zf-btn zf-btn--secondary"
-              style={{ height: 34, fontSize: 12 }}
+              className="zf-btn"
+              style={{
+                height: 36,
+                padding: '0 14px',
+                fontSize: 12,
+                fontWeight: 700,
+                background: isDemoMode
+                  ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                  : 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(59, 130, 246, 0.25) 100%)',
+                border: isDemoMode ? '1.5px solid #34D399' : '1.5px solid #A855F7',
+                color: isDemoMode ? '#FFFFFF' : '#E9D5FF',
+                borderRadius: '9px',
+                boxShadow: isDemoMode ? '0 0 16px rgba(16, 185, 129, 0.4)' : '0 0 14px rgba(168, 85, 247, 0.3)',
+                transition: 'all 0.2s ease',
+              }}
               onClick={onDemoMode}
             >
-              {isDemoMode ? t('app.nav.demoLoaded') : t('app.nav.loadDemo')}
+              <Sparkles size={13} style={{ color: isDemoMode ? '#FFFFFF' : '#FDE047' }} />
+              <span>{isDemoMode ? t('app.nav.demoLoaded') : t('app.nav.loadDemo')}</span>
             </button>
           )}
 

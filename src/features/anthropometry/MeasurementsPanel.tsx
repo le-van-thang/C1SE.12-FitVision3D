@@ -44,28 +44,66 @@ export const MetricRow: React.FC<{
       onClick={onClick}
       style={{
         cursor: onClick ? "pointer" : "default",
-        padding: "10px 8px",
-        borderRadius: "6px",
-        transition: "background 0.15s",
-        background: isActive ? "rgba(163, 230, 53, 0.08)" : "transparent",
+        padding: "9px 12px",
+        borderRadius: "8px",
+        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        background: isActive
+          ? "linear-gradient(90deg, rgba(34, 197, 94, 0.18) 0%, rgba(6, 182, 212, 0.12) 100%)"
+          : "rgba(15, 23, 42, 0.25)",
+        border: isActive ? "1px solid rgba(74, 222, 128, 0.5)" : "1px solid rgba(255, 255, 255, 0.04)",
+        boxShadow: isActive ? "0 0 16px rgba(34, 197, 94, 0.25), inset 0 0 8px rgba(74, 222, 128, 0.1)" : "none",
+        marginBottom: "3px",
       }}
     >
       <div style={{ display: "flex", flexDirection: "column" }}>
-        <span style={{ color: isActive ? "#A3E635" : undefined, fontWeight: isActive ? 600 : undefined }}>
+        <span
+          style={{
+            color: isActive ? "#4ADE80" : "#E2E8F0",
+            fontWeight: isActive ? 700 : 500,
+            fontSize: "13.5px",
+            letterSpacing: "0.01em",
+          }}
+        >
           {label}
         </span>
         {sublabel ? (
-          <span style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", marginTop: "1px" }}>
+          <span
+            style={{
+              fontSize: "11px",
+              color: isActive ? "#93C5FD" : "#94A3B8",
+              marginTop: "2px",
+            }}
+          >
             {sublabel}
           </span>
         ) : null}
       </div>
       {value == null ? (
-        <b className="empty">—</b>
+        <b className="empty" style={{ color: "#64748B", fontWeight: 400 }}>—</b>
       ) : (
-        <b style={{ color: isActive ? "#A3E635" : undefined }}>
+        <b
+          style={{
+            color: isActive ? "#4ADE80" : "#38BDF8",
+            fontFamily: "var(--font-mono, ui-monospace, monospace)",
+            fontWeight: 700,
+            fontSize: "14px",
+            textShadow: isActive ? "0 0 10px rgba(74, 222, 128, 0.6)" : "0 0 6px rgba(56, 189, 248, 0.3)",
+          }}
+        >
           {shown.toFixed(1)}
-          {unit && <em>{unit}</em>}
+          {unit && (
+            <em
+              style={{
+                fontStyle: "normal",
+                fontSize: "11px",
+                marginLeft: "3px",
+                opacity: 0.85,
+                color: "#94A3B8",
+              }}
+            >
+              {unit}
+            </em>
+          )}
         </b>
       )}
     </div>

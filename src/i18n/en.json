@@ -593,6 +593,7 @@
     "uploadSub": "1 front-facing A-pose photo • Automatic 3D body reconstruction",
     "deletePhoto": "Delete photo",
     "loadSample": "Load sample A-Pose",
+    "loadSamplePrompt": "⚡ Load Sample Photo & Start 3D Scan",
     "photoVerified": "Front A-Pose (1 Standard Image)",
     "calibTitle": "Anthropometric Calibration Parameters",
     "heightLabel": "Height (cm)",

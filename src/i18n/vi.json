@@ -593,6 +593,7 @@
     "uploadSub": "1 ảnh dáng chữ A nhìn thẳng • Tự động tái tạo hình thể 3D",
     "deletePhoto": "Xóa ảnh",
     "loadSample": "Nạp ảnh mẫu A-Pose",
+    "loadSamplePrompt": "⚡ Nạp Ảnh Mẫu & Bắt Đầu Quét 3D",
     "photoVerified": "A-Pose Chính Diện (1 Ảnh Chuẩn)",
     "calibTitle": "Thông số hiệu chuẩn nhân trắc học",
     "heightLabel": "Chiều cao (cm)",

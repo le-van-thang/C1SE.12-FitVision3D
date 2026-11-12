@@ -243,16 +243,16 @@ export const Dashboard: React.FC = () => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "16px",
+            marginBottom: "20px",
             flexWrap: "wrap",
-            gap: "10px",
+            gap: "14px",
           }}
         >
           <div>
-            <h1 className="zf-title" style={{ fontSize: "20px" }}>
+            <h1 className="zf-title" style={{ fontSize: "24px", fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
               {t("app.dash.title")}
             </h1>
-            <p className="zf-sub" style={{ fontSize: "12px", marginTop: "2px" }}>
+            <p className="zf-sub" style={{ fontSize: "13px", marginTop: "4px", color: "#94A3B8" }}>
               {t("app.dash.sub")}
             </p>
           </div>
@@ -262,16 +262,22 @@ export const Dashboard: React.FC = () => {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "6px",
+                gap: "7px",
                 fontSize: "12px",
-                color: "#A3E635",
-                background: "rgba(163, 230, 53, 0.08)",
-                border: "1px solid rgba(163, 230, 53, 0.25)",
-                padding: "4px 10px",
+                fontWeight: 700,
+                color: "#4ADE80",
+                background: "rgba(74, 222, 128, 0.12)",
+                border: "1.5px solid rgba(74, 222, 128, 0.4)",
+                padding: "5px 12px",
                 borderRadius: "9999px",
+                boxShadow: "0 0 12px rgba(74, 222, 128, 0.2)",
               }}
             >
-              <ShieldCheck size={14} strokeWidth={2} />
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <ShieldCheck size={14} strokeWidth={2.4} />
               {t("app.dash.zeroBadge")}
             </span>
 
@@ -281,14 +287,16 @@ export const Dashboard: React.FC = () => {
                 alignItems: "center",
                 gap: "6px",
                 fontSize: "12px",
+                fontWeight: 700,
                 color: isLiveBackend ? "#34d399" : "#38bdf8",
-                background: isLiveBackend ? "rgba(16, 185, 129, 0.1)" : "rgba(56, 189, 248, 0.1)",
-                border: isLiveBackend ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(56, 189, 248, 0.25)",
-                padding: "4px 10px",
+                background: isLiveBackend ? "rgba(16, 185, 129, 0.15)" : "rgba(56, 189, 248, 0.15)",
+                border: isLiveBackend ? "1.5px solid rgba(16, 185, 129, 0.45)" : "1.5px solid rgba(56, 189, 248, 0.4)",
+                padding: "5px 12px",
                 borderRadius: "9999px",
+                boxShadow: "0 0 12px rgba(56, 189, 248, 0.2)",
               }}
             >
-              <Cpu size={14} />
+              <Cpu size={14} strokeWidth={2.2} />
               {isLiveBackend ? t("dashx.live") : t("dashx.engine")}
             </span>
 
@@ -296,10 +304,19 @@ export const Dashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={resetAll}
-                className="zf-btn zf-btn--ghost"
-                style={{ padding: "4px 10px", fontSize: "12px", height: "auto" }}
+                className="zf-btn"
+                style={{
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  height: "32px",
+                  fontWeight: 700,
+                  color: "#FB7185",
+                  background: "rgba(244, 63, 94, 0.12)",
+                  border: "1.5px solid rgba(244, 63, 94, 0.4)",
+                  borderRadius: "8px",
+                }}
               >
-                <RotateCcw size={13} /> {t("app.dash.retake")}
+                <RotateCcw size={13} strokeWidth={2.2} /> {t("app.dash.retake")}
               </button>
             )}
           </div>
@@ -398,22 +415,34 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>
                   <button
                     id="btn-export-dossier"
                     className="zf-btn zf-btn--secondary"
-                    style={{ flex: 1, opacity: 0.6 }}
+                    style={{
+                      flex: 1,
+                      border: "1.5px solid rgba(56, 189, 248, 0.45)",
+                      background: "rgba(56, 189, 248, 0.1)",
+                      color: "#38BDF8",
+                      fontWeight: 700,
+                      boxShadow: "0 0 14px rgba(56, 189, 248, 0.2)",
+                    }}
                     onClick={() => setLockedFeature(t("app.dash.featDossier"))}
                   >
-                    <Lock size={15} strokeWidth={1.8} /> {t("app.dash.featDossier")}
+                    <Lock size={15} strokeWidth={2} /> {t("app.dash.featDossier")}
                   </button>
                   <button
                     id="btn-size-charts"
-                    className="zf-btn zf-btn--ghost"
-                    style={{ opacity: 0.6 }}
+                    className="zf-btn"
+                    style={{
+                      border: "1.5px solid rgba(255, 255, 255, 0.2)",
+                      background: "rgba(255, 255, 255, 0.08)",
+                      color: "#FFFFFF",
+                      fontWeight: 700,
+                    }}
                     onClick={() => setLockedFeature(t("app.dash.featSize"))}
                   >
-                    <Lock size={15} strokeWidth={1.8} /> {t("app.dash.featSize")}
+                    <Lock size={15} strokeWidth={2} /> {t("app.dash.featSize")}
                   </button>
                 </div>
               </>
@@ -458,36 +487,37 @@ export const Dashboard: React.FC = () => {
                 ) : (
                   <div
                     style={{
-                      padding: "16px",
-                      borderRadius: "10px",
-                      border: "1px dashed rgba(255, 255, 255, 0.12)",
-                      background: "rgba(255, 255, 255, 0.02)",
+                      padding: "18px",
+                      borderRadius: "12px",
+                      border: "1.5px dashed rgba(56, 189, 248, 0.3)",
+                      background: "rgba(56, 189, 248, 0.04)",
                       textAlign: "center",
-                      color: "#94a3b8",
-                      fontSize: "12px",
+                      color: "#94A3B8",
+                      fontSize: "12.5px",
+                      marginTop: "12px",
                     }}
                   >
-                    <Sparkles size={20} style={{ color: "#38bdf8", margin: "0 auto 8px" }} />
+                    <Sparkles size={22} style={{ color: "#38bdf8", margin: "0 auto 8px" }} />
                     {t("app.dash.emptyRec")}
                   </div>
                 )}
 
                 {/* Quick Actions */}
-                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>
                   <button
                     id="btn-export-dossier"
-                    className="zf-btn zf-btn--secondary"
+                    className="zf-btn zf-btn--primary"
                     style={{ flex: 1 }}
                     onClick={() => navigate("/tailor")}
                   >
-                    <FileText size={16} strokeWidth={1.5} /> {t("app.dash.featDossier")}
+                    <FileText size={16} strokeWidth={2} /> {t("app.dash.featDossier")}
                   </button>
                   <button
                     id="btn-size-charts"
-                    className="zf-btn zf-btn--ghost"
+                    className="zf-btn zf-btn--secondary"
                     onClick={() => navigate("/size-charts")}
                   >
-                    <Table2 size={16} strokeWidth={1.5} /> {t("app.dash.featSize")}
+                    <Table2 size={16} strokeWidth={2} /> {t("app.dash.featSize")}
                   </button>
                 </div>
               </>
