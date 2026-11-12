@@ -3,18 +3,17 @@ import {
   Sparkles,
   X,
   Send,
-  Bot,
   User,
   Key,
-  ChevronDown,
   RotateCcw,
   Maximize2,
   Minimize2,
   Check,
-  HelpCircle,
-  Shirt,
   Ruler,
-  SlidersHorizontal,
+  Bot,
+  Flame,
+  Shield,
+  Layers,
 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 
@@ -57,19 +56,25 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [showConfig, setShowConfig] = useState<boolean>(false);
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('fv3d_gemini_api_key') || '');
-  const [hasNewBadge, setHasNewBadge] = useState<boolean>(true);
+  const [hasNewBadge, setHasNewBadge] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initial welcome message
+  // Initial welcome message tailored to user measurements
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'welcome-1',
       sender: 'ai',
       text: locale === 'en'
-        ? `Hello! I am **Gemini 2.5 Fashion & Fit Stylist** ✦. Based on your current measurements (**${userBody.height_cm}cm, ${userBody.weight_kg}kg, Chest: ${userBody.chest_cm}cm**), I can recommend the perfect size, explain Ease Allowance, and style your outfit!`
-        : `Xin chào! Tôi là **Trợ lý AI Thời Trang Gemini 2.5** ✦. Dựa trên số đo hiện tại của bạn (**${userBody.height_cm}cm, ${userBody.weight_kg}kg, Ngực: ${userBody.chest_cm}cm, Eo: ${userBody.waist_cm}cm**), tôi có thể giúp bạn chọn size vừa in từng centimet, giải thích độ cử động may đo và tư vấn phối đồ!`,
+        ? `Bonjour! I am **Gemini 2.5 Couture Stylist** ✦.
+I have loaded your biometric profile: **${userBody.height_cm}cm • ${userBody.weight_kg}kg • Chest ${userBody.chest_cm}cm • Waist ${userBody.waist_cm}cm**.
+
+How may I assist you today? Ask me about sizing predictions, Ease Allowance (+4cm ~ +6cm), fabric drape, or color styling!`
+        : `Xin chào! Tôi là **Trợ lý Thời Trang Cao Cấp Gemini 2.5** ✦.
+Tôi đã đồng bộ hồ sơ nhân trắc học của bạn: **${userBody.height_cm}cm • ${userBody.weight_kg}kg • V1: ${userBody.chest_cm}cm • V2: ${userBody.waist_cm}cm**.
+
+Bạn muốn tôi tư vấn size chuẩn xác cho bộ đồ nào, hay cần phân tích độ cử động vải (Ease Allowance) và gợi ý phối màu hôm nay?`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -89,102 +94,114 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
   // Suggested Prompts
   const quickPrompts = locale === 'en' ? [
     { label: '📏 Recommend size for my body', query: `Recommend the best size for my measurements: ${userBody.height_cm}cm, ${userBody.weight_kg}kg, Chest ${userBody.chest_cm}cm, Waist ${userBody.waist_cm}cm` },
-    { label: '✨ What is Ease Allowance?', query: 'Explain Ease Allowance in bespoke tailoring and how it prevents tight clothes.' },
-    { label: '👔 Best styling for broad shoulders', query: 'What styles of shirts and blazers look best for broad shoulders and athletic build?' },
+    { label: '✨ Explain Ease Allowance', query: 'Explain Ease Allowance in bespoke tailoring and how it prevents tight clothes.' },
+    { label: '👔 Best styling for V-Shape build', query: 'What styles of shirts and blazers look best for broad shoulders and athletic build?' },
   ] : [
-    { label: '📏 Chọn size theo số đo tôi', query: `Tư vấn size áo sơ mi và quần phù hợp với vóc dáng tôi: Cao ${userBody.height_cm}cm, Nặng ${userBody.weight_kg}kg, Ngực ${userBody.chest_cm}cm, Eo ${userBody.waist_cm}cm.` },
-    { label: '✨ Độ cử động (Ease Allowance) là gì?', query: 'Giải thích độ cử động (Ease Allowance) trong may đo chuẩn ISO 8559 và tại sao cần cộng thêm +3cm đến +6cm?' },
-    { label: '👔 Phối đồ cho vóc dáng cân đối', query: 'Gợi ý cách phối đồ công sở sang trọng giữa Áo sơ mi Cotton Ai Cập và Quần tây Chino Ý?' },
+    { label: '📏 Tư vấn size chuẩn dáng tôi', query: `Dựa vào số đo: Cao ${userBody.height_cm}cm, Nặng ${userBody.weight_kg}kg, Vòng 1 ${userBody.chest_cm}cm, Vòng 2 ${userBody.waist_cm}cm, hãy tư vấn size áo sơ mi và quần vừa vặn nhất cho tôi.` },
+    { label: '✨ Độ cử động (Ease Allowance) là gì?', query: 'Giải thích độ cử động (Ease Allowance) trong may đo chuẩn ISO 8559 và tại sao cần cộng thêm +4cm đến +6cm quanh ngực áo?' },
+    { label: '👔 Gợi ý phối đồ công sở sang trọng', query: 'Gợi ý cách phối đồ công sở lịch lãm giữa Áo Sơ Mi Cotton Ai Cập và Quần Tây Ý.' },
   ];
 
   const handleSaveApiKey = (key: string) => {
     setApiKey(key);
-    localStorage.setItem('fv3d_gemini_api_key', key.trim());
+    localStorage.setItem('fv3d_gemini_api_key', key);
     setShowConfig(false);
   };
 
-  // Smart domain-aware response generator (Fallback / Local rule-based if external API not provided)
-  const generateAssistantReply = async (userQuery: string): Promise<string> => {
-    // If user provided a real Gemini API key
+  // Local Anthropometric Domain Reasoning
+  const generateAssistantReply = async (query: string): Promise<string> => {
+    // If Gemini API Key is available, use real Gemini 2.5 API
     if (apiKey.trim()) {
       try {
-        const prompt = `You are FitVision 3D Fashion AI Stylist powered by Gemini 2.5.
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey.trim()}`;
+        const promptSystem = `You are FitVision 3D Couture Stylist powered by Google Gemini 2.5.
 User Biometric Profile:
-- Height: ${userBody.height_cm}cm
-- Weight: ${userBody.weight_kg}kg
-- Chest Circumference: ${userBody.chest_cm}cm
-- Waist Circumference: ${userBody.waist_cm}cm
-- Hip Circumference: ${userBody.hip_cm}cm
-Current Product context: ${currentProduct ? JSON.stringify(currentProduct) : 'Browsing Fashion Store'}
-Language: ${locale === 'en' ? 'English' : 'Vietnamese'}
-User Query: "${userQuery}"
+- Height: ${userBody.height_cm} cm
+- Weight: ${userBody.weight_kg} kg
+- Chest circumference: ${userBody.chest_cm} cm
+- Waist circumference: ${userBody.waist_cm} cm
+- Hip circumference: ${userBody.hip_cm} cm
+Respond in polite, luxurious fashion consultant tone in ${locale === 'en' ? 'English' : 'Vietnamese'}. Focus on ISO 8559 sizing, Ramanujan ellipse fit, and Ease Allowance.`;
 
-Provide a concise, helpful, and sophisticated reply in markdown. Give exact size advice (S, M, L, XL), ease allowance delta in cm, and aesthetic advice. Keep answer under 120 words.`;
-
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey.trim()}`, {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-          }),
+            contents: [
+              { role: 'user', parts: [{ text: `${promptSystem}\n\nUser Question: ${query}` }] }
+            ]
+          })
         });
 
         if (res.ok) {
           const data = await res.json();
-          const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (reply) return reply;
+          const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (replyText) return replyText;
         }
-      } catch (err) {
-        console.warn('Gemini API call failed, falling back to local reasoning:', err);
+      } catch {
+        // Fallback to local expert model below
       }
     }
 
-    // Local Domain-Engine Intelligence
-    const q = userQuery.toLowerCase();
+    // High precision domain-specific fashion knowledge engine
+    await new Promise((r) => setTimeout(r, 650));
+    const lower = query.toLowerCase();
 
-    if (q.includes('size') || q.includes('chọn size') || q.includes('số đo')) {
-      const chest = userBody.chest_cm;
-      let recSize = 'M';
-      if (chest < 92) recSize = 'S';
-      else if (chest <= 98) recSize = 'L';
-      else if (chest <= 104) recSize = 'XL';
-      else recSize = 'XXL';
-
+    if (lower.includes('size') || lower.includes('kích cỡ') || lower.includes('chuẩn dáng')) {
       return locale === 'en'
-        ? `✦ **Smart Fit Recommendation:**\n\nWith your height of **${userBody.height_cm}cm**, weight **${userBody.weight_kg}kg**, and chest **${userBody.chest_cm}cm**, your optimal size is **${recSize}** (Fit Score: **97.8%**).\n\n• **Chest Allowance:** Fabric girth ~${chest + 5}cm (Ease +5cm for natural breathing)\n• **Waist Allowance:** ~${userBody.waist_cm + 4}cm (Relaxed sit)\n• **Recommended cut:** *Tailored Regular Fit* to flatter your proportions.`
-        : `✦ **Gợi Ý Size Chuẩn Nhân Trắc Học:**\n\nVới chiều cao **${userBody.height_cm}cm**, cân nặng **${userBody.weight_kg}kg** và vòng ngực **${userBody.chest_cm}cm**, size tối ưu dành cho bạn là **Size ${recSize}** (Độ vừa vặn: **97.8%**).\n\n• **Vòng ngực áo:** Thợ may thiết kế ${chest + 5}cm (bù độ cử động +5cm)\n• **Vòng bụng/eo:** ${userBody.waist_cm + 4}cm (đảm bảo đứng lên ngồi xuống êm ái)\n• **Phom dáng:** Nên chọn *Regular Tailored* để tôn dáng vai và eo thon.`;
+        ? `✦ **Size Recommendation for Your Biometrics**:
+- **Chest:** ${userBody.chest_cm}cm | **Waist:** ${userBody.waist_cm}cm
+- **Recommended Size:** **Size L (Regular Slim)** or **Size M (Fitted)**.
+- **Why?** An Oxford shirt in Size L has a garment chest circumference of ~102cm - 104cm, providing a **+6cm Ease Allowance** over your ${userBody.chest_cm}cm chest. This ensures full arm mobility without straining the chest placket!`
+        : `✦ **Phân Tích Kích Cỡ Dành Riêng Cho Vóc Dáng Bạn**:
+- **Số đo thực tế:** Ngực ${userBody.chest_cm}cm | Eo ${userBody.waist_cm}cm
+- **Size khuyên dùng tối ưu:** **Size L** (phom Regular Slim vừa vặn) hoặc **Size M** (ôm sát body nếu thích mặc slim).
+- **Lý do chuyên môn:** Vòng ngực áo sơ mi Size L thường được may ở mức 102cm - 104cm. Khi đối chiếu với ngực ${userBody.chest_cm}cm của bạn, độ cử động đạt **+6cm (Ease Allowance)**. Con số này giúp bạn thở sâu, ngồi làm việc và cử động vươn tay hoàn toàn thoải mái mà không bị bửa cúc ngực!`;
     }
 
-    if (q.includes('ease') || q.includes('cử động') || q.includes('độ chùng') || q.includes('iso')) {
+    if (lower.includes('ease') || lower.includes('cử động') || lower.includes('iso')) {
       return locale === 'en'
-        ? `✦ **What is Ease Allowance?**\n\nGarments are never cut flush to the skin. **Ease Allowance** is the deliberate extra margin (+3cm to +6cm) added beyond body dimensions to allow natural breathing, bending, and arm rotation while keeping an elegant drape.\n\n• **Slim Fit:** +3cm to +4cm ease\n• **Standard Bespoke:** +5cm ease\n• **Relaxed Oversized:** +8cm to +12cm ease`
-        : `✦ **Độ Cử Động (Ease Allowance) Trong May Đo:**\n\nÁo quần không bao giờ may bằng khít với bề mặt da thịt. **Độ cử động (Ease Allowance)** là phần vải dôi ra có chủ đích (+3cm đến +6cm) so với số đo cơ thể thật để người mặc thở thoải mái, nâng tay và ngồi làm việc cả ngày mà không bị bó tức.\n\n• **Áo sơ mi Slim-fit:** Bù độ cử động +3cm đến +4cm\n• **Áo may đo chuẩn Bespoke:** Bù +5cm ở ngực và +4cm ở bụng\n• **Áo khoác / Blazer:** Bù +8cm đến +10cm để mặc ngoài áo lót`;
-    }
-
-    if (q.includes('phối đồ') || q.includes('style') || q.includes('outfit')) {
-      return locale === 'en'
-        ? `✦ **Styling Proposal by FitVision:**\n\nFor a sophisticated modern atelier look:\n1. **Upper:** Egyptian Cotton Shirt in Light Stone / Navy\n2. **Lower:** Italian Tailored Chinos in Khaki or Charcoal\n3. **Silhouette:** Clean vertical lines that elongate your ${userBody.height_cm}cm stature, pairing perfectly with minimalist leather loafers.`
-        : `✦ **Gợi Ý Phối Đồ Thanh Lịch:**\n\nVới vóc dáng **${userBody.height_cm}cm, ${userBody.weight_kg}kg**, bạn rất thích hợp với phong cách *Quiet Luxury / Minimalist*:\n1. **Áo:** Áo sơ mi Cotton Ai Cập trắng ngà hoặc Áo Polo lụa Mulberry xanh Navy.\n2. **Quần:** Quần Tây Ý phom đứng (cạp cao 2 nếp xếp ly) giúp tôn chiều dài chân.\n3. **Phụ kiện:** Giày Loafer da bò thuộc tự nhiên và thắt lưng bản nhỏ 3cm.`;
+        ? `✦ **What is Ease Allowance (ISO 8559-1)?**
+Clothes are never cut exactly equal to the skin!
+- **Garment Measurement = Body Measurement + Ease Allowance**
+- **Skin-tight:** 0cm to +2cm (only for compression or swimwear).
+- **Slim Fit:** +3cm to +5cm (sleek silhouette for fine cotton shirts).
+- **Comfort / Classic Fit:** +6cm to +10cm (easy daily movement).
+Our 3D Ramanujan engine matches this ease allowance automatically for every item!`
+        : `✦ **Độ Cử Động (Ease Allowance) Theo Chuẩn May Đo Quốc Tế**:
+Quần áo cao cấp **không bao giờ may bằng khít với da thịt**!
+- **Công thức vàng:** \`Thông số áo = Số đo cơ thể + Độ cử động (Ease Allowance)\`
+- **Áo ôm sát (Slim):** Cần bù từ \`+3cm ~ +5cm\` quanh ngực.
+- **Áo thoải mái (Classic):** Cần bù từ \`+6cm ~ +9cm\` để cử động êm ái khi đứng, ngồi và lái xe.
+- **Chất liệu không co giãn (Cotton Giza, Wool Ý):** Bắt buộc phải có độ chùng vải tối thiểu +4cm để tránh rách chỉ nách và bửa cúc!`;
     }
 
     return locale === 'en'
-      ? `✦ **FitVision AI Stylist:**\n\nI have analyzed your request regarding *"I am browsing clothing"*. Your biometric profile (**${userBody.height_cm}cm, ${userBody.weight_kg}kg**) is active across all product cards on the catalog. Every garment will compute a real-time **Fit Score %** matched to ISO 8559 standards.\n\n*(Tip: You can paste your Gemini 2.5 API key in the top settings icon to enable live unconstrained web reasoning!)*`
-      : `✦ **Trợ Lý AI FitVision 3D:**\n\nTôi đã ghi nhận câu hỏi của bạn. Hồ sơ vóc dáng (**${userBody.height_cm}cm, ${userBody.weight_kg}kg, Ngực ${userBody.chest_cm}cm**) của bạn đang được áp dụng trực tiếp cho toàn bộ sản phẩm trên sàn.\n\nMỗi sản phẩm bạn bấm vào sẽ tự động tính toán **Tỷ lệ vừa vặn (Fit Score %)** và độ cử động đường may chuẩn xác.\n\n*(Mẹo: Bạn có thể nhấn vào biểu tượng chìa khóa ⚙️ ở thanh tiêu đề để dán API Key Gemini 2.5 khi sẵn sàng nhé!)*`;
+      ? `✦ **Couture Styling Advice**:
+With your ${userBody.height_cm}cm height and ${userBody.weight_kg}kg athletic frame:
+1. **Upper:** Pair an **Egyptian Giza Cotton Oxford Shirt** with a semi-spread collar to accent your jawline.
+2. **Lower:** Pair with **Italian Chino or Wool Trousers** in Charcoal or Camel to elongate your legs.
+3. You can click **"Thử Size 3D"** on any piece to test the virtual drape!`
+      : `✦ **Gợi Ý Phối Đồ Từ Chuyên Gia Thời Trang FitVision**:
+Với chiều cao ${userBody.height_cm}cm và cân nặng ${userBody.weight_kg}kg cân đối:
+1. **Phần trên:** Áo Sơ Mi Oxford Cotton Ai Cập dệt nổi kết hợp cổ bẻ Semi-spread sẽ làm nổi bật bờ vai và tạo vẻ đĩnh đạc, nam tính.
+2. **Phần dưới:** Phối cùng Quần Tây Chino ống Slim Tapered màu Than Chì (Charcoal) hoặc Nâu Camel sẽ kéo dài tỷ lệ đôi chân.
+3. Bạn có thể bấm nút **"Thử Size 3D"** trên từng sản phẩm để khởi động buồng thử đồ ảo VELL Studio và xem ánh sáng quét vóc dáng ngay lập tức!`;
   };
 
-  const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend || inputMessage).trim();
-    if (!query || isTyping) return;
+  const handleSendMessage = async (customQuery?: string) => {
+    const query = customQuery || inputMessage;
+    if (!query.trim() || isTyping) return;
 
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
-      text: query,
+      text: query.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    setInputMessage('');
+    if (!customQuery) setInputMessage('');
     setIsTyping(true);
 
     try {
@@ -213,144 +230,125 @@ Provide a concise, helpful, and sophisticated reply in markdown. Give exact size
 
   return (
     <>
-      {/* ── FLOATING TRIGGER PILL / ORB (BOTTOM-RIGHT) ── */}
-      <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end pointer-events-auto">
-        {!isOpen && (
-          <div className="flex items-center gap-2 mb-2 animate-bounce duration-1000">
-            <span className="hidden sm:inline-block px-3 py-1.5 rounded-full bg-stone-900/90 text-white text-xs font-bold shadow-lg border border-stone-700 backdrop-blur-md">
-              ✦ {t('ecommerce.chatbot.pillTooltip', 'Hỏi AI Gemini: Tư vấn size & phối đồ')}
-            </span>
-          </div>
-        )}
-
+      {/* ── ULTRA-LUXE FLOATING HOLOGRAPHIC AI ORB (BOTTOM-RIGHT) ── */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-auto">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          aria-label="Open Gemini Fashion Stylist"
-          className="relative group p-0 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white shadow-2xl shadow-blue-500/40 hover:shadow-indigo-500/60 border-2 border-white/60 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer"
+          aria-label="Open Gemini Couture Stylist"
+          className="relative group p-0 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-stone-900 via-indigo-950 to-blue-900 text-white shadow-2xl border border-white/30 hover:border-blue-400 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer"
         >
-          {/* Animated Glow Ring */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 blur-md opacity-60 group-hover:opacity-90 animate-pulse transition-opacity" />
+          {/* Radiant Glow Ring */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 blur-lg opacity-40 group-hover:opacity-80 transition-opacity animate-pulse" />
 
-          {/* Center Icon */}
+          {/* Center Jewel Icon */}
           <div className="relative z-10 flex items-center justify-center">
             {isOpen ? (
-              <X size={24} strokeWidth={2.4} />
+              <X size={22} strokeWidth={2.4} className="text-white" />
             ) : (
-              <div className="flex items-center justify-center">
-                <Sparkles size={24} className="text-yellow-300 animate-spin-slow" />
+              <div className="relative flex items-center justify-center">
+                <Sparkles size={22} className="text-yellow-300 animate-spin-slow" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-blue-400 animate-ping" />
               </div>
             )}
           </div>
 
-          {/* New / Online Indicator Dot */}
-          {hasNewBadge && !isOpen && (
-            <span className="absolute top-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
-              <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-            </span>
+          {/* Minimalist Floating Tooltip on Hover */}
+          {!isOpen && (
+            <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-950/90 text-white text-[11px] font-bold shadow-xl border border-white/20 backdrop-blur-md whitespace-nowrap animate-in fade-in slide-in-from-right-2 pointer-events-none">
+              <Sparkles size={11} className="text-amber-300" />
+              <span>Gemini 2.5 Couture Stylist</span>
+            </div>
           )}
         </button>
       </div>
 
-      {/* ── EXPANDABLE CHATBOT POPUP WINDOW ── */}
+      {/* ── DARK FROSTED GLASS CHATBOT STUDIO MODAL ── */}
       {isOpen && (
         <div
-          className={`fixed z-50 transition-all duration-300 ease-out flex flex-col bg-white border border-stone-300 shadow-2xl rounded-2xl overflow-hidden font-sans ${
+          className={`fixed z-50 transition-all duration-300 ease-out flex flex-col bg-stone-950/95 backdrop-blur-2xl border border-white/15 text-white shadow-2xl rounded-3xl overflow-hidden font-sans ${
             isExpanded
-              ? 'inset-4 sm:inset-10 md:inset-x-24 md:inset-y-12'
-              : 'bottom-22 right-4 sm:right-6 w-[92vw] sm:w-[410px] h-[580px] max-h-[80vh]'
+              ? 'inset-4 sm:inset-10 md:inset-x-24 md:inset-y-10'
+              : 'bottom-24 right-4 sm:right-6 w-[92vw] sm:w-[440px] h-[580px] max-h-[80vh]'
           }`}
-          style={{
-            boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-          }}
         >
-          {/* Window Header */}
-          <div className="px-4 py-3.5 bg-gradient-to-r from-stone-900 via-stone-850 to-blue-950 text-white flex items-center justify-between border-b border-stone-800 flex-shrink-0">
+          {/* Header Bar */}
+          <div className="px-5 py-3.5 border-b border-white/10 bg-white/5 backdrop-blur-md flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center shadow-inner">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md">
                 <Sparkles size={16} className="text-yellow-300" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="font-extrabold text-sm tracking-tight text-white">
-                    Gemini 2.5 AI Stylist
+                  <h3 className="font-extrabold text-xs tracking-wider uppercase text-white">
+                    Gemini 2.5 Couture
                   </h3>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-500/30 text-blue-300 border border-blue-400/30">
-                    LIVE
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                    AI STYLIST
                   </span>
                 </div>
-                <p className="text-[10px] text-stone-300">
-                  {t('ecommerce.chatbot.subtitle', 'Trợ lý may đo & tư vấn độ vừa vặn 3D')}
+                <p className="text-[10px] text-stone-400">
+                  Tư vấn nhân trắc học & phối đồ may đo 3D
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
-              {/* API Key Config Toggle */}
+            <div className="flex items-center gap-1 text-stone-400">
               <button
                 type="button"
                 onClick={() => setShowConfig(!showConfig)}
-                title="Cấu hình Gemini API Key"
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                  showConfig || apiKey ? 'text-amber-400 bg-white/10' : 'text-stone-400 hover:text-white hover:bg-white/10'
+                className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer ${
+                  apiKey ? 'text-emerald-400' : 'text-stone-400'
                 }`}
+                title={apiKey ? 'Đã liên kết Gemini API' : 'Cài đặt Gemini 2.5 API Key'}
               >
-                <Key size={16} />
+                <Key size={14} />
               </button>
 
-              {/* Expand Toggle */}
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="hidden sm:inline-flex p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer hidden sm:block"
+                title={isExpanded ? 'Thu nhỏ' : 'Mở rộng'}
               >
-                {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
               </button>
 
-              {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-white/10 text-stone-300 hover:text-white transition-colors cursor-pointer"
               >
-                <X size={17} />
+                <X size={16} />
               </button>
             </div>
           </div>
 
-          {/* Optional API Key Configuration Strip */}
+          {/* API Key Configuration Drawer */}
           {showConfig && (
-            <div className="p-3 bg-amber-50 border-b border-amber-200 text-xs animate-in slide-in-from-top duration-200 flex-shrink-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-bold text-amber-950 flex items-center gap-1">
-                  <Key size={13} className="text-amber-700" />
-                  <span>Google Gemini 2.5 API Key</span>
+            <div className="p-4 bg-stone-900 border-b border-white/10 text-xs space-y-2.5 animate-in slide-in-from-top-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-stone-200 flex items-center gap-1.5">
+                  <Key size={13} className="text-blue-400" />
+                  <span>Kết Nối Gemini 2.5 API Key</span>
                 </span>
-                <span className="text-[10px] text-amber-800 font-mono">
-                  {apiKey ? '✓ Đã lưu key' : 'Tùy chọn'}
-                </span>
+                <span className="text-[10px] text-stone-400 font-mono">Bảo mật trên trình duyệt</span>
               </div>
-              <p className="text-[11px] text-amber-900/80 mb-2">
-                Dán API Key để bot kết nối trực tiếp với mô hình Gemini 2.5 của Google. Nếu để trống, bot vẫn tư vấn dựa trên bộ máy sinh trắc học FitVision 3D.
+              <p className="text-[11px] text-stone-400 leading-relaxed">
+                Dán API key Google AI Studio (Gemini 2.5 Flash / Pro) để kích hoạt năng lực đàm thoại thời trang chuyên sâu thời gian thực:
               </p>
               <div className="flex gap-2">
                 <input
                   type="password"
                   placeholder="AIzaSy..."
-                  defaultValue={apiKey}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveApiKey((e.target as HTMLInputElement).value);
-                  }}
-                  className="flex-1 bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 text-xs text-stone-900 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500"
-                  id="gemini-key-input"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="flex-1 bg-black/50 border border-white/20 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-stone-600 focus:outline-none focus:border-blue-400 font-mono"
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    const el = document.getElementById('gemini-key-input') as HTMLInputElement;
-                    if (el) handleSaveApiKey(el.value);
-                  }}
-                  className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg font-bold text-xs cursor-pointer shadow-xs"
+                  onClick={() => handleSaveApiKey(apiKey)}
+                  className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white transition-colors cursor-pointer"
                 >
                   Lưu
                 </button>
@@ -358,40 +356,45 @@ Provide a concise, helpful, and sophisticated reply in markdown. Give exact size
             </div>
           )}
 
-          {/* Active User Context Banner */}
-          <div className="px-3.5 py-2 bg-stone-100 border-b border-stone-200/80 flex items-center justify-between text-[11px] font-mono text-stone-700 flex-shrink-0">
-            <span className="flex items-center gap-1.5 font-bold text-stone-900">
-              <Ruler size={13} className="text-blue-600" />
-              <span>{userBody.height_cm}cm • {userBody.weight_kg}kg</span>
-            </span>
-            <span className="text-stone-500">
-              Ngực: <b className="text-stone-800">{userBody.chest_cm}cm</b> • Eo: <b className="text-stone-800">{userBody.waist_cm}cm</b>
-            </span>
+          {/* Live Biometric Capsule Banner */}
+          <div className="px-5 py-2.5 bg-white/5 border-b border-white/10 flex items-center justify-between text-xs flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Ruler size={13} className="text-emerald-400" />
+              <span className="text-[11px] text-stone-400">Vóc dáng của bạn:</span>
+              <span className="font-mono font-bold text-emerald-400 text-[11px]">
+                {userBody.height_cm}cm • {userBody.weight_kg}kg
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-mono text-stone-300">
+              <span>V1: {userBody.chest_cm}cm</span>
+              <span>•</span>
+              <span>V2: {userBody.waist_cm}cm</span>
+            </div>
           </div>
 
           {/* Messages Scroll Area */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-stone-50/50">
+          <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.sender === 'ai' && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs text-xs mt-0.5">
+                  <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md text-xs mt-0.5">
                     <Sparkles size={13} className="text-yellow-300" />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed shadow-xs ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed shadow-md ${
                     msg.sender === 'user'
                       ? 'bg-blue-600 text-white rounded-tr-xs'
-                      : 'bg-white text-stone-900 border border-stone-200/80 rounded-tl-xs whitespace-pre-line'
+                      : 'bg-white/10 text-stone-100 border border-white/10 rounded-tl-xs whitespace-pre-line'
                   }`}
                 >
                   {msg.text}
                   <span
-                    className={`block text-[9px] mt-1 text-right ${
+                    className={`block text-[9px] mt-1 text-right font-mono ${
                       msg.sender === 'user' ? 'text-blue-200' : 'text-stone-400'
                     }`}
                   >
@@ -400,23 +403,23 @@ Provide a concise, helpful, and sophisticated reply in markdown. Give exact size
                 </div>
 
                 {msg.sender === 'user' && (
-                  <div className="w-7 h-7 rounded-full bg-stone-200 text-stone-700 flex items-center justify-center flex-shrink-0 text-xs mt-0.5 font-bold">
-                    <User size={14} />
+                  <div className="w-7 h-7 rounded-xl bg-white/20 text-white flex items-center justify-center flex-shrink-0 text-xs mt-0.5 font-bold">
+                    <User size={13} />
                   </div>
                 )}
               </div>
             ))}
 
             {isTyping && (
-              <div className="flex gap-2.5 items-center text-stone-500 text-xs">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 text-white flex items-center justify-center flex-shrink-0 text-xs">
+              <div className="flex gap-2.5 items-center text-stone-400 text-xs">
+                <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center flex-shrink-0 text-xs">
                   <Sparkles size={13} className="text-yellow-300 animate-spin" />
                 </div>
-                <div className="bg-white border border-stone-200 rounded-2xl px-3.5 py-2 flex items-center gap-1.5 shadow-2xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-bounce [animation-delay:0.2s]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-bounce [animation-delay:0.4s]" />
-                  <span className="text-[11px] text-stone-500 ml-1">Gemini đang tính toán...</span>
+                <div className="bg-white/10 border border-white/10 rounded-2xl px-3.5 py-2 flex items-center gap-1.5 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce [animation-delay:0.2s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:0.4s]" />
+                  <span className="text-[11px] text-stone-400 ml-1">Gemini đang phân tích vóc dáng...</span>
                 </div>
               </div>
             )}
@@ -425,13 +428,13 @@ Provide a concise, helpful, and sophisticated reply in markdown. Give exact size
           </div>
 
           {/* Quick Prompts Shelf */}
-          <div className="px-3 pt-2 pb-1.5 bg-white border-t border-stone-200/80 overflow-x-auto scrollbar-none flex gap-1.5 flex-shrink-0">
+          <div className="px-3 pt-2 pb-1.5 bg-black/40 border-t border-white/10 overflow-x-auto scrollbar-none flex gap-1.5 flex-shrink-0">
             {quickPrompts.map((p, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSendMessage(p.query)}
-                className="whitespace-nowrap px-2.5 py-1 rounded-full bg-stone-100 hover:bg-blue-50 text-stone-700 hover:text-blue-700 border border-stone-200 hover:border-blue-300 text-[11px] font-semibold transition-colors cursor-pointer flex-shrink-0"
+                className="whitespace-nowrap px-3 py-1.5 rounded-full bg-white/10 hover:bg-blue-600/30 text-stone-300 hover:text-white border border-white/10 hover:border-blue-400 text-[11px] font-semibold transition-all cursor-pointer flex-shrink-0"
               >
                 {p.label}
               </button>
@@ -444,7 +447,7 @@ Provide a concise, helpful, and sophisticated reply in markdown. Give exact size
               e.preventDefault();
               handleSendMessage();
             }}
-            className="p-3 bg-white border-t border-stone-200 flex items-center gap-2 flex-shrink-0"
+            className="p-3 bg-black/60 border-t border-white/10 flex items-center gap-2 flex-shrink-0"
           >
             <input
               ref={inputRef}
@@ -452,16 +455,17 @@ Provide a concise, helpful, and sophisticated reply in markdown. Give exact size
               placeholder={t('ecommerce.chatbot.placeholder', 'Hỏi Gemini: chọn size, phom dáng, phối đồ...')}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              className="flex-1 bg-stone-100 border border-stone-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-stone-900 placeholder:text-stone-500 focus:outline-none focus:bg-white focus:border-blue-600 transition-all font-medium"
+              className="flex-1 bg-white/10 border border-white/15 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white placeholder:text-stone-500 focus:outline-none focus:bg-white/15 focus:border-blue-400 transition-all font-medium"
             />
             <button
               type="submit"
               disabled={!inputMessage.trim() || isTyping}
-              className="w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white flex items-center justify-center transition-all cursor-pointer shadow-md shadow-blue-500/30 flex-shrink-0 active:scale-95"
+              className="w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white flex items-center justify-center transition-all cursor-pointer shadow-md shadow-blue-500/30 flex-shrink-0 active:scale-95"
             >
-              <Send size={16} />
+              <Send size={15} />
             </button>
           </form>
+
         </div>
       )}
     </>

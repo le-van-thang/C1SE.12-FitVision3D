@@ -772,3 +772,37 @@ input:-internal-autofill-selected,
   align-items: center;
   padding: 0 14px;
 }
+
+/* ── VELL VIRTUAL STUDIO SIGNATURE SCAN WIPE ANIMATION ── */
+@keyframes scanWipeDown {
+  0% {
+    top: -2%;
+    opacity: 1;
+  }
+  92% {
+    top: 96%;
+    opacity: 1;
+  }
+  100% {
+    top: 102%;
+    opacity: 0;
+  }
+}
+
+.animate-scan-wipe {
+  animation: scanWipeDown 1.05s cubic-bezier(0.7, 0, 0.25, 1) forwards;
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
+}
+
