@@ -635,3 +635,4 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
 };
 
 export default VellVirtualStudioModal;
+

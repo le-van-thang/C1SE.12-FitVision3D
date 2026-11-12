@@ -39,6 +39,7 @@ Thumbs.db
 *.swo
 *.suo
 *.sln
+~$*
 
 # Large Pretrained Weights & Checkpoints (> 50MB, avoids GitHub 100MB limit)
 pretrained_models/
