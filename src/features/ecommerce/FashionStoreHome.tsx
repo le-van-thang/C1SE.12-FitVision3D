@@ -33,7 +33,6 @@ import { QuickBiometricModal } from './QuickBiometricModal';
 import { VellVirtualStudioModal } from './VellVirtualStudioModal';
 import { MaisonVellRunwayModal } from './MaisonVellRunwayModal';
 import { NowhereThermalSlipModal } from './NowhereThermalSlipModal';
-import { MaisonVellRunwayHero } from './MaisonVellRunwayHero';
 import { FashionSidebarNav } from './FashionSidebarNav';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import type { FashionProduct, ProductVariant, UserBodyProfile, CartItem } from './types';
@@ -207,8 +206,6 @@ export const FashionStoreHome: React.FC = () => {
   const [isMaisonRunwayOpen, setIsMaisonRunwayOpen] = useState<boolean>(false);
   const [isThermalSlipOpen, setIsThermalSlipOpen] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [activeMainView, setActiveMainView] = useState<'runway' | 'catalog'>('runway');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   // Shopee-style Auto-sliding Product Campaign Banner State
   const [activeBannerSlide, setActiveBannerSlide] = useState<number>(0);
@@ -343,340 +340,391 @@ export const FashionStoreHome: React.FC = () => {
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] text-[#1C1917] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900 pb-20 md:pb-0">
+    <div className="min-h-screen bg-[#FAFAF9] text-[#1C1917] font-sans flex flex-col lg:flex-row antialiased selection:bg-blue-100 selection:text-blue-900">
       
-      {/* ── ATELIER LUXURY NAVBAR (NON-WRAPPING, HIGH-CONTRAST) ── */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-stone-800 transition-all shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
-          
-          {/* Brand Logo & Vertical Sidebar Trigger (Thanh Dọc) */}
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
-            {/* Dedicated Vertical Sidebar Trigger Button */}
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-950 hover:bg-black text-white text-xs font-mono font-bold shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95 border border-stone-800"
-              title="Mở thanh menu dọc (Toàn bộ danh mục & chức năng)"
-            >
-              <Menu size={16} />
-              <span className="hidden sm:inline">DANH MỤC DỌC</span>
-            </button>
+      {/* ── DESKTOP PERMANENT VERTICAL SIDEBAR (THANH DỌC TỪ TRÊN XUỐNG) ── */}
+      <aside className="hidden lg:flex w-64 xl:w-72 shrink-0 border-r-2 border-stone-800 bg-white flex-col justify-between sticky top-0 h-screen select-none z-30 shadow-xs overflow-hidden">
+        {/* Brand Header */}
+        <div className="h-16 px-5 border-b-2 border-stone-800 flex items-center justify-between flex-shrink-0 bg-stone-50">
+          <a href="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+              <Scissors size={18} strokeWidth={2} />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-black text-base tracking-tight text-stone-900 leading-none">
+                FitVision <span className="text-blue-600">3D</span>
+              </span>
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-stone-400 mt-0.5">
+                Atelier & May Đo 3D
+              </span>
+            </div>
+          </a>
+        </div>
 
-            <a href="/" className="flex items-center gap-2 group flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm group-hover:bg-blue-700 transition-colors">
-                <Scissors size={18} strokeWidth={2} />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-black text-base md:text-lg tracking-tight text-stone-900 flex items-center gap-1">
-                  FitVision <span className="text-blue-600">3D</span>
+        {/* Scrollable Navigation Body */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          
+          {/* Biometrics Profile Card */}
+          <div className="p-3.5 rounded-2xl bg-stone-950 text-white shadow-md border border-stone-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-300">
+                  Hồ Sơ Vóc Dáng
                 </span>
-                <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-stone-400 -mt-1 hidden md:block">
-                  Atelier & 3D Sizing
-                </span>
               </div>
-            </a>
+              <button
+                type="button"
+                onClick={() => setIsBiometricModalOpen(true)}
+                className="text-[10px] font-bold text-blue-300 hover:text-blue-200 underline cursor-pointer"
+              >
+                Đổi số đo
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div className="bg-stone-900/90 p-2 rounded-xl border border-stone-800">
+                <span className="text-stone-400 text-[10px] block">Chiều cao</span>
+                <span className="font-bold text-white text-xs">{userBody.height_cm} cm</span>
+              </div>
+              <div className="bg-stone-900/90 p-2 rounded-xl border border-stone-800">
+                <span className="text-stone-400 text-[10px] block">Cân nặng</span>
+                <span className="font-bold text-white text-xs">{userBody.weight_kg} kg</span>
+              </div>
+              <div className="bg-stone-900/90 p-2 rounded-xl border border-stone-800">
+                <span className="text-stone-400 text-[10px] block">Vòng ngực</span>
+                <span className="font-bold text-emerald-400 text-xs">{userBody.chest_cm} cm</span>
+              </div>
+              <div className="bg-stone-900/90 p-2 rounded-xl border border-stone-800">
+                <span className="text-stone-400 text-[10px] block">Vòng eo</span>
+                <span className="font-bold text-emerald-400 text-xs">{userBody.waist_cm} cm</span>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer pt-1 text-[11px] text-stone-300 border-t border-stone-800">
+              <input
+                type="checkbox"
+                checked={filterByMyFitOnly}
+                onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
+                className="w-3.5 h-3.5 rounded text-blue-500 border-stone-700 accent-blue-500 cursor-pointer"
+              />
+              <span className="font-medium text-[11px]">Chỉ hiện đồ vừa dáng (≥ 90%)</span>
+            </label>
           </div>
 
-          {/* Center Navigation Links - Non-squished View Switcher */}
-          <div className="hidden lg:flex items-center gap-1 p-1 bg-stone-100 rounded-2xl border border-stone-300 text-xs font-bold flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveMainView('runway');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                activeMainView === 'runway'
-                  ? 'bg-stone-950 text-white shadow-sm font-black'
-                  : 'text-stone-700 hover:text-stone-950 hover:bg-white/80'
-              }`}
-            >
-              <Eye size={14} className="text-indigo-400" />
-              <span>Sàn Diễn Catwalk 3D</span>
-            </button>
+          {/* Core Functional Modules */}
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-mono font-black uppercase tracking-wider text-stone-400 px-1 block">
+              CÔNG NGHỆ 3D & MAY ĐO
+            </span>
 
             <button
               type="button"
               onClick={() => {
-                setActiveMainView('catalog');
                 const el = document.getElementById('catalog');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                activeMainView === 'catalog'
-                  ? 'bg-stone-950 text-white shadow-sm font-black'
-                  : 'text-stone-700 hover:text-stone-950 hover:bg-white/80'
-              }`}
+              className="w-full px-3 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-950 font-bold text-xs flex items-center justify-between transition-colors border border-blue-200 cursor-pointer group"
             >
-              <ShoppingBag size={14} className="text-blue-500" />
-              <span>Sàn Mua Sắm (Catalog)</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <ShoppingBag size={14} />
+                </div>
+                <span>Sàn Mua Sắm (Catalog)</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-blue-200 text-blue-900 font-bold">
+                {MOCK_PRODUCTS.length}
+              </span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsVellStudioOpen(true)}
-              className="px-3 py-1.5 rounded-xl text-purple-700 hover:bg-purple-100/70 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap font-bold"
+              className="w-full px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-bold text-xs flex items-center justify-between transition-colors border border-purple-200 cursor-pointer group"
             >
-              <Sparkles size={14} className="text-purple-600" />
-              <span>Buồng Thử VELL 3D</span>
-              <span className="text-[9px] px-1 py-0.2 bg-purple-200 text-purple-800 font-bold rounded">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-purple-700 text-white flex items-center justify-center shadow-xs">
+                  <Sparkles size={14} className="text-amber-300" />
+                </div>
+                <span>Buồng Thử Đồ VELL 3D</span>
+              </div>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-200 text-purple-900 font-mono font-bold">
                 WIPE
               </span>
             </button>
 
             <a
               href="/dashboard"
-              className="px-3 py-1.5 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+              className="w-full px-3 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs flex items-center justify-between transition-colors border border-stone-200 cursor-pointer"
             >
-              <Ruler size={14} className="text-stone-500" />
-              <span>Phòng Đo ISO</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-stone-700 text-white flex items-center justify-center shadow-xs">
+                  <Ruler size={14} />
+                </div>
+                <span>Phòng Đo Nhân Trắc</span>
+              </div>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-stone-200 text-stone-800 font-mono font-bold">
+                ISO
+              </span>
             </a>
-          </div>
 
-          {/* Right Action Icons - Clean, Non-wrapping */}
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
-            {/* Quick Demo Role Switcher (User | Store | Admin) */}
-            <div className="hidden xl:flex items-center gap-1 bg-stone-100 px-2 py-1 rounded-xl border border-stone-200 text-[11px] font-mono font-bold flex-shrink-0">
-              <span className="text-stone-400 text-[10px] uppercase mr-0.5">Role:</span>
-              <button
-                type="button"
-                onClick={() => switchDemoRole('user')}
-                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
-                  userRole === 'user' ? 'bg-white text-blue-700 shadow-xs border border-stone-300 font-black' : 'text-stone-500 hover:text-stone-800'
-                }`}
-                title="Đóng vai Khách Hàng mua sắm"
-              >
-                Khách
-              </button>
-              <button
-                type="button"
-                onClick={() => switchDemoRole('store')}
-                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
-                  userRole === 'store' ? 'bg-amber-500 text-white shadow-xs font-black' : 'text-stone-500 hover:text-stone-800'
-                }`}
-                title="Đóng vai Chủ Shop / Thợ may"
-              >
-                Chủ Shop
-              </button>
-              <button
-                type="button"
-                onClick={() => switchDemoRole('admin')}
-                className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
-                  userRole === 'admin' ? 'bg-indigo-600 text-white shadow-xs font-black' : 'text-stone-500 hover:text-stone-800'
-                }`}
-                title="Đóng vai Quản Trị Viên sàn"
-              >
-                Admin
-              </button>
-            </div>
-
-            {/* Quick Biometrics Status Pill (Desktop) */}
-            <button
-              type="button"
-              onClick={() => setIsBiometricModalOpen(true)}
-              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-stone-50 border-2 border-stone-800 text-xs font-mono font-bold text-stone-900 shadow-2xs transition-all cursor-pointer flex-shrink-0 whitespace-nowrap"
-              title="Xem và chỉnh sửa số đo cơ thể"
-            >
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
-              <span>{userBody.height_cm}cm • {userBody.weight_kg}kg</span>
-            </button>
-
-            {/* Bespoke Thermal Slip (The Slip) Trigger */}
             <button
               type="button"
               onClick={() => setIsThermalSlipOpen(true)}
-              className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-xs font-mono font-bold text-stone-800 transition-all cursor-pointer flex-shrink-0 whitespace-nowrap"
-              title="Xem phiếu may đo độc bản (The Slip)"
+              className="w-full px-3 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs flex items-center justify-between transition-colors border border-stone-200 cursor-pointer"
             >
-              <Scissors size={13} className="text-stone-700" />
-              <span>Phiếu Đo</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-stone-700 text-white flex items-center justify-center shadow-xs">
+                  <Scissors size={14} />
+                </div>
+                <span>Phiếu May Đo The Slip</span>
+              </div>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-stone-200 text-stone-800 font-mono font-bold">
+                ISO
+              </span>
             </button>
 
-            {/* Shopping Cart Button */}
             <button
               type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="relative w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-800 transition-all active:scale-95 flex items-center justify-center cursor-pointer flex-shrink-0"
-              aria-label={t('ecommerce.nav.cart', 'Giỏ hàng')}
+              onClick={openOnboarding}
+              className="w-full px-3 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs flex items-center justify-between transition-colors border border-amber-200 cursor-pointer"
             >
-              <ShoppingBag size={18} />
-              {totalCartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow">
-                  {totalCartCount}
-                </span>
-              )}
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                  <Store size={14} />
+                </div>
+                <span>Kênh Nhà May B2B</span>
+              </div>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-200 text-amber-900 font-mono font-bold">
+                B2B
+              </span>
             </button>
+          </div>
 
-            {/* Auth Button or User Profile */}
+          {/* Product Categories Filter */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-mono font-black uppercase tracking-wider text-stone-400 px-1 block">
+              DANH MỤC THỜI TRANG
+            </span>
+
+            {[
+              { id: 'all', label: 'Tất Cả Sản Phẩm', count: categoryCounts.all },
+              { id: 'shirt', label: 'Áo Sơ Mi Nam', count: categoryCounts.shirt },
+              { id: 'polo', label: 'Áo Polo Lụa', count: categoryCounts.polo },
+              { id: 'pants', label: 'Quần Tây & Chino', count: categoryCounts.pants },
+              { id: 'dress', label: 'Đầm Lụa Nữ', count: categoryCounts.dress },
+              { id: 'tailored', label: 'May Đo Bespoke', count: categoryCounts.tailored },
+            ].map((cat) => {
+              const isActive = activeCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory(cat.id);
+                    const el = document.getElementById('catalog');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-stone-900 text-white shadow-xs'
+                      : 'text-stone-700 hover:text-stone-950 hover:bg-stone-100'
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isActive ? 'bg-white/20 text-white font-bold' : 'bg-stone-200 text-stone-600'
+                    }`}
+                  >
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+        </div>
+
+        {/* Sidebar Footer: Roles & Auth */}
+        <div className="p-4 border-t-2 border-stone-800 bg-stone-50 space-y-3 flex-shrink-0">
+          {/* Quick Role Switcher */}
+          <div className="flex items-center justify-between bg-stone-200/80 p-1 rounded-xl text-[11px] font-mono font-bold">
+            <button
+              type="button"
+              onClick={() => switchDemoRole('user')}
+              className={`flex-1 py-1 rounded-lg text-center transition-all cursor-pointer ${
+                userRole === 'user' ? 'bg-white text-blue-700 shadow-xs font-black' : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              Khách
+            </button>
+            <button
+              type="button"
+              onClick={() => switchDemoRole('store')}
+              className={`flex-1 py-1 rounded-lg text-center transition-all cursor-pointer ${
+                userRole === 'store' ? 'bg-amber-500 text-white shadow-xs font-black' : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              Chủ Shop
+            </button>
+            <button
+              type="button"
+              onClick={() => switchDemoRole('admin')}
+              className={`flex-1 py-1 rounded-lg text-center transition-all cursor-pointer ${
+                userRole === 'admin' ? 'bg-indigo-600 text-white shadow-xs font-black' : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              Admin
+            </button>
+          </div>
+
+          {/* Auth Button or User Profile + Language Switcher */}
+          <div className="flex items-center justify-between gap-2">
             {isAuthenticated ? (
               <UserProfileDropdown variant="light" />
             ) : (
               <button
                 type="button"
                 onClick={openSignIn}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-black shadow-md transition-all cursor-pointer flex-shrink-0"
+                className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-black shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <LogIn size={14} className="text-white" />
-                <span className="whitespace-nowrap">{t('ecommerce.nav.login', 'Đăng Nhập')}</span>
+                <LogIn size={14} />
+                <span>Đăng Nhập</span>
               </button>
             )}
 
-            {/* Compact Single Toggle Language Switcher (🌐 VI / 🌐 EN) */}
-            <div className="flex-shrink-0">
-              <LanguageSwitcher compact variant="light" />
-            </div>
+            <LanguageSwitcher compact variant="light" />
+          </div>
+        </div>
+      </aside>
 
-            {/* Mobile Menu Toggle */}
+      {/* ── RIGHT MAIN CONTENT AREA (BÊN PHẢI THANH DỌC) ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+
+        {/* Mobile-only Top Bar (<lg) */}
+        <header className="lg:hidden sticky top-0 z-40 bg-white border-b-2 border-stone-800 px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 cursor-pointer flex-shrink-0"
-              aria-label="Menu"
+              className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 cursor-pointer"
+              aria-label="Mở menu dọc"
             >
-              <Menu size={20} />
+              <Menu size={18} />
+            </button>
+            <a href="/" className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                <Scissors size={15} />
+              </div>
+              <span className="font-black text-sm tracking-tight text-stone-900">
+                FitVision <span className="text-blue-600">3D</span>
+              </span>
+            </a>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBiometricModalOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-100 text-xs font-mono font-bold text-stone-800"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{userBody.height_cm}cm</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="relative w-8 h-8 rounded-full bg-stone-100 text-stone-800 flex items-center justify-center cursor-pointer"
+            >
+              <ShoppingBag size={16} />
+              {totalCartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
+                  {totalCartCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </header>
+
+        {/* Desktop Top Utility Bar (Search & Quick Action Triggers) */}
+        <div className="hidden lg:flex items-center justify-between px-6 py-3.5 border-b border-stone-200 bg-white/90 backdrop-blur-sm sticky top-0 z-20">
+          {/* Glowing Search Beam */}
+          <div className="search-beam-card w-96 group">
+            <div className="search-beam-light" />
+            <div className="search-beam-inner">
+              <div className="mr-2 flex items-center justify-center pointer-events-none text-blue-600 group-hover:text-blue-500 transition-colors flex-shrink-0">
+                <Search size={18} strokeWidth={2.6} />
+              </div>
+              <input
+                type="text"
+                placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo sơ mi, blazer, chất liệu lụa...')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-bold text-stone-950 placeholder:text-stone-400 focus:outline-none focus:ring-0 pr-6"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="p-1 rounded-full text-stone-500 hover:text-stone-900 hover:bg-stone-200 cursor-pointer transition-colors"
+                >
+                  <X size={15} strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Action Triggers & Shopping Cart */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsVellStudioOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              <Sparkles size={14} className="text-purple-600" />
+              <span>Buồng Thử VELL 3D</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsThermalSlipOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              <Scissors size={14} className="text-stone-700" />
+              <span>Phiếu May Đo The Slip</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="relative flex items-center gap-2 px-3.5 py-2 rounded-xl bg-stone-950 hover:bg-black text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95"
+            >
+              <ShoppingBag size={15} />
+              <span>Giỏ Hàng</span>
+              {totalCartCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-mono font-bold flex items-center justify-center">
+                  {totalCartCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-stone-200 bg-white p-4 space-y-3 animate-in slide-in-from-top-2">
-            <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveCategory('all');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left cursor-pointer"
-              >
-                {t('ecommerce.nav.allProducts', 'Tất Cả Sản Phẩm')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveCategory('shirt');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left cursor-pointer"
-              >
-                {t('ecommerce.nav.shirt', 'Áo Sơ Mi Nam')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveCategory('polo');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left cursor-pointer"
-              >
-                {t('ecommerce.nav.polo', 'Áo Polo Lụa')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveCategory('pants');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="p-2.5 rounded-lg bg-stone-50 border border-stone-200 text-left cursor-pointer"
-              >
-                {t('ecommerce.nav.pants', 'Quần Tây May Đo')}
-              </button>
-            </div>
-
-            <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsBiometricModalOpen(true);
-                  setIsMobileMenuOpen(false);
-                }}
-                className="text-xs font-semibold text-blue-600 flex items-center gap-1 cursor-pointer"
-              >
-                <Ruler size={14} />
-                <span>{t('ecommerce.mobileNav.measurements', 'Số đo')}: {userBody.height_cm}cm / {userBody.weight_kg}kg</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  openOnboarding();
-                  setIsMobileMenuOpen(false);
-                }}
-                className="text-xs font-semibold text-stone-600 flex items-center gap-1 cursor-pointer"
-              >
-                <Store size={14} />
-                <span>{t('ecommerce.nav.merchantRegister', 'Mở Gian Hàng B2B')}</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </header>
-
-      {/* ── RUNWAY PERSPECTIVE HERO (From UI/Maison Vell.docx) OR CLASSIC HERO ── */}
-      {(!isAuthenticated || activeMainView === 'runway') ? (
-        <MaisonVellRunwayHero
-          userBody={userBody}
-          isAuthenticated={isAuthenticated}
-          onOpenSignIn={openSignIn}
-          onOpenVellStudio={() => setIsVellStudioOpen(true)}
-          onNavigateToScan={() => {
-            window.location.href = '/dashboard';
-          }}
-          onAddToCart={(piece) => {
-            const fakeProd: FashionProduct = {
-              id: piece.id,
-              brand_name: 'Maison Vell Couture',
-              name: piece.name,
-              slug: `maison-vell-${piece.id}`,
-              category: 'dress',
-              gender_target: 'unisex',
-              price: piece.price,
-              fabric_material: 'Silk & Cashmere Couture',
-              stretch_type: 'Co giãn nhẹ (2-3%)',
-              image_url: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=800&q=80',
-              description: 'Trang phục couture từ bộ sưu tập Runway Maison Vell SS27',
-              rating: 5.0,
-              reviews_count: 24,
-              variants: [
-                {
-                  id: `var-${piece.id}-${piece.size}`,
-                  size_label: (['XS', 'S', 'M', 'L', 'XL', 'XXL'].includes(piece.size) ? piece.size : 'M') as ProductVariant['size_label'],
-                  color_name: 'Catwalk Edition',
-                  color_hex: '#1E293B',
-                  sku: `${piece.id}-${piece.size}`,
-                  stock: 5,
-                  spec: {
-                    chest_cm: userBody.chest_cm + 4,
-                    waist_cm: userBody.waist_cm + 4,
-                    shoulder_cm: 43,
-                    length_cm: 80,
-                    ease_min_cm: 3,
-                    ease_max_cm: 6,
-                  },
-                },
-              ],
-            };
-            handleAddToCart(fakeProd, fakeProd.variants[0]);
-            setIsCartOpen(true);
-          }}
-          onScrollToCatalog={() => {
-            const el = document.getElementById('catalog');
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-          }}
-        />
-      ) : (
+        {/* ── CORE HERO BANNER (100% AUTHENTIC FITVISION 3D - NO FILLER TEXT OR UNRELATED MODELS) ── */}
         <section className="relative overflow-hidden bg-white border-b-2 border-stone-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-14">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               
-              {/* Left Column: Thesis & Value Prop */}
-              <div className="lg:col-span-7 space-y-6 text-left">
+              {/* Left Column: Value Proposition & Action Buttons */}
+              <div className="lg:col-span-7 space-y-5 text-left">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold shadow-2xs">
                   <Sparkles size={13} className="text-blue-600" />
                   <span>NỀN TẢNG THỜI TRANG MAY ĐO & ĐO SIZE 3D THẾ HỆ MỚI</span>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-stone-900 leading-[1.2]">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-stone-950 leading-[1.2]">
                   {t('ecommerce.hero.title1', 'Thời Trang Vừa Vặn')} <br className="hidden sm:inline" />
                   <span className="text-blue-600">{t('ecommerce.hero.titleHighlight', 'Tuyệt Đối')}</span> {t('ecommerce.hero.title2', 'Từng Centimet.')}
                 </h1>
@@ -685,12 +733,12 @@ export const FashionStoreHome: React.FC = () => {
                   {t('ecommerce.hero.desc', 'Không còn nỗi lo chọn nhầm size hay phiền phức đổi trả. Thuật toán Trí Tuệ Nhân Tạo tự động phân tích vóc dáng và so khớp độ cử động (Ease Allowance) với từng đường kim mũi chỉ của nhà may.')}
                 </p>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap pt-2">
+                {/* High-Contrast Action Buttons */}
+                <div className="flex items-center gap-3 flex-wrap pt-2">
                   <button
                     type="button"
                     onClick={() => setIsVellStudioOpen(true)}
-                    className="px-5 py-3.5 rounded-xl bg-stone-950 hover:bg-black active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-xl flex items-center gap-2 transition-all cursor-pointer"
+                    className="px-5 py-3 rounded-xl bg-stone-950 hover:bg-black active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-xl flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
                   >
                     <Sparkles size={16} className="text-yellow-400" />
                     <span>Thử Đồ Ảo 3D (VELL Studio)</span>
@@ -698,16 +746,16 @@ export const FashionStoreHome: React.FC = () => {
 
                   <a
                     href="/dashboard"
-                    className="px-5 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105"
                   >
                     <Camera size={15} />
-                    <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng Bằng AI')}</span>
+                    <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng AI 30s')}</span>
                   </a>
 
                   <button
                     type="button"
                     onClick={openOnboarding}
-                    className="px-4 py-3.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-4 py-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Store size={14} className="text-amber-700" />
                     <span>{t('ecommerce.hero.ctaMerchant', 'Đăng ký gian hàng may đo')}</span>
@@ -715,28 +763,92 @@ export const FashionStoreHome: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right Column: Active Slide Product Preview */}
-              <div className="lg:col-span-5 relative pb-6">
-                <div className="relative mx-auto max-w-md lg:max-w-none aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl border-2 border-stone-800 bg-stone-900">
+              {/* Right Column: Interactive Product Slide Preview */}
+              <div
+                className="lg:col-span-5 relative"
+                onMouseEnter={() => setIsBannerPaused(true)}
+                onMouseLeave={() => setIsBannerPaused(false)}
+              >
+                <div className="relative mx-auto max-w-md lg:max-w-none aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl border-2 border-stone-800 bg-stone-900 group">
                   <img
                     src={HERO_PRODUCT_SLIDES[activeBannerSlide].imageUrl}
                     alt={HERO_PRODUCT_SLIDES[activeBannerSlide].titleVi}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4 p-4 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white">
-                    <h3 className="text-sm font-bold">{HERO_PRODUCT_SLIDES[activeBannerSlide].titleVi}</h3>
-                    <p className="text-xs text-amber-300 font-mono font-bold mt-1">
-                      {HERO_PRODUCT_SLIDES[activeBannerSlide].price.toLocaleString('vi-VN')} ₫
-                    </p>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+                  {/* Top Floating Match Badge */}
+                  <div className="absolute top-4 right-4 z-10 animate-in fade-in slide-in-from-top-2">
+                    <div className="bg-emerald-600 text-white px-3 py-1.5 rounded-2xl shadow-xl flex items-center gap-1.5 text-xs font-mono font-black border border-emerald-400/40">
+                      <CheckCircle2 size={14} />
+                      <span>{HERO_PRODUCT_SLIDES[activeBannerSlide].fitPercentage}% Vừa Vặn Tuyệt Đối</span>
+                    </div>
                   </div>
+
+                  {/* Slide Carousel Controls */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveBannerSlide(
+                        (prev) => (prev - 1 + HERO_PRODUCT_SLIDES.length) % HERO_PRODUCT_SLIDES.length
+                      )
+                    }
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer opacity-70 group-hover:opacity-100"
+                    aria-label="Slide trước"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveBannerSlide((prev) => (prev + 1) % HERO_PRODUCT_SLIDES.length)
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer opacity-70 group-hover:opacity-100"
+                    aria-label="Slide tiếp theo"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+
+                  {/* Bottom Product Details Card */}
+                  <div className="absolute bottom-4 left-4 right-4 p-4 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white space-y-1">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold block">
+                      {HERO_PRODUCT_SLIDES[activeBannerSlide].categoryTagVi}
+                    </span>
+                    <h3 className="text-sm font-bold text-white leading-snug line-clamp-1">
+                      {HERO_PRODUCT_SLIDES[activeBannerSlide].titleVi}
+                    </h3>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs text-amber-300 font-mono font-bold">
+                        {HERO_PRODUCT_SLIDES[activeBannerSlide].price.toLocaleString('vi-VN')} ₫
+                      </span>
+                      <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-700/60 font-bold">
+                        Gợi ý: Size {HERO_PRODUCT_SLIDES[activeBannerSlide].fitSize}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Slide Indicators */}
+                  <div className="absolute bottom-1 left-0 right-0 flex items-center justify-center gap-1.5 pb-1">
+                    {HERO_PRODUCT_SLIDES.map((slide, idx) => (
+                      <button
+                        key={slide.id}
+                        type="button"
+                        onClick={() => setActiveBannerSlide(idx)}
+                        className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                          activeBannerSlide === idx ? 'w-6 bg-white' : 'w-1.5 bg-white/40'
+                        }`}
+                        aria-label={`Slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+
                 </div>
               </div>
 
             </div>
           </div>
         </section>
-      )}
 
       {/* ── MAIN PRODUCT CATALOG SECTION (HIGH-FASHION EDITORIAL GRID) ── */}
       <main id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 flex-1">
@@ -766,17 +878,13 @@ export const FashionStoreHome: React.FC = () => {
               <span>Thử Đồ Ảo 3D (VELL Studio)</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveMainView('runway');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+            <a
+              href="/dashboard"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-black shadow-md border-2 border-blue-700 transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
-              <Eye size={15} className="text-white" />
-              <span>Sàn Diễn 3D Catwalk</span>
-            </button>
+              <Camera size={15} className="text-white" />
+              <span>Quét Đo AI 3D (ISO)</span>
+            </a>
 
             <button
               type="button"
@@ -1359,6 +1467,7 @@ export const FashionStoreHome: React.FC = () => {
 
         </div>
       </footer>
+      </div> {/* End Right Main Content Area */}
 
       {/* ── MOBILE BOTTOM THUMB NAVIGATION BAR (UI/UX PRO MAX PRIORITY 2) ── */}
       <nav aria-label="Mobile Navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-2 flex items-center justify-around shadow-lg">
@@ -1580,10 +1689,7 @@ export const FashionStoreHome: React.FC = () => {
         userRole={userRole}
         onSwitchRole={switchDemoRole}
         onOpenVellStudio={() => setIsVellStudioOpen(true)}
-        onOpenMaisonRunway={() => {
-          setActiveMainView('runway');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        onOpenMaisonRunway={() => setIsVellStudioOpen(true)}
         onOpenThermalSlip={() => setIsThermalSlipOpen(true)}
         onOpenBiometrics={() => setIsBiometricModalOpen(true)}
         onOpenOnboarding={openOnboarding}

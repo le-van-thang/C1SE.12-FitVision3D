@@ -113,18 +113,18 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
             <button
               type="button"
               onClick={() => {
-                onOpenMaisonRunway();
+                onSelectCategory('all');
                 onClose();
               }}
-              className="w-full p-2.5 rounded-xl bg-indigo-50/70 hover:bg-indigo-100/90 text-indigo-950 font-bold text-xs flex items-center justify-between transition-colors border border-indigo-200 cursor-pointer group"
+              className="w-full p-2.5 rounded-xl bg-blue-50/70 hover:bg-blue-100/90 text-blue-950 font-bold text-xs flex items-center justify-between transition-colors border border-blue-200 cursor-pointer group"
             >
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                  <Eye size={14} />
+                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <ShoppingBag size={14} />
                 </div>
                 <div className="text-left">
-                  <span className="block font-black text-stone-900 group-hover:text-indigo-700">Runway 3D Catwalk</span>
-                  <span className="text-[10px] text-stone-500 font-mono">Sàn diễn chiều sâu Maison Vell</span>
+                  <span className="block font-black text-stone-900 group-hover:text-blue-700">Sàn Thời Trang (Catalog)</span>
+                  <span className="text-[10px] text-stone-500 font-mono">Toàn bộ trang phục may đo & ready-to-wear</span>
                 </div>
               </div>
               <ChevronRight size={14} className="text-stone-400 group-hover:translate-x-0.5 transition-transform" />
