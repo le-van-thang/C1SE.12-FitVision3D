@@ -380,3 +380,4 @@ export const QuickAdminModal: React.FC<QuickAdminModalProps> = ({ isOpen, onClos
     </div>
   );
 };
+
