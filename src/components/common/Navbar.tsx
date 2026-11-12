@@ -11,6 +11,7 @@ import {
   LogIn,
   AlertTriangle,
   Sparkles,
+  ShoppingBag,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -36,6 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
     openSignIn,
     openOnboarding,
     openStatusModal,
+    switchDemoRole,
   } = useAuth();
 
   const isUser = userRole === 'user' || userRole === 'customer';
@@ -60,6 +62,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
 
         {/* Center: Dynamic Role-Based Navigation Links */}
         <nav className="zf-links" aria-label="Main navigation">
+          {/* Always provide quick link to Storefront */}
+          <Link
+            to="/"
+            className={`zf-link ${pathname === '/' ? 'active' : ''}`}
+            id="nav-store"
+            style={{
+              color: '#38BDF8',
+              fontWeight: 700,
+            }}
+          >
+            <ShoppingBag size={16} strokeWidth={1.8} />
+            <span>{t('ecommerce.nav.store', 'Sàn Thời Trang')}</span>
+          </Link>
+
           {/* Guest or Regular User Navigation */}
           {(!isAuthenticated || isUser) && (
             <Link
@@ -134,8 +150,70 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
           )}
         </nav>
 
-        {/* Right: Auth Profile Pill or Sleek Sign In Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
+        {/* Right: Role Switcher & Auth */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+          {/* Quick Demo Role Switcher (Khách | Chủ Shop | Admin) */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              background: 'rgba(255, 255, 255, 0.08)',
+              padding: '3px 8px',
+              borderRadius: 20,
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            <span style={{ color: '#94A3B8', fontSize: 10, marginRight: 2 }}>ROLE:</span>
+            <button
+              type="button"
+              onClick={() => switchDemoRole('user')}
+              style={{
+                padding: '2px 8px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                background: userRole === 'user' ? '#38BDF8' : 'transparent',
+                color: userRole === 'user' ? '#0F172A' : '#CBD5E1',
+                fontWeight: userRole === 'user' ? 800 : 600,
+                border: 'none',
+              }}
+            >
+              Khách
+            </button>
+            <button
+              type="button"
+              onClick={() => switchDemoRole('store')}
+              style={{
+                padding: '2px 8px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                background: userRole === 'store' ? '#F59E0B' : 'transparent',
+                color: userRole === 'store' ? '#000' : '#CBD5E1',
+                fontWeight: userRole === 'store' ? 800 : 600,
+                border: 'none',
+              }}
+            >
+              Chủ Shop
+            </button>
+            <button
+              type="button"
+              onClick={() => switchDemoRole('admin')}
+              style={{
+                padding: '2px 8px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                background: userRole === 'admin' ? '#A855F7' : 'transparent',
+                color: userRole === 'admin' ? '#FFF' : '#CBD5E1',
+                fontWeight: userRole === 'admin' ? 800 : 600,
+                border: 'none',
+              }}
+            >
+              Admin
+            </button>
+          </div>
+
           <LanguageSwitcher />
 
           {onDemoMode && (

@@ -813,6 +813,10 @@
     },
     "nav": {
       "brandSub": "Atelier & 3D Sizing",
+      "store": "Fashion Store",
+      "tailorChannel": "Tailor Channel",
+      "tailorStudio": "Tailor Studio",
+      "adminPortal": "Admin Portal",
       "all": "Collections",
       "shirt": "Men's Shirts",
       "polo": "Silk Polos",
@@ -909,7 +913,22 @@
       "sortFitDesc": "Best AI Fit Match",
       "sortPriceAsc": "Price: Low to High",
       "sortPriceDesc": "Price: High to Low",
-      "resetAllFilters": "Reset Filters"
+      "resetAllFilters": "Reset Filters",
+      "sidebarTitle": "Fashion Categories",
+      "smartFilterTitle": "Anthropometric Filters",
+      "geminiCardTitle": "Gemini 2.5 AI Stylist",
+      "geminiCardDesc": "Wondering about your size? Click the chatbot in the bottom right corner for instant AI fit advice!"
+    },
+    "sidebar": {
+      "categories": "Product Categories",
+      "biometricFilter": "Filter by Biometrics",
+      "matchOnly": "Fit My Body Only (≥ 90%)",
+      "aiPromo": "Need styling tips or sizing advice based on your body? Chat with the AI stylist in the bottom right corner!"
+    },
+    "chatbot": {
+      "pillTooltip": "Ask Gemini AI: Size & styling advice",
+      "subtitle": "Atelier & 3D sizing advisor",
+      "placeholder": "Ask Gemini: sizing, cuts, outfits..."
     },
     "tech": {
       "subtitle": "The Science of Perfect Fit",

@@ -21,12 +21,14 @@ import {
   X,
   ArrowRight,
   TrendingUp,
+  Shirt,
 } from 'lucide-react';
 import { MOCK_PRODUCTS, INITIAL_USER_BODY } from './mockProducts';
 import { calculateProductFit } from './fitCalculator';
 import { FitAnalysisDrawer } from './FitAnalysisDrawer';
 import { SmartCartDrawer } from './SmartCartDrawer';
 import { QuickBiometricModal } from './QuickBiometricModal';
+import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import type { FashionProduct, ProductVariant, UserBodyProfile, CartItem } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -141,7 +143,7 @@ const HERO_PRODUCT_SLIDES: HeroProductSlide[] = [
 ];
 
 export const FashionStoreHome: React.FC = () => {
-  const { isAuthenticated, userRole, openSignIn, openOnboarding } = useAuth();
+  const { isAuthenticated, userRole, openSignIn, openOnboarding, switchDemoRole } = useAuth();
   const { t, locale } = useI18n();
 
   // State
@@ -340,44 +342,96 @@ export const FashionStoreHome: React.FC = () => {
             </a>
           </div>
 
-          {/* Center Navigation Links (Desktop Segmented Control) */}
-          <nav className="hidden lg:flex items-center gap-1 p-1 bg-stone-100 rounded-full border border-stone-200/80 text-xs font-semibold">
-            {[
-              { id: 'all', label: t('ecommerce.nav.all', 'Bộ Sưu Tập') },
-              { id: 'shirt', label: t('ecommerce.nav.shirt', 'Áo Sơ Mi Nam') },
-              { id: 'polo', label: t('ecommerce.nav.polo', 'Áo Polo Lụa') },
-              { id: 'pants', label: t('ecommerce.nav.pants', 'Quần Tây Ý') },
-              { id: 'dress', label: t('ecommerce.nav.dress', 'Đầm Lụa Nữ') },
-            ].map((cat) => {
-              const isActive = activeCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-white text-stone-900 font-bold shadow-xs border border-stone-200/70'
-                      : 'text-stone-600 hover:text-stone-900 hover:bg-white/50 border border-transparent'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              );
-            })}
+          {/* Center Navigation Links - Clean High-Level Modules & Role Flows */}
+          <nav className="hidden lg:flex items-center gap-1.5 p-1 bg-stone-100/90 rounded-full border border-stone-200 text-xs font-semibold">
+            <a
+              href="/"
+              className="px-3.5 py-1.5 rounded-full bg-white text-stone-900 font-bold shadow-xs border border-stone-200/80 flex items-center gap-1.5 transition-all"
+            >
+              <ShoppingBag size={14} className="text-blue-600" />
+              <span>{t('ecommerce.nav.store', 'Sàn Thời Trang')}</span>
+            </a>
+
             <a
               href="/dashboard"
-              className="px-3 py-1.5 rounded-full text-stone-600 hover:text-blue-600 hover:bg-white/50 flex items-center gap-1 transition-all"
+              className="px-3.5 py-1.5 rounded-full text-stone-600 hover:text-stone-900 hover:bg-white/60 transition-colors flex items-center gap-1.5"
             >
-              <span>{t('ecommerce.nav.lab3d', 'Phòng Lab Đo 3D')}</span>
+              <Ruler size={14} className="text-stone-500" />
+              <span>{t('ecommerce.nav.lab3d', 'Phòng Đo 3D ISO')}</span>
               <span className="text-[9px] px-1 py-0.2 bg-blue-50 text-blue-700 font-bold rounded border border-blue-200">
                 ISO
               </span>
             </a>
+
+            {/* Merchant / Tailor Channel */}
+            <a
+              href={userRole === 'store' ? '/tailor' : '#'}
+              onClick={(e) => {
+                if (userRole !== 'store') {
+                  e.preventDefault();
+                  openOnboarding();
+                }
+              }}
+              className="px-3.5 py-1.5 rounded-full text-stone-600 hover:text-amber-800 hover:bg-amber-50/60 transition-colors flex items-center gap-1.5"
+            >
+              <Store size={14} className="text-amber-600" />
+              <span>{userRole === 'store' ? t('ecommerce.nav.tailorStudio', 'Studio Nhà May') : t('ecommerce.nav.tailorChannel', 'Kênh Nhà May')}</span>
+              {userRole !== 'store' && (
+                <span className="text-[9px] px-1.5 py-0.2 bg-amber-100 text-amber-800 font-bold rounded">
+                  B2B
+                </span>
+              )}
+            </a>
+
+            {/* Admin Channel (if admin) */}
+            {userRole === 'admin' && (
+              <a
+                href="/admin"
+                className="px-3.5 py-1.5 rounded-full text-indigo-700 hover:bg-indigo-50 font-bold transition-colors flex items-center gap-1.5"
+              >
+                <ShieldCheck size={14} className="text-indigo-600" />
+                <span>{t('ecommerce.nav.adminPortal', 'Quản Trị Sàn')}</span>
+              </a>
+            )}
           </nav>
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Quick Demo Role Switcher (User | Store | Admin) */}
+            <div className="hidden xl:flex items-center gap-1 bg-stone-100 px-2 py-1 rounded-full border border-stone-200 text-[11px] font-bold">
+              <span className="text-stone-400 text-[10px] uppercase font-mono mr-0.5">Role:</span>
+              <button
+                type="button"
+                onClick={() => switchDemoRole('user')}
+                className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
+                  userRole === 'user' ? 'bg-white text-blue-700 shadow-xs border border-stone-200 font-extrabold' : 'text-stone-500 hover:text-stone-800'
+                }`}
+                title="Đóng vai Khách Hàng mua sắm"
+              >
+                Khách
+              </button>
+              <button
+                type="button"
+                onClick={() => switchDemoRole('store')}
+                className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
+                  userRole === 'store' ? 'bg-amber-500 text-white shadow-xs font-extrabold' : 'text-stone-500 hover:text-stone-800'
+                }`}
+                title="Đóng vai Chủ Shop / Thợ may"
+              >
+                Chủ Shop
+              </button>
+              <button
+                type="button"
+                onClick={() => switchDemoRole('admin')}
+                className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
+                  userRole === 'admin' ? 'bg-indigo-600 text-white shadow-xs font-extrabold' : 'text-stone-500 hover:text-stone-800'
+                }`}
+                title="Đóng vai Quản Trị Viên sàn"
+              >
+                Admin
+              </button>
+            </div>
+
             {/* Quick Biometrics Status Pill (Desktop) */}
             <button
               type="button"
@@ -389,7 +443,7 @@ export const FashionStoreHome: React.FC = () => {
               <span className="font-mono text-[11px] text-stone-900 font-semibold whitespace-nowrap">
                 {userBody.height_cm}cm • {userBody.weight_kg}kg
               </span>
-              <span className="hidden xl:inline text-stone-400 text-[10px] whitespace-nowrap">
+              <span className="hidden 2xl:inline text-stone-400 text-[10px] whitespace-nowrap">
                 | {t('ecommerce.nav.chestSuffix', 'Ngực')} {userBody.chest_cm}cm
               </span>
             </button>
@@ -856,18 +910,18 @@ export const FashionStoreHome: React.FC = () => {
               </div>
             </div>
 
-            {/* Dedicated Filter Button */}
+            {/* Filter Toggle Button (Mobile) */}
             <button
               type="button"
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`h-12 px-4 sm:px-5 rounded-2xl border-2 font-black text-xs sm:text-sm flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer flex-shrink-0 shadow-sm ${
+              className={`lg:hidden h-12 px-4 rounded-2xl border-2 font-black text-xs flex items-center gap-2 transition-all cursor-pointer flex-shrink-0 shadow-sm ${
                 isFilterOpen || activeFilterCount > 0
-                  ? 'bg-blue-600 text-white border-blue-700 shadow-md shadow-blue-500/30'
-                  : 'bg-white hover:bg-stone-100 text-stone-900 border-2 border-stone-800 hover:border-blue-600 hover:text-blue-600'
+                  ? 'bg-blue-600 text-white border-blue-700'
+                  : 'bg-white text-stone-900 border-stone-800'
               }`}
             >
-              <SlidersHorizontal size={16} strokeWidth={2.5} className={isFilterOpen || activeFilterCount > 0 ? 'text-white' : 'text-blue-600'} />
-              <span className="whitespace-nowrap">{t('ecommerce.catalog.filterBtn', 'Bộ Lọc')}</span>
+              <SlidersHorizontal size={16} strokeWidth={2.5} />
+              <span>{t('ecommerce.catalog.filterBtn', 'Bộ Lọc')}</span>
               {activeFilterCount > 0 && (
                 <span className="w-5 h-5 rounded-full bg-amber-400 text-stone-950 text-[11px] font-black flex items-center justify-center">
                   {activeFilterCount}
@@ -877,274 +931,424 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         </div>
 
-        {/* Expandable Advanced Filter Drawer / Panel */}
+        {/* Mobile Filter Drawer (Only displays when toggled on mobile) */}
         {isFilterOpen && (
-          <div className="mb-6 p-5 rounded-2xl bg-stone-50 border-2 border-stone-800 shadow-lg animate-in slide-in-from-top-2 duration-200 space-y-4">
-            <div className="flex items-center justify-between border-b-2 border-stone-200 pb-3">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal size={18} className="text-blue-600" />
-                <h3 className="font-black text-xs sm:text-sm uppercase tracking-wider text-stone-950">
-                  {t('ecommerce.catalog.filterTitle', 'Tùy Chọn Lọc Nâng Cao')}
-                </h3>
-                {activeFilterCount > 0 && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-black">
-                    {activeFilterCount} đang chọn
-                  </span>
-                )}
-              </div>
+          <div className="lg:hidden mb-6 p-4 rounded-2xl bg-stone-50 border-2 border-stone-800 shadow-lg space-y-4 animate-in slide-in-from-top-2">
+            <div className="flex items-center justify-between border-b-2 border-stone-200 pb-2">
+              <span className="font-black text-xs uppercase tracking-wider text-stone-900">
+                {t('ecommerce.catalog.filterTitle', 'Bộ Lọc')}
+              </span>
               <button
                 type="button"
                 onClick={handleResetAllFilters}
-                className="text-xs font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+                className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
               >
-                {t('ecommerce.catalog.resetAllFilters', 'Đặt Lại Bộ Lọc')}
+                {t('ecommerce.catalog.resetAllFilters', 'Đặt Lại')}
+              </button>
+            </div>
+            {/* Quick Price on mobile */}
+            <div>
+              <label className="block font-black text-stone-900 text-xs mb-1.5">{t('ecommerce.catalog.priceRange', 'Khoảng Giá')}</label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { id: 'all', label: t('ecommerce.catalog.priceAll', 'Tất cả') },
+                  { id: 'under-600', label: '< 600k' },
+                  { id: '600-1000', label: '600k - 1tr' },
+                  { id: 'above-1000', label: '> 1tr' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPriceRange(p.id)}
+                    className={`p-2 rounded-lg font-bold border text-center ${
+                      priceRange === p.id ? 'bg-blue-600 text-white border-blue-700' : 'bg-white border-stone-300 text-stone-800'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── SHOPEE-STYLE 2-COLUMN CATALOG LAYOUT (VERTICAL SIDEBAR + PRODUCT GRID) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* LEFT COLUMN: Sticky Vertical Category & Smart Filter Sidebar (Thanh Dọc Shopee) */}
+          <aside className="hidden lg:block lg:col-span-3 space-y-5 lg:sticky lg:top-24">
+            
+            {/* 1. Category Tree Card (Thanh Dọc Ngành Hàng) */}
+            <div className="bg-white rounded-2xl border-2 border-stone-800 p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b-2 border-stone-100 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Layers size={17} className="text-blue-600" />
+                  <h3 className="font-black text-xs uppercase tracking-wider text-stone-900">
+                    {t('ecommerce.sidebar.categories', 'Danh Mục Ngành Hàng')}
+                  </h3>
+                </div>
+              </div>
+
+              <nav className="flex flex-col space-y-1">
+                {[
+                  { id: 'all', label: t('ecommerce.catalog.tabAll', 'Tất Cả Sản Phẩm'), icon: Layers, count: MOCK_PRODUCTS.length },
+                  { id: 'shirt', label: t('ecommerce.catalog.tabShirt', 'Áo Sơ Mi Nam'), icon: Shirt, count: MOCK_PRODUCTS.filter(p => p.category === 'shirt').length },
+                  { id: 'polo', label: t('ecommerce.catalog.tabPolo', 'Áo Polo Lụa'), icon: Sparkles, count: MOCK_PRODUCTS.filter(p => p.category === 'polo').length },
+                  { id: 'pants', label: t('ecommerce.catalog.tabPants', 'Quần Tây & Chino'), icon: Scissors, count: MOCK_PRODUCTS.filter(p => p.category === 'pants').length },
+                  { id: 'dress', label: t('ecommerce.catalog.tabDress', 'Đầm Lụa Nữ'), icon: Sparkles, count: MOCK_PRODUCTS.filter(p => p.category === 'dress').length },
+                  { id: 'tailored', label: t('ecommerce.catalog.tabTailored', 'May Đo Bespoke'), icon: Store, count: MOCK_PRODUCTS.filter(p => p.category === 'tailored').length },
+                ].map((cat) => {
+                  const Icon = cat.icon;
+                  const isActive = activeCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setActiveCategory(cat.id)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer text-left ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 border-2 border-blue-600'
+                          : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950 border-2 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon size={15} className={isActive ? 'text-white' : 'text-stone-500'} />
+                        <span className="line-clamp-1">{cat.label}</span>
+                      </div>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+                          isActive
+                            ? 'bg-white/20 text-white'
+                            : 'bg-stone-100 text-stone-600 group-hover:bg-stone-200'
+                        }`}
+                      >
+                        {cat.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* 2. Biometric Fit Filter Card (Lọc Theo Vóc Dáng Người Dùng) */}
+            <div className="bg-white rounded-2xl border-2 border-stone-800 p-4 shadow-sm space-y-3.5">
+              <div className="flex items-center justify-between border-b-2 border-stone-100 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Ruler size={16} className="text-emerald-600" />
+                  <h3 className="font-black text-xs uppercase tracking-wider text-stone-900">
+                    {t('ecommerce.sidebar.biometricFilter', 'Lọc Theo Vóc Dáng')}
+                  </h3>
+                </div>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  ISO 8559
+                </span>
+              </div>
+
+              {/* Match Score Checkbox */}
+              <label className="flex items-start gap-2.5 cursor-pointer select-none group">
+                <input
+                  type="checkbox"
+                  checked={filterByMyFitOnly}
+                  onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-2 border-stone-400 accent-blue-600 cursor-pointer"
+                />
+                <div className="text-xs">
+                  <span className="font-bold text-stone-900 group-hover:text-blue-600 transition-colors block">
+                    {t('ecommerce.sidebar.matchOnly', 'Chỉ hiện đồ vừa dáng (≥ 90%)')}
+                  </span>
+                  <span className="text-[11px] text-stone-500 font-medium">
+                    {userBody.height_cm}cm • {userBody.weight_kg}kg • V1: {userBody.chest_cm}cm
+                  </span>
+                </div>
+              </label>
+
+              {/* Quick Biometrics Update Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsBiometricModalOpen(true)}
+                className="w-full py-2 px-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-800 border-2 border-stone-200 hover:border-blue-500 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Ruler size={13} className="text-blue-600" />
+                <span>{t('ecommerce.hero.editBiometric', 'Chỉnh sửa số đo vóc dáng')}</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
-              {/* Price Filter */}
-              <div>
-                <label className="block font-black text-stone-900 mb-2">
+            {/* 3. Price Filter Card (Khoảng Giá Shopee) */}
+            <div className="bg-white rounded-2xl border-2 border-stone-800 p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b-2 border-stone-100 pb-2.5">
+                <h3 className="font-black text-xs uppercase tracking-wider text-stone-900">
                   {t('ecommerce.catalog.priceRange', 'Khoảng Giá')}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: 'all', label: t('ecommerce.catalog.priceAll', 'Tất cả') },
-                    { id: 'under-600', label: t('ecommerce.catalog.priceUnder600', '< 600.000 ₫') },
-                    { id: '600-1000', label: t('ecommerce.catalog.price600To1000', '600k - 1tr') },
-                    { id: 'above-1000', label: t('ecommerce.catalog.priceAbove1000', '> 1.000.000 ₫') },
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setPriceRange(p.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
-                        priceRange === p.id
-                          ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
-                          : 'bg-white hover:bg-stone-200 text-stone-900 border-stone-300'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
+                </h3>
+                {priceRange !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setPriceRange('all')}
+                    className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                  >
+                    {t('ecommerce.catalog.resetFilter', 'Xóa')}
+                  </button>
+                )}
               </div>
 
-              {/* Fabric Filter */}
-              <div>
-                <label className="block font-black text-stone-900 mb-2">
-                  {t('ecommerce.catalog.fabricTitle', 'Chất Liệu May Mặc')}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: 'all', label: t('ecommerce.catalog.fabricAll', 'Tất cả') },
-                    { id: 'cotton', label: t('ecommerce.catalog.fabricCotton', 'Cotton Ai Cập') },
-                    { id: 'silk', label: t('ecommerce.catalog.fabricSilk', 'Lụa Tơ Tằm') },
-                    { id: 'wool', label: t('ecommerce.catalog.fabricWool', 'Wool Úc') },
-                    { id: 'linen', label: t('ecommerce.catalog.fabricLinen', 'Linen Pháp') },
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setFabricFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
-                        fabricFilter === f.id
-                          ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
-                          : 'bg-white hover:bg-stone-200 text-stone-900 border-stone-300'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sorting Filter */}
-              <div>
-                <label className="block font-black text-stone-900 mb-2">
-                  {t('ecommerce.catalog.sortBy', 'Sắp Xếp Theo')}
-                </label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full py-2 px-3 rounded-lg bg-white border-2 border-stone-400 text-xs font-bold text-stone-900 focus:outline-none focus:border-blue-600 cursor-pointer shadow-xs"
-                >
-                  <option value="default">{t('ecommerce.catalog.sortDefault', 'Mặc định (Bespoke)')}</option>
-                  <option value="fit-desc">{t('ecommerce.catalog.sortFitDesc', 'Độ vừa AI cao nhất')}</option>
-                  <option value="price-asc">{t('ecommerce.catalog.sortPriceAsc', 'Giá: Thấp đến Cao')}</option>
-                  <option value="price-desc">{t('ecommerce.catalog.sortPriceDesc', 'Giá: Cao đến Thấp')}</option>
-                </select>
+              <div className="space-y-1.5">
+                {[
+                  { id: 'all', label: t('ecommerce.catalog.priceAll', 'Tất cả mức giá') },
+                  { id: 'under-600', label: t('ecommerce.catalog.priceUnder600', 'Dưới 600.000 ₫') },
+                  { id: '600-1000', label: t('ecommerce.catalog.price600To1000', '600.000 ₫ - 1.000.000 ₫') },
+                  { id: 'above-1000', label: t('ecommerce.catalog.priceAbove1000', 'Trên 1.000.000 ₫') },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPriceRange(p.id)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
+                      priceRange === p.id
+                        ? 'bg-stone-900 text-white shadow-xs'
+                        : 'text-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    <span>{p.label}</span>
+                    {priceRange === p.id && <CheckCircle2 size={13} className="text-emerald-400" />}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Category Pills with Micro-Interactions */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
-          {[
-            { id: 'all', label: t('ecommerce.catalog.tabAll', 'Tất Cả Sản Phẩm') },
-            { id: 'shirt', label: t('ecommerce.catalog.tabShirt', 'Áo Sơ Mi Nam') },
-            { id: 'polo', label: t('ecommerce.catalog.tabPolo', 'Áo Polo Lụa') },
-            { id: 'pants', label: t('ecommerce.catalog.tabPants', 'Quần Tây & Chino') },
-            { id: 'dress', label: t('ecommerce.catalog.tabDress', 'Đầm Lụa Nữ') },
-            { id: 'tailored', label: t('ecommerce.catalog.tabTailored', 'May Đo Bespoke') },
-          ].map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer ${
-                activeCategory === cat.id
-                  ? 'bg-stone-900 text-white border-2 border-stone-900 shadow-md'
-                  : 'bg-white text-stone-800 border-2 border-stone-400 hover:border-stone-700 hover:text-stone-950 hover:bg-stone-50 shadow-2xs'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
+            {/* 4. Fabric Filter Card (Chất Liệu May Đo) */}
+            <div className="bg-white rounded-2xl border-2 border-stone-800 p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b-2 border-stone-100 pb-2.5">
+                <h3 className="font-black text-xs uppercase tracking-wider text-stone-900">
+                  {t('ecommerce.catalog.fabricTitle', 'Chất Liệu May Mặc')}
+                </h3>
+                {fabricFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setFabricFilter('all')}
+                    className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                  >
+                    {t('ecommerce.catalog.resetFilter', 'Xóa')}
+                  </button>
+                )}
+              </div>
 
-        {/* Product Grid (Responsive 2 cols mobile, 4 cols desktop) */}
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-stone-200 p-8 space-y-3">
-            <SlidersHorizontal size={32} className="mx-auto text-stone-300" />
-            <h3 className="text-base font-semibold text-stone-800">{t('ecommerce.catalog.emptyTitle', 'Không tìm thấy sản phẩm phù hợp')}</h3>
-            <p className="text-xs text-stone-500 max-w-sm mx-auto">
-              {t('ecommerce.catalog.emptyDesc', 'Thử tắt bộ lọc hoặc tìm kiếm từ khóa khác.')}
-            </p>
-            <button
-              onClick={() => {
-                setActiveCategory('all');
-                setSearchQuery('');
-                setFilterByMyFitOnly(false);
-              }}
-              className="mt-2 text-xs font-semibold text-blue-700 underline"
-            >
-              {t('ecommerce.catalog.resetFilters', 'Đặt lại tất cả bộ lọc')}
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {filteredProducts.map((product) => {
-              const fit = product.fitResult;
-              const isPerfect = fit.match_percentage >= 95;
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: 'all', label: t('ecommerce.catalog.fabricAll', 'Tất cả') },
+                  { id: 'cotton', label: 'Cotton Ai Cập' },
+                  { id: 'silk', label: 'Lụa Tơ Tằm' },
+                  { id: 'wool', label: 'Wool Úc' },
+                  { id: 'linen', label: 'Linen Pháp' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFabricFilter(f.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                      fabricFilter === f.id
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-white hover:bg-stone-100 text-stone-800 border-stone-300'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-              return (
-                <div
-                  key={product.id}
-                  className="group bg-white rounded-2xl border-2 border-stone-300 hover:border-stone-600 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-                >
-                  
-                  {/* Card Top: Image & Overlay Badges */}
-                  <div className="relative aspect-[3/4] bg-stone-100 overflow-hidden">
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
+            {/* 5. Gemini 2.5 AI Assistant Promo Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 text-white shadow-lg space-y-2.5 relative overflow-hidden">
+              <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
+                  <Sparkles size={15} className="text-amber-300" />
+                </div>
+                <span className="font-black text-xs uppercase tracking-wider">Gemini 2.5 Stylist</span>
+              </div>
+              <p className="text-[11px] text-blue-100 leading-relaxed font-medium">
+                {t('ecommerce.sidebar.aiPromo', 'Cần tư vấn phối đồ theo tỉ lệ cơ thể hoặc hỏi cách đo chuẩn xác? Chat ngay với trợ lý AI ở góc phải màn hình!')}
+              </p>
+            </div>
 
-                    {/* Brand Tag Top Left */}
-                    <div className="absolute top-2.5 left-2.5">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/90 text-stone-800 backdrop-blur shadow-2xs">
-                        {product.brand_name}
-                      </span>
-                    </div>
+          </aside>
 
-                    {/* AI Match Score Tag Top Right */}
-                    <div className="absolute top-2.5 right-2.5">
-                      <div
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold flex items-center gap-1 shadow-2xs ${
-                          isPerfect
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-blue-600 text-white'
-                        }`}
-                      >
-                        <Sparkles size={10} />
-                        <span>{fit.match_percentage}% {t('ecommerce.catalog.fitMatch', 'Vừa')}</span>
-                      </div>
-                    </div>
-
-                    {/* Quick Fit Peek Action on Hover */}
+          {/* RIGHT COLUMN: Product Catalog Grid & Sorting Bar (Shopee Style) */}
+          <div className="lg:col-span-9 space-y-6">
+            
+            {/* Shopee-style Sort Bar */}
+            <div className="bg-white rounded-2xl border-2 border-stone-800 p-3 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-stone-500 uppercase tracking-wider">
+                  {t('ecommerce.catalog.sortBy', 'Sắp xếp:')}
+                </span>
+                <div className="flex flex-wrap gap-1.5 text-xs font-bold">
+                  {[
+                    { id: 'default', label: t('ecommerce.catalog.sortDefault', 'Liên Quan') },
+                    { id: 'fit-desc', label: t('ecommerce.catalog.sortFitDesc', 'Phù Hợp Dáng Nhất (AI)') },
+                    { id: 'price-asc', label: t('ecommerce.catalog.sortPriceAsc', 'Giá: Thấp Đến Cao') },
+                    { id: 'price-desc', label: t('ecommerce.catalog.sortPriceDesc', 'Giá: Cao Đến Thấp') },
+                  ].map((s) => (
                     <button
+                      key={s.id}
                       type="button"
-                      onClick={() => handleOpenAnalysis(product)}
-                      className="absolute inset-x-3 bottom-3 py-2 px-3 rounded-xl bg-white/95 text-blue-700 font-bold text-xs shadow-md border border-stone-200/80 backdrop-blur opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-1.5 hover:bg-white cursor-pointer"
+                      onClick={() => setSortBy(s.id)}
+                      className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                        sortBy === s.id
+                          ? 'bg-stone-900 text-white font-extrabold shadow-xs'
+                          : 'bg-stone-100 hover:bg-stone-200 text-stone-800'
+                      }`}
                     >
-                      <Ruler size={13} className="text-blue-600" />
-                      <span>{t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}</span>
+                      {s.label}
                     </button>
-                  </div>
+                  ))}
+                </div>
+              </div>
 
-                  {/* Card Bottom: Product Info & Actions */}
-                  <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
-                    <div>
-                      <h4 className="font-bold text-xs sm:text-sm text-stone-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
-                        {getProductName(product)}
-                      </h4>
-                      <p className="text-xs text-stone-600 font-medium mt-1 line-clamp-1">
-                        {getProductFabric(product)}
-                      </p>
-                    </div>
+              {/* Product Count Display */}
+              <div className="text-xs font-bold text-stone-600 flex items-center gap-1.5">
+                <span>{filteredProducts.length}</span>
+                <span>{t('ecommerce.catalog.productCount', 'sản phẩm')}</span>
+              </div>
+            </div>
 
-                    {/* AI Size Advice Pill (Clickable for 3D fit analysis) */}
+            {/* Product Cards Grid */}
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border-2 border-stone-800 p-8 space-y-3">
+                <SlidersHorizontal size={36} className="mx-auto text-stone-300" />
+                <h3 className="text-base font-extrabold text-stone-900">{t('ecommerce.catalog.emptyTitle', 'Không tìm thấy sản phẩm phù hợp')}</h3>
+                <p className="text-xs text-stone-600 max-w-sm mx-auto font-medium">
+                  {t('ecommerce.catalog.emptyDesc', 'Thử tắt bộ lọc hoặc tìm kiếm từ khóa khác.')}
+                </p>
+                <button
+                  onClick={handleResetAllFilters}
+                  className="mt-2 text-xs font-extrabold text-blue-600 hover:underline cursor-pointer"
+                >
+                  {t('ecommerce.catalog.resetAllFilters', 'Đặt lại tất cả bộ lọc')}
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {filteredProducts.map((product) => {
+                  const fit = product.fitResult;
+                  const isPerfect = fit.match_percentage >= 95;
+
+                  return (
                     <div
-                      onClick={() => handleOpenAnalysis(product)}
-                      className="p-2.5 rounded-xl bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200/80 text-xs transition-colors cursor-pointer group/fit"
-                      title={t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}
+                      key={product.id}
+                      className="group bg-white rounded-2xl border-2 border-stone-300 hover:border-stone-800 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-stone-700 font-semibold">{t('ecommerce.catalog.recommendLabel', 'Khuyên dùng:')}</span>
-                        <span className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs flex items-center gap-1">
-                          <span>Size {fit.recommended_size}</span>
-                          <ChevronRight size={12} className="text-blue-500 group-hover/fit:translate-x-0.5 transition-transform" />
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-stone-700 mt-1 line-clamp-1 font-medium">
-                        {locale === 'en' && fit.advisor_advice_en ? fit.advisor_advice_en : fit.advisor_advice_vi}
-                      </p>
-                    </div>
+                      {/* Card Top: Image & Overlay Badges */}
+                      <div className="relative aspect-[3/4] bg-stone-100 overflow-hidden">
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
 
-                    {/* Price and Add to Cart Button */}
-                    <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
-                      <div>
-                        {product.sale_price ? (
-                          <div className="flex flex-col">
-                            <span className="font-extrabold text-stone-900 text-xs sm:text-sm">
-                              {product.sale_price.toLocaleString('vi-VN')} ₫
-                            </span>
-                            <span className="text-[10px] text-stone-400 line-through">
-                              {product.price.toLocaleString('vi-VN')} ₫
+                        {/* Brand Tag Top Left */}
+                        <div className="absolute top-2.5 left-2.5">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-stone-900 backdrop-blur shadow-2xs border border-stone-200">
+                            {product.brand_name}
+                          </span>
+                        </div>
+
+                        {/* AI Match Score Tag Top Right */}
+                        <div className="absolute top-2.5 right-2.5">
+                          <div
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black flex items-center gap-1 shadow-md ${
+                              isPerfect
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-blue-600 text-white'
+                            }`}
+                          >
+                            <Sparkles size={10} />
+                            <span>{fit.match_percentage}% {t('ecommerce.catalog.fitMatch', 'Vừa')}</span>
+                          </div>
+                        </div>
+
+                        {/* 3D Size Preview Drawer Trigger on Image Hover */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAnalysis(product)}
+                          className="absolute inset-x-3 bottom-3 py-2 px-3 rounded-xl bg-white/95 text-blue-700 font-black text-xs shadow-md border border-stone-300 backdrop-blur opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-1.5 hover:bg-white cursor-pointer"
+                        >
+                          <Ruler size={14} className="text-blue-600" />
+                          <span>{t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}</span>
+                        </button>
+                      </div>
+
+                      {/* Card Bottom: Product Info & Actions */}
+                      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
+                        <div>
+                          <h4 className="font-extrabold text-xs sm:text-sm text-stone-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                            {getProductName(product)}
+                          </h4>
+                          <p className="text-xs text-stone-600 font-bold mt-1 line-clamp-1">
+                            {getProductFabric(product)}
+                          </p>
+                        </div>
+
+                        {/* AI Size Advice Pill (Clickable for 3D fit analysis without leaving page!) */}
+                        <div
+                          onClick={() => handleOpenAnalysis(product)}
+                          className="p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100/80 border-2 border-blue-200 text-xs transition-colors cursor-pointer group/fit"
+                          title={t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-stone-800 font-bold">{t('ecommerce.catalog.recommendLabel', 'Khuyên dùng:')}</span>
+                            <span className="font-mono font-black text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-300 shadow-2xs flex items-center gap-1">
+                              <span>Size {fit.recommended_size}</span>
+                              <ChevronRight size={12} className="text-blue-500 group-hover/fit:translate-x-0.5 transition-transform" />
                             </span>
                           </div>
-                        ) : (
-                          <span className="font-extrabold text-stone-900 text-xs sm:text-sm">
-                            {product.price.toLocaleString('vi-VN')} ₫
-                          </span>
-                        )}
+                          <p className="text-[11px] text-stone-700 mt-1 line-clamp-1 font-bold">
+                            {locale === 'en' && fit.advisor_advice_en ? fit.advisor_advice_en : fit.advisor_advice_vi}
+                          </p>
+                        </div>
+
+                        {/* Price and Action Buttons */}
+                        <div className="pt-2 border-t-2 border-stone-100 flex items-center justify-between gap-2">
+                          <div>
+                            {product.sale_price ? (
+                              <div className="flex flex-col">
+                                <span className="font-black text-stone-950 text-xs sm:text-sm">
+                                  {product.sale_price.toLocaleString('vi-VN')} ₫
+                                </span>
+                                <span className="text-[10px] text-stone-400 line-through font-bold">
+                                  {product.price.toLocaleString('vi-VN')} ₫
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="font-black text-stone-950 text-xs sm:text-sm">
+                                {product.price.toLocaleString('vi-VN')} ₫
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCart(product, product.recommendedVariant)}
+                            style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+                            className="relative overflow-hidden py-2 px-3 sm:px-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 ease-out transform hover:-translate-y-0.5 flex items-center gap-1.5 cursor-pointer group whitespace-nowrap"
+                            title={t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)}
+                          >
+                            <ShoppingBag size={13} className="text-white group-hover:scale-110 transition-transform duration-200" />
+                            <span className="tracking-tight">
+                              {t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)}
+                            </span>
+                          </button>
+                        </div>
+
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAddToCart(product, product.recommendedVariant)}
-                        style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                        className="relative overflow-hidden py-2 px-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 ease-out transform hover:-translate-y-0.5 flex items-center gap-1.5 cursor-pointer group before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
-                        title={t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)}
-                      >
-                        <ShoppingBag size={13} className="text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200" />
-                        <span className="tracking-tight">
-                          {t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)}
-                        </span>
-                      </button>
                     </div>
+                  );
+                })}
+              </div>
+            )}
 
-                  </div>
-
-                </div>
-              );
-            })}
           </div>
-        )}
+
+        </div>
 
       </main>
 
@@ -1441,6 +1645,17 @@ export const FashionStoreHome: React.FC = () => {
       {/* Global Modals: Auth & B2B Merchant */}
       <AuthModal />
       <MerchantOnboardingModal />
+
+      {/* Floating Gemini 2.5 Fashion & Fit Stylist Chatbot */}
+      <GeminiAssistantWidget
+        userBody={{
+          height_cm: userBody.height_cm,
+          weight_kg: userBody.weight_kg,
+          chest_cm: userBody.chest_cm,
+          waist_cm: userBody.waist_cm,
+          hip_cm: userBody.hip_cm,
+        }}
+      />
 
     </div>
   );

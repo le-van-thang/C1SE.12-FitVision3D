@@ -813,6 +813,10 @@
     },
     "nav": {
       "brandSub": "Atelier & May Đo 3D",
+      "store": "Sàn Thời Trang",
+      "tailorChannel": "Kênh Nhà May",
+      "tailorStudio": "Studio Nhà May",
+      "adminPortal": "Quản Trị Sàn",
       "all": "Bộ Sưu Tập",
       "shirt": "Áo Sơ Mi Nam",
       "polo": "Áo Polo Lụa",
@@ -909,7 +913,22 @@
       "sortFitDesc": "Độ vừa AI cao nhất",
       "sortPriceAsc": "Giá: Thấp đến Cao",
       "sortPriceDesc": "Giá: Cao đến Thấp",
-      "resetAllFilters": "Đặt Lại Bộ Lọc"
+      "resetAllFilters": "Đặt Lại Bộ Lọc",
+      "sidebarTitle": "Danh Mục Thời Trang",
+      "smartFilterTitle": "Bộ Lọc Nhân Trắc Học",
+      "geminiCardTitle": "Trợ Lý AI Gemini 2.5",
+      "geminiCardDesc": "Bạn phân vân chọn size? Bấm vào chatbot ở góc phải để AI tư vấn vóc dáng!"
+    },
+    "sidebar": {
+      "categories": "Danh Mục Ngành Hàng",
+      "biometricFilter": "Lọc Theo Vóc Dáng",
+      "matchOnly": "Chỉ hiện đồ vừa dáng (≥ 90%)",
+      "aiPromo": "Cần tư vấn phối đồ theo tỉ lệ cơ thể hoặc hỏi cách đo chuẩn xác? Chat ngay với trợ lý AI ở góc phải màn hình!"
+    },
+    "chatbot": {
+      "pillTooltip": "Hỏi AI Gemini: Tư vấn size & phối đồ",
+      "subtitle": "Trợ lý may đo & tư vấn độ vừa vặn 3D",
+      "placeholder": "Hỏi Gemini: chọn size, phom dáng, phối đồ..."
     },
     "tech": {
       "subtitle": "Công Nghệ Đằng Sau Sự Vừa Vặn",
