@@ -35,9 +35,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
     userRole,
     stores,
     openSignIn,
-    openOnboarding,
-    openStatusModal,
-    switchDemoRole,
   } = useAuth();
 
   const isUser = userRole === 'user' || userRole === 'customer';
@@ -48,101 +45,99 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
 
   return (
     <>
-      <header className="zf-nav no-print" id="app-navbar">
-        {/* Left: Brand Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <a href="/" className="zf-brand" id="brand-link">
-            <span className="zf-brand-mark">
-              <Box size={16} strokeWidth={1.5} />
-            </span>
-            <span>FitVision <b>3D</b></span>
+      <header className="h-16 px-4 sm:px-8 border-b-2 border-slate-200 bg-white shadow-xs sticky top-0 z-40 flex items-center justify-between no-print select-none" id="app-navbar">
+        {/* Left: Brand Logo (Đồng bộ với sàn thương mại thời trang) */}
+        <div className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-2.5" id="brand-link">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+              <Scissors size={18} strokeWidth={2} />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-black text-base tracking-tight text-slate-900 leading-none">
+                FitVision <span className="text-blue-600">3D</span>
+              </span>
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mt-0.5">
+                Atelier & May Đo 3D
+              </span>
+            </div>
           </a>
-        
         </div>
 
-        {/* Center: Dynamic Role-Based Navigation Links */}
-        <nav className="zf-links" aria-label="Main navigation">
-          {/* Always provide quick link to Storefront */}
+        {/* Center: Dynamic Role-Based Navigation Links (Phân luồng nghiêm ngặt) */}
+        <nav className="hidden md:flex items-center gap-2" aria-label="Main navigation">
+          {/* Link Sàn Thời Trang */}
           <Link
             to="/"
-            className={`zf-link ${pathname === '/' ? 'active' : ''}`}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+              pathname === '/'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-blue-50 text-blue-900 border border-blue-200 hover:bg-blue-100'
+            }`}
             id="nav-store"
-            style={{
-              color: '#38BDF8',
-              fontWeight: 700,
-            }}
           >
-            <ShoppingBag size={16} strokeWidth={1.8} />
+            <ShoppingBag size={15} strokeWidth={2} />
             <span>{t('ecommerce.nav.store', 'Sàn Thời Trang')}</span>
           </Link>
 
-          {/* Guest or Regular User Navigation */}
-          {(!isAuthenticated || isUser) && (
-            <Link
-              to="/dashboard"
-              className={`zf-link ${pathname === '/dashboard' ? 'active' : ''}`}
-              id="nav-dashboard"
-            >
-              <ScanLine size={16} strokeWidth={1.5} />
-              <span>{t('app.nav.dashboard')}</span>
-            </Link>
-          )}
+          {/* Link Phòng Đo Nhân Trắc Học 3D */}
+          <Link
+            to="/dashboard"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+              pathname === '/dashboard'
+                ? 'bg-slate-900 text-white shadow-xs border-2 border-slate-900'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+            id="nav-dashboard"
+          >
+            <ScanLine size={15} strokeWidth={2} />
+            <span>{t('app.nav.dashboard', 'Phòng Đo 3D')}</span>
+          </Link>
 
-          {/* Approved Partner Navigation */}
+          {/* Chỉ hiển thị cho đối tác Nhà May đã được duyệt */}
           {isAuthenticated && isStore && (
             <>
               <Link
-                to="/dashboard"
-                className={`zf-link ${pathname === '/dashboard' ? 'active' : ''}`}
-                id="nav-dashboard"
-              >
-                <ScanLine size={16} strokeWidth={1.5} />
-                <span>{t('app.nav.dashboard')}</span>
-              </Link>
-              <Link
                 to="/tailor"
-                className={`zf-link ${pathname === '/tailor' ? 'active' : ''}`}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                  pathname === '/tailor'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200'
+                }`}
                 id="nav-tailor"
               >
-                <Scissors size={16} strokeWidth={1.5} />
-                <span>{t('app.nav.tailor')}</span>
+                <Scissors size={15} strokeWidth={2} />
+                <span>{t('app.nav.tailor', 'Studio Nhà May')}</span>
               </Link>
               <Link
                 to="/size-charts"
-                className={`zf-link ${pathname === '/size-charts' ? 'active' : ''}`}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                  pathname === '/size-charts'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200'
+                }`}
                 id="nav-size-charts"
               >
-                <Table2 size={16} strokeWidth={1.5} />
-                <span>{t('app.nav.sizeCharts')}</span>
+                <Table2 size={15} strokeWidth={2} />
+                <span>{t('app.nav.sizeCharts', 'Bảng Kích Cỡ')}</span>
               </Link>
             </>
           )}
 
-          {/* Admin Navigation */}
+          {/* Chỉ hiển thị cho Admin */}
           {isAuthenticated && isAdmin && (
             <Link
               to="/admin"
-              className={`zf-link ${pathname === '/admin' ? 'active' : ''}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                pathname === '/admin'
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'bg-purple-50 text-purple-900 border-2 border-purple-300 hover:bg-purple-100'
+              }`}
               id="nav-admin"
-              style={{
-                color: '#4FD1C5',
-                background: 'rgba(79, 209, 197, 0.12)',
-                border: '1px solid rgba(79, 209, 197, 0.3)',
-              }}
             >
-              <Shield size={16} strokeWidth={1.5} />
-              <span>{t('app.nav.adminShort')}</span>
+              <Shield size={14} strokeWidth={2} />
+              <span>{t('app.nav.adminShort', 'Quản Trị Sàn')}</span>
               {pendingStoresCount > 0 && (
-                <span
-                  style={{
-                    background: '#F59E0B',
-                    color: '#000',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: '1px 5px',
-                    borderRadius: 8,
-                  }}
-                >
+                <span className="bg-amber-500 text-white text-[10px] font-mono px-1.5 py-0.2 rounded-full">
                   {pendingStoresCount}
                 </span>
               )}
@@ -150,96 +145,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
           )}
         </nav>
 
-        {/* Right: Role Switcher & Auth */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
-          {/* Quick Demo Role Switcher (Khách | Chủ Shop | Admin) */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              background: 'rgba(255, 255, 255, 0.08)',
-              padding: '3px 8px',
-              borderRadius: 20,
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              fontSize: 11,
-              fontWeight: 700,
-            }}
-          >
-            <span style={{ color: '#94A3B8', fontSize: 10, marginRight: 2 }}>ROLE:</span>
-            <button
-              type="button"
-              onClick={() => switchDemoRole('user')}
-              style={{
-                padding: '2px 8px',
-                borderRadius: 12,
-                cursor: 'pointer',
-                background: userRole === 'user' ? '#38BDF8' : 'transparent',
-                color: userRole === 'user' ? '#0F172A' : '#CBD5E1',
-                fontWeight: userRole === 'user' ? 800 : 600,
-                border: 'none',
-              }}
-            >
-              Khách
-            </button>
-            <button
-              type="button"
-              onClick={() => switchDemoRole('store')}
-              style={{
-                padding: '2px 8px',
-                borderRadius: 12,
-                cursor: 'pointer',
-                background: userRole === 'store' ? '#F59E0B' : 'transparent',
-                color: userRole === 'store' ? '#000' : '#CBD5E1',
-                fontWeight: userRole === 'store' ? 800 : 600,
-                border: 'none',
-              }}
-            >
-              Chủ Shop
-            </button>
-            <button
-              type="button"
-              onClick={() => switchDemoRole('admin')}
-              style={{
-                padding: '2px 8px',
-                borderRadius: 12,
-                cursor: 'pointer',
-                background: userRole === 'admin' ? '#A855F7' : 'transparent',
-                color: userRole === 'admin' ? '#FFF' : '#CBD5E1',
-                fontWeight: userRole === 'admin' ? 800 : 600,
-                border: 'none',
-              }}
-            >
-              Admin
-            </button>
-          </div>
-
-          <LanguageSwitcher />
-
+        {/* Right: Quick Demo Data Loader, Language Switcher & Auth */}
+        <div className="flex items-center gap-3">
+          {/* Nút nạp dữ liệu mẫu */}
           {onDemoMode && (
             <button
               id="btn-demo-mode"
-              className="zf-btn"
-              style={{
-                height: 36,
-                padding: '0 14px',
-                fontSize: 12,
-                fontWeight: 700,
-                background: isDemoMode
-                  ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-                  : 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(59, 130, 246, 0.25) 100%)',
-                border: isDemoMode ? '1.5px solid #34D399' : '1.5px solid #A855F7',
-                color: isDemoMode ? '#FFFFFF' : '#E9D5FF',
-                borderRadius: '9px',
-                boxShadow: isDemoMode ? '0 0 16px rgba(16, 185, 129, 0.4)' : '0 0 14px rgba(168, 85, 247, 0.3)',
-                transition: 'all 0.2s ease',
-              }}
+              type="button"
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                isDemoMode
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-purple-50 hover:bg-purple-100 text-purple-950 border-2 border-purple-200 shadow-2xs'
+              }`}
               onClick={onDemoMode}
             >
-              <Sparkles size={13} style={{ color: isDemoMode ? '#FFFFFF' : '#FDE047' }} />
-              <span>{isDemoMode ? t('app.nav.demoLoaded') : t('app.nav.loadDemo')}</span>
+              <Sparkles size={14} className={isDemoMode ? 'text-white' : 'text-purple-600'} />
+              <span>{isDemoMode ? t('app.nav.demoLoaded', 'Đã nạp mẫu') : t('app.nav.loadDemo', 'Tải dữ liệu mẫu')}</span>
             </button>
           )}
+
+          <LanguageSwitcher compact variant="light" />
 
           {isAuthenticated ? (
             <UserProfileDropdown />
@@ -247,22 +172,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
             <button
               type="button"
               onClick={openSignIn}
-              className="zf-btn zf-btn--secondary"
-              style={{
-                height: 36,
-                padding: '0 16px',
-                fontSize: 13,
-                borderColor: 'rgba(79, 209, 197, 0.4)',
-                color: '#4FD1C5',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-              }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs shadow-sm transition-all cursor-pointer"
               id="nav-signin-btn"
             >
-              <LogIn size={15} strokeWidth={2} />
-              <span>{t('app.nav.signIn')}</span>
+              <LogIn size={15} strokeWidth={2.4} />
+              <span>{t('app.nav.signIn', 'Đăng Nhập')}</span>
             </button>
           )}
         </div>

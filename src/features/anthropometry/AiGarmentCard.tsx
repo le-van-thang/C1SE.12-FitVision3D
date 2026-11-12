@@ -247,162 +247,84 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
   const hasHipAlert = Boolean(bottomwear?.has_hip_alert || bottomwear?.notes);
 
   return (
-    <section
-      className="zf-card zf-card-pad"
-      style={{
-        marginTop: "16px",
-        background: "linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(10, 15, 26, 0.98) 100%)",
-        border: "1px solid rgba(56, 189, 248, 0.3)",
-        borderRadius: "14px",
-        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.45)",
-      }}
-    >
+    <section className="bg-white border-2 border-slate-300 rounded-3xl p-5 shadow-sm space-y-4 text-slate-900">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "12px",
-          gap: "10px",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "8px",
-              background: "rgba(56, 189, 248, 0.15)",
-              color: "#38bdf8",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "1px solid rgba(56, 189, 248, 0.3)",
-            }}
-          >
-            <Shirt size={18} />
+      <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100 flex-wrap gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shadow-2xs">
+            <Shirt size={16} />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#f8fafc" }}>
-              {t("meas.cardTitle")}
+            <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+              {t("meas.cardTitle", "ĐỀ XUẤT SIZE MAY ĐO THÔNG MINH")}
             </h2>
-            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
-              {t("meas.cardSub")}
+            <span className="text-[10px] text-slate-500 font-medium">
+              {t("meas.cardSub", "Thuật toán so khớp độ cử động Ease Allowance")}
             </span>
           </div>
         </div>
 
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
-            fontSize: "11px",
-            padding: "3px 10px",
-            borderRadius: "9999px",
-            background: isLiveBackend ? "rgba(16, 185, 129, 0.15)" : "rgba(56, 189, 248, 0.12)",
-            border: isLiveBackend ? "1px solid rgba(16, 185, 129, 0.4)" : "1px solid rgba(56, 189, 248, 0.3)",
-            color: isLiveBackend ? "#34d399" : "#38bdf8",
-            fontWeight: 500,
-          }}
-        >
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200">
           {isLiveBackend ? (
             <>
-              <CheckCircle2 size={12} /> {t("dashx.sourceModel")}
+              <CheckCircle2 size={11} className="text-blue-600" />
+              <span>{t("dashx.sourceModel", "Mô hình SMPLer-X")}</span>
             </>
           ) : (
             <>
-              <Zap size={12} /> {t("dashx.sourceFormula")}
+              <Zap size={11} className="text-amber-500" />
+              <span>{t("dashx.sourceFormula", "Giải tích ISO 8559")}</span>
             </>
           )}
         </span>
       </div>
 
       {/* Interactive Controls Bar: Hệ size & Form mặc */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          padding: "8px 12px",
-          marginBottom: "14px",
-          background: "rgba(15, 23, 42, 0.6)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          borderRadius: "10px",
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-slate-100 border border-slate-200 flex-wrap text-xs">
         {/* Dropdown Hệ size */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "11px", color: "#94a3b8", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-            <Globe2 size={13} style={{ color: "#38bdf8" }} />
-            {t("meas.sizeSystem")}:
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+            <Globe2 size={13} className="text-blue-600" />
+            <span>{t("meas.sizeSystem", "Hệ size")}:</span>
           </span>
           <select
             value={activeSystem}
             onChange={(e) => handleSystemChange(e.target.value as SizeSystem)}
-            style={{
-              background: "rgba(10, 15, 26, 0.9)",
-              border: "1px solid rgba(56, 189, 248, 0.4)",
-              borderRadius: "6px",
-              color: "#38bdf8",
-              fontSize: "12px",
-              fontWeight: 600,
-              padding: "4px 8px",
-              cursor: "pointer",
-              outline: "none",
-            }}
+            className="bg-white border-2 border-slate-300 text-blue-700 font-black text-xs rounded-xl px-2.5 py-1 outline-none cursor-pointer shadow-2xs focus:border-blue-600"
           >
-            <option value="asia">{t("meas.systemAsia")}</option>
-            <option value="us">{t("meas.systemUs")}</option>
-            <option value="eu">{t("meas.systemEu")}</option>
-            <option value="uk">{t("meas.systemUk")}</option>
+            <option value="asia">{t("meas.systemAsia", "Châu Á (Asia)")}</option>
+            <option value="us">{t("meas.systemUs", "Mỹ (US)")}</option>
+            <option value="eu">{t("meas.systemEu", "Châu Âu (EU)")}</option>
+            <option value="uk">{t("meas.systemUk", "Anh Quốc (UK)")}</option>
           </select>
         </div>
 
         {/* Segmented Buttons Form mặc */}
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ fontSize: "11px", color: "#94a3b8", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-            <SlidersHorizontal size={13} style={{ color: "#a3e635" }} />
-            {t("meas.fitPreference")}:
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+            <SlidersHorizontal size={13} className="text-emerald-600" />
+            <span>{t("meas.fitPreference", "Phom mặc")}:</span>
           </span>
-          <div
-            style={{
-              display: "inline-flex",
-              background: "rgba(0, 0, 0, 0.4)",
-              borderRadius: "6px",
-              padding: "2px",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-          >
+          <div className="inline-flex bg-white rounded-xl p-0.5 border border-slate-300 shadow-2xs">
             {(["slim", "regular", "relaxed"] as FitPreference[]).map((fitKey) => {
               const isActive = preferredFit === fitKey;
               const label =
                 fitKey === "slim"
-                  ? t("meas.fitSlim")
+                  ? t("meas.fitSlim", "Ôm sát")
                   : fitKey === "regular"
-                  ? t("meas.fitRegular")
-                  : t("meas.fitRelaxed");
+                  ? t("meas.fitRegular", "Vừa vặn")
+                  : t("meas.fitRelaxed", "Thoải mái");
 
               return (
                 <button
                   key={fitKey}
                   type="button"
                   onClick={() => handleFitChange(fitKey)}
-                  style={{
-                    border: "none",
-                    background: isActive ? "rgba(56, 189, 248, 0.25)" : "transparent",
-                    color: isActive ? "#38bdf8" : "#94a3b8",
-                    padding: "3px 10px",
-                    borderRadius: "4px",
-                    fontSize: "11px",
-                    fontWeight: isActive ? 600 : 400,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
                 >
                   {label}
                 </button>
@@ -413,61 +335,29 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
       </div>
 
       {/* Recommended Garment Sizes Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "12px",
-          marginBottom: "14px",
-        }}
-      >
+      <div className="grid grid-cols-2 gap-3">
         {/* Topwear (Áo) */}
-        <div
-          style={{
-            background: "rgba(255, 255, 255, 0.03)",
-            border: "1px solid rgba(56, 189, 248, 0.2)",
-            borderRadius: "10px",
-            padding: "12px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
+        <div className="bg-sky-50/90 border-2 border-sky-200 rounded-2xl p-3 flex flex-col justify-between shadow-2xs">
           <div>
-            <span style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
-              {t("meas.topwear")}
+            <span className="text-[10px] font-black uppercase text-sky-800 tracking-wider block mb-1">
+              {t("meas.topwear", "ÁO SƠ MI / POLO")}
             </span>
-
-            {/* Dòng kích cỡ lớn */}
-            <div
-              style={{
-                fontSize: topwear?.is_boundary && preferredFit === "regular" ? "15px" : "22px",
-                fontWeight: 800,
-                color: "#38bdf8",
-                letterSpacing: "0.02em",
-                margin: "4px 0",
-                lineHeight: 1.3,
-              }}
-            >
+            <div className="text-xl sm:text-2xl font-black text-sky-950 font-mono tracking-tight my-1">
               {topwearSizeText}
             </div>
-
-            {/* Nhãn hệ size động */}
-            <span style={{ fontSize: "11px", color: "#0ea5e9", display: "block", fontWeight: 500 }}>
-              {t("meas.topwearStandard").replace("{system}", systemName)}
+            <span className="text-[10px] font-bold text-sky-700 block">
+              {t("meas.topwearStandard", "Chuẩn hệ {system}").replace("{system}", systemName)}
             </span>
           </div>
 
-          <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed rgba(255, 255, 255, 0.08)" }}>
-            {/* Dòng phụ: các hệ còn lại */}
+          <div className="mt-2 pt-2 border-t border-sky-200/80">
             {topwearSubLabelText && (
-              <span style={{ fontSize: "10px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
+              <span className="text-[10px] text-sky-800 font-mono font-medium block">
                 {topwearSubLabelText}
               </span>
             )}
-            {/* Ghi chú lý do */}
             {topwearNotesText && (
-              <span style={{ fontSize: "10px", color: "#64748b", display: "block", fontStyle: "italic" }}>
+              <span className="text-[10px] text-slate-500 italic block mt-0.5">
                 {topwearNotesText}
               </span>
             )}
@@ -475,190 +365,82 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
         </div>
 
         {/* Bottomwear (Quần) */}
-        <div
-          style={{
-            background: "rgba(255, 255, 255, 0.03)",
-            border: "1px solid rgba(163, 230, 53, 0.2)",
-            borderRadius: "10px",
-            padding: "12px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
+        <div className="bg-emerald-50/90 border-2 border-emerald-200 rounded-2xl p-3 flex flex-col justify-between shadow-2xs">
           <div>
-            <span style={{ fontSize: "11px", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
-              {t("meas.bottomwear")}
+            <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider block mb-1">
+              {t("meas.bottomwear", "QUẦN TÂY / CHINO")}
             </span>
-
-            {/* Dòng kích cỡ lớn */}
-            <div
-              style={{
-                fontSize: "16px",
-                fontWeight: 800,
-                color: "#a3e635",
-                margin: "4px 0",
-                lineHeight: 1.3,
-              }}
-            >
+            <div className="text-base sm:text-lg font-black text-emerald-950 font-mono tracking-tight my-1">
               {trouserTagText}
             </div>
-
-            {/* Dòng phụ US/UK */}
-            <span style={{ fontSize: "11px", color: "#84cc16", display: "block", fontWeight: 500 }}>
+            <span className="text-[10px] font-bold text-emerald-700 block">
               {bottomwear?.sub_label ||
-                t("meas.bottomwearInches")
+                t("meas.bottomwearInches", "Eo W{w} x Dài L{i}")
                   .replace("{w}", String(data.waist_inches))
                   .replace("{i}", String(data.inseam_inches))}
             </span>
           </div>
 
-          {/* Ghi chú cảnh báo hông nếu có */}
           {hasHipAlert && (
-            <div
-              style={{
-                marginTop: "8px",
-                padding: "6px 8px",
-                borderRadius: "6px",
-                background: "rgba(245, 158, 11, 0.12)",
-                border: "1px solid rgba(245, 158, 11, 0.3)",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <AlertCircle size={13} style={{ color: "#fbbf24", flexShrink: 0 }} />
-              <span style={{ fontSize: "10px", color: "#fde68a", lineHeight: 1.3 }}>
-                {t("meas.hipAlert")}
-              </span>
+            <div className="mt-2 p-1.5 rounded-lg bg-amber-100 border border-amber-300 flex items-center gap-1.5 text-amber-900 text-[10px] font-bold">
+              <AlertCircle size={12} className="text-amber-700 flex-shrink-0" />
+              <span>{t("meas.hipAlert", "Lưu ý vòng hông")}</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Body Shape Classification */}
-      <div
-        style={{
-          background: "rgba(56, 189, 248, 0.06)",
-          border: "1px solid rgba(56, 189, 248, 0.2)",
-          borderRadius: "8px",
-          padding: "10px 12px",
-          marginBottom: "14px",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-        }}
-      >
-        <Sparkles size={18} style={{ color: "#38bdf8", flexShrink: 0 }} />
+      <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-3 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+          <Sparkles size={16} />
+        </div>
         <div>
-          <span style={{ fontSize: "11px", color: "#94a3b8", display: "block" }}>
-            {t("meas.bodyFit")}
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+            {t("meas.bodyFit", "Phân loại vóc dáng")}
           </span>
-          <strong style={{ fontSize: "13px", color: "#f8fafc" }}>
+          <strong className="text-xs sm:text-sm font-black text-slate-900">
             {localizedBodyShape(bodyShape, locale)}
           </strong>
         </div>
       </div>
 
       {/* Ease Allowance Recommendations */}
-      <div>
-        <span
-          style={{
-            fontSize: "11px",
-            fontWeight: 600,
-            color: "#94a3b8",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            marginBottom: "8px",
-          }}
-        >
-          <Scissors size={13} style={{ color: "#a3e635" }} />
-          {t("meas.easeAllowance")}
+      <div className="space-y-2">
+        <span className="text-[11px] font-black uppercase text-slate-700 tracking-wider flex items-center gap-1.5">
+          <Scissors size={13} className="text-blue-600" />
+          <span>{t("meas.easeAllowance", "Độ cử động may đo (Ease Allowance)")}</span>
         </span>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.02)",
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-              borderRadius: "6px",
-              padding: "8px",
-              textAlign: "center",
-            }}
-          >
-            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>{t("meas.slimChest")}</span>
-            <strong style={{ fontSize: "13px", color: "#38bdf8" }}>
-              {easeAllowance.slim_fit_chest_cm} <small style={{ fontSize: "10px" }}>cm</small>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
+            <span className="text-[10px] text-slate-500 font-bold block">{t("meas.slimChest", "Ngực ôm")}</span>
+            <strong className="text-xs font-black text-blue-700 font-mono">
+              +{easeAllowance.slim_fit_chest_cm} <small className="text-[10px]">cm</small>
             </strong>
           </div>
 
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.02)",
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-              borderRadius: "6px",
-              padding: "8px",
-              textAlign: "center",
-            }}
-          >
-            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>{t("meas.regularChest")}</span>
-            <strong style={{ fontSize: "13px", color: "#38bdf8" }}>
-              {easeAllowance.regular_fit_chest_cm} <small style={{ fontSize: "10px" }}>cm</small>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
+            <span className="text-[10px] text-slate-500 font-bold block">{t("meas.regularChest", "Ngực vừa")}</span>
+            <strong className="text-xs font-black text-blue-700 font-mono">
+              +{easeAllowance.regular_fit_chest_cm} <small className="text-[10px]">cm</small>
             </strong>
           </div>
 
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.02)",
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-              borderRadius: "6px",
-              padding: "8px",
-              textAlign: "center",
-            }}
-          >
-            <span style={{ fontSize: "10px", color: "#94a3b8", display: "block" }}>{t("meas.trouserWaist")}</span>
-            <strong style={{ fontSize: "13px", color: "#a3e635" }}>
-              {easeAllowance.trouser_waist_ease_cm} <small style={{ fontSize: "10px" }}>cm</small>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
+            <span className="text-[10px] text-slate-500 font-bold block">{t("meas.trouserWaist", "Cạp quần")}</span>
+            <strong className="text-xs font-black text-emerald-700 font-mono">
+              +{easeAllowance.trouser_waist_ease_cm} <small className="text-[10px]">cm</small>
             </strong>
           </div>
         </div>
       </div>
 
-      {/* Brand Disclaimer Notice */}
-      <div
-        style={{
-          marginTop: "12px",
-          padding: "8px 10px",
-          borderRadius: "6px",
-          background: "rgba(255, 255, 255, 0.02)",
-          border: "1px solid rgba(255, 255, 255, 0.05)",
-          fontSize: "11px",
-          color: "#94a3b8",
-          lineHeight: 1.4,
-          textAlign: "center",
-        }}
-      >
-        ℹ️ {t("meas.sizeNotice")}
-      </div>
-
       {/* Footer Info */}
-      <div
-        style={{
-          marginTop: "10px",
-          paddingTop: "10px",
-          borderTop: "1px solid rgba(255, 255, 255, 0.06)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontSize: "11px",
-          color: "#64748b",
-        }}
-      >
-        <span>{t("meas.execTime").replace("{s}", executionTime.toFixed(2))}</span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-          <ShieldCheck size={12} style={{ color: "#a3e635" }} /> {t("meas.privacyGuaranteed")}
+      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium">
+        <span>{t("meas.execTime", "Tính toán trong {s}s").replace("{s}", executionTime.toFixed(2))}</span>
+        <span className="inline-flex items-center gap-1 font-bold text-emerald-700">
+          <ShieldCheck size={12} />
+          <span>{t("meas.privacyGuaranteed", "Chuẩn ISO 8559")}</span>
         </span>
       </div>
     </section>
