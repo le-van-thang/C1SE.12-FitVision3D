@@ -29,12 +29,13 @@ interface FashionSidebarNavProps {
   userBody: UserBodyProfile;
   userRole?: string;
   userName?: string;
-  onSwitchRole?: (role: 'user' | 'store' | 'admin') => void;
+  onSwitchRole?: (role: 'user' | 'store' | 'admin' | 'pending' | 'guest') => void;
   onOpenVellStudio: () => void;
   onOpenMaisonRunway: () => void;
   onOpenThermalSlip?: () => void;
   onOpenBiometrics: () => void;
   onOpenOnboarding: () => void;
+  onOpenAdminModal?: () => void;
   isAuthenticated: boolean;
   onOpenSignIn: () => void;
   onSignOut?: () => void;
@@ -55,6 +56,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
   onOpenThermalSlip,
   onOpenBiometrics,
   onOpenOnboarding,
+  onOpenAdminModal,
   isAuthenticated,
   onOpenSignIn,
   onSignOut,
@@ -207,31 +209,31 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
             })}
           </div>
 
-          {/* ── SECTION 3: HỒ SƠ VÓC DÁNG 3D ── */}
-          <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-black uppercase tracking-wider text-stone-500">
+          {/* ── SECTION 3: HỒ SƠ VÓC DÁNG 3D (VIỀN ĐẬM RÕ RÀNG) ── */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-stone-50 to-stone-100/90 border-2 border-stone-300 shadow-sm space-y-2.5">
+            <div className="flex items-center justify-between pb-1.5 border-b border-stone-200">
+              <span className="text-[11px] font-black uppercase tracking-wider text-stone-800">
                 HỒ SƠ NHÂN TRẮC HỌC
               </span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-100" />
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-              <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs">
-                <span className="text-stone-400 text-[9px] block">CHIỀU CAO</span>
-                <span className="font-bold text-stone-900">{userBody.height_cm} cm</span>
+              <div className="bg-white p-2 rounded-lg border-2 border-stone-200 shadow-2xs">
+                <span className="text-stone-500 text-[9px] block font-semibold">CHIỀU CAO</span>
+                <span className="font-black text-stone-900">{userBody.height_cm} cm</span>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs">
-                <span className="text-stone-400 text-[9px] block">CÂN NẶNG</span>
-                <span className="font-bold text-stone-900">{userBody.weight_kg} kg</span>
+              <div className="bg-white p-2 rounded-lg border-2 border-stone-200 shadow-2xs">
+                <span className="text-stone-500 text-[9px] block font-semibold">CÂN NẶNG</span>
+                <span className="font-black text-stone-900">{userBody.weight_kg} kg</span>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs">
-                <span className="text-stone-400 text-[9px] block">VÒNG NGỰC</span>
-                <span className="font-bold text-blue-700">{userBody.chest_cm} cm</span>
+              <div className="bg-white p-2 rounded-lg border-2 border-blue-100 bg-blue-50/20 shadow-2xs">
+                <span className="text-stone-500 text-[9px] block font-semibold">VÒNG NGỰC</span>
+                <span className="font-black text-blue-700">{userBody.chest_cm} cm</span>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs">
-                <span className="text-stone-400 text-[9px] block">VÒNG EO</span>
-                <span className="font-bold text-blue-700">{userBody.waist_cm} cm</span>
+              <div className="bg-white p-2 rounded-lg border-2 border-blue-100 bg-blue-50/20 shadow-2xs">
+                <span className="text-stone-500 text-[9px] block font-semibold">VÒNG EO</span>
+                <span className="font-black text-blue-700">{userBody.waist_cm} cm</span>
               </div>
             </div>
 
@@ -241,7 +243,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                 onOpenBiometrics();
                 onClose();
               }}
-              className="w-full py-2 px-3 rounded-lg bg-stone-900 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+              className="w-full py-2 px-3 rounded-lg bg-stone-900 hover:bg-black text-white text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
             >
               <Ruler size={13} />
               <span>Cập Nhật Số Đo</span>
@@ -249,7 +251,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
           </div>
 
           {/* ── SECTION 4: KÊNH NHÀ MAY B2B ── */}
-          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+          <div className="p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-200 space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
               <Store size={14} className="text-amber-700" />
               <span>Dành Cho Chủ Shop & Nhà May</span>
@@ -279,8 +281,8 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
 
         </div>
 
-        {/* Footer Role & Auth (XÁC THỰC THỰC TẾ: ĐĂNG NHẬP / ĐĂNG XUẤT RÕ RÀNG) */}
-        <div className="p-4 border-t border-stone-200 bg-stone-50 space-y-2.5 flex-shrink-0">
+        {/* Footer Role & Auth (KHUNG ĐẬM MÀU, VIỀN RÕ RÀNG) */}
+        <div className="p-4 border-t-2 border-stone-300 bg-stone-100 space-y-2.5 flex-shrink-0">
           {!isAuthenticated ? (
             <div className="space-y-2">
               <button
@@ -289,44 +291,154 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   onOpenSignIn();
                   onClose();
                 }}
-                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md border-2 border-blue-500 flex items-center justify-center gap-2 cursor-pointer transition-colors"
               >
                 <LogIn size={15} />
                 <span>Đăng Nhập / Đăng Ký Tài Khoản</span>
               </button>
-              <p className="text-[10px] text-stone-500 text-center font-medium">
-                Đăng nhập để đồng bộ hồ sơ số đo 3D và đơn hàng
-              </p>
+
+              {onSwitchRole && (
+                <div className="pt-1 flex items-center justify-between text-[10px] text-stone-500 font-medium">
+                  <span>Thử nghiệm nhanh:</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onSwitchRole('user')}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-stone-200 text-stone-700 hover:bg-blue-600 hover:text-white cursor-pointer"
+                    >
+                      Khách
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSwitchRole('store')}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-stone-200 text-stone-700 hover:bg-amber-600 hover:text-white cursor-pointer"
+                    >
+                      Shop
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSwitchRole('admin')}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-stone-200 text-stone-700 hover:bg-indigo-700 hover:text-white cursor-pointer"
+                    >
+                      Admin
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs">
-                  {userName?.charAt(0) || 'T'}
+            <div className="space-y-2">
+              <div className="p-2.5 rounded-xl bg-white border-2 border-slate-300 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-full text-white font-black flex items-center justify-center text-xs shadow-xs ${
+                    userRole === 'admin'
+                      ? 'bg-indigo-700'
+                      : userRole === 'store'
+                      ? 'bg-amber-600'
+                      : 'bg-blue-600'
+                  }`}>
+                    {userName?.charAt(0) || 'T'}
+                  </div>
+                  <div>
+                    <span className="font-black text-xs text-stone-900 block leading-tight">
+                      {userName || 'Thắng Lê'}
+                    </span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full inline-block mt-0.5 ${
+                      userRole === 'admin'
+                        ? 'bg-indigo-100 text-indigo-900 border border-indigo-300'
+                        : userRole === 'store'
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : 'bg-blue-100 text-blue-900 border border-blue-300'
+                    }`}>
+                      {userRole === 'admin' ? '🛡️ Quản Trị Viên' : userRole === 'store' ? '✂️ Chủ Shop May Đo' : '👤 Khách Hàng'}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-bold text-xs text-stone-900 block leading-tight">
-                    {userName || 'Thắng Lê'}
-                  </span>
-                  <span className="text-[10px] font-semibold text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded-full inline-block mt-0.5">
-                    {userRole === 'admin' ? 'Quản Trị Viên' : userRole === 'store' ? 'Chủ Shop May Đo' : 'Khách Hàng May Đo'}
-                  </span>
-                </div>
+
+                {onSignOut && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSignOut();
+                      onClose();
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-600 hover:text-rose-600 border border-stone-200 hover:border-rose-300 transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold shadow-xs"
+                    title="Đăng Xuất Tài Khoản"
+                  >
+                    <LogOut size={13} />
+                    <span>Thoát</span>
+                  </button>
+                )}
               </div>
 
-              {onSignOut && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSignOut();
-                    onClose();
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-rose-50 text-stone-600 hover:text-rose-600 border border-stone-200 hover:border-rose-200 transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold shadow-xs"
-                  title="Đăng Xuất Tài Khoản"
+              {userRole === 'admin' && (
+                <div className="space-y-1">
+                  {onOpenAdminModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenAdminModal();
+                        onClose();
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                    >
+                      <ShieldCheck size={14} />
+                      <span>Quản Lý Tài Khoản & Sàn</span>
+                    </button>
+                  )}
+                  <a
+                    href="/admin"
+                    className="w-full py-1.5 px-2.5 rounded-lg bg-indigo-50 text-indigo-900 font-bold text-[11px] flex items-center justify-center gap-1 border border-indigo-200"
+                  >
+                    <span>Cổng Quản Trị Admin (/admin)</span>
+                    <ChevronRight size={12} />
+                  </a>
+                </div>
+              )}
+
+              {userRole === 'store' && (
+                <a
+                  href="/tailor"
+                  className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs"
                 >
-                  <LogOut size={13} />
-                  <span>Thoát</span>
-                </button>
+                  <Store size={14} />
+                  <span>Studio Nhà May & Bảng Size</span>
+                </a>
+              )}
+
+              {onSwitchRole && (
+                <div className="pt-1 flex items-center justify-between text-[10px] text-stone-500 font-medium">
+                  <span>Chuyển vai trò test:</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onSwitchRole('user')}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                        userRole === 'user' ? 'bg-blue-600 text-white' : 'bg-stone-200 text-stone-700'
+                      }`}
+                    >
+                      Khách
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSwitchRole('store')}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                        userRole === 'store' ? 'bg-amber-600 text-white' : 'bg-stone-200 text-stone-700'
+                      }`}
+                    >
+                      Shop
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSwitchRole('admin')}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                        userRole === 'admin' ? 'bg-indigo-700 text-white' : 'bg-stone-200 text-stone-700'
+                      }`}
+                    >
+                      Admin
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}
