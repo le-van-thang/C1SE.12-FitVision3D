@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ChevronRight,
   LogIn,
+  LogOut,
   Camera,
   CheckCircle2,
   SlidersHorizontal,
@@ -26,15 +27,17 @@ interface FashionSidebarNavProps {
   onSelectCategory: (cat: string) => void;
   categoryCounts: Record<string, number>;
   userBody: UserBodyProfile;
-  userRole: string;
-  onSwitchRole: (role: 'user' | 'store' | 'admin') => void;
+  userRole?: string;
+  userName?: string;
+  onSwitchRole?: (role: 'user' | 'store' | 'admin') => void;
   onOpenVellStudio: () => void;
   onOpenMaisonRunway: () => void;
-  onOpenThermalSlip: () => void;
+  onOpenThermalSlip?: () => void;
   onOpenBiometrics: () => void;
   onOpenOnboarding: () => void;
   isAuthenticated: boolean;
   onOpenSignIn: () => void;
+  onSignOut?: () => void;
 }
 
 export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
@@ -44,7 +47,8 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
   onSelectCategory,
   categoryCounts,
   userBody,
-  userRole,
+  userRole = 'user',
+  userName = 'Thắng Lê',
   onSwitchRole,
   onOpenVellStudio,
   onOpenMaisonRunway,
@@ -53,6 +57,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
   onOpenOnboarding,
   isAuthenticated,
   onOpenSignIn,
+  onSignOut,
 }) => {
   if (!isOpen) return null;
 
@@ -123,8 +128,8 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   <ShoppingBag size={14} />
                 </div>
                 <div className="text-left">
-                  <span className="block font-black text-stone-900 group-hover:text-blue-700">Sàn Thời Trang (Catalog)</span>
-                  <span className="text-[10px] text-stone-500 font-mono">Toàn bộ trang phục may đo & ready-to-wear</span>
+                  <span className="block font-black text-stone-900 group-hover:text-blue-700">Sàn Thời Trang (Bộ Sưu Tập)</span>
+                  <span className="text-[10px] text-stone-500 font-mono">Toàn bộ trang phục may đo chuẩn phom</span>
                 </div>
               </div>
               <ChevronRight size={14} className="text-stone-400 group-hover:translate-x-0.5 transition-transform" />
@@ -143,8 +148,8 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   <Sparkles size={14} className="text-amber-300" />
                 </div>
                 <div className="text-left">
-                  <span className="block font-black text-stone-900 group-hover:text-purple-700">Buồng Thử Đồ VELL 3D</span>
-                  <span className="text-[10px] text-stone-500 font-mono">Quét tia sáng laser 3D Wipe</span>
+                  <span className="block font-black text-stone-900 group-hover:text-purple-700">Phòng Thử Đồ Ảo 3D</span>
+                  <span className="text-[10px] text-stone-500 font-mono">Ướm thử trang phục với công nghệ AI</span>
                 </div>
               </div>
               <ChevronRight size={14} className="text-stone-400 group-hover:translate-x-0.5 transition-transform" />
@@ -159,32 +164,12 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   <Camera size={14} />
                 </div>
                 <div className="text-left">
-                  <span className="block font-black text-stone-900 group-hover:text-blue-700">Phòng Đo 3D (ISO 8559)</span>
-                  <span className="text-[10px] text-stone-500 font-mono">Trích xuất 13 số đo từ 1 ảnh</span>
+                  <span className="block font-black text-stone-900 group-hover:text-blue-700">Phòng Đo Nhân Trắc Học 3D</span>
+                  <span className="text-[10px] text-stone-500 font-mono">Trích xuất 13 số đo chuẩn ISO 8559-1</span>
                 </div>
               </div>
               <ChevronRight size={14} className="text-stone-400 group-hover:translate-x-0.5 transition-transform" />
             </a>
-
-            <button
-              type="button"
-              onClick={() => {
-                onOpenThermalSlip();
-                onClose();
-              }}
-              className="w-full p-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-900 font-bold text-xs flex items-center justify-between transition-colors border border-stone-300 cursor-pointer group"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-stone-900 text-white flex items-center justify-center shadow-xs">
-                  <Scissors size={14} />
-                </div>
-                <div className="text-left">
-                  <span className="block font-black text-stone-900 font-mono">Phiếu May Đo (The Slip)</span>
-                  <span className="text-[10px] text-stone-500 font-mono">In hóa đơn may đo & mã vạch</span>
-                </div>
-              </div>
-              <ChevronRight size={14} className="text-stone-400 group-hover:translate-x-0.5 transition-transform" />
-            </button>
           </div>
 
           {/* ── SECTION 2: DANH MỤC SẢN PHẨM (CATALOG CATEGORIES) ── */}
@@ -205,7 +190,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   }}
                   className={`w-full px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
                     isActive
-                      ? 'bg-stone-950 text-white shadow-sm'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'
                   }`}
                 >
@@ -223,7 +208,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
           </div>
 
           {/* ── SECTION 3: HỒ SƠ VÓC DÁNG 3D ── */}
-          <div className="p-3.5 rounded-2xl bg-stone-50 border-2 border-stone-300 space-y-2.5">
+          <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono font-black uppercase tracking-wider text-stone-500">
                 HỒ SƠ NHÂN TRẮC HỌC
@@ -232,19 +217,19 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-              <div className="bg-white p-2 rounded-lg border border-stone-200">
+              <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs">
                 <span className="text-stone-400 text-[9px] block">CHIỀU CAO</span>
                 <span className="font-bold text-stone-900">{userBody.height_cm} cm</span>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-stone-200">
+              <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs">
                 <span className="text-stone-400 text-[9px] block">CÂN NẶNG</span>
                 <span className="font-bold text-stone-900">{userBody.weight_kg} kg</span>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-stone-200">
+              <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs">
                 <span className="text-stone-400 text-[9px] block">VÒNG NGỰC</span>
                 <span className="font-bold text-blue-700">{userBody.chest_cm} cm</span>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-stone-200">
+              <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs">
                 <span className="text-stone-400 text-[9px] block">VÒNG EO</span>
                 <span className="font-bold text-blue-700">{userBody.waist_cm} cm</span>
               </div>
@@ -256,15 +241,15 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                 onOpenBiometrics();
                 onClose();
               }}
-              className="w-full py-2 px-3 rounded-lg bg-stone-900 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+              className="w-full py-2 px-3 rounded-lg bg-stone-900 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
             >
               <Ruler size={13} />
-              <span>Cập Nhật Nhanh Số Đo</span>
+              <span>Cập Nhật Số Đo</span>
             </button>
           </div>
 
           {/* ── SECTION 4: KÊNH NHÀ MAY B2B ── */}
-          <div className="p-3.5 rounded-2xl bg-amber-50/80 border-2 border-amber-300 space-y-2">
+          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
               <Store size={14} className="text-amber-700" />
               <span>Dành Cho Chủ Shop & Nhà May</span>
@@ -279,7 +264,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   onOpenOnboarding();
                   onClose();
                 }}
-                className="flex-1 py-1.5 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs cursor-pointer text-center"
+                className="flex-1 py-1.5 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs cursor-pointer text-center transition-colors"
               >
                 Mở Gian Hàng B2B
               </button>
@@ -294,54 +279,56 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
 
         </div>
 
-        {/* Footer Role & Auth */}
-        <div className="p-4 border-t-2 border-stone-800 bg-stone-50 space-y-3 flex-shrink-0">
-          {/* Role selector */}
-          <div className="flex items-center justify-between text-xs font-mono font-bold">
-            <span className="text-stone-500 uppercase text-[10px]">VAI TRÒ DEMO:</span>
-            <div className="flex items-center gap-1 bg-stone-200 p-0.5 rounded-lg">
+        {/* Footer Role & Auth (XÁC THỰC THỰC TẾ: ĐĂNG NHẬP / ĐĂNG XUẤT RÕ RÀNG) */}
+        <div className="p-4 border-t border-stone-200 bg-stone-50 space-y-2.5 flex-shrink-0">
+          {!isAuthenticated ? (
+            <div className="space-y-2">
               <button
                 type="button"
-                onClick={() => onSwitchRole('user')}
-                className={`px-2 py-0.5 rounded text-[11px] cursor-pointer ${
-                  userRole === 'user' ? 'bg-white text-blue-700 font-bold shadow-xs' : 'text-stone-600'
-                }`}
+                onClick={() => {
+                  onOpenSignIn();
+                  onClose();
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors"
               >
-                Khách
+                <LogIn size={15} />
+                <span>Đăng Nhập / Đăng Ký Tài Khoản</span>
               </button>
-              <button
-                type="button"
-                onClick={() => onSwitchRole('store')}
-                className={`px-2 py-0.5 rounded text-[11px] cursor-pointer ${
-                  userRole === 'store' ? 'bg-amber-500 text-white font-bold shadow-xs' : 'text-stone-600'
-                }`}
-              >
-                Chủ Shop
-              </button>
-              <button
-                type="button"
-                onClick={() => onSwitchRole('admin')}
-                className={`px-2 py-0.5 rounded text-[11px] cursor-pointer ${
-                  userRole === 'admin' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-stone-600'
-                }`}
-              >
-                Admin
-              </button>
+              <p className="text-[10px] text-stone-500 text-center font-medium">
+                Đăng nhập để đồng bộ hồ sơ số đo 3D và đơn hàng
+              </p>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs">
+                  {userName?.charAt(0) || 'T'}
+                </div>
+                <div>
+                  <span className="font-bold text-xs text-stone-900 block leading-tight">
+                    {userName || 'Thắng Lê'}
+                  </span>
+                  <span className="text-[10px] font-semibold text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded-full inline-block mt-0.5">
+                    {userRole === 'admin' ? 'Quản Trị Viên' : userRole === 'store' ? 'Chủ Shop May Đo' : 'Khách Hàng May Đo'}
+                  </span>
+                </div>
+              </div>
 
-          {!isAuthenticated && (
-            <button
-              type="button"
-              onClick={() => {
-                onOpenSignIn();
-                onClose();
-              }}
-              className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <LogIn size={15} />
-              <span>Đăng Nhập Tài Khoản</span>
-            </button>
+              {onSignOut && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSignOut();
+                    onClose();
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-rose-50 text-stone-600 hover:text-rose-600 border border-stone-200 hover:border-rose-200 transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold shadow-xs"
+                  title="Đăng Xuất Tài Khoản"
+                >
+                  <LogOut size={13} />
+                  <span>Thoát</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
 

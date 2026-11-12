@@ -39,8 +39,8 @@ export const NowhereThermalSlipModal: React.FC<NowhereThermalSlipModalProps> = (
         <div className="flex items-center justify-between pb-3 border-b border-stone-300/80 mb-4">
           <div className="flex items-center gap-2">
             <Scissors size={16} className="text-stone-700" />
-            <span className="text-xs font-mono font-bold uppercase text-stone-700 tracking-wider">
-              Phiếu May Đo Độc Bản (The Slip)
+            <span className="text-xs font-bold uppercase text-stone-800 tracking-wider">
+              Bảng Số Đo May Đo Chuẩn ISO 8559-1
             </span>
           </div>
           <button
@@ -52,7 +52,7 @@ export const NowhereThermalSlipModal: React.FC<NowhereThermalSlipModalProps> = (
           </button>
         </div>
 
-        {/* ── THE THERMAL RECEIPT SLIP (From UI/HERO.docx) ── */}
+        {/* ── THE THERMAL RECEIPT SLIP ── */}
         <div
           ref={printRef}
           className="relative bg-white text-stone-900 p-6 rounded-t-xl shadow-md border border-stone-200 font-mono text-xs select-text overflow-hidden"
@@ -64,16 +64,16 @@ export const NowhereThermalSlipModal: React.FC<NowhereThermalSlipModalProps> = (
           {/* Header */}
           <div className="text-center pb-4 border-b-2 border-dashed border-stone-400 space-y-1">
             <h2 className="font-serif text-xl font-black tracking-tight text-stone-950">
-              NOWHERE® · ATELIER
+              FITVISION 3D · ATELIER
             </h2>
-            <p className="text-[10px] text-stone-500 uppercase tracking-widest font-sans font-bold">
-              Bespoke Biometric Fit Slip
+            <p className="text-[10px] text-stone-600 uppercase tracking-widest font-sans font-bold">
+              Bảng Số Đo Nhân Trắc Học May Đo 3D
             </p>
-            <p className="text-[10px] text-stone-400">
-              ISO 8559-1:2017 CERTIFIED ALGORITHM
+            <p className="text-[10px] text-stone-500">
+              TIÊU CHUẨN QUỐC TẾ ISO 8559-1:2017
             </p>
             <div className="pt-2 text-[10px] text-stone-600 flex justify-between items-center px-2">
-              <span>REF: #FV3D-{Math.floor(100000 + Math.random() * 900000)}</span>
+              <span>MÃ SỐ ĐO: #FV3D-{Math.floor(100000 + Math.random() * 900000)}</span>
               <span>{todayStr}</span>
             </div>
           </div>
@@ -220,7 +220,7 @@ export const NowhereThermalSlipModal: React.FC<NowhereThermalSlipModalProps> = (
             className="flex-1 py-3 px-4 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform hover:scale-102 active:scale-95"
           >
             <Printer size={15} />
-            <span>In Phiếu May Đo (The Slip)</span>
+            <span>In Bảng Số Đo May Đo</span>
           </button>
           <button
             type="button"

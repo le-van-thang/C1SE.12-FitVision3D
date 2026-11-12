@@ -732,33 +732,21 @@ input:-internal-autofill-selected,
 .search-beam-card {
   position: relative;
   border-radius: 16px;
-  padding: 2.5px;
+  padding: 1.5px;
   overflow: hidden;
-  background: #334155;
-  box-shadow: 0 4px 18px -2px rgba(37, 99, 235, 0.25), 0 2px 6px -1px rgba(0, 0, 0, 0.12);
-  transition: box-shadow 0.3s ease, transform 0.2s ease;
+  background: #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .search-beam-card:hover,
 .search-beam-card:focus-within {
-  box-shadow: 0 0 28px 4px rgba(59, 130, 246, 0.45), 0 6px 16px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #93C5FD;
 }
 
 .search-beam-light {
-  position: absolute;
-  inset: -200%;
-  background: conic-gradient(
-    from 0deg at 50% 50%,
-    transparent 0deg,
-    transparent 220deg,
-    #2563EB 270deg,
-    #38BDF8 310deg,
-    #00F0FF 340deg,
-    #FFFFFF 360deg
-  );
-  animation: beam-rotate 3s linear infinite;
-  pointer-events: none;
+  display: none;
 }
 
 .search-beam-inner {
@@ -805,4 +793,16 @@ input:-internal-autofill-selected,
 .animate-spin-slow {
   animation: spinSlow 12s linear infinite;
 }
+
+/* ── PRINT MEDIA QUERY (PREVENTS PRINT DIALOG FROM BREAKING LAYOUT) ── */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  aside, header, nav, .gemini-assistant-container, button {
+    display: none !important;
+  }
+}
+
 
