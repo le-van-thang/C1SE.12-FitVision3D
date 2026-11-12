@@ -857,7 +857,9 @@
       "fitBadgeAdvice": "Recommended: Size {size} (Chest {chest}cm | Waist {waist}cm)",
       "tapeMeasure": "Sleeve: 58.5cm • Shoulder: 43cm",
       "bannerTryFit": "Try 3D Fit Now",
-      "bannerSaleTag": "HOT DEAL"
+      "bannerSaleTag": "HOT DEAL",
+      "liveEngine": "Real-Time Biometric Calibration",
+      "editBiometric": "Edit"
     },
     "biometricsBar": {
       "label": "Active Body Profile:",
@@ -887,7 +889,26 @@
       "viewAnalysis": "View 3D Fit Analysis",
       "recommendLabel": "Recommended:",
       "chooseSize": "Select Size {size}",
-      "buySizeTooltip": "Buy now in Size {size}"
+      "buySizeTooltip": "Buy now in Size {size}",
+      "filterBtn": "Filters",
+      "filterTitle": "Advanced Filters",
+      "priceRange": "Price Range",
+      "priceAll": "All Prices",
+      "priceUnder600": "Under 600,000 ₫",
+      "price600To1000": "600,000 ₫ - 1,000,000 ₫",
+      "priceAbove1000": "Above 1,000,000 ₫",
+      "fabricTitle": "Premium Fabrics",
+      "fabricAll": "All Fabrics",
+      "fabricCotton": "Egyptian Cotton",
+      "fabricSilk": "Mulberry Silk",
+      "fabricWool": "Australian Wool",
+      "fabricLinen": "French Linen",
+      "sortBy": "Sort By",
+      "sortDefault": "Default (Bespoke)",
+      "sortFitDesc": "Best AI Fit Match",
+      "sortPriceAsc": "Price: Low to High",
+      "sortPriceDesc": "Price: High to Low",
+      "resetAllFilters": "Reset Filters"
     },
     "tech": {
       "subtitle": "The Science of Perfect Fit",

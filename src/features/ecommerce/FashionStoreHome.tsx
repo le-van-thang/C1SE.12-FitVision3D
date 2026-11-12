@@ -161,6 +161,30 @@ export const FashionStoreHome: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterByMyFitOnly, setFilterByMyFitOnly] = useState<boolean>(false);
 
+  // Advanced Filter States (Shopee-style smart filtering)
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [priceRange, setPriceRange] = useState<string>('all'); // 'all' | 'under-600' | '600-1000' | 'above-1000'
+  const [fabricFilter, setFabricFilter] = useState<string>('all'); // 'all' | 'cotton' | 'silk' | 'wool' | 'linen'
+  const [sortBy, setSortBy] = useState<string>('default'); // 'default' | 'fit-desc' | 'price-asc' | 'price-desc'
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filterByMyFitOnly) count++;
+    if (priceRange !== 'all') count++;
+    if (fabricFilter !== 'all') count++;
+    if (sortBy !== 'default') count++;
+    return count;
+  }, [filterByMyFitOnly, priceRange, fabricFilter, sortBy]);
+
+  const handleResetAllFilters = () => {
+    setActiveCategory('all');
+    setSearchQuery('');
+    setFilterByMyFitOnly(false);
+    setPriceRange('all');
+    setFabricFilter('all');
+    setSortBy('default');
+  };
+
   // Cart
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
@@ -209,18 +233,47 @@ export const FashionStoreHome: React.FC = () => {
     });
   }, [userBody, locale]);
 
-  // Filtered products
+  // Filtered and Sorted products
   const filteredProducts = useMemo(() => {
-    return productsWithFit.filter((item) => {
+    const list = productsWithFit.filter((item) => {
       const matchCat = activeCategory === 'all' || item.category === activeCategory;
+      const q = searchQuery.trim().toLowerCase();
       const matchSearch =
-        getProductName(item).toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.brand_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        getProductFabric(item).toLowerCase().includes(searchQuery.toLowerCase());
+        !q ||
+        getProductName(item).toLowerCase().includes(q) ||
+        item.brand_name.toLowerCase().includes(q) ||
+        getProductFabric(item).toLowerCase().includes(q);
       const matchFit = !filterByMyFitOnly || item.fitResult.match_percentage >= 90;
-      return matchCat && matchSearch && matchFit;
+
+      // Price filter
+      const effectivePrice = item.sale_price || item.price;
+      let matchPrice = true;
+      if (priceRange === 'under-600') matchPrice = effectivePrice < 600000;
+      else if (priceRange === '600-1000') matchPrice = effectivePrice >= 600000 && effectivePrice <= 1000000;
+      else if (priceRange === 'above-1000') matchPrice = effectivePrice > 1000000;
+
+      // Fabric filter
+      let matchFabric = true;
+      const fabricText = (item.fabric_material + ' ' + (item.fabric_material_en || '')).toLowerCase();
+      if (fabricFilter === 'cotton') matchFabric = fabricText.includes('cotton');
+      else if (fabricFilter === 'silk') matchFabric = fabricText.includes('lụa') || fabricText.includes('silk');
+      else if (fabricFilter === 'wool') matchFabric = fabricText.includes('wool') || fabricText.includes('len');
+      else if (fabricFilter === 'linen') matchFabric = fabricText.includes('linen') || fabricText.includes('lanh');
+
+      return matchCat && matchSearch && matchFit && matchPrice && matchFabric;
     });
-  }, [productsWithFit, activeCategory, searchQuery, filterByMyFitOnly, locale]);
+
+    // Sorting
+    if (sortBy === 'fit-desc') {
+      list.sort((a, b) => b.fitResult.match_percentage - a.fitResult.match_percentage);
+    } else if (sortBy === 'price-asc') {
+      list.sort((a, b) => (a.sale_price || a.price) - (b.sale_price || b.price));
+    } else if (sortBy === 'price-desc') {
+      list.sort((a, b) => (b.sale_price || b.price) - (a.sale_price || a.price));
+    }
+
+    return list;
+  }, [productsWithFit, activeCategory, searchQuery, filterByMyFitOnly, priceRange, fabricFilter, sortBy, locale]);
 
   // Cart Actions
   const handleAddToCart = (product: FashionProduct, variant?: ProductVariant) => {
@@ -471,11 +524,32 @@ export const FashionStoreHome: React.FC = () => {
             {/* Left Column: Thesis & Value Prop */}
             <div className="lg:col-span-7 space-y-6 text-left">
               
-              {/* Prestigious 3D ISO Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/90 text-blue-900 text-xs font-bold shadow-2xs">
-                <Sparkles size={14} className="text-blue-600 animate-pulse" />
-                <span>{t('ecommerce.hero.badge', 'Sàn Thời Trang 3D Chuẩn Nhân Trắc Học ISO 8559-1')}</span>
-              </div>
+              {/* Interactive 3D Fit Engine Live Capsule (Novel & Actionable - Replaces generic AI pill) */}
+              <button
+                type="button"
+                onClick={() => setIsBiometricModalOpen(true)}
+                className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-stone-900/90 hover:bg-stone-900 text-white border border-stone-700/80 hover:border-blue-400 shadow-md transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer group select-none text-left"
+                title={t('ecommerce.nav.biometricTooltip', 'Xem và chỉnh sửa số đo cơ thể')}
+              >
+                {/* Radar Pulse Effect */}
+                <div className="relative flex h-2.5 w-2.5 flex-shrink-0 items-center justify-center">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </div>
+
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                  AI FIT v2.5
+                </span>
+
+                <span className="text-xs font-medium text-stone-200 flex items-center gap-1.5 truncate">
+                  <span>{t('ecommerce.hero.liveEngine', 'Hiệu chuẩn vóc dáng tự động')}:</span>
+                  <span className="font-mono text-emerald-400 font-bold">{userBody.height_cm}cm • {userBody.weight_kg}kg</span>
+                </span>
+
+                <span className="text-[10px] text-blue-400 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5 flex-shrink-0 border-l border-stone-700 pl-2">
+                  {t('ecommerce.hero.editBiometric', 'Đổi số đo')} ➜
+                </span>
+              </button>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-stone-900 leading-[1.2] sm:leading-[1.18]">
                 {t('ecommerce.hero.title1', 'Thời Trang Vừa Vặn')} <br className="hidden sm:inline" />
@@ -486,33 +560,33 @@ export const FashionStoreHome: React.FC = () => {
                 {t('ecommerce.hero.desc', 'Không còn nỗi lo chọn nhầm size hay phiền phức đổi trả. Thuật toán Trí Tuệ Nhân Tạo tự động phân tích vóc dáng và so khớp độ cử động (Ease Allowance) với từng đường kim mũi chỉ của nhà may.')}
               </p>
 
-              {/* Action Buttons with Distinct Colors and Micro-Animations */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              {/* Action Buttons on 1 Single Row (No wrapping) */}
+              <div className="flex items-center gap-2 sm:gap-3 flex-nowrap overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 scrollbar-none pt-2">
                 <a
                   href="/dashboard"
                   style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                  className="relative overflow-hidden px-6 py-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white font-bold text-sm shadow-md shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 group cursor-pointer before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
+                  className="relative overflow-hidden px-4 sm:px-5 py-3 rounded-xl hover:bg-blue-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 flex items-center gap-1.5 sm:gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 group cursor-pointer flex-shrink-0 before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700 whitespace-nowrap"
                 >
-                  <Camera size={16} className="text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200" />
+                  <Camera size={15} className="text-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200 flex-shrink-0" />
                   <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng Bằng AI')}</span>
-                  <ChevronRight size={16} className="text-white group-hover:translate-x-1 transition-transform duration-200" />
+                  <ChevronRight size={15} className="text-white group-hover:translate-x-1 transition-transform duration-200 flex-shrink-0" />
                 </a>
 
                 <a
                   href="#catalog"
-                  className="px-6 py-3.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 font-bold text-sm border border-stone-300 hover:border-stone-400 hover:shadow-md transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer"
+                  className="px-4 sm:px-5 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 font-bold text-xs sm:text-sm border border-stone-300 hover:border-stone-400 hover:shadow-md transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer flex-shrink-0 whitespace-nowrap"
                 >
                   {t('ecommerce.hero.ctaExplore', 'Khám Phá Bộ Sưu Tập')}
                 </a>
 
-                {/* Merchant Button: Prominent Colored Button (Not blurry/faded) */}
+                {/* Merchant Button: Prominent Colored Button on the exact same row */}
                 <button
                   type="button"
                   onClick={openOnboarding}
-                  className="px-5 py-3.5 rounded-xl bg-amber-50 hover:bg-amber-600 text-amber-900 hover:text-white font-bold text-xs border-2 border-amber-300 hover:border-amber-600 shadow-xs hover:shadow-lg hover:shadow-amber-500/25 flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer group"
+                  className="px-3.5 sm:px-4 py-3 rounded-xl bg-amber-50 hover:bg-amber-600 text-amber-900 hover:text-white font-bold text-xs border-2 border-amber-300 hover:border-amber-600 shadow-xs hover:shadow-lg hover:shadow-amber-500/25 flex items-center gap-1.5 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer group flex-shrink-0 whitespace-nowrap"
                 >
-                  <Store size={15} className="text-amber-700 group-hover:text-white transition-colors duration-200 flex-shrink-0" />
-                  <span className="whitespace-nowrap">{t('ecommerce.hero.ctaMerchant', 'Đăng ký gian hàng may đo')}</span>
+                  <Store size={14} className="text-amber-700 group-hover:text-white transition-colors duration-200 flex-shrink-0" />
+                  <span>{t('ecommerce.hero.ctaMerchant', 'Đăng ký gian hàng may đo')}</span>
                 </button>
               </div>
 
@@ -753,18 +827,153 @@ export const FashionStoreHome: React.FC = () => {
             </p>
           </div>
 
-          {/* Search Input */}
-          <div className="relative w-full md:w-72">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-            <input
-              type="text"
-              placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-white border border-stone-200 text-xs focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs"
-            />
+          {/* Search & Filter Control Group */}
+          <div className="flex items-center gap-2.5 w-full md:w-auto">
+            {/* High-Contrast Search Bar with Integrated Centered Icon & Clear Button */}
+            <div className="relative flex items-center flex-1 md:w-80 h-11 rounded-xl bg-white border-2 border-stone-400/80 hover:border-stone-600 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 shadow-xs transition-all">
+              <div className="pl-3.5 pr-2 flex items-center justify-center pointer-events-none text-stone-600 flex-shrink-0">
+                <Search size={16} strokeWidth={2.4} />
+              </div>
+              <input
+                type="text"
+                placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-full bg-transparent border-0 text-xs font-semibold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-0 pr-8"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 p-1 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 cursor-pointer transition-colors"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Dedicated Filter Button */}
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={`h-11 px-3.5 sm:px-4 rounded-xl border-2 font-bold text-xs flex items-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 cursor-pointer flex-shrink-0 shadow-xs ${
+                isFilterOpen || activeFilterCount > 0
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25'
+                  : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-400/80 hover:border-stone-600'
+              }`}
+            >
+              <SlidersHorizontal size={15} className={isFilterOpen || activeFilterCount > 0 ? 'text-white' : 'text-blue-600'} />
+              <span className="whitespace-nowrap">{t('ecommerce.catalog.filterBtn', 'Bộ Lọc')}</span>
+              {activeFilterCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-amber-400 text-stone-900 text-[10px] font-black flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Expandable Advanced Filter Drawer / Panel */}
+        {isFilterOpen && (
+          <div className="mb-6 p-4 rounded-2xl bg-white border-2 border-stone-300 shadow-md animate-in slide-in-from-top-2 duration-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-blue-600" />
+                <h3 className="font-extrabold text-xs uppercase tracking-wider text-stone-900">
+                  {t('ecommerce.catalog.filterTitle', 'Tùy Chọn Lọc Nâng Cao')}
+                </h3>
+                {activeFilterCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
+                    {activeFilterCount} đang chọn
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleResetAllFilters}
+                className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+              >
+                {t('ecommerce.catalog.resetAllFilters', 'Đặt Lại Bộ Lọc')}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              {/* Price Filter */}
+              <div>
+                <label className="block font-bold text-stone-700 mb-1.5">
+                  {t('ecommerce.catalog.priceRange', 'Khoảng Giá')}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'all', label: t('ecommerce.catalog.priceAll', 'Tất cả') },
+                    { id: 'under-600', label: t('ecommerce.catalog.priceUnder600', '< 600.000 ₫') },
+                    { id: '600-1000', label: t('ecommerce.catalog.price600To1000', '600k - 1tr') },
+                    { id: 'above-1000', label: t('ecommerce.catalog.priceAbove1000', '> 1.000.000 ₫') },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setPriceRange(p.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                        priceRange === p.id
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fabric Filter */}
+              <div>
+                <label className="block font-bold text-stone-700 mb-1.5">
+                  {t('ecommerce.catalog.fabricTitle', 'Chất Liệu May Mặc')}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'all', label: t('ecommerce.catalog.fabricAll', 'Tất cả') },
+                    { id: 'cotton', label: t('ecommerce.catalog.fabricCotton', 'Cotton Ai Cập') },
+                    { id: 'silk', label: t('ecommerce.catalog.fabricSilk', 'Lụa Tơ Tằm') },
+                    { id: 'wool', label: t('ecommerce.catalog.fabricWool', 'Wool Úc') },
+                    { id: 'linen', label: t('ecommerce.catalog.fabricLinen', 'Linen Pháp') },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setFabricFilter(f.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                        fabricFilter === f.id
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sorting Filter */}
+              <div>
+                <label className="block font-bold text-stone-700 mb-1.5">
+                  {t('ecommerce.catalog.sortBy', 'Sắp Xếp Theo')}
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full py-1.5 px-3 rounded-lg bg-stone-100 border border-stone-300 text-xs font-semibold text-stone-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                >
+                  <option value="default">{t('ecommerce.catalog.sortDefault', 'Mặc định (Bespoke)')}</option>
+                  <option value="fit-desc">{t('ecommerce.catalog.sortFitDesc', 'Độ vừa AI cao nhất')}</option>
+                  <option value="price-asc">{t('ecommerce.catalog.sortPriceAsc', 'Giá: Thấp đến Cao')}</option>
+                  <option value="price-desc">{t('ecommerce.catalog.sortPriceDesc', 'Giá: Cao đến Thấp')}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Category Pills with Micro-Interactions */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">

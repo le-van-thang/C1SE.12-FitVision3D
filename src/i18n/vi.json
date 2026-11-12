@@ -857,7 +857,9 @@
       "fitBadgeAdvice": "Gợi ý: Size {size} (Ngực {chest}cm | Eo {waist}cm)",
       "tapeMeasure": "Dài tay: 58.5cm • Rộng vai: 43cm",
       "bannerTryFit": "Thử Size 3D Ngay",
-      "bannerSaleTag": "HOT DEAL"
+      "bannerSaleTag": "HOT DEAL",
+      "liveEngine": "Hiệu chuẩn vóc dáng tự động",
+      "editBiometric": "Đổi số đo"
     },
     "biometricsBar": {
       "label": "Hồ sơ vóc dáng đang áp dụng:",
@@ -887,7 +889,26 @@
       "viewAnalysis": "Xem Phân Tích Độ Vừa 3D",
       "recommendLabel": "Khuyên dùng:",
       "chooseSize": "Chọn Size {size}",
-      "buySizeTooltip": "Chọn mua ngay Size {size}"
+      "buySizeTooltip": "Chọn mua ngay Size {size}",
+      "filterBtn": "Bộ Lọc",
+      "filterTitle": "Tùy Chọn Lọc Nâng Cao",
+      "priceRange": "Khoảng Giá",
+      "priceAll": "Tất cả mức giá",
+      "priceUnder600": "Dưới 600.000 ₫",
+      "price600To1000": "600.000 ₫ - 1.000.000 ₫",
+      "priceAbove1000": "Trên 1.000.000 ₫",
+      "fabricTitle": "Chất Liệu May Mặc",
+      "fabricAll": "Tất cả chất liệu",
+      "fabricCotton": "Cotton Ai Cập",
+      "fabricSilk": "Lụa Tơ Tằm",
+      "fabricWool": "Wool Úc",
+      "fabricLinen": "Linen Pháp",
+      "sortBy": "Sắp Xếp",
+      "sortDefault": "Mặc định (Bespoke)",
+      "sortFitDesc": "Độ vừa AI cao nhất",
+      "sortPriceAsc": "Giá: Thấp đến Cao",
+      "sortPriceDesc": "Giá: Cao đến Thấp",
+      "resetAllFilters": "Đặt Lại Bộ Lọc"
     },
     "tech": {
       "subtitle": "Công Nghệ Đằng Sau Sự Vừa Vặn",
