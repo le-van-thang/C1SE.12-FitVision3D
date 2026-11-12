@@ -212,6 +212,7 @@ export const FashionStoreHome: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [profileModalTab, setProfileModalTab] = useState<'profile' | 'measurements' | 'merchant'>('profile');
 
   // Shopee-style Auto-sliding Product Campaign Banner State
   const [activeBannerSlide, setActiveBannerSlide] = useState<number>(0);
@@ -370,59 +371,59 @@ export const FashionStoreHome: React.FC = () => {
         {/* Scrollable Navigation Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           
-          {/* Hồ sơ vóc dáng 3D (Thiết kế màu sắc sinh động, thông số rõ nét theo chuẩn ISO 8559) */}
-          <div className="rounded-2xl border-2 border-blue-400 shadow-md overflow-hidden bg-white text-stone-900 space-y-0">
-            {/* Header màu xanh gradient thời trang công nghệ cao */}
-            <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 px-3.5 py-2.5 text-white flex items-center justify-between">
+          {/* Hồ sơ vóc dáng 3D (Đậm nét, rõ ràng, tương phản cao trên nền trắng) */}
+          <div className="rounded-2xl border-2 border-slate-300 shadow-sm overflow-hidden bg-white text-stone-900 space-y-0">
+            {/* Header màu xám sáng tương phản cao, chữ đen đậm tuyệt đối */}
+            <div className="bg-slate-100 border-b-2 border-slate-200 px-3.5 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-300/30" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-white">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-300 animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900">
                   HỒ SƠ VÓC DÁNG 3D
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsBiometricModalOpen(true)}
-                className="text-[10px] font-black text-white bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                className="text-[11px] font-black text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
               >
                 Đổi số đo
               </button>
             </div>
 
-            {/* 4 ô số đo đa sắc màu rõ ràng, không còn trắng bóc */}
-            <div className="p-3 bg-stone-50/60 space-y-2.5">
+            {/* 4 ô số đo đa sắc màu rõ nét, viền dày 2px, không bị chìm */}
+            <div className="p-3 bg-white space-y-2.5">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {/* Chiều cao: Xanh biển phấn */}
-                <div className="bg-sky-50/90 p-2.5 rounded-xl border-2 border-sky-300 text-sky-950 shadow-2xs">
-                  <span className="text-sky-700 text-[10px] block font-bold uppercase tracking-wider">Chiều cao</span>
+                <div className="bg-sky-50 p-2.5 rounded-xl border-2 border-sky-200 text-sky-950 shadow-2xs">
+                  <span className="text-sky-800 text-[10px] block font-black uppercase tracking-wider">Chiều cao</span>
                   <span className="font-black text-sky-950 text-sm">{userBody.height_cm} cm</span>
                 </div>
                 {/* Cân nặng: Tím thạch anh */}
-                <div className="bg-purple-50/90 p-2.5 rounded-xl border-2 border-purple-300 text-purple-950 shadow-2xs">
-                  <span className="text-purple-700 text-[10px] block font-bold uppercase tracking-wider">Cân nặng</span>
+                <div className="bg-purple-50 p-2.5 rounded-xl border-2 border-purple-200 text-purple-950 shadow-2xs">
+                  <span className="text-purple-800 text-[10px] block font-black uppercase tracking-wider">Cân nặng</span>
                   <span className="font-black text-purple-950 text-sm">{userBody.weight_kg} kg</span>
                 </div>
                 {/* Vòng ngực: Ngọc bích Emerald */}
-                <div className="bg-emerald-50/90 p-2.5 rounded-xl border-2 border-emerald-300 text-emerald-950 shadow-2xs">
-                  <span className="text-emerald-700 text-[10px] block font-bold uppercase tracking-wider">Vòng ngực</span>
+                <div className="bg-emerald-50 p-2.5 rounded-xl border-2 border-emerald-200 text-emerald-950 shadow-2xs">
+                  <span className="text-emerald-800 text-[10px] block font-black uppercase tracking-wider">Vòng ngực</span>
                   <span className="font-black text-emerald-950 text-sm">{userBody.chest_cm} cm</span>
                 </div>
                 {/* Vòng eo: Hổ phách Amber */}
-                <div className="bg-amber-50/90 p-2.5 rounded-xl border-2 border-amber-300 text-amber-950 shadow-2xs">
-                  <span className="text-amber-700 text-[10px] block font-bold uppercase tracking-wider">Vòng eo</span>
+                <div className="bg-amber-50 p-2.5 rounded-xl border-2 border-amber-200 text-amber-950 shadow-2xs">
+                  <span className="text-amber-800 text-[10px] block font-black uppercase tracking-wider">Vòng eo</span>
                   <span className="font-black text-amber-950 text-sm">{userBody.waist_cm} cm</span>
                 </div>
               </div>
 
               {/* Lọc đồ vừa vặn */}
-              <label className="flex items-center gap-2 cursor-pointer pt-2 text-[11px] text-stone-800 border-t border-stone-200">
+              <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-900 font-bold border-t-2 border-slate-100">
                 <input
                   type="checkbox"
                   checked={filterByMyFitOnly}
                   onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                  className="w-4 h-4 rounded text-blue-600 border-stone-400 accent-blue-600 cursor-pointer"
+                  className="w-4 h-4 rounded text-blue-600 border-2 border-slate-400 accent-blue-600 cursor-pointer"
                 />
-                <span className="font-bold text-[11px] text-stone-800">Chỉ hiện đồ vừa vặn (≥ 90%)</span>
+                <span className="font-bold text-xs text-slate-900">Chỉ hiện đồ vừa vặn (≥ 90%)</span>
               </label>
             </div>
           </div>
@@ -482,22 +483,6 @@ export const FashionStoreHome: React.FC = () => {
                 ISO 8559
               </span>
             </a>
-
-            <button
-              type="button"
-              onClick={openOnboarding}
-              className="w-full px-3 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs flex items-center justify-between transition-colors border border-amber-200 cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-xs">
-                  <Store size={14} />
-                </div>
-                <span>Dành Cho Nhà May & Đối Tác</span>
-              </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-200 text-amber-900 font-mono font-bold">
-                Hợp Tác
-              </span>
-            </button>
           </div>
 
           {/* Danh mục thời trang thuần Việt */}
@@ -546,14 +531,17 @@ export const FashionStoreHome: React.FC = () => {
         </div>
 
         {/* Chân thanh điều hướng: Hồ Sơ Người Dùng & Đăng Ký Shop */}
-        <div className="p-4 border-t-2 border-stone-300 bg-stone-100/90 space-y-3 flex-shrink-0">
+        <div className="p-4 border-t-2 border-slate-300 bg-slate-50 space-y-3 flex-shrink-0">
           {isAuthenticated ? (
             <div className="space-y-2.5">
-              {/* Thẻ người dùng tương tác: Bấm vào mở Hồ Sơ Khách Hàng Đầy Đủ */}
+              {/* Thẻ người dùng tương tác: Bấm vào mở Hồ Sơ Khách Hàng Đầy Đủ & Cài Đặt */}
               <div 
-                onClick={() => setIsProfileModalOpen(true)}
-                className="p-3 rounded-2xl bg-white border-2 border-slate-300 hover:border-blue-500 shadow-sm hover:shadow-md transition-all cursor-pointer group space-y-2"
-                title="Bấm để xem hồ sơ cá nhân, số đo 3D và đăng ký mở shop"
+                onClick={() => {
+                  setProfileModalTab('profile');
+                  setIsProfileModalOpen(true);
+                }}
+                className="p-3 rounded-2xl bg-white border-2 border-slate-300 hover:border-blue-600 shadow-sm hover:shadow-md transition-all cursor-pointer group space-y-2"
+                title="Bấm để xem hồ sơ cá nhân, số đo 3D và cài đặt"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -574,7 +562,7 @@ export const FashionStoreHome: React.FC = () => {
                         {userRole === 'store' || currentStore?.status === 'APPROVED'
                           ? '✂️ Chủ Shop May Đo'
                           : currentStore?.status === 'PENDING'
-                          ? '⏳ Chờ Admin Duyệt Shop'
+                          ? '⏳ Chờ Duyệt Mở Shop'
                           : '👤 Khách Hàng May Đo'}
                       </span>
                     </div>
@@ -594,59 +582,54 @@ export const FashionStoreHome: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between pt-1.5 border-t border-stone-100 text-[11px] text-blue-600 font-bold group-hover:underline">
-                  <span>Hồ sơ & Đăng ký shop</span>
+                  <span>Hồ sơ cá nhân & Cài đặt</span>
                   <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
 
-              {/* Nút hành động trực tiếp nếu đã là Chủ Shop hoặc đang chờ duyệt */}
+              {/* Nút cam đăng ký mở gian hàng B2B (chỉ hiển thị khi đã đăng nhập) */}
               {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
                 <a
                   href="/tailor"
-                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                  className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm border-2 border-amber-500 transition-all cursor-pointer"
                 >
                   <Store size={15} />
-                  <span>Vào Studio Nhà May (/tailor)</span>
+                  <span>Vào Kênh Nhà May (/tailor)</span>
                   <ChevronRight size={14} />
                 </a>
               ) : currentStore?.status === 'PENDING' ? (
                 <button
                   type="button"
                   onClick={openStatusModal}
-                  className="w-full py-2 px-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full py-2.5 px-3 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-900 font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
                 >
-                  <Clock size={13} className="text-amber-700 animate-pulse" />
-                  <span>Hồ Sơ Shop Đang Chờ Admin Duyệt</span>
+                  <Clock size={14} className="text-amber-600 animate-pulse" />
+                  <span>Hồ Sơ Chờ Admin Duyệt</span>
                 </button>
               ) : (
                 <button
                   type="button"
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="w-full py-2 px-3 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setProfileModalTab('merchant');
+                    setIsProfileModalOpen(true);
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm border-2 border-amber-400 transition-all cursor-pointer"
                 >
-                  <Store size={13} className="text-amber-700" />
+                  <Store size={15} />
                   <span>Đăng Ký Mở Gian Hàng May Đo</span>
                 </button>
               )}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div>
+              {/* Duy nhất 1 nút Đăng Nhập gọn gàng khi chưa đăng nhập */}
               <button
                 type="button"
                 onClick={openSignIn}
-                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-black shadow-md border-2 border-blue-500 transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-black shadow-md border-2 border-blue-500 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <LogIn size={15} />
-                <span>Đăng Nhập / Đăng Ký Tài Khoản</span>
-              </button>
-              
-              <button
-                type="button"
-                onClick={openOnboarding}
-                className="w-full py-2 px-3 rounded-xl bg-white hover:bg-amber-50 text-stone-800 hover:text-amber-900 border-2 border-stone-300 hover:border-amber-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
-              >
-                <Store size={13} className="text-amber-600" />
-                <span>Dành Cho Nhà May: Đăng Ký Shop</span>
+                <LogIn size={16} strokeWidth={2.5} />
+                <span>Đăng Nhập / Đăng Ký</span>
               </button>
             </div>
           )}
@@ -707,12 +690,12 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         </header>
 
-        {/* Desktop Top Utility Bar (Search & Quick Action Triggers) */}
-        <div className="hidden lg:flex items-center justify-between px-6 py-3.5 border-b border-stone-200 bg-white/95 backdrop-blur-sm sticky top-0 z-20">
+        {/* Desktop Top Utility Bar (Search & Quick Action Triggers) - Viền phân cách rõ nét, không bị chìm */}
+        <div className="hidden lg:flex items-center justify-between px-6 py-3 border-b-2 border-slate-300 bg-white shadow-xs sticky top-0 z-20">
           {/* Thanh tìm kiếm đậm màu rõ nét, viền sắc nét theo chuẩn Pro UI */}
-          <div className="relative w-96 group">
-            <div className="flex items-center w-full h-11 px-3.5 rounded-2xl bg-slate-100 border-2 border-slate-300 hover:border-slate-400 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 shadow-xs transition-all">
-              <div className="mr-2 flex items-center justify-center pointer-events-none text-slate-600 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
+          <div className="relative w-full max-w-md xl:max-w-lg group">
+            <div className="flex items-center w-full h-11 px-4 rounded-2xl bg-slate-100 border-2 border-slate-400 hover:border-slate-500 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 shadow-2xs transition-all">
+              <div className="mr-2.5 flex items-center justify-center pointer-events-none text-slate-600 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
                 <Search size={18} strokeWidth={2.4} />
               </div>
               <input
@@ -720,7 +703,7 @@ export const FashionStoreHome: React.FC = () => {
                 placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo sơ mi, blazer, quần tây, đầm lụa...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-500 placeholder:font-medium focus:outline-none focus:ring-0 pr-2"
+                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-extrabold text-slate-900 placeholder:text-slate-500 placeholder:font-medium focus:outline-none focus:ring-0 pr-2"
               />
               {searchQuery && (
                 <button
@@ -739,24 +722,24 @@ export const FashionStoreHome: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsVellStudioOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 border-2 border-purple-200 text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs"
             >
-              <Sparkles size={14} className="text-purple-600" />
+              <Sparkles size={15} className="text-purple-600" />
               <span>Phòng Thử Đồ Ảo 3D</span>
             </button>
 
             <a
               href="/dashboard"
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-950 border-2 border-blue-200 text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs"
             >
-              <Camera size={14} className="text-stone-700" />
+              <Camera size={15} className="text-blue-600" />
               <span>Quét Đo AI 3D (ISO)</span>
             </a>
 
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center gap-2 px-3.5 py-2 rounded-xl bg-stone-950 hover:bg-black text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95"
+              className="relative flex items-center gap-2 px-4.5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-black shadow-sm transition-all cursor-pointer border-2 border-slate-900 active:scale-95"
             >
               <ShoppingBag size={15} />
               <span>Giỏ Hàng</span>
@@ -809,14 +792,31 @@ export const FashionStoreHome: React.FC = () => {
                     <span>Quét Vóc Dáng AI 30s</span>
                   </a>
 
-                  <button
-                    type="button"
-                    onClick={openOnboarding}
-                    className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
-                  >
-                    <Store size={16} className="text-white" />
-                    <span>Đăng Ký Gian Hàng May Đo</span>
-                  </button>
+                  {isAuthenticated && userRole !== 'store' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileModalTab('merchant');
+                        setIsProfileModalOpen(true);
+                      }}
+                      className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+                    >
+                      <Store size={16} className="text-white" />
+                      <span>Đăng Ký Gian Hàng May Đo</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById('catalog');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="px-5 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-900 font-extrabold text-xs sm:text-sm border-2 border-stone-300 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+                    >
+                      <ShoppingBag size={16} className="text-stone-700" />
+                      <span>Khám Phá Bộ Sưu Tập</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1733,6 +1733,7 @@ export const FashionStoreHome: React.FC = () => {
         onClose={() => setIsProfileModalOpen(false)}
         userBody={userBody}
         onOpenBiometrics={() => setIsBiometricModalOpen(true)}
+        initialTab={profileModalTab}
       />
 
       {/* ── PROFESSIONAL VERTICAL SIDEBAR DRAWER (THANH DỌC) ── */}

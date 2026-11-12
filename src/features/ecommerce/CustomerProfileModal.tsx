@@ -23,6 +23,7 @@ interface CustomerProfileModalProps {
   onClose: () => void;
   userBody: UserBodyProfile;
   onOpenBiometrics: () => void;
+  initialTab?: 'profile' | 'measurements' | 'merchant';
 }
 
 export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
@@ -30,6 +31,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   onClose,
   userBody,
   onOpenBiometrics,
+  initialTab = 'profile',
 }) => {
   const {
     currentUser,
@@ -40,7 +42,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
     openStatusModal,
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'measurements' | 'merchant'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'measurements' | 'merchant'>(initialTab);
+
+  // Sync initial tab when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   if (!isOpen || !currentUser) return null;
 
@@ -187,6 +196,29 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     <span className="text-[10px] text-stone-500 font-bold uppercase block">Địa Chỉ Nhận Hàng May Đo</span>
                     <span className="text-xs font-medium text-stone-800">Đà Nẵng / TP. Hồ Chí Minh, Việt Nam</span>
                   </div>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white border-2 border-stone-200 space-y-3">
+                <span className="text-[11px] font-black uppercase text-stone-900 tracking-wider block">
+                  ⚙️ Cài Đặt & Tùy Chọn Tài Khoản
+                </span>
+                
+                <div className="space-y-2 text-xs">
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors">
+                    <span className="font-bold text-stone-800">Tự động so khớp Ease Allowance (Độ cử động 3D)</span>
+                    <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
+                  </label>
+
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors">
+                    <span className="font-bold text-stone-800">Nhận thông báo tiến độ may đo qua Email</span>
+                    <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
+                  </label>
+
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors">
+                    <span className="font-bold text-stone-800">Hiển thị huy hiệu khách hàng Bespoke</span>
+                    <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
+                  </label>
                 </div>
               </div>
 
@@ -387,3 +419,4 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
     </div>
   );
 };
+

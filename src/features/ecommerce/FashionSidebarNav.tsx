@@ -207,12 +207,12 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
             })}
           </div>
 
-          {/* ── SECTION 3: HỒ SƠ VÓC DÁNG 3D (ĐA SẮC MÀU, NỔI BẬT) ── */}
-          <div className="rounded-2xl border-2 border-blue-400 shadow-md overflow-hidden bg-white space-y-0">
-            <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 px-3.5 py-2 text-white flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-white">
+          {/* ── SECTION 3: HỒ SƠ VÓC DÁNG 3D (ĐẬM NÉT, RÕ RÀNG TRÊN NỀN TRẮNG) ── */}
+          <div className="rounded-2xl border-2 border-slate-300 shadow-sm overflow-hidden bg-white space-y-0">
+            <div className="bg-slate-100 border-b-2 border-slate-200 px-3.5 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-300 animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900">
                   HỒ SƠ VÓC DÁNG 3D
                 </span>
               </div>
@@ -222,83 +222,51 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   onClose();
                   onOpenBiometrics();
                 }}
-                className="text-[10px] font-black text-white bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                className="text-[11px] font-black text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
               >
                 Đổi số đo
               </button>
             </div>
 
-            <div className="p-3 bg-stone-50/60 space-y-2">
-              <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                <div className="bg-sky-50/90 p-2 rounded-xl border-2 border-sky-300 shadow-2xs">
-                  <span className="text-sky-700 text-[9px] block font-bold uppercase">CHIỀU CAO</span>
+            <div className="p-3 bg-white space-y-2">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-sky-50 p-2 rounded-xl border-2 border-sky-200 shadow-2xs">
+                  <span className="text-sky-800 text-[10px] block font-black uppercase">CHIỀU CAO</span>
                   <span className="font-black text-sky-950 text-sm">{userBody.height_cm} cm</span>
                 </div>
-                <div className="bg-purple-50/90 p-2 rounded-xl border-2 border-purple-300 shadow-2xs">
-                  <span className="text-purple-700 text-[9px] block font-bold uppercase">CÂN NẶNG</span>
+                <div className="bg-purple-50 p-2 rounded-xl border-2 border-purple-200 shadow-2xs">
+                  <span className="text-purple-800 text-[10px] block font-black uppercase">CÂN NẶNG</span>
                   <span className="font-black text-purple-950 text-sm">{userBody.weight_kg} kg</span>
                 </div>
-                <div className="bg-emerald-50/90 p-2 rounded-xl border-2 border-emerald-300 shadow-2xs">
-                  <span className="text-emerald-700 text-[9px] block font-bold uppercase">VÒNG NGỰC</span>
+                <div className="bg-emerald-50 p-2 rounded-xl border-2 border-emerald-200 shadow-2xs">
+                  <span className="text-emerald-800 text-[10px] block font-black uppercase">VÒNG NGỰC</span>
                   <span className="font-black text-emerald-950 text-sm">{userBody.chest_cm} cm</span>
                 </div>
-                <div className="bg-amber-50/90 p-2 rounded-xl border-2 border-amber-300 shadow-2xs">
-                  <span className="text-amber-700 text-[9px] block font-bold uppercase">VÒNG EO</span>
+                <div className="bg-amber-50 p-2 rounded-xl border-2 border-amber-200 shadow-2xs">
+                  <span className="text-amber-800 text-[10px] block font-black uppercase">VÒNG EO</span>
                   <span className="font-black text-amber-950 text-sm">{userBody.waist_cm} cm</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ── SECTION 4: KÊNH NHÀ MAY B2B ── */}
-          <div className="p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-200 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
-              <Store size={14} className="text-amber-700" />
-              <span>Dành Cho Chủ Shop & Nhà May</span>
-            </div>
-            <p className="text-[11px] text-amber-800 leading-relaxed">
-              Tải lên rập may áo, blazer và cấu hình bảng thông số cử động (Ease Allowance).
-            </p>
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenOnboarding();
-                  onClose();
-                }}
-                className="flex-1 py-1.5 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs cursor-pointer text-center transition-colors"
-              >
-                Mở Gian Hàng B2B
-              </button>
-              <a
-                href="/tailor"
-                className="py-1.5 px-2.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-bold text-xs hover:bg-amber-100 cursor-pointer"
-              >
-                Studio
-              </a>
-            </div>
-          </div>
-
         </div>
 
-        {/* Footer Role & Auth (CHỈ HIỂN THỊ THẺ NGƯỜI DÙNG - BẤM VÀO XEM PROFILE VÀ ĐĂNG KÝ SHOP) */}
-        <div className="p-4 border-t-2 border-stone-300 bg-stone-100 space-y-2.5 flex-shrink-0">
+        {/* Footer Role & Auth (CHỈ HIỂN THỊ 1 NÚT ĐĂNG NHẬP HOẶC THẺ NGƯỜI DÙNG) */}
+        <div className="p-4 border-t-2 border-slate-300 bg-slate-50 space-y-2.5 flex-shrink-0">
           {!isAuthenticated ? (
-            <div className="space-y-2">
+            <div>
               <button
                 type="button"
                 onClick={() => {
                   onOpenSignIn();
                   onClose();
                 }}
-                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md border-2 border-blue-500 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs shadow-md border-2 border-blue-500 flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
-                <LogIn size={15} />
-                <span>Đăng Nhập / Đăng Ký Tài Khoản</span>
+                <LogIn size={16} strokeWidth={2.5} />
+                <span>Đăng Nhập / Đăng Ký</span>
               </button>
-              <p className="text-[10px] text-stone-500 text-center font-medium">
-                Đăng nhập để xem gợi ý size 3D và hồ sơ cá nhân
-              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -307,7 +275,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   onClose();
                   if (onOpenProfileModal) onOpenProfileModal();
                 }}
-                className="p-3 rounded-2xl bg-white border-2 border-slate-300 hover:border-blue-500 shadow-sm transition-all cursor-pointer group"
+                className="p-3 rounded-2xl bg-white border-2 border-slate-300 hover:border-blue-600 shadow-sm transition-all cursor-pointer group"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -341,10 +309,25 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-stone-100 text-[11px] text-blue-600 font-bold">
-                  <span>Hồ sơ & Đăng ký shop</span>
+                  <span>Hồ sơ & Cài đặt</span>
                   <ChevronRight size={13} />
                 </div>
               </div>
+
+              {/* Nút cam đăng ký mở shop khi đã login */}
+              {userRole !== 'store' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenProfileModal) onOpenProfileModal();
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm border-2 border-amber-400 transition-all cursor-pointer"
+                >
+                  <Store size={15} />
+                  <span>Đăng Ký Mở Gian Hàng May Đo</span>
+                </button>
+              )}
             </div>
           )}
         </div>
