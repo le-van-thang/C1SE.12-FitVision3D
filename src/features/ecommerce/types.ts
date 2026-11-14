@@ -84,3 +84,47 @@ export interface CartItem {
   is_ai_recommended: boolean;
 }
 
+export type OrderStatus = 'pending' | 'confirmed' | 'tailoring' | 'shipping' | 'completed' | 'cancelled';
+
+export interface OrderRecipient {
+  full_name: string;
+  phone: string;
+  address: string;
+  city: string;
+  note?: string;
+}
+
+export type PaymentMethod = 'cod' | 'vietqr_sepay';
+
+export interface Order {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  recipient: OrderRecipient;
+  items: CartItem[];
+  subtotal: number;
+  shipping_fee: number;
+  discount_amount: number;
+  total_amount: number;
+  payment_method: PaymentMethod;
+  payment_status: 'unpaid' | 'paid';
+  status: OrderStatus;
+  created_at: string;
+  store_name?: string;
+  estimated_delivery?: string;
+}
+
+export interface CreateOrderInput {
+  customer_id: string;
+  customer_name: string;
+  recipient: OrderRecipient;
+  items: CartItem[];
+  subtotal: number;
+  shipping_fee: number;
+  discount_amount: number;
+  total_amount: number;
+  payment_method: PaymentMethod;
+  store_name?: string;
+}
+
+

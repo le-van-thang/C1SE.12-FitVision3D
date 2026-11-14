@@ -14,8 +14,13 @@ import {
   Check,
   Search,
   UserCheck,
+  ShoppingBag,
+  Truck,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useOrders } from '@/context/OrderContext';
+import type { OrderStatus } from './types';
 
 interface QuickAdminModalProps {
   isOpen: boolean;
@@ -24,8 +29,10 @@ interface QuickAdminModalProps {
 
 export const QuickAdminModal: React.FC<QuickAdminModalProps> = ({ isOpen, onClose }) => {
   const { profiles, stores, approveStore, rejectStore, switchDemoRole } = useAuth();
-  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'system'>('users');
+  const { orders, updateOrderStatus, cancelOrder } = useOrders();
+  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'orders' | 'system'>('users');
   const [searchTerm, setSearchTerm] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -149,6 +156,19 @@ export const QuickAdminModal: React.FC<QuickAdminModalProps> = ({ isOpen, onClos
           >
             <Store size={15} />
             <span>Phê Duyệt Gian Hàng ({pendingStoresList.length} chờ duyệt)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('orders')}
+            className={`px-4 py-2.5 text-xs font-extrabold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === 'orders'
+                ? 'border-blue-600 text-blue-700 bg-white rounded-t-lg'
+                : 'border-transparent text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <ShoppingBag size={15} />
+            <span>Đơn Hàng Toàn Sàn ({orders.length})</span>
           </button>
 
           <button
@@ -309,7 +329,203 @@ export const QuickAdminModal: React.FC<QuickAdminModalProps> = ({ isOpen, onClos
             </div>
           )}
 
-          {/* TAB 3: SYSTEM METRICS */}
+          {/* TAB 3: QUẢN LÝ ĐƠN HÀNG SÀN */}
+          {activeTab === 'orders' && (
+            <div className="space-y-4">
+              {/* Stats Overview */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+                  <span className="text-[10px] font-bold text-blue-700 uppercase block">TỔNG ĐƠN HÀNG</span>
+                  <span className="text-xl font-black text-blue-950 mt-0.5 block">{orders.length} đơn</span>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase block">DOANH THU TOÀN SÀN</span>
+                  <span className="text-base font-black text-emerald-950 mt-0.5 block font-mono">
+                    {orders.reduce((sum, o) => sum + o.total_amount, 0).toLocaleString('vi-VN')} ₫
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <span className="text-[10px] font-bold text-amber-700 uppercase block">CHỜ XỬ LÝ</span>
+                  <span className="text-xl font-black text-amber-950 mt-0.5 block">
+                    {orders.filter((o) => o.status === 'pending').length} đơn
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200">
+                  <span className="text-[10px] font-bold text-indigo-700 uppercase block">ĐANG MAY & GIAO</span>
+                  <span className="text-xl font-black text-indigo-950 mt-0.5 block">
+                    {orders.filter((o) => o.status === 'tailoring' || o.status === 'shipping').length} đơn
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Filters */}
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+                {[
+                  { id: 'all', label: 'Tất cả' },
+                  { id: 'pending', label: 'Chờ duyệt' },
+                  { id: 'confirmed', label: 'Đã xác nhận' },
+                  { id: 'tailoring', label: 'Đang may' },
+                  { id: 'shipping', label: 'Đang giao' },
+                  { id: 'completed', label: 'Hoàn thành' },
+                  { id: 'cancelled', label: 'Đã hủy' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setOrderStatusFilter(f.id)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold border transition-colors cursor-pointer whitespace-nowrap ${
+                      orderStatusFilter === f.id
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                        : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Orders List Table */}
+              <div className="space-y-2.5">
+                {orders
+                  .filter((o) => orderStatusFilter === 'all' || o.status === orderStatusFilter)
+                  .map((order) => {
+                    const getBadge = () => {
+                      switch (order.status) {
+                        case 'pending':
+                          return { label: '⏳ Chờ duyệt', cls: 'bg-amber-100 text-amber-900 border-amber-300' };
+                        case 'confirmed':
+                          return { label: '✓ Đã xác nhận', cls: 'bg-blue-100 text-blue-900 border-blue-300' };
+                        case 'tailoring':
+                          return { label: '✂️ Đang may', cls: 'bg-indigo-100 text-indigo-900 border-indigo-300' };
+                        case 'shipping':
+                          return { label: '🚚 Đang giao', cls: 'bg-purple-100 text-purple-900 border-purple-300' };
+                        case 'completed':
+                          return { label: '✓ Hoàn thành', cls: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+                        case 'cancelled':
+                          return { label: '✕ Đã hủy', cls: 'bg-rose-100 text-rose-900 border-rose-300' };
+                        default:
+                          return { label: order.status, cls: 'bg-stone-100 text-stone-800 border-stone-300' };
+                      }
+                    };
+                    const badge = getBadge();
+
+                    return (
+                      <div
+                        key={order.id}
+                        className="p-3.5 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-xs text-blue-700">{order.id}</span>
+                            <span className="text-[10px] text-stone-400">·</span>
+                            <span className="text-xs font-bold text-stone-900">{order.recipient.full_name}</span>
+                            <span className="text-[10px] text-stone-500 font-mono">({order.recipient.phone})</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.cls}`}>
+                              {badge.label}
+                            </span>
+                            <span className="font-mono font-black text-xs text-slate-900">
+                              {order.total_amount.toLocaleString('vi-VN')} ₫
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Order Items & Tailor Store */}
+                        <div className="text-[11px] text-stone-600 flex flex-wrap items-center justify-between gap-2 bg-white p-2 rounded-xl border border-stone-200">
+                          <div>
+                            <span className="text-stone-400">Nhà may:</span>{' '}
+                            <strong className="text-amber-800">{order.store_name}</strong>
+                            {' · '}
+                            <span className="text-stone-400">Sản phẩm:</span>{' '}
+                            <span className="font-semibold text-stone-800">
+                              {order.items.map((i) => `${i.product.name} (${i.variant.size_label} x${i.quantity})`).join(', ')}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-blue-700">
+                            {order.payment_method === 'vietqr_sepay' ? '💳 VietQR Đã Trả' : '💵 COD'}
+                          </span>
+                        </div>
+
+                        {/* Admin Action Buttons */}
+                        <div className="flex items-center justify-end gap-1.5 pt-1">
+                          {order.status === 'pending' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateOrderStatus(order.id, 'confirmed');
+                                showNotification(`Đã duyệt đơn ${order.id}`);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] cursor-pointer"
+                            >
+                              Duyệt Đơn
+                            </button>
+                          )}
+
+                          {order.status === 'confirmed' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateOrderStatus(order.id, 'tailoring');
+                                showNotification(`Đã chuyển đơn ${order.id} sang cắt may`);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] cursor-pointer"
+                            >
+                              Bắt Đầu May Đo
+                            </button>
+                          )}
+
+                          {order.status === 'tailoring' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateOrderStatus(order.id, 'shipping');
+                                showNotification(`Đã bàn giao đơn ${order.id} cho shipper`);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] cursor-pointer flex items-center gap-1"
+                            >
+                              <Truck size={12} />
+                              <span>Giao Hàng</span>
+                            </button>
+                          )}
+
+                          {order.status === 'shipping' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateOrderStatus(order.id, 'completed');
+                                showNotification(`Đơn ${order.id} đã hoàn thành`);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer"
+                            >
+                              Đã Giao Xong
+                            </button>
+                          )}
+
+                          {order.status !== 'completed' && order.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Bạn có chắc muốn hủy đơn ${order.id}?`)) {
+                                  cancelOrder(order.id);
+                                  showNotification(`Đã hủy đơn ${order.id}`);
+                                }
+                              }}
+                              className="px-2 py-1 rounded-lg border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold text-[11px] cursor-pointer"
+                            >
+                              Hủy
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: SYSTEM METRICS */}
           {activeTab === 'system' && (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">

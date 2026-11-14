@@ -35,6 +35,7 @@ interface FashionSidebarNavProps {
   onOpenBiometrics: () => void;
   onOpenOnboarding: () => void;
   onOpenProfileModal?: () => void;
+  onOpenOrders?: () => void;
   isAuthenticated: boolean;
   onOpenSignIn: () => void;
   onSignOut?: () => void;
@@ -55,6 +56,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
   onOpenBiometrics,
   onOpenOnboarding,
   onOpenProfileModal,
+  onOpenOrders,
   isAuthenticated,
   onOpenSignIn,
   onSignOut,
@@ -313,6 +315,23 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   <ChevronRight size={13} />
                 </div>
               </div>
+
+              {/* Lối tắt xem Lịch Sử Đơn Hàng Của Tôi */}
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (onOpenOrders) onOpenOrders();
+                  else if (onOpenProfileModal) onOpenProfileModal();
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-900 text-xs font-black flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
+              >
+                <div className="flex items-center gap-2">
+                  <ShoppingBag size={14} className="text-blue-700" />
+                  <span>Đơn Hàng Của Tôi</span>
+                </div>
+                <ChevronRight size={13} className="text-blue-600" />
+              </button>
 
               {/* Nút cam đăng ký mở shop khi đã login */}
               {userRole !== 'store' && (

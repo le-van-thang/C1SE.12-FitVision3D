@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Shirt,
   Eye,
+  Package,
   Plus,
   LogOut,
   Clock,
@@ -38,6 +39,7 @@ import { NowhereThermalSlipModal } from './NowhereThermalSlipModal';
 import { FashionSidebarNav } from './FashionSidebarNav';
 import { QuickAdminModal } from './QuickAdminModal';
 import { CustomerProfileModal } from './CustomerProfileModal';
+import { CheckoutModal } from './CheckoutModal';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import type { FashionProduct, ProductVariant, UserBodyProfile, CartItem } from './types';
 import { useAuth } from '@/context/AuthContext';
@@ -212,7 +214,8 @@ export const FashionStoreHome: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
-  const [profileModalTab, setProfileModalTab] = useState<'profile' | 'measurements' | 'merchant'>('profile');
+  const [profileModalTab, setProfileModalTab] = useState<'profile' | 'measurements' | 'orders' | 'merchant'>('profile');
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState<boolean>(false);
 
   // Shopee-style Auto-sliding Product Campaign Banner State
   const [activeBannerSlide, setActiveBannerSlide] = useState<number>(0);
@@ -587,6 +590,22 @@ export const FashionStoreHome: React.FC = () => {
                 </div>
               </div>
 
+              {/* Lối tắt xem Lịch Sử Đơn Hàng Của Tôi (Chuẩn E-commerce) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileModalTab('orders');
+                  setIsProfileModalOpen(true);
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-900 text-xs font-black flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
+              >
+                <div className="flex items-center gap-2">
+                  <Package size={15} className="text-blue-700" />
+                  <span>Đơn Hàng Của Tôi</span>
+                </div>
+                <ChevronRight size={14} className="text-blue-600" />
+              </button>
+
               {/* Nút cam đăng ký mở gian hàng B2B (chỉ hiển thị khi đã đăng nhập) */}
               {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
                 <a
@@ -735,6 +754,19 @@ export const FashionStoreHome: React.FC = () => {
               <Camera size={15} className="text-blue-600" />
               <span>Quét Đo AI 3D (ISO)</span>
             </a>
+
+            <button
+              type="button"
+              onClick={() => {
+                setProfileModalTab('orders');
+                setIsProfileModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 border-2 border-slate-300 text-xs font-black transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+              title="Xem lịch sử đơn hàng đã đặt"
+            >
+              <Package size={15} className="text-slate-700" />
+              <span>Đơn Hàng</span>
+            </button>
 
             <button
               type="button"
@@ -1621,9 +1653,22 @@ export const FashionStoreHome: React.FC = () => {
           );
         }}
         onCheckout={() => {
-          alert(t('ecommerce.drawer.checkoutDemoNotice', 'Tính năng thanh toán demo: Đơn hàng đã được ghi nhận với các size tối ưu theo AI!'));
-          setCartItems([]);
           setIsCartOpen(false);
+          setIsCheckoutModalOpen(true);
+        }}
+      />
+
+      {/* 3-Step E-Commerce Checkout Modal (Học hỏi theo luồng chuẩn đồ án: Giỏ hàng -> Thông tin giao hàng & VietQR -> Đặt hàng thành công) */}
+      <CheckoutModal
+        isOpen={isCheckoutModalOpen}
+        onClose={() => setIsCheckoutModalOpen(false)}
+        items={cartItems}
+        onClearCart={() => setCartItems([])}
+        userBody={userBody}
+        onOpenMyOrders={() => {
+          setIsCheckoutModalOpen(false);
+          setProfileModalTab('orders');
+          setIsProfileModalOpen(true);
         }}
       />
 
@@ -1756,6 +1801,10 @@ export const FashionStoreHome: React.FC = () => {
         onOpenBiometrics={() => setIsBiometricModalOpen(true)}
         onOpenOnboarding={openOnboarding}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
+        onOpenOrders={() => {
+          setProfileModalTab('orders');
+          setIsProfileModalOpen(true);
+        }}
         isAuthenticated={isAuthenticated}
         onOpenSignIn={openSignIn}
         onSignOut={signOut}

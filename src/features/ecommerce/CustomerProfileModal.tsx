@@ -14,8 +14,13 @@ import {
   ChevronRight,
   ShieldCheck,
   Camera,
+  ShoppingBag,
+  Package,
+  Truck,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useOrders } from '@/context/OrderContext';
 import { UserBodyProfile } from './types';
 
 interface CustomerProfileModalProps {
@@ -23,7 +28,7 @@ interface CustomerProfileModalProps {
   onClose: () => void;
   userBody: UserBodyProfile;
   onOpenBiometrics: () => void;
-  initialTab?: 'profile' | 'measurements' | 'merchant';
+  initialTab?: 'profile' | 'measurements' | 'orders' | 'merchant';
 }
 
 export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
@@ -41,8 +46,13 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
     openOnboarding,
     openStatusModal,
   } = useAuth();
+  const { getUserOrders, cancelOrder } = useOrders();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'measurements' | 'merchant'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'profile' | 'measurements' | 'orders' | 'merchant'>(initialTab);
+  const [orderFilter, setOrderFilter] = useState<string>('all');
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState<string | null>(null);
+
+  const userOrders = getUserOrders(currentUser?.id);
 
   // Sync initial tab when modal opens
   React.useEffect(() => {
@@ -110,43 +120,56 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
         </div>
 
         {/* Tab Selector */}
-        <div className="flex border-b border-stone-200 bg-stone-50 px-4 pt-2 gap-1 flex-shrink-0">
+        <div className="flex border-b border-stone-200 bg-stone-50 px-3 pt-2 gap-1 flex-shrink-0 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+            className={`flex-1 py-2 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'profile'
                 ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl'
                 : 'border-transparent text-stone-600 hover:text-stone-900'
             }`}
           >
-            <User size={14} />
-            <span>Thông Tin Cá Nhân</span>
+            <User size={13} />
+            <span>Cá Nhân</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('measurements')}
-            className={`flex-1 py-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+            className={`flex-1 py-2 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'measurements'
                 ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl'
                 : 'border-transparent text-stone-600 hover:text-stone-900'
             }`}
           >
-            <Ruler size={14} />
-            <span>Hồ Sơ Số Đo 3D</span>
+            <Ruler size={13} />
+            <span>Số Đo 3D</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('orders')}
+            className={`flex-1 py-2 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'orders'
+                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl'
+                : 'border-transparent text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <ShoppingBag size={13} />
+            <span>Đơn Hàng ({userOrders.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('merchant')}
-            className={`flex-1 py-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+            className={`flex-1 py-2 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'merchant'
                 ? 'border-amber-600 text-amber-800 bg-white rounded-t-xl'
                 : 'border-transparent text-stone-600 hover:text-stone-900'
             }`}
           >
-            <Store size={14} />
+            <Store size={13} />
             <span>Đăng Ký Shop</span>
           </button>
         </div>
@@ -293,6 +316,187 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   <span>Quét 3D Lại</span>
                 </a>
               </div>
+            </div>
+          )}
+
+          {/* TAB 3: ĐƠN HÀNG CỦA TÔI (THEO LUỒNG ĐỒ ÁN TMĐT CHUẨN) */}
+          {activeTab === 'orders' && (
+            <div className="space-y-3.5">
+              {/* Filter Pills */}
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+                {[
+                  { id: 'all', label: 'Tất cả' },
+                  { id: 'pending', label: 'Chờ duyệt' },
+                  { id: 'tailoring', label: 'Đang may đo' },
+                  { id: 'shipping', label: 'Đang giao' },
+                  { id: 'completed', label: 'Hoàn thành' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setOrderFilter(f.id)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold border transition-colors cursor-pointer whitespace-nowrap ${
+                      orderFilter === f.id
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                        : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Order List */}
+              {userOrders.filter((o) => orderFilter === 'all' || o.status === orderFilter).length === 0 ? (
+                <div className="p-8 text-center bg-stone-50 rounded-2xl border-2 border-dashed border-stone-200 space-y-2">
+                  <Package size={28} className="text-stone-400 mx-auto" />
+                  <p className="text-xs font-bold text-stone-700">Chưa có đơn hàng nào trong mục này</p>
+                  <p className="text-[11px] text-stone-500">Các trang phục bạn đặt may đo sẽ hiển thị tiến độ tại đây.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {userOrders
+                    .filter((o) => orderFilter === 'all' || o.status === orderFilter)
+                    .map((order) => {
+                      const isExpanded = selectedOrderDetails === order.id;
+
+                      const getStatusBadge = () => {
+                        switch (order.status) {
+                          case 'pending':
+                            return { label: '⏳ Chờ xử lý', cls: 'bg-amber-100 text-amber-900 border-amber-300' };
+                          case 'confirmed':
+                            return { label: '✓ Đã xác nhận', cls: 'bg-blue-100 text-blue-900 border-blue-300' };
+                          case 'tailoring':
+                            return { label: '✂️ Đang may đo', cls: 'bg-indigo-100 text-indigo-900 border-indigo-300' };
+                          case 'shipping':
+                            return { label: '🚚 Đang giao hàng', cls: 'bg-purple-100 text-purple-900 border-purple-300' };
+                          case 'completed':
+                            return { label: '✓ Đã nhận hàng', cls: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+                          case 'cancelled':
+                            return { label: '✕ Đã hủy', cls: 'bg-rose-100 text-rose-900 border-rose-300' };
+                          default:
+                            return { label: order.status, cls: 'bg-stone-100 text-stone-800 border-stone-300' };
+                        }
+                      };
+
+                      const badge = getStatusBadge();
+
+                      return (
+                        <div
+                          key={order.id}
+                          className="bg-white border-2 border-stone-200 rounded-2xl p-4 shadow-xs space-y-3 hover:border-slate-300 transition-all"
+                        >
+                          {/* Order Header */}
+                          <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-black text-xs text-blue-700">{order.id}</span>
+                                <span className="text-[10px] text-stone-400">·</span>
+                                <span className="text-[10px] font-bold text-amber-800">{order.store_name}</span>
+                              </div>
+                              <span className="text-[10px] text-stone-400 block mt-0.5">
+                                {new Date(order.created_at).toLocaleDateString('vi-VN')} {new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+
+                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${badge.cls}`}>
+                              {badge.label}
+                            </span>
+                          </div>
+
+                          {/* Items Preview */}
+                          <div className="space-y-2">
+                            {order.items.map((it) => (
+                              <div key={it.id} className="flex items-center justify-between gap-2.5 text-xs">
+                                <img
+                                  src={it.product.image_url}
+                                  alt={it.product.name}
+                                  className="w-9 h-11 object-cover rounded-lg border border-stone-200 flex-shrink-0"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="font-bold text-stone-900 truncate">{it.product.name}</h5>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-stone-500">
+                                    <span className="font-semibold text-blue-700">Cỡ: {it.variant.size_label}</span>
+                                    <span>·</span>
+                                    <span>SL: {it.quantity}</span>
+                                    {it.is_ai_recommended && (
+                                      <span className="text-emerald-700 font-bold">✓ Vừa vặn AI</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className="font-mono font-bold text-stone-800">
+                                  {((it.product.sale_price || it.product.price) * it.quantity).toLocaleString('vi-VN')} ₫
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div className="pt-2.5 border-t border-dashed border-stone-200 space-y-2 text-xs bg-stone-50/80 -mx-4 -mb-3 p-4 rounded-b-2xl">
+                              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                <div>
+                                  <span className="text-stone-500 block">Người nhận:</span>
+                                  <strong className="text-stone-900 font-bold">{order.recipient.full_name} ({order.recipient.phone})</strong>
+                                </div>
+                                <div>
+                                  <span className="text-stone-500 block">Thanh toán:</span>
+                                  <strong className="text-stone-900 font-bold">
+                                    {order.payment_method === 'vietqr_sepay' ? '💳 VietQR / SePay' : '💵 Tiền mặt (COD)'}
+                                  </strong>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-stone-500 block">Địa chỉ giao:</span>
+                                  <strong className="text-stone-900 font-bold">{order.recipient.address}, {order.recipient.city}</strong>
+                                </div>
+                                {order.recipient.note && (
+                                  <div className="col-span-2">
+                                    <span className="text-stone-500 block">Ghi chú:</span>
+                                    <span className="text-stone-700 italic">{order.recipient.note}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Order Footer & Actions */}
+                          <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+                            <div>
+                              <span className="text-[10px] text-stone-500 block">Tổng tiền đơn</span>
+                              <strong className="text-sm font-mono font-black text-blue-700">
+                                {order.total_amount.toLocaleString('vi-VN')} ₫
+                              </strong>
+                            </div>
+
+                            <div className="flex gap-2">
+                              {order.status === 'pending' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm('Bạn có chắc muốn hủy đơn hàng này không?')) {
+                                      cancelOrder(order.id);
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg border border-rose-300 text-rose-600 hover:bg-rose-50 text-[11px] font-bold cursor-pointer"
+                                >
+                                  Hủy Đơn
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => setSelectedOrderDetails(isExpanded ? null : order.id)}
+                                className="px-3 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-[11px] font-bold cursor-pointer transition-colors"
+                              >
+                                {isExpanded ? 'Thu gọn' : 'Xem chi tiết'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
           )}
 

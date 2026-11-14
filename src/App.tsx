@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { OrderProvider } from "./context/OrderContext";
 import { I18nProvider } from "./i18n";
 import { Landing } from "./landing/Landing";
 import { FashionStoreHome } from "./features/ecommerce/FashionStoreHome";
@@ -39,15 +40,17 @@ export const App: React.FC = () => (
   <BrowserRouter>
     <I18nProvider>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<FashionStoreHome />} />
-          <Route path="/legacy-landing" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
-          <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
-          <Route path="/admin" element={<RequireAdmin><AdminPortal /></RequireAdmin>} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+        <OrderProvider>
+          <Routes>
+            <Route path="/" element={<FashionStoreHome />} />
+            <Route path="/legacy-landing" element={<Landing />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
+            <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
+            <Route path="/admin" element={<RequireAdmin><AdminPortal /></RequireAdmin>} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </OrderProvider>
       </AuthProvider>
     </I18nProvider>
   </BrowserRouter>
