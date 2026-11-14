@@ -21,6 +21,7 @@ import {
 import type { CartItem, PaymentMethod, UserBodyProfile, Order } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
+import { useI18n } from '@/i18n';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const { createOrder, markPaymentCompleted } = useOrders();
+  const { t, locale } = useI18n();
 
   const [step, setStep] = useState<'checkout' | 'success'>('checkout');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
@@ -50,7 +52,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [phone, setPhone] = useState('0979 307 635');
   const [city, setCity] = useState('Đà Nẵng');
   const [address, setAddress] = useState('Ký Túc Xá Đại Học Bách Khoa, 54 Nguyễn Lương Bằng, Hòa Khánh Bắc');
-  const [note, setNote] = useState('May chuẩn theo số đo vóc dáng 3D, giao giờ hành chính.');
+  const [note, setNote] = useState(locale === 'en' ? 'Tailored to 3D measurements, delivery during business hours.' : 'May chuẩn theo số đo vóc dáng 3D, giao giờ hành chính.');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr_sepay');
 
   // Coupon code
@@ -69,7 +71,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     (sum, item) => sum + (item.product.sale_price || item.product.price) * item.quantity,
     0
   );
-  const shippingFee = 0; // Miễn phí giao hàng ưu đãi
+  const shippingFee = 0; // Free shipping
   const totalAmount = Math.max(0, subtotal - appliedDiscount + shippingFee);
 
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -81,13 +83,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (code === 'FITVISION10') {
       const discount = Math.round(subtotal * 0.1);
       setAppliedDiscount(discount);
-      setCouponSuccess(`Đã áp dụng mã FITVISION10 (-10%: -${discount.toLocaleString('vi-VN')} ₫)`);
+      setCouponSuccess(locale === 'en' ? `Applied code FITVISION10 (-10%: -${discount.toLocaleString('vi-VN')} ₫)` : `Đã áp dụng mã FITVISION10 (-10%: -${discount.toLocaleString('vi-VN')} ₫)`);
     } else if (code === 'CAPSTONE2026') {
       const discount = Math.min(subtotal, 100000);
       setAppliedDiscount(discount);
-      setCouponSuccess(`Đã áp dụng mã CAPSTONE2026 (-${discount.toLocaleString('vi-VN')} ₫)`);
+      setCouponSuccess(locale === 'en' ? `Applied code CAPSTONE2026 (-${discount.toLocaleString('vi-VN')} ₫)` : `Đã áp dụng mã CAPSTONE2026 (-${discount.toLocaleString('vi-VN')} ₫)`);
     } else {
-      setCouponError('Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+      setCouponError(locale === 'en' ? 'Coupon code is invalid or expired.' : 'Mã giảm giá không hợp lệ hoặc đã hết hạn.');
     }
   };
 
@@ -143,7 +145,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   const bankAccount = {
-    bankName: 'MB Bank (Ngân hàng Quân Đội)',
+    bankName: locale === 'en' ? 'MB Bank (Military Commercial Joint Stock Bank)' : 'MB Bank (Ngân hàng Quân Đội)',
     accountNumber: '33822222622222',
     accountHolder: 'LE VAN THANG',
     transferContent: createdOrder ? `FV3D ${createdOrder.id.replace('FV3D-', '')}` : 'FV3D DH',
@@ -168,12 +170,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-black tracking-tight">
-                {step === 'checkout' ? 'Quy Trình Thanh Toán & Đặt May Đo' : 'Đặt Hàng & Thanh Toán Thành Công'}
+                {step === 'checkout' ? t('ecommerce.checkout.modalTitleCheckout', 'Quy Trình Thanh Toán & Đặt May Đo') : t('ecommerce.checkout.modalTitleSuccess', 'Đặt Hàng & Thanh Toán Thành Công')}
               </h2>
               <p className="text-[11px] text-blue-100 font-medium">
                 {step === 'checkout'
-                  ? 'Chuẩn hóa số đo nhân trắc học ISO 8559 & Giao hàng tận nơi'
-                  : `Mã đơn: ${createdOrder?.id || ''} · Hệ thống FitVision 3D`}
+                  ? t('ecommerce.checkout.modalSubCheckout', 'Chuẩn hóa số đo nhân trắc học ISO 8559 & Giao hàng tận nơi')
+                  : `${t('ecommerce.checkout.orderCode', 'Mã đơn:')} ${createdOrder?.id || ''} · FitVision 3D`}
               </p>
             </div>
           </div>
@@ -198,10 +200,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase text-slate-800 tracking-wider">
-                    Sản Phẩm Trong Đơn ({items.length})
+                    {t('ecommerce.checkout.orderSummary', 'Sản Phẩm Trong Đơn')} ({items.length})
                   </span>
                   <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                    <Sparkles size={11} /> Đã so khớp số đo vừa vặn
+                    <Sparkles size={11} /> {t('ecommerce.checkout.fitMatched', 'Đã so khớp số đo vừa vặn')}
                   </span>
                 </div>
 
@@ -217,11 +219,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         className="w-12 h-14 object-cover rounded-lg border border-slate-100 flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold text-slate-900 truncate">{item.product.name}</h4>
+                        <h4 className="text-xs font-bold text-slate-900 truncate">
+                          {locale === 'en' && item.product.name_en ? item.product.name_en : item.product.name}
+                        </h4>
                         <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
-                          <span className="font-semibold text-blue-700">Cỡ: {item.variant.size_label}</span>
+                          <span className="font-semibold text-blue-700">{t('ecommerce.checkout.sizePrefix', 'Cỡ:')} {item.variant.size_label}</span>
                           <span>·</span>
-                          <span>SL: {item.quantity}</span>
+                          <span>{t('ecommerce.orders.qtyPrefix', 'SL:')} {item.quantity}</span>
                           <span>·</span>
                           <span className="text-amber-800 font-medium">{item.product.brand_name}</span>
                         </div>
@@ -238,75 +242,75 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-900 tracking-wider">
                   <MapPin size={15} className="text-blue-600" />
-                  <span>Địa Chỉ Giao Hàng & Liên Hệ</span>
+                  <span>{t('ecommerce.checkout.deliveryInfo', 'Địa Chỉ Giao Hàng & Liên Hệ')}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Họ và tên người nhận <span className="text-rose-500">*</span>
+                      {t('ecommerce.checkout.recipientName', 'Họ và tên người nhận')} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Nguyễn Văn A"
+                      placeholder={t('ecommerce.profileModal.namePlaceholder', 'Nguyễn Văn A')}
                       className="w-full text-xs px-3.5 py-2.5 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium bg-white"
                     />
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Số điện thoại nhận hàng <span className="text-rose-500">*</span>
+                      {t('ecommerce.checkout.recipientPhone', 'Số điện thoại nhận hàng')} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="tel"
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="09xx xxx xxx"
+                      placeholder={t('ecommerce.profileModal.phonePlaceholder', '09xx xxx xxx')}
                       className="w-full text-xs px-3.5 py-2.5 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium bg-white font-mono"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Tỉnh / Thành phố <span className="text-rose-500">*</span>
+                      {t('ecommerce.checkout.city', 'Tỉnh / Thành phố')} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="Đà Nẵng, Hà Nội, TP.HCM..."
+                      placeholder={locale === 'en' ? 'Da Nang, Hanoi, Ho Chi Minh...' : 'Đà Nẵng, Hà Nội, TP.HCM...'}
                       className="w-full text-xs px-3.5 py-2.5 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium bg-white"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Địa chỉ nhận hàng chi tiết (Số nhà, ngõ, đường, phường/xã) <span className="text-rose-500">*</span>
+                      {t('ecommerce.checkout.detailedAddress', 'Địa chỉ nhận hàng chi tiết (Số nhà, ngõ, đường, phường/xã)')} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Số 123 Đường Bách Khoa, P. Hòa Khánh..."
+                      placeholder={t('ecommerce.profileModal.addressPlaceholder', 'Số 123 Đường Bách Khoa, P. Hòa Khánh...')}
                       className="w-full text-xs px-3.5 py-2.5 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium bg-white"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Ghi chú may đo / Giao hàng (Tùy chọn)
+                      {t('ecommerce.checkout.note', 'Ghi chú may đo / Giao hàng (Tùy chọn)')}
                     </label>
                     <input
                       type="text"
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      placeholder="May chuẩn theo độ cử động form vừa, gọi trước 15 phút..."
+                      placeholder={locale === 'en' ? 'Tailored to 3D measurements, call 15 mins before delivery...' : 'May chuẩn theo độ cử động form vừa, gọi trước 15 phút...'}
                       className="w-full text-xs px-3.5 py-2.5 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium bg-white"
                     />
                   </div>
@@ -317,7 +321,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-900 tracking-wider">
                   <CreditCard size={15} className="text-blue-600" />
-                  <span>Phương Thức Thanh Toán</span>
+                  <span>{t('ecommerce.checkout.paymentMethod', 'Phương Thức Thanh Toán')}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -341,14 +345,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <div className="flex items-center gap-1.5">
                         <QrCode size={16} className="text-blue-700" />
                         <strong className="text-xs font-black text-slate-900">
-                          Chuyển Khoản VietQR / SePay
+                          {t('ecommerce.checkout.vietqrTitle', 'Chuyển Khoản VietQR / SePay')}
                         </strong>
                       </div>
                       <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        Quét mã QR tự động điền số tiền & nội dung qua App Ngân Hàng.
+                        {t('ecommerce.checkout.vietqrDesc', 'Quét mã QR tự động điền số tiền & nội dung qua App Ngân Hàng.')}
                       </p>
                       <span className="inline-block mt-1 text-[10px] font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded">
-                        ⚡ Khuyên dùng · Miễn phí giao dịch
+                        {t('ecommerce.checkout.vietqrBadge', '⚡ Khuyên dùng · Miễn phí giao dịch')}
                       </span>
                     </div>
                   </div>
@@ -373,14 +377,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <div className="flex items-center gap-1.5">
                         <Banknote size={16} className="text-emerald-700" />
                         <strong className="text-xs font-black text-slate-900">
-                          Thanh Toán Khi Nhận Hàng (COD)
+                          {t('ecommerce.checkout.codTitle', 'Thanh Toán Khi Nhận Hàng (COD)')}
                         </strong>
                       </div>
                       <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        Thanh toán tiền mặt cho shipper khi nhận được trang phục.
+                        {t('ecommerce.checkout.codDesc', 'Thanh toán tiền mặt cho shipper khi nhận được trang phục.')}
                       </p>
                       <span className="inline-block mt-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded">
-                        ✓ Kiểm tra hàng trước khi thanh toán
+                        {t('ecommerce.checkout.codBadge', '✓ Kiểm tra hàng trước khi thanh toán')}
                       </span>
                     </div>
                   </div>
@@ -391,7 +395,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-200 space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                   <Tag size={14} className="text-indigo-600" />
-                  <span>Mã Ưu Đãi / Khuyến Mãi (Phiếu Giảm Giá)</span>
+                  <span>{t('ecommerce.checkout.couponTitle', 'Mã Ưu Đãi / Khuyến Mãi (Phiếu Giảm Giá)')}</span>
                 </div>
 
                 <div className="flex gap-2">
@@ -399,7 +403,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     type="text"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="Nhập mã (VD: FITVISION10, CAPSTONE2026)"
+                    placeholder={t('ecommerce.checkout.couponPlaceholder', 'Nhập mã (VD: FITVISION10, CAPSTONE2026)')}
                     className="flex-1 text-xs px-3.5 py-2 rounded-xl border-2 border-slate-300 outline-none uppercase font-mono font-bold bg-white"
                   />
                   <button
@@ -407,7 +411,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     onClick={handleApplyCoupon}
                     className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black transition-colors cursor-pointer"
                   >
-                    Áp Dụng
+                    {t('ecommerce.checkout.couponApply', 'Áp Dụng')}
                   </button>
                 </div>
 
@@ -422,21 +426,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {/* 5. Tổng kết chi phí & Nút Đặt hàng */}
               <div className="p-4 rounded-2xl bg-slate-100 border-2 border-slate-300 space-y-2 text-xs">
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>Tạm tính tiền hàng:</span>
+                  <span>{t('ecommerce.checkout.subtotal', 'Tạm tính tiền hàng:')}</span>
                   <span className="font-mono">{subtotal.toLocaleString('vi-VN')} ₫</span>
                 </div>
                 {appliedDiscount > 0 && (
                   <div className="flex justify-between text-emerald-700 font-bold">
-                    <span>Mã giảm giá đã áp dụng:</span>
+                    <span>{t('ecommerce.checkout.discount', 'Mã giảm giá đã áp dụng:')}</span>
                     <span className="font-mono">-{appliedDiscount.toLocaleString('vi-VN')} ₫</span>
                   </div>
                 )}
                 <div className="flex justify-between text-slate-600 font-medium">
-                  <span>Phí vận chuyển toàn quốc:</span>
-                  <span className="font-bold text-emerald-700">Miễn phí (Ưu đãi Capstone)</span>
+                  <span>{t('ecommerce.checkout.shipping', 'Phí vận chuyển toàn quốc:')}</span>
+                  <span className="font-bold text-emerald-700">{t('ecommerce.checkout.freeShipping', 'Miễn phí (Ưu đãi Capstone)')}</span>
                 </div>
                 <div className="pt-2 border-t-2 border-slate-300 flex justify-between items-center text-sm font-black text-slate-900">
-                  <span>Tổng tiền thanh toán:</span>
+                  <span>{t('ecommerce.checkout.total', 'Tổng tiền thanh toán:')}</span>
                   <span className="text-xl text-blue-700 font-mono font-black">
                     {totalAmount.toLocaleString('vi-VN')} ₫
                   </span>
@@ -450,20 +454,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onClick={handleCloseAll}
                   className="flex-1 py-3 px-4 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-black text-xs transition-colors cursor-pointer"
                 >
-                  Quay Lại Giỏ Hàng
+                  {t('ecommerce.checkout.backToCart', 'Quay Lại Giỏ Hàng')}
                 </button>
                 <button
                   type="submit"
                   className="flex-2 py-3 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
                 >
-                  <span>Xác Nhận Đặt Hàng Ngay</span>
+                  <span>{t('ecommerce.checkout.confirmOrder', 'Xác Nhận Đặt Hàng Ngay')}</span>
                   <ArrowRight size={16} />
                 </button>
               </div>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium">
                 <ShieldCheck size={13} className="text-emerald-600" />
-                <span>Bảo chứng độ vừa vặn AI 100% · Đổi trả miễn phí trong 7 ngày</span>
+                <span>{t('ecommerce.checkout.guarantee', 'Bảo chứng độ vừa vặn AI 100% · Đổi trả miễn phí trong 7 ngày')}</span>
               </div>
             </form>
           )}
@@ -477,25 +481,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <div>
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                  Đặt Hàng Thành Công!
+                  {t('ecommerce.checkout.successTitle', 'Đặt Hàng Thành Công!')}
                 </h3>
                 <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
-                  Cảm ơn bạn đã đặt may tại <strong className="text-slate-900">{createdOrder.store_name}</strong>.
-                  Đơn hàng đã được lưu trữ trên hệ thống FitVision 3D.
+                  {t('ecommerce.checkout.successMessage', 'Cảm ơn bạn đã đặt may tại {store}. Đơn hàng đã được lưu trữ trên hệ thống FitVision 3D.').replace('{store}', createdOrder.store_name || 'FitVision Atelier')}
                 </p>
               </div>
 
               {/* Order Quick Details Card */}
               <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-left space-y-2 text-xs">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                  <span className="font-bold text-slate-600">Mã đơn hàng:</span>
+                  <span className="font-bold text-slate-600">{t('ecommerce.checkout.orderCode', 'Mã đơn hàng:')}</span>
                   <div className="flex items-center gap-1.5 font-mono font-black text-blue-700 text-sm">
                     <span>{createdOrder.id}</span>
                     <button
                       type="button"
                       onClick={() => handleCopy(createdOrder.id, 'orderId')}
                       className="p-1 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer"
-                      title="Sao chép mã đơn"
+                      title={t('ecommerce.checkout.copySuccess', 'Sao chép mã đơn')}
                     >
                       {copiedField === 'orderId' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
                     </button>
@@ -503,25 +506,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
 
                 <div className="flex justify-between text-slate-600">
-                  <span>Người nhận:</span>
+                  <span>{t('ecommerce.checkout.recipient', 'Người nhận:')}</span>
                   <span className="font-bold text-slate-900">{createdOrder.recipient.full_name} ({createdOrder.recipient.phone})</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Địa chỉ giao hàng:</span>
+                  <span>{t('ecommerce.checkout.deliveryTo', 'Địa chỉ giao hàng:')}</span>
                   <span className="font-bold text-slate-900 text-right max-w-xs">{createdOrder.recipient.address}, {createdOrder.recipient.city}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Dự kiến giao hàng:</span>
+                  <span>{t('ecommerce.checkout.estDelivery', 'Dự kiến giao hàng:')}</span>
                   <span className="font-bold text-emerald-700">{createdOrder.estimated_delivery}</span>
                 </div>
                 <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-200">
-                  <span>Hình thức thanh toán:</span>
+                  <span>{t('ecommerce.checkout.paymentType', 'Hình thức thanh toán:')}</span>
                   <span className="font-bold text-slate-900">
-                    {createdOrder.payment_method === 'vietqr_sepay' ? 'Chuyển khoản VietQR / SePay' : 'Thanh toán tiền mặt khi nhận hàng (COD)'}
+                    {createdOrder.payment_method === 'vietqr_sepay' ? t('ecommerce.checkout.paymentVietqr', 'Chuyển khoản VietQR / SePay') : t('ecommerce.checkout.paymentCod', 'Thanh toán tiền mặt khi nhận hàng (COD)')}
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-900 font-black text-sm pt-1">
-                  <span>Tổng thanh toán:</span>
+                  <span>{t('ecommerce.checkout.totalPayment', 'Tổng thanh toán:')}</span>
                   <span className="text-blue-700 font-mono font-black text-base">
                     {createdOrder.total_amount.toLocaleString('vi-VN')} ₫
                   </span>
@@ -538,9 +541,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </div>
                       <div>
                         <h4 className="text-xs font-black text-slate-900 uppercase">
-                          Thanh Toán Qua Quét Mã VietQR
+                          {t('ecommerce.checkout.vietqrScanTitle', 'Thanh Toán Qua Quét Mã VietQR')}
                         </h4>
-                        <span className="text-[10px] text-blue-700 font-semibold">Tự động nhận diện giao dịch</span>
+                        <span className="text-[10px] text-blue-700 font-semibold">{t('ecommerce.checkout.vietqrAutoDetect', 'Tự động nhận diện giao dịch')}</span>
                       </div>
                     </div>
                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
@@ -548,7 +551,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                         : 'bg-amber-100 text-amber-800 border-amber-300'
                     }`}>
-                      {hasConfirmedTransfer || createdOrder.payment_status === 'paid' ? '✓ Đã xác nhận chuyển khoản' : '⏳ Chờ thanh toán'}
+                      {hasConfirmedTransfer || createdOrder.payment_status === 'paid' ? t('ecommerce.checkout.vietqrPaid', '✓ Đã xác nhận chuyển khoản') : t('ecommerce.checkout.vietqrPending', '⏳ Chờ thanh toán')}
                     </span>
                   </div>
 
@@ -558,7 +561,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="bg-white p-3 rounded-2xl border-2 border-blue-200 text-center shadow-xs flex flex-col items-center">
                       <img
                         src={`https://img.vietqr.io/image/MB-33822222622222-compact2.png?amount=${createdOrder.total_amount}&addInfo=${encodeURIComponent(bankAccount.transferContent)}&accountName=LE%20VAN%20THANG`}
-                        alt="Mã QR Chuyển Khoản Ngân Hàng VietQR"
+                        alt={t('ecommerce.checkout.vietqrScanTitle', 'Mã QR Chuyển Khoản Ngân Hàng VietQR')}
                         className="w-48 h-48 object-contain rounded-xl border border-slate-100"
                         onError={(e) => {
                           // Fallback if image fails to load
@@ -566,26 +569,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         }}
                       />
                       <span className="text-[10px] text-slate-500 font-mono mt-2 block">
-                        Quét bằng app ngân hàng bất kỳ (Vietcombank, MB, Techcombank...)
+                        {t('ecommerce.checkout.vietqrScanInstruction', 'Quét bằng app ngân hàng bất kỳ (Vietcombank, MB, Techcombank...)')}
                       </span>
                     </div>
 
                     {/* Bank Info Fields */}
                     <div className="space-y-2 text-xs">
                       <div>
-                        <span className="text-[10px] text-slate-500 block font-bold uppercase">Ngân hàng thụ hưởng</span>
+                        <span className="text-[10px] text-slate-500 block font-bold uppercase">{t('ecommerce.checkout.bankBeneficiary', 'Ngân hàng thụ hưởng')}</span>
                         <strong className="text-xs text-slate-900 font-extrabold">{bankAccount.bankName}</strong>
                       </div>
 
                       <div>
-                        <span className="text-[10px] text-slate-500 block font-bold uppercase">Số tài khoản</span>
+                        <span className="text-[10px] text-slate-500 block font-bold uppercase">{t('ecommerce.checkout.accountNumber', 'Số tài khoản')}</span>
                         <div className="flex items-center gap-2 mt-0.5">
                           <strong className="text-sm font-mono font-black text-blue-700">{bankAccount.accountNumber}</strong>
                           <button
                             type="button"
                             onClick={() => handleCopy(bankAccount.accountNumber, 'accountNumber')}
                             className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer"
-                            title="Sao chép STK"
+                            title={t('ecommerce.checkout.accountNumber', 'Sao chép STK')}
                           >
                             {copiedField === 'accountNumber' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
                           </button>
@@ -593,12 +596,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </div>
 
                       <div>
-                        <span className="text-[10px] text-slate-500 block font-bold uppercase">Chủ tài khoản</span>
+                        <span className="text-[10px] text-slate-500 block font-bold uppercase">{t('ecommerce.checkout.accountName', 'Chủ tài khoản')}</span>
                         <strong className="text-xs text-slate-900 font-extrabold">{bankAccount.accountHolder}</strong>
                       </div>
 
                       <div>
-                        <span className="text-[10px] text-slate-500 block font-bold uppercase">Nội dung chuyển khoản (Bắt buộc)</span>
+                        <span className="text-[10px] text-slate-500 block font-bold uppercase">{t('ecommerce.checkout.transferMemo', 'Nội dung chuyển khoản (Bắt buộc)')}</span>
                         <div className="flex items-center gap-2 mt-0.5">
                           <strong className="text-sm font-mono font-black text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
                             {bankAccount.transferContent}
@@ -607,7 +610,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             type="button"
                             onClick={() => handleCopy(bankAccount.transferContent, 'content')}
                             className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer"
-                            title="Sao chép nội dung"
+                            title={t('ecommerce.checkout.transferMemo', 'Sao chép nội dung')}
                           >
                             {copiedField === 'content' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
                           </button>
@@ -628,12 +631,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           {hasConfirmedTransfer ? (
                             <>
                               <Check size={14} />
-                              <span>Tôi Đã Chuyển Khoản Xong</span>
+                              <span>{t('ecommerce.checkout.iHavePaid', 'Tôi Đã Chuyển Khoản Xong')}</span>
                             </>
                           ) : (
                             <>
                               <QrCode size={14} />
-                              <span>Xác Nhận Tôi Đã Chuyển Khoản</span>
+                              <span>{t('ecommerce.checkout.confirmPaid', 'Xác Nhận Tôi Đã Chuyển Khoản')}</span>
                             </>
                           )}
                         </button>
@@ -654,7 +657,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <ShoppingBag size={15} />
-                  <span>Xem Lịch Sử Đơn Hàng</span>
+                  <span>{t('ecommerce.checkout.viewOrderHistory', 'Xem Lịch Sử Đơn Hàng')}</span>
                 </button>
 
                 <button
@@ -662,7 +665,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onClick={handleCloseAll}
                   className="flex-1 py-3 px-4 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-800 font-black text-xs transition-colors cursor-pointer"
                 >
-                  <span>Tiếp Tục Mua Sắm</span>
+                  <span>{t('ecommerce.checkout.continueShopping', 'Tiếp Tục Mua Sắm')}</span>
                 </button>
               </div>
             </div>

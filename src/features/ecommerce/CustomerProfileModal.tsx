@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
+import { useI18n } from '@/i18n';
 import { UserBodyProfile } from './types';
 
 interface CustomerProfileModalProps {
@@ -42,6 +43,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   onOpenBiometrics,
   initialTab = 'profile',
 }) => {
+  const { t, locale } = useI18n();
   const {
     currentUser,
     currentStore,
@@ -75,25 +77,25 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
 
   // Bộ sưu tập avatar mẫu thời trang may đo sắc nét
   const PRESET_AVATARS = [
-    { id: 'suit-male', label: 'Quý Ông Suit', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80' },
-    { id: 'chic-female', label: 'Quý Cô Silk', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' },
-    { id: 'bespoke-tailor', label: 'Bespoke Master', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80' },
-    { id: 'blazer-female', label: 'Nữ Doanh Nhân', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80' },
-    { id: 'minimal-man', label: 'Minimalist', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80' },
+    { id: 'suit-male', label: t('ecommerce.profileModal.preset1', 'Quý Ông Suit'), url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80' },
+    { id: 'chic-female', label: t('ecommerce.profileModal.preset2', 'Quý Cô Silk'), url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' },
+    { id: 'bespoke-tailor', label: t('ecommerce.profileModal.preset3', 'Bespoke Master'), url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80' },
+    { id: 'blazer-female', label: t('ecommerce.profileModal.preset4', 'Nữ Doanh Nhân'), url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80' },
+    { id: 'minimal-man', label: t('ecommerce.profileModal.preset5', 'Minimalist'), url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80' },
   ];
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 3 * 1024 * 1024) {
-      alert('Vui lòng chọn ảnh có dung lượng dưới 3MB');
+      alert(t('ecommerce.profileModal.avatarSizeLimit', 'Vui lòng chọn ảnh có dung lượng dưới 3MB'));
       return;
     }
     const reader = new FileReader();
     reader.onload = async () => {
       const base64 = reader.result as string;
       await updateUserProfile({ avatar_url: base64 });
-      setSaveSuccessMsg('Đã cập nhật ảnh đại diện thành công!');
+      setSaveSuccessMsg(t('ecommerce.profileModal.avatarSuccess', 'Đã cập nhật ảnh đại diện thành công!'));
       setShowAvatarPicker(false);
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     };
@@ -102,7 +104,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
 
   const handleSelectPresetAvatar = async (url: string) => {
     await updateUserProfile({ avatar_url: url });
-    setSaveSuccessMsg('Đã cập nhật ảnh đại diện mới!');
+    setSaveSuccessMsg(t('ecommerce.profileModal.avatarSuccess', 'Đã cập nhật ảnh đại diện mới!'));
     setShowAvatarPicker(false);
     setTimeout(() => setSaveSuccessMsg(null), 3000);
   };
@@ -146,7 +148,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
         notes: formData.notes,
       });
       if (res.success) {
-        setSaveSuccessMsg('Đã cập nhật hồ sơ cá nhân thành công!');
+        setSaveSuccessMsg(t('ecommerce.profileModal.saveSuccess', 'Đã cập nhật hồ sơ cá nhân thành công!'));
         setIsEditing(false);
         setTimeout(() => setSaveSuccessMsg(null), 4000);
       }
@@ -184,7 +186,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   type="button"
                   onClick={() => setShowAvatarPicker(!showAvatarPicker)}
                   className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-white overflow-hidden cursor-pointer relative transition-transform group-hover:scale-105 active:scale-95"
-                  title="Bấm vào để đổi ảnh đại diện (Upload từ máy hoặc chọn ảnh mẫu)"
+                  title={t('ecommerce.profileModal.changeAvatarTooltip', 'Bấm vào để đổi ảnh đại diện (Upload từ máy hoặc chọn ảnh mẫu)')}
                 >
                   {currentUser.avatar_url ? (
                     <img
@@ -198,7 +200,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   {/* Overlay hover đổi avatar */}
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity">
                     <Camera size={16} />
-                    <span className="text-[8px] font-bold mt-0.5">Đổi ảnh</span>
+                    <span className="text-[8px] font-bold mt-0.5">{t('ecommerce.profileModal.changePhoto', 'Đổi ảnh')}</span>
                   </div>
                 </button>
 
@@ -206,7 +208,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                 <div
                   onClick={() => setShowAvatarPicker(!showAvatarPicker)}
                   className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-blue-500 border-2 border-slate-900 flex items-center justify-center text-white shadow-xs cursor-pointer hover:bg-blue-400"
-                  title="Đổi Avatar"
+                  title={t('ecommerce.profileModal.changeAvatar', 'Đổi Avatar')}
                 >
                   <Camera size={10} />
                 </div>
@@ -215,14 +217,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight truncate">
-                    {currentUser.full_name || 'Khách Hàng May Đo'}
+                    {currentUser.full_name || t('ecommerce.sidebar.customerDefault', 'Khách Hàng')}
                   </h3>
                   <button
                     type="button"
                     onClick={() => setShowAvatarPicker(!showAvatarPicker)}
                     className="text-[10px] text-blue-300 hover:text-white font-bold underline cursor-pointer"
                   >
-                    Đổi avatar
+                    {t('ecommerce.profileModal.changeAvatar', 'Đổi avatar')}
                   </button>
                 </div>
 
@@ -239,10 +241,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       : 'bg-blue-600/30 text-blue-200 border-blue-400/40'
                   }`}>
                     {isApprovedStore
-                      ? '✂️ Đối Tác Nhà May B2B'
+                      ? t('ecommerce.profileModal.roleStore', '✂️ Đối Tác Nhà May B2B')
                       : isPendingStore
-                      ? '⏳ Chờ Admin Duyệt Mở Shop'
-                      : '👤 Khách Hàng'}
+                      ? t('ecommerce.profileModal.rolePending', '⏳ Chờ Admin Duyệt Mở Shop')
+                      : t('ecommerce.profileModal.roleCustomer', '👤 Khách Hàng')}
                   </span>
                 </div>
               </div>
@@ -252,7 +254,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               type="button"
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer transition-colors border border-slate-700 shrink-0"
-              title="Đóng modal"
+              title={t('ecommerce.profileModal.close', 'Đóng')}
             >
               <X size={18} />
             </button>
@@ -263,14 +265,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             <div className="mt-4 p-3.5 bg-slate-800 rounded-2xl border-2 border-black space-y-2.5 animate-in slide-in-from-top-2 duration-150">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-black text-slate-200 uppercase tracking-wider text-[11px]">
-                  📷 Đổi Ảnh Đại Diện (Avatar)
+                  {t('ecommerce.profileModal.changeAvatarTitle', '📷 Đổi Ảnh Đại Diện (Avatar)')}
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowAvatarPicker(false)}
                   className="text-slate-400 hover:text-white text-xs"
                 >
-                  Đóng
+                  {t('ecommerce.profileModal.close', 'Đóng')}
                 </button>
               </div>
 
@@ -281,13 +283,13 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                 className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm border-2 border-black cursor-pointer"
               >
                 <Upload size={14} />
-                <span>Tải ảnh từ máy tính / điện thoại</span>
+                <span>{t('ecommerce.profileModal.uploadFromDevice', 'Tải ảnh từ máy tính / điện thoại')}</span>
               </button>
 
               {/* Lựa chọn 2: Bộ avatar mẫu phong cách thời trang May Đo */}
               <div>
                 <span className="text-[10px] text-slate-400 block mb-1.5 font-bold">
-                  Hoặc chọn nhanh avatar mẫu:
+                  {t('ecommerce.profileModal.orChoosePreset', 'Hoặc chọn nhanh avatar mẫu:')}
                 </span>
                 <div className="flex items-center gap-2 overflow-x-auto pb-1">
                   {PRESET_AVATARS.map((av) => (
@@ -326,7 +328,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             }`}
           >
             <User size={14} />
-            <span>Cá Nhân</span>
+            <span>{t('ecommerce.profileModal.tabPersonal', 'Cá Nhân')}</span>
           </button>
 
           <button
@@ -339,7 +341,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             }`}
           >
             <Ruler size={14} />
-            <span>Số Đo 3D</span>
+            <span>{t('ecommerce.profileModal.tabMeasurements', 'Số Đo 3D')}</span>
           </button>
 
           <button
@@ -352,7 +354,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             }`}
           >
             <ShoppingBag size={14} />
-            <span>Đơn Hàng ({userOrders.length})</span>
+            <span>{t('ecommerce.profileModal.tabOrders', 'Đơn Hàng')} ({userOrders.length})</span>
           </button>
 
           <button
@@ -365,7 +367,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             }`}
           >
             <Store size={14} />
-            <span>Đăng Ký Shop</span>
+            <span>{t('ecommerce.profileModal.tabRegisterShop', 'Đăng Ký Shop')}</span>
           </button>
         </div>
 
@@ -388,10 +390,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               <div className="flex items-center justify-between pb-1 border-b-2 border-slate-200">
                 <div>
                   <h4 className="font-black text-sm text-slate-900 uppercase tracking-wide">
-                    Hồ Sơ Khách Hàng
+                    {t('ecommerce.profileModal.customerProfileTitle', 'Hồ Sơ Khách Hàng')}
                   </h4>
                   <p className="text-[11px] text-slate-600 font-medium">
-                    {isEditing ? 'Nhập thông tin mới và nhấn Lưu để cập nhật' : 'Thông tin dùng để giao nhận trang phục may đo & liên hệ'}
+                    {isEditing ? t('ecommerce.profileModal.editSubtitle', 'Nhập thông tin mới và nhấn Lưu để cập nhật') : t('ecommerce.profileModal.viewSubtitle', 'Thông tin dùng để giao nhận trang phục may đo & liên hệ')}
                   </p>
                 </div>
 
@@ -402,7 +404,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white border-2 border-black text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-102 active:scale-98"
                   >
                     <Edit3 size={14} />
-                    <span>Chỉnh Sửa Hồ Sơ</span>
+                    <span>{t('ecommerce.profileModal.editProfile', 'Chỉnh Sửa Hồ Sơ')}</span>
                   </button>
                 ) : (
                   <button
@@ -410,7 +412,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     onClick={() => setIsEditing(false)}
                     className="px-3.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 border-2 border-black text-xs font-bold transition-all cursor-pointer"
                   >
-                    Hủy Bỏ
+                    {t('ecommerce.profileModal.cancel', 'Hủy Bỏ')}
                   </button>
                 )}
               </div>
@@ -421,7 +423,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   {/* Họ và Tên */}
                   <div>
                     <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
-                      Họ và Tên <span className="text-rose-600">*</span>
+                      {t('ecommerce.profileModal.fullName', 'Họ và Tên')} <span className="text-rose-600">*</span>
                     </label>
                     <input
                       type="text"
@@ -429,14 +431,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       value={formData.fullName}
                       onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-xs font-black text-slate-900 outline-none transition-all"
-                      placeholder="Nhập họ và tên đầy đủ..."
+                      placeholder={t('ecommerce.profileModal.namePlaceholder', 'Nhập họ và tên đầy đủ...')}
                     />
                   </div>
 
                   {/* Email (Readonly) */}
                   <div>
                     <label className="text-[11px] font-black uppercase text-slate-500 block mb-1">
-                      Email Tài Khoản (Cố Định)
+                      {t('ecommerce.profileModal.emailFixed', 'Email Tài Khoản (Cố Định)')}
                     </label>
                     <input
                       type="email"
@@ -449,7 +451,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   {/* Số điện thoại */}
                   <div>
                     <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
-                      Số Điện Thoại Nhận Hàng <span className="text-rose-600">*</span>
+                      {t('ecommerce.profileModal.phoneNumber', 'Số Điện Thoại Nhận Hàng')} <span className="text-rose-600">*</span>
                     </label>
                     <input
                       type="tel"
@@ -457,14 +459,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-xs font-mono font-black text-slate-900 outline-none transition-all"
-                      placeholder="Ví dụ: 0988 123 456"
+                      placeholder={t('ecommerce.profileModal.phonePlaceholder', 'Ví dụ: 0988 123 456')}
                     />
                   </div>
 
                   {/* Tỉnh / Thành Phố */}
                   <div>
                     <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
-                      Tỉnh / Thành Phố <span className="text-rose-600">*</span>
+                      {t('ecommerce.profileModal.city', 'Tỉnh / Thành Phố')} <span className="text-rose-600">*</span>
                     </label>
                     <select
                       value={formData.city}
@@ -478,14 +480,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       <option value="Hải Phòng">Hải Phòng</option>
                       <option value="Huế">Thừa Thiên Huế</option>
                       <option value="Quảng Nam">Quảng Nam</option>
-                      <option value="Khác">Tỉnh / Thành khác</option>
+                      <option value="Khác">{t('ecommerce.profileModal.cityOther', 'Tỉnh / Thành khác')}</option>
                     </select>
                   </div>
 
                   {/* Địa chỉ chi tiết */}
                   <div>
                     <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
-                      Địa Chỉ Chi Tiết (Số Nhà, Đường, Phường) <span className="text-rose-600">*</span>
+                      {t('ecommerce.profileModal.detailedAddress', 'Địa Chỉ Chi Tiết (Số Nhà, Đường, Phường)')} <span className="text-rose-600">*</span>
                     </label>
                     <input
                       type="text"
@@ -493,7 +495,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-xs font-bold text-slate-900 outline-none transition-all"
-                      placeholder="Ví dụ: 123 Nguyễn Văn Linh, P. Nam Dương, Q. Hải Châu"
+                      placeholder={t('ecommerce.profileModal.addressPlaceholder', 'Ví dụ: 123 Nguyễn Văn Linh, P. Nam Dương, Q. Hải Châu')}
                     />
                   </div>
 
@@ -504,7 +506,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       onClick={() => setIsEditing(false)}
                       className="flex-1 py-2.5 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-extrabold text-xs transition-colors cursor-pointer"
                     >
-                      Hủy
+                      {t('ecommerce.profileModal.cancel', 'Hủy')}
                     </button>
                     <button
                       type="submit"
@@ -512,7 +514,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       className="flex-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs shadow-md border-2 border-blue-500 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                     >
                       <Save size={15} />
-                      <span>{isSaving ? 'Đang Lưu...' : 'Lưu Thay Đổi'}</span>
+                      <span>{isSaving ? t('ecommerce.profileModal.saving', 'Đang Lưu...') : t('ecommerce.profileModal.saveChanges', 'Lưu Thay Đổi')}</span>
                     </button>
                   </div>
                 </form>
@@ -524,8 +526,12 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       <User size={18} />
                     </div>
                     <div className="min-w-0">
-                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">Họ và Tên</span>
-                      <span className="text-sm font-black text-slate-900 block truncate">{currentUser.full_name || formData.fullName || 'Khách Hàng'}</span>
+                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">
+                        {t('ecommerce.profileModal.fullName', 'Họ và Tên')}
+                      </span>
+                      <span className="text-sm font-black text-slate-900 block truncate">
+                        {currentUser.full_name || formData.fullName || t('ecommerce.sidebar.customerDefault', 'Khách Hàng')}
+                      </span>
                     </div>
                   </div>
 
@@ -534,7 +540,9 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       <Mail size={18} />
                     </div>
                     <div className="min-w-0">
-                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">Email Tài Khoản</span>
+                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">
+                        {t('ecommerce.profileModal.email', 'Email Tài Khoản')}
+                      </span>
                       <span className="text-xs font-mono font-black text-slate-900 block truncate">{currentUser.email}</span>
                     </div>
                   </div>
@@ -544,7 +552,9 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       <Phone size={18} />
                     </div>
                     <div className="min-w-0">
-                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">Số Điện Thoại</span>
+                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">
+                        {t('ecommerce.profileModal.phone', 'Số Điện Thoại')}
+                      </span>
                       <span className="text-xs font-mono font-black text-slate-900 block">{formData.phone}</span>
                     </div>
                   </div>
@@ -554,7 +564,9 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       <MapPin size={18} />
                     </div>
                     <div className="min-w-0">
-                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">Địa Chỉ Nhận Hàng May Đo</span>
+                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">
+                        {t('ecommerce.profileModal.deliveryAddress', 'Địa Chỉ Nhận Hàng May Đo')}
+                      </span>
                       <span className="text-xs font-black text-slate-900 block leading-tight">{formData.address}, {formData.city}</span>
                     </div>
                   </div>
@@ -564,22 +576,28 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               {/* Tùy chọn tài khoản & bảo mật */}
               <div className="p-4 rounded-2xl bg-slate-50 border-2 border-black space-y-3">
                 <span className="text-[11px] font-black uppercase text-slate-900 tracking-wider block">
-                  ⚙️ Cài Đặt & Tùy Chọn Tài Khoản
+                  {t('ecommerce.profileModal.settingsTitle', '⚙️ Cài Đặt & Tùy Chọn Tài Khoản')}
                 </span>
                 
                 <div className="space-y-2 text-xs">
                   <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors">
-                    <span className="font-extrabold text-slate-900">Tự động so khớp Ease Allowance (Độ cử động 3D)</span>
+                    <span className="font-extrabold text-slate-900">
+                      {t('ecommerce.profileModal.optEase', 'Tự động so khớp Ease Allowance (Độ cử động 3D)')}
+                    </span>
                     <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                   </label>
 
                   <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors">
-                    <span className="font-extrabold text-slate-900">Nhận thông báo tiến độ may đo qua Email</span>
+                    <span className="font-extrabold text-slate-900">
+                      {t('ecommerce.profileModal.optEmail', 'Nhận thông báo tiến độ may đo qua Email')}
+                    </span>
                     <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                   </label>
 
                   <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors">
-                    <span className="font-extrabold text-slate-900">Hiển thị huy hiệu khách hàng Bespoke</span>
+                    <span className="font-extrabold text-slate-900">
+                      {t('ecommerce.profileModal.optBadge', 'Hiển thị huy hiệu khách hàng Bespoke')}
+                    </span>
                     <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                   </label>
                 </div>
@@ -588,7 +606,9 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               <div className="p-3.5 rounded-2xl bg-blue-50 border-2 border-blue-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={18} className="text-blue-700" />
-                  <span className="text-xs text-blue-950 font-black">Bảo Mật Dữ Liệu Nhân Trắc Học</span>
+                  <span className="text-xs text-blue-950 font-black">
+                    {t('ecommerce.profileModal.securityTitle', 'Bảo Mật Dữ Liệu Nhân Trắc Học')}
+                  </span>
                 </div>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-200 text-blue-900 font-black">
                   ISO 8559-1
@@ -602,36 +622,36 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             <div className="space-y-3.5">
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="p-3 rounded-2xl bg-sky-50 border-2 border-sky-300">
-                  <span className="text-[10px] font-bold text-sky-800 block">CHIỀU CAO</span>
+                  <span className="text-[10px] font-bold text-sky-800 block">{t('ecommerce.sidebar.height', 'CHIỀU CAO')}</span>
                   <span className="text-lg font-black text-sky-950">{userBody.height_cm} cm</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-purple-50 border-2 border-purple-300">
-                  <span className="text-[10px] font-bold text-purple-800 block">CÂN NẶNG</span>
+                  <span className="text-[10px] font-bold text-purple-800 block">{t('ecommerce.sidebar.weight', 'CÂN NẶNG')}</span>
                   <span className="text-lg font-black text-purple-950">{userBody.weight_kg} kg</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-emerald-50 border-2 border-emerald-300">
-                  <span className="text-[10px] font-bold text-emerald-800 block">VÒNG NGỰC</span>
+                  <span className="text-[10px] font-bold text-emerald-800 block">{t('ecommerce.sidebar.chest', 'VÒNG NGỰC')}</span>
                   <span className="text-lg font-black text-emerald-950">{userBody.chest_cm} cm</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-amber-50 border-2 border-amber-300">
-                  <span className="text-[10px] font-bold text-amber-800 block">VÒNG EO</span>
+                  <span className="text-[10px] font-bold text-amber-800 block">{t('ecommerce.sidebar.waist', 'VÒNG EO')}</span>
                   <span className="text-lg font-black text-amber-950">{userBody.waist_cm} cm</span>
                 </div>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-2">
                 <span className="text-[11px] font-bold text-stone-800 block">
-                  Độ Cử Động May Đo Yêu Thích (Ease Allowance)
+                  {t('ecommerce.profileModal.easePref', 'Độ Cử Động May Đo Yêu Thích (Ease Allowance)')}
                 </span>
                 <div className="flex gap-2">
                   <span className="flex-1 py-1.5 px-2 rounded-lg bg-blue-600 text-white text-[11px] font-bold text-center">
-                    Tiêu Chuẩn (+5cm)
+                    {t('ecommerce.profileModal.easeStandard', 'Tiêu Chuẩn (+5cm)')}
                   </span>
                   <span className="flex-1 py-1.5 px-2 rounded-lg bg-white border border-stone-300 text-stone-700 text-[11px] font-medium text-center">
-                    Ôm Sát (+3cm)
+                    {t('ecommerce.profileModal.easeSlim', 'Ôm Sát (+3cm)')}
                   </span>
                   <span className="flex-1 py-1.5 px-2 rounded-lg bg-white border border-stone-300 text-stone-700 text-[11px] font-medium text-center">
-                    Thoải Mái (+7cm)
+                    {t('ecommerce.profileModal.easeLoose', 'Thoải Mái (+7cm)')}
                   </span>
                 </div>
               </div>
@@ -646,14 +666,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   className="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Ruler size={14} />
-                  <span>Cập Nhật Số Đo</span>
+                  <span>{t('ecommerce.profileModal.updateMeasurements', 'Cập Nhật Số Đo')}</span>
                 </button>
                 <a
                   href="/dashboard"
                   className="flex-1 py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-900 border border-stone-300 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer text-center"
                 >
                   <Camera size={14} />
-                  <span>Quét 3D Lại</span>
+                  <span>{t('ecommerce.profileModal.rescan3D', 'Quét 3D Lại')}</span>
                 </a>
               </div>
             </div>
@@ -665,11 +685,11 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               {/* Filter Pills */}
               <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
                 {[
-                  { id: 'all', label: 'Tất cả' },
-                  { id: 'pending', label: 'Chờ duyệt' },
-                  { id: 'tailoring', label: 'Đang may đo' },
-                  { id: 'shipping', label: 'Đang giao' },
-                  { id: 'completed', label: 'Hoàn thành' },
+                  { id: 'all', label: t('ecommerce.orders.filterAll', 'Tất cả') },
+                  { id: 'pending', label: t('ecommerce.orders.filterPending', 'Chờ duyệt') },
+                  { id: 'tailoring', label: t('ecommerce.orders.filterTailoring', 'Đang may đo') },
+                  { id: 'shipping', label: t('ecommerce.orders.filterShipping', 'Đang giao') },
+                  { id: 'completed', label: t('ecommerce.orders.filterCompleted', 'Hoàn thành') },
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -690,8 +710,8 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               {userOrders.filter((o) => orderFilter === 'all' || o.status === orderFilter).length === 0 ? (
                 <div className="p-8 text-center bg-stone-50 rounded-2xl border-2 border-dashed border-stone-200 space-y-2">
                   <Package size={28} className="text-stone-400 mx-auto" />
-                  <p className="text-xs font-bold text-stone-700">Chưa có đơn hàng nào trong mục này</p>
-                  <p className="text-[11px] text-stone-500">Các trang phục bạn đặt may đo sẽ hiển thị tiến độ tại đây.</p>
+                  <p className="text-xs font-bold text-stone-700">{t('ecommerce.orders.emptyTitle', 'Chưa có đơn hàng nào trong mục này')}</p>
+                  <p className="text-[11px] text-stone-500">{t('ecommerce.orders.emptyDesc', 'Các trang phục bạn đặt may đo sẽ hiển thị tiến độ tại đây.')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -703,17 +723,17 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       const getStatusBadge = () => {
                         switch (order.status) {
                           case 'pending':
-                            return { label: '⏳ Chờ xử lý', cls: 'bg-amber-100 text-amber-900 border-amber-300' };
+                            return { label: t('ecommerce.orders.statusPending', '⏳ Chờ xử lý'), cls: 'bg-amber-100 text-amber-900 border-amber-300' };
                           case 'confirmed':
-                            return { label: '✓ Đã xác nhận', cls: 'bg-blue-100 text-blue-900 border-blue-300' };
+                            return { label: t('ecommerce.orders.statusConfirmed', '✓ Đã xác nhận'), cls: 'bg-blue-100 text-blue-900 border-blue-300' };
                           case 'tailoring':
-                            return { label: '✂️ Đang may đo', cls: 'bg-indigo-100 text-indigo-900 border-indigo-300' };
+                            return { label: t('ecommerce.orders.statusTailoring', '✂️ Đang may đo'), cls: 'bg-indigo-100 text-indigo-900 border-indigo-300' };
                           case 'shipping':
-                            return { label: '🚚 Đang giao hàng', cls: 'bg-purple-100 text-purple-900 border-purple-300' };
+                            return { label: t('ecommerce.orders.statusShipping', '🚚 Đang giao hàng'), cls: 'bg-purple-100 text-purple-900 border-purple-300' };
                           case 'completed':
-                            return { label: '✓ Đã nhận hàng', cls: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+                            return { label: t('ecommerce.orders.statusCompleted', '✓ Đã nhận hàng'), cls: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
                           case 'cancelled':
-                            return { label: '✕ Đã hủy', cls: 'bg-rose-100 text-rose-900 border-rose-300' };
+                            return { label: t('ecommerce.orders.statusCancelled', '✕ Đã hủy'), cls: 'bg-rose-100 text-rose-900 border-rose-300' };
                           default:
                             return { label: order.status, cls: 'bg-stone-100 text-stone-800 border-stone-300' };
                         }
@@ -735,7 +755,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                                 <span className="text-[10px] font-bold text-amber-800">{order.store_name}</span>
                               </div>
                               <span className="text-[10px] text-stone-400 block mt-0.5">
-                                {new Date(order.created_at).toLocaleDateString('vi-VN')} {new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                {new Date(order.created_at).toLocaleDateString(locale === 'en' ? 'en-US' : 'vi-VN')} {new Date(order.created_at).toLocaleTimeString(locale === 'en' ? 'en-US' : 'vi-VN', { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
 
@@ -754,13 +774,15 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                                   className="w-9 h-11 object-cover rounded-lg border border-stone-200 flex-shrink-0"
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <h5 className="font-bold text-stone-900 truncate">{it.product.name}</h5>
+                                  <h5 className="font-bold text-stone-900 truncate">
+                                    {locale === 'en' && it.product.name_en ? it.product.name_en : it.product.name}
+                                  </h5>
                                   <div className="flex items-center gap-1.5 text-[10px] text-stone-500">
-                                    <span className="font-semibold text-blue-700">Cỡ: {it.variant.size_label}</span>
+                                    <span className="font-semibold text-blue-700">{t('ecommerce.orders.sizePrefix', 'Cỡ:')} {it.variant.size_label}</span>
                                     <span>·</span>
-                                    <span>SL: {it.quantity}</span>
+                                    <span>{t('ecommerce.orders.qtyPrefix', 'SL:')} {it.quantity}</span>
                                     {it.is_ai_recommended && (
-                                      <span className="text-emerald-700 font-bold">✓ Vừa vặn AI</span>
+                                      <span className="text-emerald-700 font-bold">{t('ecommerce.orders.aiFit', '✓ Vừa vặn AI')}</span>
                                     )}
                                   </div>
                                 </div>
@@ -776,22 +798,22 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                             <div className="pt-2.5 border-t border-dashed border-stone-200 space-y-2 text-xs bg-stone-50/80 -mx-4 -mb-3 p-4 rounded-b-2xl">
                               <div className="grid grid-cols-2 gap-2 text-[11px]">
                                 <div>
-                                  <span className="text-stone-500 block">Người nhận:</span>
+                                  <span className="text-stone-500 block">{t('ecommerce.orders.recipient', 'Người nhận:')}</span>
                                   <strong className="text-stone-900 font-bold">{order.recipient.full_name} ({order.recipient.phone})</strong>
                                 </div>
                                 <div>
-                                  <span className="text-stone-500 block">Thanh toán:</span>
+                                  <span className="text-stone-500 block">{t('ecommerce.orders.payment', 'Thanh toán:')}</span>
                                   <strong className="text-stone-900 font-bold">
-                                    {order.payment_method === 'vietqr_sepay' ? '💳 VietQR / SePay' : '💵 Tiền mặt (COD)'}
+                                    {order.payment_method === 'vietqr_sepay' ? '💳 VietQR / SePay' : '💵 COD'}
                                   </strong>
                                 </div>
                                 <div className="col-span-2">
-                                  <span className="text-stone-500 block">Địa chỉ giao:</span>
+                                  <span className="text-stone-500 block">{t('ecommerce.orders.deliveryAddress', 'Địa chỉ giao:')}</span>
                                   <strong className="text-stone-900 font-bold">{order.recipient.address}, {order.recipient.city}</strong>
                                 </div>
                                 {order.recipient.note && (
                                   <div className="col-span-2">
-                                    <span className="text-stone-500 block">Ghi chú:</span>
+                                    <span className="text-stone-500 block">{t('ecommerce.orders.note', 'Ghi chú:')}</span>
                                     <span className="text-stone-700 italic">{order.recipient.note}</span>
                                   </div>
                                 )}
@@ -802,7 +824,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                           {/* Order Footer & Actions */}
                           <div className="flex items-center justify-between pt-2 border-t border-stone-100">
                             <div>
-                              <span className="text-[10px] text-stone-500 block">Tổng tiền đơn</span>
+                              <span className="text-[10px] text-stone-500 block">{t('ecommerce.orders.totalAmount', 'Tổng tiền đơn')}</span>
                               <strong className="text-sm font-mono font-black text-blue-700">
                                 {order.total_amount.toLocaleString('vi-VN')} ₫
                               </strong>
@@ -813,13 +835,13 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (confirm('Bạn có chắc muốn hủy đơn hàng này không?')) {
+                                    if (confirm(t('ecommerce.orders.confirmCancel', 'Bạn có chắc muốn hủy đơn hàng này không?'))) {
                                       cancelOrder(order.id);
                                     }
                                   }}
                                   className="px-2.5 py-1 rounded-lg border border-rose-300 text-rose-600 hover:bg-rose-50 text-[11px] font-bold cursor-pointer"
                                 >
-                                  Hủy Đơn
+                                  {t('ecommerce.orders.cancelOrder', 'Hủy Đơn')}
                                 </button>
                               )}
 
@@ -828,7 +850,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                                 onClick={() => setSelectedOrderDetails(isExpanded ? null : order.id)}
                                 className="px-3 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-[11px] font-bold cursor-pointer transition-colors"
                               >
-                                {isExpanded ? 'Thu gọn' : 'Xem chi tiết'}
+                                {isExpanded ? t('ecommerce.orders.collapseDetails', 'Thu gọn') : t('ecommerce.orders.viewDetails', 'Xem chi tiết')}
                               </button>
                             </div>
                           </div>
@@ -850,13 +872,13 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   </div>
                   <div>
                     <h4 className="font-black text-sm text-emerald-950">
-                      Gian Hàng Đã Được Admin Phê Duyệt!
+                      {t('ecommerce.merchant.approvedTitle', 'Gian Hàng Đã Được Admin Phê Duyệt!')}
                     </h4>
                     <p className="text-xs text-emerald-800 mt-1">
-                      Thương hiệu: <strong>{currentStore?.brand_name || 'Nhà May Sartoria'}</strong>
+                      {t('ecommerce.merchant.brandLabel', 'Thương hiệu:')} <strong>{currentStore?.brand_name || 'Nhà May Sartoria'}</strong>
                     </p>
                     <p className="text-[11px] text-emerald-700 mt-0.5">
-                      Bạn có toàn quyền tải rập may và cấu hình bảng số đo cử động.
+                      {t('ecommerce.merchant.approvedDesc', 'Bạn có toàn quyền tải rập may và cấu hình bảng số đo cử động.')}
                     </p>
                   </div>
                   <a
@@ -864,7 +886,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
                   >
                     <Store size={15} />
-                    <span>Vào Studio Nhà May (/tailor)</span>
+                    <span>{t('ecommerce.merchant.enterStudio', 'Vào Studio Nhà May (/tailor)')}</span>
                     <ChevronRight size={14} />
                   </a>
                 </div>
@@ -875,13 +897,13 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   </div>
                   <div>
                     <h4 className="font-black text-sm text-amber-950">
-                      Hồ Sơ Đang Chờ Ban Quản Trị (Admin) Phê Duyệt
+                      {t('ecommerce.merchant.pendingTitle', 'Hồ Sơ Đang Chờ Ban Quản Trị (Admin) Phê Duyệt')}
                     </h4>
                     <p className="text-xs text-amber-800 mt-1">
-                      Gian hàng: <strong>{currentStore?.brand_name || 'Nhà May Đang Chờ'}</strong>
+                      {t('ecommerce.merchant.shopLabel', 'Gian hàng:')} <strong>{currentStore?.brand_name || 'Nhà May Đang Chờ'}</strong>
                     </p>
                     <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
-                      Admin đang kiểm tra hồ sơ tay nghề may đo và xác thực thông tin. Sau khi Admin duyệt, bạn sẽ nhận được thông báo để vào Studio.
+                      {t('ecommerce.merchant.pendingDesc', 'Admin đang kiểm tra hồ sơ tay nghề may đo và xác thực thông tin. Sau khi Admin duyệt, bạn sẽ nhận được thông báo để vào Studio.')}
                     </p>
                   </div>
                   <button
@@ -892,7 +914,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     }}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-amber-300 text-amber-900 font-extrabold text-xs hover:bg-amber-100 cursor-pointer"
                   >
-                    <span>Xem Chi Tiết Hồ Sơ Đang Chờ</span>
+                    <span>{t('ecommerce.merchant.viewPending', 'Xem Chi Tiết Hồ Sơ Đang Chờ')}</span>
                   </button>
                 </div>
               ) : (
@@ -900,21 +922,21 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   <div className="flex items-center gap-2">
                     <Store size={20} className="text-amber-700" />
                     <h4 className="font-black text-sm text-amber-950">
-                      Đăng Ký Trở Thành Đối Tác Nhà May B2B
+                      {t('ecommerce.merchant.registerTitle', 'Đăng Ký Trở Thành Đối Tác Nhà May B2B')}
                     </h4>
                   </div>
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    Bạn là nhà may đo, xưởng thiết kế hay thợ may bespoke? Hãy nộp hồ sơ gian hàng để bán sản phẩm trực tiếp trên FitVision 3D.
+                    {t('ecommerce.merchant.registerDesc', 'Bạn là nhà may đo, xưởng thiết kế hay thợ may bespoke? Hãy nộp hồ sơ gian hàng để bán sản phẩm trực tiếp trên FitVision 3D.')}
                   </p>
                   <div className="p-3 rounded-xl bg-white border border-amber-200 text-[11px] text-stone-700 space-y-1">
                     <div className="flex items-center gap-1.5 font-bold text-amber-900">
                       <Sparkles size={13} className="text-amber-600" />
-                      <span>Quy trình duyệt qua Ban Quản Trị (Admin):</span>
+                      <span>{t('ecommerce.merchant.processHeading', 'Quy trình duyệt qua Ban Quản Trị (Admin):')}</span>
                     </div>
                     <p className="text-stone-600 pl-4">
-                      1. Gửi hồ sơ tên nhà may, SĐT và tài liệu kinh nghiệm.<br />
-                      2. Ban Quản Trị (Admin) kiểm duyệt năng lực may đo.<br />
-                      3. Kích hoạt tài khoản Chủ Shop & mở Studio Nhà May.
+                      {t('ecommerce.merchant.step1', '1. Gửi hồ sơ tên nhà may, SĐT và tài liệu kinh nghiệm.')}<br />
+                      {t('ecommerce.merchant.step2', '2. Ban Quản Trị (Admin) kiểm duyệt năng lực may đo.')}<br />
+                      {t('ecommerce.merchant.step3', '3. Kích hoạt tài khoản Chủ Shop & mở Studio Nhà May.')}
                     </p>
                   </div>
 
@@ -927,7 +949,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
                   >
                     <Store size={15} />
-                    <span>Nộp Đơn Đăng Ký Mở Gian Hàng May Đo</span>
+                    <span>{t('ecommerce.merchant.submitCta', 'Nộp Đơn Đăng Ký Mở Gian Hàng May Đo')}</span>
                   </button>
                 </div>
               )}
@@ -947,7 +969,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-black font-black text-xs flex items-center gap-2 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
           >
             <LogOut size={15} />
-            <span>Đăng Xuất Tài Khoản</span>
+            <span>{t('ecommerce.profileModal.signOut', 'Đăng Xuất Tài Khoản')}</span>
           </button>
 
           <button
@@ -955,7 +977,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-xs border-2 border-black transition-all cursor-pointer shadow-xs hover:scale-102 active:scale-98"
           >
-            Đóng
+            {t('ecommerce.profileModal.close', 'Đóng')}
           </button>
         </div>
 

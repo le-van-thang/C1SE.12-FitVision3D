@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import { useI18n } from '@/i18n';
 import { UserBodyProfile } from './types';
 
 interface FashionSidebarNavProps {
@@ -64,15 +65,17 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
   onOpenSignIn,
   onSignOut,
 }) => {
+  const { t } = useI18n();
+
   if (!isOpen) return null;
 
   const categories = [
-    { id: 'all', label: 'Tất Cả Sản Phẩm', count: categoryCounts['all'] || 6 },
-    { id: 'shirt', label: 'Áo Sơ Mi Nam', count: categoryCounts['shirt'] || 1 },
-    { id: 'polo', label: 'Áo Polo Lụa', count: categoryCounts['polo'] || 1 },
-    { id: 'pants', label: 'Quần Tây & Chino', count: categoryCounts['pants'] || 2 },
-    { id: 'dress', label: 'Đầm Lụa Nữ', count: categoryCounts['dress'] || 1 },
-    { id: 'tailored', label: 'May Đo Bespoke', count: categoryCounts['tailored'] || 1 },
+    { id: 'all', label: t('ecommerce.categories.all', 'Tất Cả Sản Phẩm'), count: categoryCounts['all'] || 6 },
+    { id: 'shirt', label: t('ecommerce.categories.shirt', 'Áo Sơ Mi May Đo'), count: categoryCounts['shirt'] || 1 },
+    { id: 'polo', label: t('ecommerce.categories.polo', 'Áo Polo Cao Cấp'), count: categoryCounts['polo'] || 1 },
+    { id: 'pants', label: t('ecommerce.categories.pants', 'Quần Tây & Chino Ý'), count: categoryCounts['pants'] || 2 },
+    { id: 'dress', label: t('ecommerce.categories.dress', 'Đầm & Váy Lụa Tự Nhiên'), count: categoryCounts['dress'] || 1 },
+    { id: 'tailored', label: t('ecommerce.categories.tailored', 'Thiết Kế May Đo Riêng'), count: categoryCounts['tailored'] || 1 },
   ];
 
   return (
@@ -97,7 +100,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                 FitVision <span className="text-blue-600">3D</span>
               </span>
               <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider block">
-                Thanh Điều Hướng Dọc
+                {t('ecommerce.sidebar.verticalNav', 'Thanh Điều Hướng Dọc')}
               </span>
             </div>
           </div>
@@ -120,7 +123,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
           {/* ── SECTION 1: CÔNG NGHỆ 3D & MAY ĐO ĐỘC BẢN ── */}
           <div className="space-y-2">
             <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-800 px-2 block">
-              CÔNG NGHỆ MAY ĐO & 3D STUDIO
+              {t('ecommerce.sidebar.featuresTitle', 'CÔNG NGHỆ MAY ĐO & 3D STUDIO')}
             </span>
 
             <button
@@ -136,8 +139,12 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   <ShoppingBag size={14} />
                 </div>
                 <div className="text-left">
-                  <span className="block font-black text-slate-900 group-hover:text-blue-700">Sàn Thời Trang (Bộ Sưu Tập)</span>
-                  <span className="text-[10px] text-slate-500 font-mono">Toàn bộ trang phục may đo chuẩn phom</span>
+                  <span className="block font-black text-slate-900 group-hover:text-blue-700">
+                    {t('ecommerce.sidebar.collection', 'Sàn Thời Trang (Bộ Sưu Tập)')}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {t('ecommerce.sidebar.collectionSub', 'Toàn bộ trang phục may đo chuẩn phom')}
+                  </span>
                 </div>
               </div>
               <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
@@ -156,8 +163,12 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   <Sparkles size={14} className="text-amber-300" />
                 </div>
                 <div className="text-left">
-                  <span className="block font-black text-slate-900 group-hover:text-purple-700">Phòng Thử Đồ Ảo 3D</span>
-                  <span className="text-[10px] text-slate-500 font-mono">Ướm thử trang phục với công nghệ AI</span>
+                  <span className="block font-black text-slate-900 group-hover:text-purple-700">
+                    {t('ecommerce.sidebar.virtualTryOn', 'Phòng Thử Đồ Ảo 3D')}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {t('ecommerce.sidebar.virtualTryOnSub', 'Ướm thử trang phục với công nghệ AI')}
+                  </span>
                 </div>
               </div>
               <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
@@ -172,8 +183,12 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   <Camera size={14} />
                 </div>
                 <div className="text-left">
-                  <span className="block font-black text-slate-900 group-hover:text-blue-700">Phòng Đo Nhân Trắc Học 3D</span>
-                  <span className="text-[10px] text-slate-500 font-mono">Trích xuất 13 số đo chuẩn ISO 8559-1</span>
+                  <span className="block font-black text-slate-900 group-hover:text-blue-700">
+                    {t('ecommerce.sidebar.measurementLab', 'Phòng Đo Nhân Trắc Học 3D')}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {t('ecommerce.sidebar.measurementLabSub', 'Trích xuất 13 số đo chuẩn ISO 8559-1')}
+                  </span>
                 </div>
               </div>
               <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
@@ -185,7 +200,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
           {/* ── SECTION 2: DANH MỤC SẢN PHẨM (CATALOG CATEGORIES) ── */}
           <div className="space-y-1.5">
             <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-800 px-2 block">
-              DANH MỤC THỜI TRANG MAY ĐO
+              {t('ecommerce.sidebar.categoriesTitle', 'DANH MỤC THỜI TRANG MAY ĐO')}
             </span>
 
             {categories.map((cat) => {
@@ -225,7 +240,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-300 animate-pulse" />
                 <span className="text-xs font-black uppercase tracking-wider text-slate-950">
-                  HỒ SƠ VÓC DÁNG 3D
+                  {t('ecommerce.sidebar.bodyProfileTitle', 'HỒ SƠ VÓC DÁNG 3D')}
                 </span>
               </div>
               <button
@@ -236,26 +251,26 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                 }}
                 className="text-[11px] font-black text-blue-700 hover:text-blue-900 hover:underline cursor-pointer transition-colors"
               >
-                Đổi số đo
+                {t('ecommerce.sidebar.editMeasurements', 'Đổi số đo')}
               </button>
             </div>
 
             <div className="p-3 bg-white space-y-2">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-sky-50 p-2.5 rounded-xl border-2 border-black shadow-2xs">
-                  <span className="text-sky-900 text-[10px] block font-black uppercase">CHIỀU CAO</span>
+                  <span className="text-sky-900 text-[10px] block font-black uppercase">{t('ecommerce.sidebar.height', 'CHIỀU CAO')}</span>
                   <span className="font-black text-sky-950 text-sm">{userBody.height_cm} cm</span>
                 </div>
                 <div className="bg-purple-50 p-2.5 rounded-xl border-2 border-black shadow-2xs">
-                  <span className="text-purple-900 text-[10px] block font-black uppercase">CÂN NẶNG</span>
+                  <span className="text-purple-900 text-[10px] block font-black uppercase">{t('ecommerce.sidebar.weight', 'CÂN NẶNG')}</span>
                   <span className="font-black text-purple-950 text-sm">{userBody.weight_kg} kg</span>
                 </div>
                 <div className="bg-emerald-50 p-2.5 rounded-xl border-2 border-black shadow-2xs">
-                  <span className="text-emerald-900 text-[10px] block font-black uppercase">VÒNG NGỰC</span>
+                  <span className="text-emerald-900 text-[10px] block font-black uppercase">{t('ecommerce.sidebar.chest', 'VÒNG NGỰC')}</span>
                   <span className="font-black text-emerald-950 text-sm">{userBody.chest_cm} cm</span>
                 </div>
                 <div className="bg-amber-50 p-2.5 rounded-xl border-2 border-black shadow-2xs">
-                  <span className="text-amber-900 text-[10px] block font-black uppercase">VÒNG EO</span>
+                  <span className="text-amber-900 text-[10px] block font-black uppercase">{t('ecommerce.sidebar.waist', 'VÒNG EO')}</span>
                   <span className="font-black text-amber-950 text-sm">{userBody.waist_cm} cm</span>
                 </div>
               </div>
@@ -277,7 +292,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs shadow-md border-2 border-black flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
                 <LogIn size={15} strokeWidth={2.5} />
-                <span>Đăng Nhập / Đăng Ký</span>
+                <span>{t('ecommerce.sidebar.signInSignUp', 'Đăng Nhập / Đăng Ký')}</span>
               </button>
             </div>
           ) : (
@@ -289,7 +304,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   if (onOpenProfileModal) onOpenProfileModal();
                 }}
                 className="p-2 rounded-xl bg-white border-2 border-black hover:border-black shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between"
-                title="Bấm để xem hồ sơ và cài đặt"
+                title={t('ecommerce.sidebar.userPillTooltip', 'Bấm để xem hồ sơ và cài đặt')}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center text-xs shrink-0 shadow-2xs border border-black overflow-hidden">
@@ -304,7 +319,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                       {userName || 'Thắng Lê'}
                     </span>
                     <span className="text-[10px] text-blue-700 font-black block truncate">
-                      {userRole === 'store' ? '✂️ Chủ Shop May Đo' : '👤 Khách Hàng'}
+                      {userRole === 'store' ? t('ecommerce.sidebar.roleStore', '✂️ Chủ Shop May Đo') : t('ecommerce.sidebar.roleCustomer', '👤 Khách Hàng')}
                     </span>
                   </div>
                 </div>
@@ -319,7 +334,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                         onClose();
                       }}
                       className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-black transition-colors cursor-pointer"
-                      title="Đăng Xuất Tài Khoản"
+                      title={t('ecommerce.sidebar.menuSignOut', 'Đăng Xuất Tài Khoản')}
                     >
                       <LogOut size={13} />
                     </button>
@@ -340,7 +355,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
               >
                 <div className="flex items-center gap-2">
                   <ShoppingBag size={13} className="text-blue-700" />
-                  <span>Đơn Hàng Của Tôi</span>
+                  <span>{t('ecommerce.sidebar.menuOrders', 'Đơn Hàng Của Tôi')}</span>
                 </div>
                 <ChevronRight size={13} className="text-blue-600" />
               </button>
