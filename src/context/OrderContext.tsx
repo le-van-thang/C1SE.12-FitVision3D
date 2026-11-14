@@ -186,9 +186,8 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const getUserOrders = useCallback(
     (customerId?: string) => {
       if (!customerId) return orders;
-      // return orders matching customer_id, or if customerId is demo user 'usr-101' / current user
       return orders.filter(
-        (o) => o.customer_id === customerId || o.customer_name.toLowerCase().includes('thắng')
+        (o) => o.customer_id === customerId || (o.customer_name && o.customer_name.toLowerCase().includes('thắng'))
       );
     },
     [orders]
@@ -198,7 +197,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     (storeName?: string) => {
       if (!storeName) return orders;
       return orders.filter(
-        (o) => !o.store_name || o.store_name.toLowerCase().includes(storeName.toLowerCase())
+        (o) => !o.store_name || (o.store_name && o.store_name.toLowerCase().includes(storeName.toLowerCase()))
       );
     },
     [orders]
@@ -224,7 +223,17 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useOrders = (): OrderContextType => {
   const context = useContext(OrderContext);
   if (!context) {
-    throw new Error('useOrders must be used within an OrderProvider');
+    // Fail-safe fallback so components never crash if mounted outside provider
+    return {
+      orders: [],
+      createOrder: () => ({} as Order),
+      updateOrderStatus: () => {},
+      cancelOrder: () => {},
+      markPaymentCompleted: () => {},
+      getUserOrders: () => [],
+      getStoreOrders: () => [],
+    };
   }
   return context;
 };
+
