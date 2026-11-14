@@ -27,6 +27,7 @@ import {
   Plus,
   LogOut,
   Clock,
+  ChevronUp,
 } from 'lucide-react';
 import { MOCK_PRODUCTS, INITIAL_USER_BODY } from './mockProducts';
 import { calculateProductFit } from './fitCalculator';
@@ -43,6 +44,7 @@ import { CheckoutModal } from './CheckoutModal';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import type { FashionProduct, ProductVariant, UserBodyProfile, CartItem } from './types';
 import { useAuth } from '@/context/AuthContext';
+import { useOrders } from '@/context/OrderContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { MerchantOnboardingModal } from '@/components/store/MerchantOnboardingModal';
 import { UserProfileDropdown } from '@/components/common/UserProfileDropdown';
@@ -156,7 +158,10 @@ const HERO_PRODUCT_SLIDES: HeroProductSlide[] = [
 
 export const FashionStoreHome: React.FC = () => {
   const { isAuthenticated, userRole, currentUser, currentStore, signOut, openSignIn, openOnboarding, openStatusModal } = useAuth();
+  const { getUserOrders } = useOrders();
   const { t, locale } = useI18n();
+
+  const userOrders = getUserOrders(currentUser?.id);
 
   // State
   const [userBody, setUserBody] = useState<UserBodyProfile>(() => {
@@ -216,6 +221,7 @@ export const FashionStoreHome: React.FC = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [profileModalTab, setProfileModalTab] = useState<'profile' | 'measurements' | 'orders' | 'merchant'>('profile');
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState<boolean>(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
 
   // Shopee-style Auto-sliding Product Campaign Banner State
   const [activeBannerSlide, setActiveBannerSlide] = useState<number>(0);
@@ -533,110 +539,191 @@ export const FashionStoreHome: React.FC = () => {
 
         </div>
 
-        {/* Chân thanh điều hướng: Hồ Sơ Người Dùng & Đăng Ký Shop */}
-        <div className="p-4 border-t-2 border-slate-300 bg-slate-50 space-y-3 flex-shrink-0">
+        {/* Chân thanh điều hướng: Hồ Sơ Người Dùng Thu Gọn (Click mở Floating Dropdown/Popover) */}
+        <div className="p-3 border-t-2 border-slate-300 bg-slate-50 flex-shrink-0 relative">
           {isAuthenticated ? (
-            <div className="space-y-2.5">
-              {/* Thẻ người dùng tương tác: Bấm vào mở Hồ Sơ Khách Hàng Đầy Đủ & Cài Đặt */}
-              <div 
-                onClick={() => {
-                  setProfileModalTab('profile');
-                  setIsProfileModalOpen(true);
-                }}
-                className="p-3 rounded-2xl bg-white border-2 border-slate-300 hover:border-blue-600 shadow-sm hover:shadow-md transition-all cursor-pointer group space-y-2"
-                title="Bấm để xem hồ sơ cá nhân, số đo 3D và cài đặt"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                      {(currentUser?.full_name || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-black text-xs text-slate-900 block truncate leading-tight group-hover:text-blue-700">
-                        {currentUser?.full_name || 'Khách Hàng May Đo'}
-                      </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 border ${
-                        userRole === 'store' || currentStore?.status === 'APPROVED'
-                          ? 'bg-amber-100 text-amber-900 border-amber-300'
-                          : currentStore?.status === 'PENDING'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-blue-100 text-blue-900 border-blue-200'
-                      }`}>
-                        {userRole === 'store' || currentStore?.status === 'APPROVED'
-                          ? '✂️ Chủ Shop May Đo'
-                          : currentStore?.status === 'PENDING'
-                          ? '⏳ Chờ Duyệt Mở Shop'
-                          : '👤 Khách Hàng May Đo'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      signOut();
-                    }}
-                    className="p-2 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-600 border border-stone-200 hover:border-rose-300 transition-colors cursor-pointer shrink-0"
-                    title="Đăng xuất tài khoản"
-                  >
-                    <LogOut size={15} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between pt-1.5 border-t border-stone-100 text-[11px] text-blue-600 font-bold group-hover:underline">
-                  <span>Hồ sơ cá nhân & Cài đặt</span>
-                  <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </div>
-
-              {/* Lối tắt xem Lịch Sử Đơn Hàng Của Tôi (Chuẩn E-commerce) */}
+            <div className="relative">
+              {/* User Pill Button: Gọn gàng cao ~46px, viền đậm 2px tương phản cao */}
               <button
                 type="button"
-                onClick={() => {
-                  setProfileModalTab('orders');
-                  setIsProfileModalOpen(true);
-                }}
-                className="w-full py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-900 text-xs font-black flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="w-full p-2 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-800 shadow-2xs hover:shadow-xs flex items-center justify-between transition-all cursor-pointer group"
+                title="Bấm để mở menu quản lý tài khoản & đơn hàng"
               >
-                <div className="flex items-center gap-2">
-                  <Package size={15} className="text-blue-700" />
-                  <span>Đơn Hàng Của Tôi</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    {(currentUser?.full_name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <span className="font-black text-xs text-slate-900 block truncate leading-tight group-hover:text-blue-700">
+                      {currentUser?.full_name || 'Khách Hàng May Đo'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-bold block truncate">
+                      {userRole === 'store' || currentStore?.status === 'APPROVED'
+                        ? '✂️ Chủ Shop'
+                        : currentStore?.status === 'PENDING'
+                        ? '⏳ Chờ Duyệt'
+                        : '👤 Khách Hàng'}
+                    </span>
+                  </div>
                 </div>
-                <ChevronRight size={14} className="text-blue-600" />
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {userOrders.length > 0 && (
+                    <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-mono font-black flex items-center justify-center">
+                      {userOrders.length}
+                    </span>
+                  )}
+                  <ChevronUp
+                    size={16}
+                    className={`text-slate-500 transition-transform ${isUserMenuOpen ? 'rotate-180 text-blue-600' : ''}`}
+                  />
+                </div>
               </button>
 
-              {/* Nút cam đăng ký mở gian hàng B2B (chỉ hiển thị khi đã đăng nhập) */}
-              {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
-                <a
-                  href="/tailor"
-                  className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm border-2 border-amber-500 transition-all cursor-pointer"
-                >
-                  <Store size={15} />
-                  <span>Vào Kênh Nhà May (/tailor)</span>
-                  <ChevronRight size={14} />
-                </a>
-              ) : currentStore?.status === 'PENDING' ? (
-                <button
-                  type="button"
-                  onClick={openStatusModal}
-                  className="w-full py-2.5 px-3 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-900 font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
-                >
-                  <Clock size={14} className="text-amber-600 animate-pulse" />
-                  <span>Hồ Sơ Chờ Admin Duyệt</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfileModalTab('merchant');
-                    setIsProfileModalOpen(true);
-                  }}
-                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm border-2 border-amber-400 transition-all cursor-pointer"
-                >
-                  <Store size={15} />
-                  <span>Đăng Ký Mở Gian Hàng May Đo</span>
-                </button>
+              {/* Floating Popover Menu khi bấm vào User Pill */}
+              {isUserMenuOpen && (
+                <>
+                  {/* Invisible Backdrop để click ra ngoài tự đóng */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsUserMenuOpen(false)}
+                  />
+
+                  <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-white rounded-2xl border-2 border-slate-400 shadow-2xl z-50 animate-in slide-in-from-bottom-2 duration-150 space-y-1">
+                    {/* Header thông tin trong popover */}
+                    <div className="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                          Tài Khoản FitVision 3D
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-800 truncate block">
+                          {currentUser?.email}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+
+                    {/* 1. Hồ Sơ Cá Nhân & Chỉnh Sửa Thông Tin */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        setProfileModalTab('profile');
+                        setIsProfileModalOpen(true);
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-slate-100 text-xs font-black text-slate-900 flex items-center justify-between transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserIcon size={14} className="text-blue-600" />
+                        <span>Hồ sơ cá nhân & Chỉnh sửa</span>
+                      </div>
+                      <ChevronRight size={13} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+
+                    {/* 2. Đơn Hàng Của Tôi */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        setProfileModalTab('orders');
+                        setIsProfileModalOpen(true);
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-blue-50 text-xs font-black text-blue-900 flex items-center justify-between transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Package size={14} className="text-blue-700" />
+                        <span>Đơn hàng của tôi</span>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono font-black bg-blue-100 text-blue-800 border border-blue-200">
+                        {userOrders.length}
+                      </span>
+                    </button>
+
+                    {/* 3. Hồ Sơ Số Đo Vóc Dáng 3D */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        setProfileModalTab('measurements');
+                        setIsProfileModalOpen(true);
+                      }}
+                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-purple-50 text-xs font-black text-purple-900 flex items-center justify-between transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Ruler size={14} className="text-purple-600" />
+                        <span>Số đo vóc dáng 3D</span>
+                      </div>
+                      <ChevronRight size={13} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+
+                    {/* 4. Đăng Ký Mở Gian Hàng May Đo B2B */}
+                    {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
+                      <a
+                        href="/tailor"
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-emerald-50 hover:bg-emerald-100 text-xs font-black text-emerald-950 flex items-center justify-between transition-colors cursor-pointer border border-emerald-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Store size={14} className="text-emerald-700" />
+                          <span>Vào Kênh Nhà May (/tailor)</span>
+                        </div>
+                        <ChevronRight size={13} className="text-emerald-600" />
+                      </a>
+                    ) : currentStore?.status === 'PENDING' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          openStatusModal();
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-50 hover:bg-amber-100 text-xs font-black text-amber-900 flex items-center justify-between transition-colors cursor-pointer border border-amber-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-amber-600 animate-pulse" />
+                          <span>Hồ sơ chờ Admin duyệt</span>
+                        </div>
+                        <ChevronRight size={13} className="text-amber-500" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          setProfileModalTab('merchant');
+                          setIsProfileModalOpen(true);
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-500 hover:bg-amber-600 text-white text-xs font-black flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Store size={14} />
+                          <span>Đăng ký mở gian hàng</span>
+                        </div>
+                        <ChevronRight size={13} />
+                      </button>
+                    )}
+
+                    {/* 5. Đăng Xuất Tài Khoản */}
+                    <div className="border-t border-slate-100 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          signOut();
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-rose-50 text-xs font-black text-rose-600 flex items-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <LogOut size={14} />
+                        <span>Đăng xuất tài khoản</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           ) : (
@@ -645,16 +732,16 @@ export const FashionStoreHome: React.FC = () => {
               <button
                 type="button"
                 onClick={openSignIn}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-black shadow-md border-2 border-blue-500 transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-black shadow-sm border-2 border-blue-500 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <LogIn size={16} strokeWidth={2.5} />
+                <LogIn size={15} strokeWidth={2.5} />
                 <span>Đăng Nhập / Đăng Ký</span>
               </button>
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-1 border-t border-stone-200/80">
-            <span className="text-[11px] text-stone-500 font-medium">Ngôn ngữ:</span>
+          <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-slate-200">
+            <span className="text-[10px] text-slate-500 font-bold">Ngôn ngữ:</span>
             <LanguageSwitcher compact variant="light" />
           </div>
         </div>

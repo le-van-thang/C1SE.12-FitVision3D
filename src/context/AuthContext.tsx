@@ -32,6 +32,14 @@ export interface MerchantOnboardingPayload {
   website_trap?: string;
 }
 
+export interface UserProfileDetails {
+  phone?: string;
+  address?: string;
+  city?: string;
+  gender?: 'male' | 'female' | 'other';
+  notes?: string;
+}
+
 export interface AuthContextType {
   currentUser: Profile | null;
   currentStore: Store | null;
@@ -64,6 +72,10 @@ export interface AuthContextType {
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string; devOtp?: string }>;
   resetPassword: (payload: { email: string; otp: string; newPassword: string; confirmPassword?: string }) => Promise<{ success: boolean; error?: string; message?: string }>;
   signInWithGoogle: (data: { email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => Promise<{ success: boolean; error?: string }>;
+
+  // Profile Management
+  updateUserProfile: (data: { full_name?: string } & UserProfileDetails) => Promise<{ success: boolean; error?: string }>;
+  getUserProfileDetails: (userId?: string) => UserProfileDetails;
 
   // Merchant Onboarding & Admin
   applyMerchant: (payload: MerchantOnboardingPayload) => Promise<{ success: boolean; error?: string }>;
@@ -651,7 +663,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   }, []);
 
-  // 11. Demo Switcher for Instant Testing
+  // 11. Profile Details & Update
+  const getUserProfileDetails = useCallback((userId?: string): UserProfileDetails => {
+    const targetId = userId || currentUserId;
+    if (!targetId) {
+      return {
+        phone: '0988 123 456',
+        address: '123 Nguyễn Văn Linh, P. Hải Châu',
+        city: 'Đà Nẵng',
+        gender: 'male',
+        notes: 'May đo phom dáng chuẩn, vải tự nhiên',
+      };
+    }
+    try {
+      const raw = localStorage.getItem(`fv3d_profile_details_${targetId}`);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return {
+      phone: '0988 123 456',
+      address: '123 Nguyễn Văn Linh, P. Hải Châu',
+      city: 'Đà Nẵng',
+      gender: 'male',
+      notes: 'May đo phom dáng chuẩn, vải tự nhiên',
+    };
+  }, [currentUserId]);
+
+  const updateUserProfile = useCallback(
+    async (data: { full_name?: string } & UserProfileDetails) => {
+      if (!currentUserId) {
+        return { success: false, error: 'Vui lòng đăng nhập để cập nhật hồ sơ.' };
+      }
+
+      const now = new Date().toISOString();
+
+      if (data.full_name && data.full_name.trim()) {
+        const cleanName = data.full_name.trim();
+        setProfiles((prev) =>
+          prev.map((p) =>
+            p.id === currentUserId
+              ? {
+                  ...p,
+                  full_name: cleanName,
+                  updated_at: now,
+                }
+              : p
+          )
+        );
+      }
+
+      const existingDetails = getUserProfileDetails(currentUserId);
+      const updatedDetails: UserProfileDetails = {
+        phone: data.phone !== undefined ? data.phone.trim() : existingDetails.phone,
+        address: data.address !== undefined ? data.address.trim() : existingDetails.address,
+        city: data.city !== undefined ? data.city.trim() : existingDetails.city,
+        gender: data.gender || existingDetails.gender,
+        notes: data.notes !== undefined ? data.notes.trim() : existingDetails.notes,
+      };
+
+      try {
+        localStorage.setItem(`fv3d_profile_details_${currentUserId}`, JSON.stringify(updatedDetails));
+      } catch {}
+
+      return { success: true };
+    },
+    [currentUserId, getUserProfileDetails]
+  );
+
+  // 12. Demo Switcher for Instant Testing
   const switchDemoRole = useCallback((role: 'user' | 'pending' | 'store' | 'admin' | 'guest') => {
     if (role === 'guest') {
       setCurrentUserId(null);
@@ -702,6 +780,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         forgotPassword,
         resetPassword,
         signInWithGoogle,
+
+        updateUserProfile,
+        getUserProfileDetails,
 
         applyMerchant,
         approveStore,

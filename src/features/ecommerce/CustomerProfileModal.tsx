@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   User,
@@ -18,6 +18,9 @@ import {
   Package,
   Truck,
   RotateCcw,
+  Edit3,
+  Save,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
@@ -45,6 +48,8 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
     signOut,
     openOnboarding,
     openStatusModal,
+    updateUserProfile,
+    getUserProfileDetails,
   } = useAuth();
   const { getUserOrders, cancelOrder } = useOrders();
 
@@ -52,19 +57,66 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   const [orderFilter, setOrderFilter] = useState<string>('all');
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<string | null>(null);
 
+  // Edit Profile Form State
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [formData, setFormData] = useState({
+    fullName: '',
+    phone: '',
+    city: '',
+    address: '',
+    gender: 'male' as 'male' | 'female' | 'other',
+    notes: '',
+  });
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
   const userOrders = getUserOrders(currentUser?.id);
 
-  // Sync initial tab when modal opens
-  React.useEffect(() => {
-    if (isOpen) {
+  // Load details whenever modal opens or currentUser changes
+  useEffect(() => {
+    if (isOpen && currentUser) {
       setActiveTab(initialTab);
+      setIsEditing(false);
+      setSaveSuccessMsg(null);
+      const details = getUserProfileDetails(currentUser.id);
+      setFormData({
+        fullName: currentUser.full_name || '',
+        phone: details.phone || '0988 123 456',
+        city: details.city || 'Đà Nẵng',
+        address: details.address || '123 Nguyễn Văn Linh, P. Hải Châu',
+        gender: details.gender || 'male',
+        notes: details.notes || 'May đo phom dáng chuẩn, vải tự nhiên',
+      });
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, currentUser, initialTab, getUserProfileDetails]);
 
   if (!isOpen || !currentUser) return null;
 
   const isPendingStore = currentStore?.status === 'PENDING';
   const isApprovedStore = userRole === 'store' || currentStore?.status === 'APPROVED';
+
+  const handleSaveProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSaving(true);
+    setSaveSuccessMsg(null);
+    try {
+      const res = await updateUserProfile({
+        full_name: formData.fullName,
+        phone: formData.phone,
+        city: formData.city,
+        address: formData.address,
+        gender: formData.gender,
+        notes: formData.notes,
+      });
+      if (res.success) {
+        setSaveSuccessMsg('Đã cập nhật hồ sơ cá nhân thành công!');
+        setIsEditing(false);
+        setTimeout(() => setSaveSuccessMsg(null), 4000);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -74,30 +126,30 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
         onClick={onClose}
       />
 
-      {/* Dialog Box */}
-      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border-2 border-stone-200 overflow-hidden z-10 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+      {/* Dialog Box - High-Contrast Luxury Atelier Styling */}
+      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border-2 border-slate-400 overflow-hidden z-10 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
         
-        {/* Header Profile Hero */}
-        <div className="p-6 bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white flex-shrink-0">
+        {/* Header Profile Hero - Deep Slate Midnight High-Contrast: Tuyệt đối không bị mờ */}
+        <div className="p-5 sm:p-6 bg-slate-900 border-b-2 border-slate-800 text-white flex-shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-white text-blue-700 flex items-center justify-center font-black text-2xl shadow-md border-2 border-white/40">
+              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-blue-400 shrink-0">
                 {(currentUser.full_name || 'U').charAt(0).toUpperCase()}
               </div>
-              <div>
-                <h3 className="text-lg font-black tracking-tight leading-tight">
+              <div className="min-w-0">
+                <h3 className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight truncate">
                   {currentUser.full_name || 'Khách Hàng May Đo'}
                 </h3>
-                <p className="text-xs text-blue-100 font-mono mt-0.5">
+                <p className="text-xs text-blue-300 font-mono font-bold mt-0.5 truncate">
                   {currentUser.email}
                 </p>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-xs ${
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border shadow-2xs ${
                     isApprovedStore
                       ? 'bg-amber-400 text-amber-950 border-amber-300'
                       : isPendingStore
-                      ? 'bg-amber-100 text-amber-900 border-amber-300'
-                      : 'bg-white/20 text-white border-white/30'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                      : 'bg-blue-600/30 text-blue-200 border-blue-400/40'
                   }`}>
                     {isApprovedStore
                       ? '✂️ Đối Tác Nhà May B2B'
@@ -112,64 +164,65 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer transition-colors"
+              className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer transition-colors border border-slate-700 shrink-0"
+              title="Đóng modal"
             >
               <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex border-b border-stone-200 bg-stone-50 px-3 pt-2 gap-1 flex-shrink-0 overflow-x-auto scrollbar-none">
+        {/* Tab Selector - Viền sắc nét, tương phản cao */}
+        <div className="flex border-b-2 border-slate-200 bg-slate-100 px-3 pt-2 gap-1 flex-shrink-0 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-2 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2.5 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'profile'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl'
-                : 'border-transparent text-stone-600 hover:text-stone-900'
+                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-2xs'
+                : 'border-transparent text-slate-700 hover:text-slate-950'
             }`}
           >
-            <User size={13} />
+            <User size={14} />
             <span>Cá Nhân</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('measurements')}
-            className={`flex-1 py-2 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2.5 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'measurements'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl'
-                : 'border-transparent text-stone-600 hover:text-stone-900'
+                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-2xs'
+                : 'border-transparent text-slate-700 hover:text-slate-950'
             }`}
           >
-            <Ruler size={13} />
+            <Ruler size={14} />
             <span>Số Đo 3D</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('orders')}
-            className={`flex-1 py-2 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2.5 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'orders'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl'
-                : 'border-transparent text-stone-600 hover:text-stone-900'
+                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-2xs'
+                : 'border-transparent text-slate-700 hover:text-slate-950'
             }`}
           >
-            <ShoppingBag size={13} />
+            <ShoppingBag size={14} />
             <span>Đơn Hàng ({userOrders.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('merchant')}
-            className={`flex-1 py-2 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2.5 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'merchant'
-                ? 'border-amber-600 text-amber-800 bg-white rounded-t-xl'
-                : 'border-transparent text-stone-600 hover:text-stone-900'
+                ? 'border-amber-600 text-amber-900 bg-white rounded-t-xl shadow-2xs'
+                : 'border-transparent text-slate-700 hover:text-slate-950'
             }`}
           >
-            <Store size={13} />
+            <Store size={14} />
             <span>Đăng Ký Shop</span>
           </button>
         </div>
@@ -177,80 +230,225 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
         {/* Tab Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           
-          {/* TAB 1: THÔNG TIN CÁ NHÂN */}
+          {/* TAB 1: THÔNG TIN CÁ NHÂN & CHỈNH SỬA PROFILE ĐẦY ĐỦ */}
           {activeTab === 'profile' && (
-            <div className="space-y-3.5">
-              <div className="p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
-                    <User size={16} />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-stone-500 font-bold uppercase block">Họ và Tên</span>
-                    <span className="text-xs font-black text-stone-900">{currentUser.full_name || 'Lê Văn Thắng'}</span>
-                  </div>
+            <div className="space-y-4">
+              
+              {/* Alert thông báo lưu thành công */}
+              {saveSuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-50 border-2 border-emerald-400 text-emerald-950 text-xs font-black flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <span>{saveSuccessMsg}</span>
+                </div>
+              )}
+
+              {/* Header Box thông tin kèm nút bật/tắt Chỉnh Sửa */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-black text-sm text-slate-900 uppercase tracking-wide">
+                    Hồ Sơ Khách Hàng FitVision 3D
+                  </h4>
+                  <p className="text-[11px] text-slate-600 font-medium">
+                    {isEditing ? 'Nhập thông tin mới và nhấn Lưu để cập nhật' : 'Thông tin dùng để giao nhận trang phục may đo & liên hệ'}
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-3 border-t border-stone-200/80 pt-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                    <Mail size={16} />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-stone-500 font-bold uppercase block">Email Tài Khoản</span>
-                    <span className="text-xs font-mono font-bold text-stone-900">{currentUser.email}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 border-t border-stone-200/80 pt-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                    <Phone size={16} />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-stone-500 font-bold uppercase block">Số Điện Thoại</span>
-                    <span className="text-xs font-mono font-bold text-stone-900">0988 123 456</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 border-t border-stone-200/80 pt-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
-                    <MapPin size={16} />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-stone-500 font-bold uppercase block">Địa Chỉ Nhận Hàng May Đo</span>
-                    <span className="text-xs font-medium text-stone-800">Đà Nẵng / TP. Hồ Chí Minh, Việt Nam</span>
-                  </div>
-                </div>
+                {!isEditing ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border-2 border-blue-300 text-xs font-black transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
+                  >
+                    <Edit3 size={13} className="text-blue-700" />
+                    <span>Chỉnh Sửa</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border-2 border-slate-300 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Hủy Bỏ
+                  </button>
+                )}
               </div>
 
-              <div className="p-4 rounded-2xl bg-white border-2 border-stone-200 space-y-3">
-                <span className="text-[11px] font-black uppercase text-stone-900 tracking-wider block">
+              {/* Chế độ 1: FORM CHỈNH SỬA PROFILE ĐẦY ĐỦ */}
+              {isEditing ? (
+                <form onSubmit={handleSaveProfile} className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-300 space-y-3.5 animate-in fade-in">
+                  {/* Họ và Tên */}
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                      Họ và Tên <span className="text-rose-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-xs font-black text-slate-900 outline-none transition-all"
+                      placeholder="Nhập họ và tên đầy đủ..."
+                    />
+                  </div>
+
+                  {/* Email (Readonly) */}
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-slate-500 block mb-1">
+                      Email Tài Khoản (Cố Định)
+                    </label>
+                    <input
+                      type="email"
+                      disabled
+                      value={currentUser.email}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-200/80 border-2 border-slate-300 text-xs font-mono font-bold text-slate-600 cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Số điện thoại */}
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                      Số Điện Thoại Nhận Hàng <span className="text-rose-600">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-xs font-mono font-black text-slate-900 outline-none transition-all"
+                      placeholder="Ví dụ: 0988 123 456"
+                    />
+                  </div>
+
+                  {/* Tỉnh / Thành Phố */}
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                      Tỉnh / Thành Phố <span className="text-rose-600">*</span>
+                    </label>
+                    <select
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-xs font-black text-slate-900 outline-none transition-all cursor-pointer"
+                    >
+                      <option value="Đà Nẵng">Đà Nẵng</option>
+                      <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                      <option value="Hà Nội">Hà Nội</option>
+                      <option value="Cần Thơ">Cần Thơ</option>
+                      <option value="Hải Phòng">Hải Phòng</option>
+                      <option value="Huế">Thừa Thiên Huế</option>
+                      <option value="Quảng Nam">Quảng Nam</option>
+                      <option value="Khác">Tỉnh / Thành khác</option>
+                    </select>
+                  </div>
+
+                  {/* Địa chỉ chi tiết */}
+                  <div>
+                    <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                      Địa Chỉ Chi Tiết (Số Nhà, Đường, Phường) <span className="text-rose-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-xs font-bold text-slate-900 outline-none transition-all"
+                      placeholder="Ví dụ: 123 Nguyễn Văn Linh, P. Nam Dương, Q. Hải Châu"
+                    />
+                  </div>
+
+                  {/* Nút Submit Form */}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-extrabold text-xs transition-colors cursor-pointer"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="flex-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs shadow-md border-2 border-blue-500 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <Save size={15} />
+                      <span>{isSaving ? 'Đang Lưu...' : 'Lưu Thay Đổi'}</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* Chế độ 2: XEM HỒ SƠ TƯƠNG PHẢN CAO, RÕ RÀNG */
+                <div className="p-4 rounded-2xl bg-white border-2 border-slate-300 space-y-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 border border-blue-200">
+                      <User size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">Họ và Tên</span>
+                      <span className="text-sm font-black text-slate-900 block truncate">{currentUser.full_name || formData.fullName || 'Khách Hàng'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 border-t-2 border-slate-100 pt-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0 border border-indigo-200">
+                      <Mail size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">Email Tài Khoản</span>
+                      <span className="text-xs font-mono font-black text-slate-900 block truncate">{currentUser.email}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 border-t-2 border-slate-100 pt-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 border border-emerald-200">
+                      <Phone size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">Số Điện Thoại</span>
+                      <span className="text-xs font-mono font-black text-slate-900 block">{formData.phone}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 border-t-2 border-slate-100 pt-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200">
+                      <MapPin size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider block">Địa Chỉ Nhận Hàng May Đo</span>
+                      <span className="text-xs font-black text-slate-900 block leading-tight">{formData.address}, {formData.city}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tùy chọn tài khoản & bảo mật */}
+              <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-300 space-y-3">
+                <span className="text-[11px] font-black uppercase text-slate-900 tracking-wider block">
                   ⚙️ Cài Đặt & Tùy Chọn Tài Khoản
                 </span>
                 
                 <div className="space-y-2 text-xs">
-                  <label className="flex items-center justify-between p-2 rounded-xl bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors">
-                    <span className="font-bold text-stone-800">Tự động so khớp Ease Allowance (Độ cử động 3D)</span>
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors">
+                    <span className="font-extrabold text-slate-900">Tự động so khớp Ease Allowance (Độ cử động 3D)</span>
                     <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                   </label>
 
-                  <label className="flex items-center justify-between p-2 rounded-xl bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors">
-                    <span className="font-bold text-stone-800">Nhận thông báo tiến độ may đo qua Email</span>
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors">
+                    <span className="font-extrabold text-slate-900">Nhận thông báo tiến độ may đo qua Email</span>
                     <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                   </label>
 
-                  <label className="flex items-center justify-between p-2 rounded-xl bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors">
-                    <span className="font-bold text-stone-800">Hiển thị huy hiệu khách hàng Bespoke</span>
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors">
+                    <span className="font-extrabold text-slate-900">Hiển thị huy hiệu khách hàng Bespoke</span>
                     <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                   </label>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-between">
+              <div className="p-3.5 rounded-2xl bg-blue-50 border-2 border-blue-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={18} className="text-blue-700" />
-                  <span className="text-xs text-blue-950 font-bold">Bảo Mật Dữ Liệu Nhân Trắc Học</span>
+                  <span className="text-xs text-blue-950 font-black">Bảo Mật Dữ Liệu Nhân Trắc Học</span>
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-200 text-blue-900 font-bold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-200 text-blue-900 font-black">
                   ISO 8559-1
                 </span>
               </div>

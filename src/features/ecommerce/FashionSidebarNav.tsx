@@ -254,8 +254,8 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
 
         </div>
 
-        {/* Footer Role & Auth (CHỈ HIỂN THỊ 1 NÚT ĐĂNG NHẬP HOẶC THẺ NGƯỜI DÙNG) */}
-        <div className="p-4 border-t-2 border-slate-300 bg-slate-50 space-y-2.5 flex-shrink-0">
+        {/* Footer Role & Auth (USER PILL THU GỌN - KHÔNG CHOÁNG CHỖ DANH MỤC) */}
+        <div className="p-3 border-t-2 border-slate-300 bg-slate-50 flex-shrink-0">
           {!isAuthenticated ? (
             <div>
               <button
@@ -264,36 +264,38 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   onOpenSignIn();
                   onClose();
                 }}
-                className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs shadow-md border-2 border-blue-500 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs shadow-md border-2 border-blue-500 flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
-                <LogIn size={16} strokeWidth={2.5} />
+                <LogIn size={15} strokeWidth={2.5} />
                 <span>Đăng Nhập / Đăng Ký</span>
               </button>
             </div>
           ) : (
             <div className="space-y-2">
+              {/* User Pill Button: Gọn gàng cao ~44px, viền đậm 2px tương phản cao */}
               <div 
                 onClick={() => {
                   onClose();
                   if (onOpenProfileModal) onOpenProfileModal();
                 }}
-                className="p-3 rounded-2xl bg-white border-2 border-slate-300 hover:border-blue-600 shadow-sm transition-all cursor-pointer group"
+                className="p-2 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-800 shadow-2xs hover:shadow-xs transition-all cursor-pointer group flex items-center justify-between"
+                title="Bấm để xem hồ sơ và cài đặt"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center text-xs shadow-xs">
-                      {userName?.charAt(0) || 'T'}
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-black text-xs text-stone-900 block leading-tight truncate group-hover:text-blue-700">
-                        {userName || 'Thắng Lê'}
-                      </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 bg-blue-100 text-blue-900 border border-blue-200">
-                        {userRole === 'store' ? '✂️ Chủ Shop May Đo' : '👤 Khách Hàng May Đo'}
-                      </span>
-                    </div>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center text-xs shrink-0 shadow-2xs">
+                    {userName?.charAt(0) || 'T'}
                   </div>
+                  <div className="min-w-0 text-left">
+                    <span className="font-black text-xs text-slate-900 block leading-tight truncate group-hover:text-blue-700">
+                      {userName || 'Thắng Lê'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-bold block truncate">
+                      {userRole === 'store' ? '✂️ Chủ Shop' : '👤 Khách Hàng'}
+                    </span>
+                  </div>
+                </div>
 
+                <div className="flex items-center gap-1.5 shrink-0">
                   {onSignOut && (
                     <button
                       type="button"
@@ -302,17 +304,13 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                         onSignOut();
                         onClose();
                       }}
-                      className="p-1.5 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-600 hover:text-rose-600 border border-stone-200 transition-colors cursor-pointer shrink-0"
+                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 transition-colors cursor-pointer"
                       title="Đăng Xuất Tài Khoản"
                     >
-                      <LogOut size={14} />
+                      <LogOut size={13} />
                     </button>
                   )}
-                </div>
-
-                <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-stone-100 text-[11px] text-blue-600 font-bold">
-                  <span>Hồ sơ & Cài đặt</span>
-                  <ChevronRight size={13} />
+                  <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
 
@@ -324,29 +322,14 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                   if (onOpenOrders) onOpenOrders();
                   else if (onOpenProfileModal) onOpenProfileModal();
                 }}
-                className="w-full py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-900 text-xs font-black flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
+                className="w-full py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-900 text-xs font-black flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
               >
                 <div className="flex items-center gap-2">
-                  <ShoppingBag size={14} className="text-blue-700" />
+                  <ShoppingBag size={13} className="text-blue-700" />
                   <span>Đơn Hàng Của Tôi</span>
                 </div>
                 <ChevronRight size={13} className="text-blue-600" />
               </button>
-
-              {/* Nút cam đăng ký mở shop khi đã login */}
-              {userRole !== 'store' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    if (onOpenProfileModal) onOpenProfileModal();
-                  }}
-                  className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm border-2 border-amber-400 transition-all cursor-pointer"
-                >
-                  <Store size={15} />
-                  <span>Đăng Ký Mở Gian Hàng May Đo</span>
-                </button>
-              )}
             </div>
           )}
         </div>
