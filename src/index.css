@@ -5,13 +5,12 @@
 @import "./styles/tokens.css";
 
 /* Base box-sizing and border style reset:
-   Ensures all elements (and especially buttons/inputs/divs) have border-style: solid by default,
-   so Tailwind utility classes like border, border-2, border-black immediately render sharp, visible borders. */
+   Ensures all elements have border-style: solid by default so standard 1px Tailwind borders render cleanly. */
 *, *::before, *::after {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
-  border-color: #e5e7eb;
+  border-color: #e2e8f0;
 }
 
 button {
@@ -25,39 +24,6 @@ button {
 
 @tailwind components;
 @tailwind utilities;
-
-/* Explicit border guarantee so border-2, border-[2.5px], border-black, etc. always render sharp and high contrast */
-.border,
-.border-2,
-.border-4,
-.border-\[2\.5px\],
-.border-t,
-.border-t-2,
-.border-t-\[2\.5px\],
-.border-b,
-.border-b-2,
-.border-r,
-.border-r-2,
-.border-l,
-.border-l-2 {
-  border-style: solid !important;
-}
-
-.border-black {
-  border-color: #000000 !important;
-}
-
-.border-none {
-  border-style: none !important;
-}
-
-.border-0 {
-  border-width: 0px !important;
-}
-
-.border-transparent {
-  border-color: transparent !important;
-}
 
 :root {
   color-scheme: light;
