@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   User,
@@ -21,6 +21,7 @@ import {
   Edit3,
   Save,
   Check,
+  Upload,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
@@ -58,7 +59,9 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<string | null>(null);
 
   // Edit Profile Form State
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -69,6 +72,40 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   });
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Bộ sưu tập avatar mẫu thời trang may đo sắc nét
+  const PRESET_AVATARS = [
+    { id: 'suit-male', label: 'Quý Ông Suit', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80' },
+    { id: 'chic-female', label: 'Quý Cô Silk', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80' },
+    { id: 'bespoke-tailor', label: 'Bespoke Master', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80' },
+    { id: 'blazer-female', label: 'Nữ Doanh Nhân', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80' },
+    { id: 'minimal-man', label: 'Minimalist', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80' },
+  ];
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Vui lòng chọn ảnh có dung lượng dưới 3MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      await updateUserProfile({ avatar_url: base64 });
+      setSaveSuccessMsg('Đã cập nhật ảnh đại diện thành công!');
+      setShowAvatarPicker(false);
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSelectPresetAvatar = async (url: string) => {
+    await updateUserProfile({ avatar_url: url });
+    setSaveSuccessMsg('Đã cập nhật ảnh đại diện mới!');
+    setShowAvatarPicker(false);
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
 
   const userOrders = getUserOrders(currentUser?.id);
 
@@ -127,22 +164,72 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
       />
 
       {/* Dialog Box - High-Contrast Luxury Atelier Styling */}
-      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border-2 border-slate-400 overflow-hidden z-10 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border-[2.5px] border-black overflow-hidden z-10 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
         
-        {/* Header Profile Hero - Deep Slate Midnight High-Contrast: Tuyệt đối không bị mờ */}
-        <div className="p-5 sm:p-6 bg-slate-900 border-b-2 border-slate-800 text-white flex-shrink-0">
+        {/* Header Profile Hero - Deep Slate Midnight High-Contrast: Bấm vào đổi avatar */}
+        <div className="p-5 sm:p-6 bg-slate-900 border-b-2 border-black text-white flex-shrink-0">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarUpload}
+          />
+
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-blue-400 shrink-0">
-                {(currentUser.full_name || 'U').charAt(0).toUpperCase()}
+              {/* Avatar Tương Tác: Bấm đổi ảnh hoặc chọn avatar mẫu */}
+              <div className="relative group shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-white overflow-hidden cursor-pointer relative transition-transform group-hover:scale-105 active:scale-95"
+                  title="Bấm vào để đổi ảnh đại diện (Upload từ máy hoặc chọn ảnh mẫu)"
+                >
+                  {currentUser.avatar_url ? (
+                    <img
+                      src={currentUser.avatar_url}
+                      alt={currentUser.full_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span>{(currentUser.full_name || 'U').charAt(0).toUpperCase()}</span>
+                  )}
+                  {/* Overlay hover đổi avatar */}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity">
+                    <Camera size={16} />
+                    <span className="text-[8px] font-bold mt-0.5">Đổi ảnh</span>
+                  </div>
+                </button>
+
+                {/* Badge camera nhỏ ở góc */}
+                <div
+                  onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-blue-500 border-2 border-slate-900 flex items-center justify-center text-white shadow-xs cursor-pointer hover:bg-blue-400"
+                  title="Đổi Avatar"
+                >
+                  <Camera size={10} />
+                </div>
               </div>
+
               <div className="min-w-0">
-                <h3 className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight truncate">
-                  {currentUser.full_name || 'Khách Hàng May Đo'}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight truncate">
+                    {currentUser.full_name || 'Khách Hàng May Đo'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                    className="text-[10px] text-blue-300 hover:text-white font-bold underline cursor-pointer"
+                  >
+                    Đổi avatar
+                  </button>
+                </div>
+
                 <p className="text-xs text-blue-300 font-mono font-bold mt-0.5 truncate">
                   {currentUser.email}
                 </p>
+
                 <div className="mt-2 flex items-center gap-2">
                   <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border shadow-2xs ${
                     isApprovedStore
@@ -170,17 +257,72 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               <X size={18} />
             </button>
           </div>
+
+          {/* Panel Chọn & Đổi Avatar khi người dùng bấm vào */}
+          {showAvatarPicker && (
+            <div className="mt-4 p-3.5 bg-slate-800 rounded-2xl border-2 border-black space-y-2.5 animate-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-black text-slate-200 uppercase tracking-wider text-[11px]">
+                  📷 Đổi Ảnh Đại Diện (Avatar)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarPicker(false)}
+                  className="text-slate-400 hover:text-white text-xs"
+                >
+                  Đóng
+                </button>
+              </div>
+
+              {/* Lựa chọn 1: Upload file từ máy */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-sm border-2 border-black cursor-pointer"
+              >
+                <Upload size={14} />
+                <span>Tải ảnh từ máy tính / điện thoại</span>
+              </button>
+
+              {/* Lựa chọn 2: Bộ avatar mẫu phong cách thời trang May Đo */}
+              <div>
+                <span className="text-[10px] text-slate-400 block mb-1.5 font-bold">
+                  Hoặc chọn nhanh avatar mẫu:
+                </span>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {PRESET_AVATARS.map((av) => (
+                    <button
+                      key={av.id}
+                      type="button"
+                      onClick={() => handleSelectPresetAvatar(av.url)}
+                      className="group/av flex flex-col items-center gap-1 shrink-0 cursor-pointer"
+                      title={av.label}
+                    >
+                      <img
+                        src={av.url}
+                        alt={av.label}
+                        className="w-10 h-10 rounded-xl object-cover border-2 border-black hover:border-blue-400 group-hover/av:scale-105 transition-all shadow-xs"
+                      />
+                      <span className="text-[9px] text-slate-400 group-hover/av:text-white truncate max-w-[50px]">
+                        {av.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Tab Selector - Viền sắc nét, từng tab là một nút độc lập có border 2px */}
-        <div className="flex border-b-2 border-slate-300 bg-slate-100 p-2 gap-2 flex-shrink-0 overflow-x-auto scrollbar-none">
+        {/* Tab Selector - Viền đen 2px sắc nét, từng tab là một nút độc lập */}
+        <div className="flex border-b-2 border-black bg-slate-200 p-2 gap-2 flex-shrink-0 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
             className={`flex-1 py-2 px-2.5 text-xs font-black rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
               activeTab === 'profile'
-                ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
-                : 'border-slate-300 bg-white text-slate-800 hover:border-slate-800 hover:bg-slate-50'
+                ? 'border-black bg-blue-600 text-white shadow-xs'
+                : 'border-black bg-white text-slate-950 hover:bg-slate-100'
             }`}
           >
             <User size={14} />
@@ -192,8 +334,8 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             onClick={() => setActiveTab('measurements')}
             className={`flex-1 py-2 px-2.5 text-xs font-black rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
               activeTab === 'measurements'
-                ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
-                : 'border-slate-300 bg-white text-slate-800 hover:border-slate-800 hover:bg-slate-50'
+                ? 'border-black bg-blue-600 text-white shadow-xs'
+                : 'border-black bg-white text-slate-950 hover:bg-slate-100'
             }`}
           >
             <Ruler size={14} />
@@ -205,8 +347,8 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             onClick={() => setActiveTab('orders')}
             className={`flex-1 py-2 px-2.5 text-xs font-black rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
               activeTab === 'orders'
-                ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
-                : 'border-slate-300 bg-white text-slate-800 hover:border-slate-800 hover:bg-slate-50'
+                ? 'border-black bg-blue-600 text-white shadow-xs'
+                : 'border-black bg-white text-slate-950 hover:bg-slate-100'
             }`}
           >
             <ShoppingBag size={14} />
@@ -218,8 +360,8 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             onClick={() => setActiveTab('merchant')}
             className={`flex-1 py-2 px-2.5 text-xs font-black rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
               activeTab === 'merchant'
-                ? 'border-amber-600 bg-amber-600 text-white shadow-xs'
-                : 'border-slate-300 bg-white text-slate-800 hover:border-slate-800 hover:bg-slate-50'
+                ? 'border-black bg-amber-600 text-white shadow-xs'
+                : 'border-black bg-white text-slate-950 hover:bg-slate-100'
             }`}
           >
             <Store size={14} />
@@ -257,7 +399,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-500 text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-102 active:scale-98"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white border-2 border-black text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-102 active:scale-98"
                   >
                     <Edit3 size={14} />
                     <span>Chỉnh Sửa Hồ Sơ</span>
@@ -266,7 +408,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 border-2 border-slate-400 text-xs font-bold transition-all cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 border-2 border-black text-xs font-bold transition-all cursor-pointer"
                   >
                     Hủy Bỏ
                   </button>
@@ -275,7 +417,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
 
               {/* Chế độ 1: FORM CHỈNH SỬA PROFILE ĐẦY ĐỦ */}
               {isEditing ? (
-                <form onSubmit={handleSaveProfile} className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-300 space-y-3.5 animate-in fade-in">
+                <form onSubmit={handleSaveProfile} className="p-4 rounded-2xl bg-slate-50 border-2 border-black space-y-3.5 animate-in fade-in">
                   {/* Họ và Tên */}
                   <div>
                     <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
@@ -376,7 +518,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                 </form>
               ) : (
                 /* Chế độ 2: XEM HỒ SƠ TƯƠNG PHẢN CAO, RÕ RÀNG */
-                <div className="p-4 rounded-2xl bg-white border-2 border-slate-300 space-y-3 shadow-xs">
+                <div className="p-4 rounded-2xl bg-white border-2 border-black space-y-3 shadow-xs">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 border border-blue-200">
                       <User size={18} />
@@ -420,7 +562,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               )}
 
               {/* Tùy chọn tài khoản & bảo mật */}
-              <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-300 space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-50 border-2 border-black space-y-3">
                 <span className="text-[11px] font-black uppercase text-slate-900 tracking-wider block">
                   ⚙️ Cài Đặt & Tùy Chọn Tài Khoản
                 </span>
@@ -795,14 +937,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
         </div>
 
         {/* Footer Logout Action - Nút có viền 2px dày, ngăn cách rõ ràng */}
-        <div className="p-4 bg-slate-100 border-t-2 border-slate-300 flex items-center justify-between flex-shrink-0">
+        <div className="p-4 bg-slate-200 border-t-2 border-black flex items-center justify-between flex-shrink-0">
           <button
             type="button"
             onClick={() => {
               signOut();
               onClose();
             }}
-            className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300 hover:border-rose-400 font-black text-xs flex items-center gap-2 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
+            className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-black font-black text-xs flex items-center gap-2 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
           >
             <LogOut size={15} />
             <span>Đăng Xuất Tài Khoản</span>
@@ -811,7 +953,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-xs border-2 border-slate-900 transition-all cursor-pointer shadow-xs hover:scale-102 active:scale-98"
+            className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-xs border-2 border-black transition-all cursor-pointer shadow-xs hover:scale-102 active:scale-98"
           >
             Đóng
           </button>

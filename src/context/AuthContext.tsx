@@ -74,7 +74,7 @@ export interface AuthContextType {
   signInWithGoogle: (data: { email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => Promise<{ success: boolean; error?: string }>;
 
   // Profile Management
-  updateUserProfile: (data: { full_name?: string } & UserProfileDetails) => Promise<{ success: boolean; error?: string }>;
+  updateUserProfile: (data: { full_name?: string; avatar_url?: string } & UserProfileDetails) => Promise<{ success: boolean; error?: string }>;
   getUserProfileDetails: (userId?: string) => UserProfileDetails;
 
   // Merchant Onboarding & Admin
@@ -689,27 +689,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentUserId]);
 
   const updateUserProfile = useCallback(
-    async (data: { full_name?: string } & UserProfileDetails) => {
+    async (data: { full_name?: string; avatar_url?: string } & UserProfileDetails) => {
       if (!currentUserId) {
         return { success: false, error: 'Vui lòng đăng nhập để cập nhật hồ sơ.' };
       }
 
       const now = new Date().toISOString();
 
-      if (data.full_name && data.full_name.trim()) {
-        const cleanName = data.full_name.trim();
-        setProfiles((prev) =>
-          prev.map((p) =>
-            p.id === currentUserId
-              ? {
-                  ...p,
-                  full_name: cleanName,
-                  updated_at: now,
-                }
-              : p
-          )
-        );
-      }
+      setProfiles((prev) =>
+        prev.map((p) => {
+          if (p.id !== currentUserId) return p;
+          return {
+            ...p,
+            full_name: data.full_name && data.full_name.trim() ? data.full_name.trim() : p.full_name,
+            avatar_url: data.avatar_url !== undefined ? data.avatar_url : p.avatar_url,
+            updated_at: now,
+          };
+        })
+      );
 
       const existingDetails = getUserProfileDetails(currentUserId);
       const updatedDetails: UserProfileDetails = {

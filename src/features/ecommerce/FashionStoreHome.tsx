@@ -382,13 +382,13 @@ export const FashionStoreHome: React.FC = () => {
         {/* Scrollable Navigation Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           
-          {/* Hồ sơ vóc dáng 3D (Đậm nét, có khung viền bọc dày 2px rõ ràng, hỗ trợ Thu Gọn / Mở Rộng) */}
-          <div className="rounded-2xl border-2 border-slate-700 shadow-sm overflow-hidden bg-white text-stone-900">
-            {/* Header màu xám sáng tương phản cao, chữ đen đậm, nút thu gọn/mở rộng */}
-            <div className="bg-slate-100 border-b-2 border-slate-300 px-3.5 py-2.5 flex items-center justify-between">
+          {/* Hồ sơ vóc dáng 3D (ĐẬM NÉT TUYỆT ĐỐI - KHUNG VIỀN ĐEN DÀY 2.5PX BAO TOÀN BỘ) */}
+          <div className="rounded-2xl border-[2.5px] border-black shadow-sm overflow-hidden bg-white text-stone-900">
+            {/* Header màu xám tương phản cao, viền đen dày 2px, nút thu gọn/mở rộng */}
+            <div className="bg-slate-200 border-b-2 border-black px-3.5 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-300 animate-pulse" />
-                <span className="text-xs font-black uppercase tracking-wider text-slate-900">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-950">
                   HỒ SƠ VÓC DÁNG 3D
                 </span>
               </div>
@@ -396,17 +396,17 @@ export const FashionStoreHome: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsBiometricModalOpen(true)}
-                  className="text-[11px] font-black text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                  className="text-[11px] font-black text-blue-700 hover:text-blue-900 hover:underline cursor-pointer transition-colors"
                 >
                   Đổi số đo
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsBodyProfileCollapsed(!isBodyProfileCollapsed)}
-                  className="p-1 rounded-md hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                  className="p-1 rounded-md hover:bg-slate-300 text-slate-900 transition-colors cursor-pointer"
                   title={isBodyProfileCollapsed ? 'Mở rộng chi tiết 4 ô số đo' : 'Thu gọn số đo'}
                 >
-                  {isBodyProfileCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                  {isBodyProfileCollapsed ? <ChevronDown size={14} strokeWidth={2.5} /> : <ChevronUp size={14} strokeWidth={2.5} />}
                 </button>
               </div>
             </div>
@@ -414,63 +414,63 @@ export const FashionStoreHome: React.FC = () => {
             {/* Chế độ Thu Gọn: Hiển thị 1 thanh tóm tắt siêu gọn & viền bọc rõ nét */}
             {isBodyProfileCollapsed ? (
               <div className="p-3 bg-slate-50 space-y-2">
-                <div className="flex items-center justify-between text-xs font-black text-slate-900 px-0.5">
+                <div className="flex items-center justify-between text-xs font-black text-slate-950 px-0.5">
                   <span className="font-mono">{userBody.height_cm}cm · {userBody.weight_kg}kg</span>
-                  <span className="text-slate-600 font-mono text-[11px]">N:{userBody.chest_cm}cm · E:{userBody.waist_cm}cm</span>
+                  <span className="text-slate-700 font-mono text-[11px]">N:{userBody.chest_cm}cm · E:{userBody.waist_cm}cm</span>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-900 font-bold border-t border-slate-300">
+                <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-950 font-black border-t-2 border-black">
                   <input
                     type="checkbox"
                     checked={filterByMyFitOnly}
                     onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 border-2 border-slate-400 accent-blue-600 cursor-pointer"
+                    className="w-4 h-4 rounded text-blue-600 border-2 border-black accent-blue-600 cursor-pointer"
                   />
-                  <span className="font-bold text-xs text-slate-900">Chỉ hiện đồ vừa vặn (≥ 90%)</span>
+                  <span className="font-black text-xs text-slate-950">Chỉ hiện đồ vừa vặn (≥ 90%)</span>
                 </label>
               </div>
             ) : (
-              /* Chế độ Mở Rộng: 4 ô số đo có viền dày 2px rõ nét, không bị chìm */
+              /* Chế độ Mở Rộng: 4 ô số đo có viền đen dày 2px rõ nét */
               <div className="p-3 bg-white space-y-2.5">
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {/* Chiều cao: Xanh biển phấn viền 2px */}
-                  <div className="bg-sky-50 p-2.5 rounded-xl border-2 border-sky-400 text-sky-950 shadow-2xs">
-                    <span className="text-sky-800 text-[10px] block font-black uppercase tracking-wider">Chiều cao</span>
+                  {/* Chiều cao */}
+                  <div className="bg-sky-50 p-2.5 rounded-xl border-2 border-black text-sky-950 shadow-2xs">
+                    <span className="text-sky-900 text-[10px] block font-black uppercase tracking-wider">Chiều cao</span>
                     <span className="font-black text-sky-950 text-sm">{userBody.height_cm} cm</span>
                   </div>
-                  {/* Cân nặng: Tím thạch anh viền 2px */}
-                  <div className="bg-purple-50 p-2.5 rounded-xl border-2 border-purple-400 text-purple-950 shadow-2xs">
-                    <span className="text-purple-800 text-[10px] block font-black uppercase tracking-wider">Cân nặng</span>
+                  {/* Cân nặng */}
+                  <div className="bg-purple-50 p-2.5 rounded-xl border-2 border-black text-purple-950 shadow-2xs">
+                    <span className="text-purple-900 text-[10px] block font-black uppercase tracking-wider">Cân nặng</span>
                     <span className="font-black text-purple-950 text-sm">{userBody.weight_kg} kg</span>
                   </div>
-                  {/* Vòng ngực: Ngọc bích Emerald viền 2px */}
-                  <div className="bg-emerald-50 p-2.5 rounded-xl border-2 border-emerald-400 text-emerald-950 shadow-2xs">
-                    <span className="text-emerald-800 text-[10px] block font-black uppercase tracking-wider">Vòng ngực</span>
+                  {/* Vòng ngực */}
+                  <div className="bg-emerald-50 p-2.5 rounded-xl border-2 border-black text-emerald-950 shadow-2xs">
+                    <span className="text-emerald-900 text-[10px] block font-black uppercase tracking-wider">Vòng ngực</span>
                     <span className="font-black text-emerald-950 text-sm">{userBody.chest_cm} cm</span>
                   </div>
-                  {/* Vòng eo: Hổ phách Amber viền 2px */}
-                  <div className="bg-amber-50 p-2.5 rounded-xl border-2 border-amber-400 text-amber-950 shadow-2xs">
-                    <span className="text-amber-800 text-[10px] block font-black uppercase tracking-wider">Vòng eo</span>
+                  {/* Vòng eo */}
+                  <div className="bg-amber-50 p-2.5 rounded-xl border-2 border-black text-amber-950 shadow-2xs">
+                    <span className="text-amber-900 text-[10px] block font-black uppercase tracking-wider">Vòng eo</span>
                     <span className="font-black text-amber-950 text-sm">{userBody.waist_cm} cm</span>
                   </div>
                 </div>
 
                 {/* Lọc đồ vừa vặn */}
-                <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-900 font-bold border-t-2 border-slate-200">
+                <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-950 font-black border-t-2 border-black">
                   <input
                     type="checkbox"
                     checked={filterByMyFitOnly}
                     onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 border-2 border-slate-400 accent-blue-600 cursor-pointer"
+                    className="w-4 h-4 rounded text-blue-600 border-2 border-black accent-blue-600 cursor-pointer"
                   />
-                  <span className="font-bold text-xs text-slate-900">Chỉ hiện đồ vừa vặn (≥ 90%)</span>
+                  <span className="font-black text-xs text-slate-950">Chỉ hiện đồ vừa vặn (≥ 90%)</span>
                 </label>
               </div>
             )}
           </div>
 
-          {/* Module tính năng may đo & 3D (CÁC NÚT ĐỀU CÓ VIỀN 2PX DÀY RÕ NÉT) */}
+          {/* Module tính năng may đo & 3D (MỌI NÚT ĐỀU CÓ VIỀN ĐEN 2PX BAO NGOÀI RÕ NÉT) */}
           <div className="space-y-2">
-            <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-700 px-1 block">
+            <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-800 px-1 block">
               TÍNH NĂNG MAY ĐO & 3D
             </span>
 
@@ -480,15 +480,15 @@ export const FashionStoreHome: React.FC = () => {
                 const el = document.getElementById('catalog');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="w-full px-3 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-950 font-black text-xs flex items-center justify-between transition-colors border-2 border-blue-400 hover:border-blue-600 shadow-2xs cursor-pointer group"
+              className="w-full px-3 py-2.5 rounded-xl bg-blue-100 hover:bg-blue-200 text-slate-950 font-black text-xs flex items-center justify-between transition-all border-2 border-black shadow-xs cursor-pointer group"
             >
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs border border-black">
                   <ShoppingBag size={14} />
                 </div>
                 <span>Bộ Sưu Tập Thời Trang</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-200 text-blue-900 font-mono font-black border border-blue-300">
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-white text-slate-950 font-mono font-black border-2 border-black">
                 {MOCK_PRODUCTS.length}
               </span>
             </button>
@@ -496,41 +496,41 @@ export const FashionStoreHome: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsVellStudioOpen(true)}
-              className="w-full px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black text-xs flex items-center justify-between transition-colors border-2 border-purple-400 hover:border-purple-600 shadow-2xs cursor-pointer group"
+              className="w-full px-3 py-2.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-slate-950 font-black text-xs flex items-center justify-between transition-all border-2 border-black shadow-xs cursor-pointer group"
             >
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-purple-700 text-white flex items-center justify-center shadow-xs">
+                <div className="w-7 h-7 rounded-lg bg-purple-700 text-white flex items-center justify-center shadow-xs border border-black">
                   <Sparkles size={14} className="text-amber-300" />
                 </div>
                 <span>Phòng Thử Đồ Ảo 3D</span>
               </div>
-              <span className="text-[9px] px-2 py-0.5 rounded-md bg-purple-200 text-purple-900 font-mono font-black border border-purple-300">
+              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white text-slate-950 font-mono font-black border-2 border-black">
                 3D AI
               </span>
             </button>
 
             <a
               href="/dashboard"
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-xs flex items-center justify-between transition-colors border-2 border-slate-400 hover:border-slate-600 shadow-2xs cursor-pointer"
+              className="w-full px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-950 font-black text-xs flex items-center justify-between transition-all border-2 border-black shadow-xs cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-slate-700 text-white flex items-center justify-center shadow-xs">
+                <div className="w-7 h-7 rounded-lg bg-slate-800 text-white flex items-center justify-center shadow-xs border border-black">
                   <Ruler size={14} />
                 </div>
                 <span>Phòng Đo Nhân Trắc Học</span>
               </div>
-              <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 font-mono font-black border border-slate-300">
+              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white text-slate-950 font-mono font-black border-2 border-black">
                 ISO 8559
               </span>
             </a>
           </div>
 
-          {/* Đường kẻ phân cách rõ nét giữa Nhóm Tính Năng và Danh Mục */}
-          <div className="border-t-2 border-slate-300 my-3" />
+          {/* Đường kẻ phân cách rõ nét dày 2px giữa Nhóm Tính Năng và Danh Mục */}
+          <div className="border-t-2 border-black my-3" />
 
-          {/* Danh mục thời trang thuần Việt (MỖI NÚT ĐỀU CÓ VIỀN 2PX RIÊNG BIỆT) */}
+          {/* Danh mục thời trang thuần Việt (MỖI NÚT ĐỀU CÓ VIỀN ĐEN 2PX BAO NGOÀI RIÊNG BIỆT) */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-700 px-1 block">
+            <span className="text-[10px] font-mono font-black uppercase tracking-wider text-slate-800 px-1 block">
               DANH MỤC THỜI TRANG
             </span>
 
@@ -554,14 +554,14 @@ export const FashionStoreHome: React.FC = () => {
                   }}
                   className={`w-full px-3 py-2.5 rounded-xl text-xs font-black flex items-center justify-between transition-all cursor-pointer border-2 ${
                     isActive
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-md scale-[1.01]'
-                      : 'bg-white hover:bg-slate-100 text-slate-900 border-slate-300 hover:border-slate-800 shadow-2xs'
+                      ? 'bg-black text-white border-black shadow-md scale-[1.01]'
+                      : 'bg-white hover:bg-slate-100 text-slate-950 border-black shadow-2xs'
                   }`}
                 >
                   <span>{cat.label}</span>
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-black border ${
-                      isActive ? 'bg-white/20 text-white border-white/30' : 'bg-slate-100 text-slate-700 border-slate-300'
+                      isActive ? 'bg-white/20 text-white border-white/30' : 'bg-slate-100 text-slate-950 border-black'
                     }`}
                   >
                     {cat.count}
@@ -573,20 +573,28 @@ export const FashionStoreHome: React.FC = () => {
 
         </div>
 
-        {/* Chân thanh điều hướng: Hồ Sơ Người Dùng Phân Tách Màu Rõ Rệt, Khung Viền Đậm Nét */}
-        <div className="p-3.5 border-t-2 border-slate-800 bg-slate-200 flex-shrink-0 relative">
+        {/* Chân thanh điều hướng: Hồ Sơ Người Dùng Phân Tách Màu Rõ Rệt, Khung Viền Đen 2.5px Đậm Nét */}
+        <div className="p-3.5 border-t-[2.5px] border-black bg-slate-200 flex-shrink-0 relative">
           {isAuthenticated ? (
             <div className="relative">
-              {/* User Pill Button: Viền đen 2px rõ nét, không bị hòa màu với sidebar trắng */}
+              {/* User Pill Button: Viền đen 2px rõ nét, hiển thị avatar thật nếu có */}
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="w-full p-2.5 rounded-xl bg-white border-2 border-slate-900 hover:border-blue-600 shadow-sm hover:shadow-md flex items-center justify-between transition-all cursor-pointer group"
+                className="w-full p-2.5 rounded-xl bg-white border-2 border-black hover:border-blue-600 shadow-sm hover:shadow-md flex items-center justify-between transition-all cursor-pointer group"
                 title="Bấm để mở menu quản lý tài khoản & đơn hàng"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs border border-blue-400 group-hover:scale-105 transition-transform">
-                    {(currentUser?.full_name || 'U').charAt(0).toUpperCase()}
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs border-2 border-black overflow-hidden group-hover:scale-105 transition-transform">
+                    {currentUser?.avatar_url ? (
+                      <img
+                        src={currentUser.avatar_url}
+                        alt={currentUser.full_name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      (currentUser?.full_name || 'U').charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="text-left min-w-0">
                     <span className="font-black text-xs text-slate-950 block truncate leading-tight group-hover:text-blue-700">
@@ -604,13 +612,13 @@ export const FashionStoreHome: React.FC = () => {
 
                 <div className="flex items-center gap-1.5 shrink-0">
                   {userOrders.length > 0 && (
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-mono font-black flex items-center justify-center shadow-xs">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-mono font-black flex items-center justify-center shadow-xs border border-black">
                       {userOrders.length}
                     </span>
                   )}
                   <ChevronUp
                     size={16}
-                    className={`text-slate-800 transition-transform ${isUserMenuOpen ? 'rotate-180 text-blue-600' : ''}`}
+                    className={`text-slate-900 transition-transform ${isUserMenuOpen ? 'rotate-180 text-blue-600' : ''}`}
                   />
                 </div>
               </button>
@@ -624,9 +632,9 @@ export const FashionStoreHome: React.FC = () => {
                     onClick={() => setIsUserMenuOpen(false)}
                   />
 
-                  <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-white rounded-2xl border-2 border-slate-900 shadow-2xl z-50 animate-in slide-in-from-bottom-2 duration-150 space-y-1">
+                  <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-white rounded-2xl border-2 border-black shadow-2xl z-50 animate-in slide-in-from-bottom-2 duration-150 space-y-1">
                     {/* Header thông tin trong popover */}
-                    <div className="px-2.5 py-1.5 border-b-2 border-slate-200 flex items-center justify-between">
+                    <div className="px-2.5 py-1.5 border-b-2 border-black flex items-center justify-between">
                       <div className="min-w-0">
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
                           Tài Khoản FitVision 3D
@@ -652,7 +660,7 @@ export const FashionStoreHome: React.FC = () => {
                         setProfileModalTab('profile');
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-slate-100 text-xs font-black text-slate-900 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-slate-300"
+                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-slate-100 text-xs font-black text-slate-900 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-black"
                     >
                       <div className="flex items-center gap-2">
                         <UserIcon size={14} className="text-blue-600" />
@@ -669,13 +677,13 @@ export const FashionStoreHome: React.FC = () => {
                         setProfileModalTab('orders');
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-blue-50 text-xs font-black text-blue-900 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-blue-300"
+                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-blue-50 text-xs font-black text-blue-900 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-blue-400"
                     >
                       <div className="flex items-center gap-2">
                         <Package size={14} className="text-blue-700" />
                         <span>Đơn hàng của tôi</span>
                       </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-black bg-blue-100 text-blue-800 border border-blue-300">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-black bg-blue-100 text-blue-800 border-2 border-black">
                         {userOrders.length}
                       </span>
                     </button>
@@ -688,7 +696,7 @@ export const FashionStoreHome: React.FC = () => {
                         setProfileModalTab('measurements');
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-purple-50 text-xs font-black text-purple-900 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-purple-300"
+                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-purple-50 text-xs font-black text-purple-900 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-purple-400"
                     >
                       <div className="flex items-center gap-2">
                         <Ruler size={14} className="text-purple-600" />
@@ -701,7 +709,7 @@ export const FashionStoreHome: React.FC = () => {
                     {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
                       <a
                         href="/tailor"
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-emerald-50 hover:bg-emerald-100 text-xs font-black text-emerald-950 flex items-center justify-between transition-colors cursor-pointer border-2 border-emerald-300"
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-emerald-50 hover:bg-emerald-100 text-xs font-black text-emerald-950 flex items-center justify-between transition-colors cursor-pointer border-2 border-emerald-400"
                       >
                         <div className="flex items-center gap-2">
                           <Store size={14} className="text-emerald-700" />
@@ -716,7 +724,7 @@ export const FashionStoreHome: React.FC = () => {
                           setIsUserMenuOpen(false);
                           openStatusModal();
                         }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-50 hover:bg-amber-100 text-xs font-black text-amber-900 flex items-center justify-between transition-colors cursor-pointer border-2 border-amber-300"
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-50 hover:bg-amber-100 text-xs font-black text-amber-900 flex items-center justify-between transition-colors cursor-pointer border-2 border-amber-400"
                       >
                         <div className="flex items-center gap-2">
                           <Clock size={14} className="text-amber-600 animate-pulse" />
@@ -732,7 +740,7 @@ export const FashionStoreHome: React.FC = () => {
                           setProfileModalTab('merchant');
                           setIsProfileModalOpen(true);
                         }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-500 hover:bg-amber-600 text-white text-xs font-black flex items-center justify-between transition-colors cursor-pointer shadow-sm border-2 border-amber-400"
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-500 hover:bg-amber-600 text-white text-xs font-black flex items-center justify-between transition-colors cursor-pointer shadow-sm border-2 border-black"
                       >
                         <div className="flex items-center gap-2">
                           <Store size={14} />
@@ -743,14 +751,14 @@ export const FashionStoreHome: React.FC = () => {
                     )}
 
                     {/* 5. Đăng Xuất Tài Khoản */}
-                    <div className="border-t-2 border-slate-200 pt-1">
+                    <div className="border-t-2 border-black pt-1">
                       <button
                         type="button"
                         onClick={() => {
                           setIsUserMenuOpen(false);
                           signOut();
                         }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-rose-50 text-xs font-black text-rose-600 flex items-center gap-2 transition-colors cursor-pointer border border-transparent hover:border-rose-300"
+                        className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-rose-50 text-xs font-black text-rose-600 flex items-center gap-2 transition-colors cursor-pointer border border-transparent hover:border-rose-400"
                       >
                         <LogOut size={14} />
                         <span>Đăng xuất tài khoản</span>
@@ -766,7 +774,7 @@ export const FashionStoreHome: React.FC = () => {
               <button
                 type="button"
                 onClick={openSignIn}
-                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-black shadow-sm border-2 border-blue-500 transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-black shadow-sm border-2 border-black transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <LogIn size={15} strokeWidth={2.5} />
                 <span>Đăng Nhập / Đăng Ký</span>
@@ -774,8 +782,8 @@ export const FashionStoreHome: React.FC = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 mt-1.5 border-t-2 border-slate-300">
-            <span className="text-[10px] text-slate-700 font-black">Ngôn ngữ:</span>
+          <div className="flex items-center justify-between pt-2 mt-1.5 border-t-2 border-black">
+            <span className="text-[10px] text-slate-950 font-black">Ngôn ngữ:</span>
             <LanguageSwitcher compact variant="light" />
           </div>
         </div>
@@ -831,25 +839,25 @@ export const FashionStoreHome: React.FC = () => {
         </header>
 
         {/* Desktop Top Utility Bar (Search & Quick Action Triggers) - Viền phân cách rõ nét, không bị chìm */}
-        <div className="hidden lg:flex items-center justify-between px-6 py-3 border-b-2 border-slate-300 bg-white shadow-xs sticky top-0 z-20">
-          {/* Thanh tìm kiếm đậm màu rõ nét, viền sắc nét theo chuẩn Pro UI */}
-          <div className="relative w-full max-w-md xl:max-w-lg group">
-            <div className="flex items-center w-full h-11 px-4 rounded-2xl bg-slate-100 border-2 border-slate-400 hover:border-slate-500 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 shadow-2xs transition-all">
-              <div className="mr-2.5 flex items-center justify-center pointer-events-none text-slate-600 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
-                <Search size={18} strokeWidth={2.4} />
+        <div className="hidden lg:flex items-center justify-between px-6 py-3 border-b-2 border-black bg-white shadow-xs sticky top-0 z-20">
+          {/* Thanh tìm kiếm đậm màu rõ nét, viền sắc nét theo chuẩn Pro UI - ĐÃ THU NGẮN LẠI KHÔNG CHẠM NÚT */}
+          <div className="relative w-56 sm:w-64 xl:w-72 shrink-0 group">
+            <div className="flex items-center w-full h-11 px-3.5 rounded-2xl bg-slate-100 border-2 border-black hover:border-black focus-within:border-black focus-within:bg-white focus-within:ring-2 focus-within:ring-black/10 shadow-2xs transition-all">
+              <div className="mr-2.5 flex items-center justify-center pointer-events-none text-slate-900 group-focus-within:text-black transition-colors flex-shrink-0">
+                <Search size={17} strokeWidth={2.6} />
               </div>
               <input
                 type="text"
-                placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo sơ mi, blazer, quần tây, đầm lụa...')}
+                placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-extrabold text-slate-900 placeholder:text-slate-500 placeholder:font-medium focus:outline-none focus:ring-0 pr-2"
+                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-black text-slate-950 placeholder:text-slate-600 placeholder:font-bold focus:outline-none focus:ring-0 pr-1"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="p-1 rounded-full text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer transition-colors"
+                  className="p-1 rounded-full text-slate-600 hover:text-black hover:bg-slate-200 cursor-pointer transition-colors"
                 >
                   <X size={14} strokeWidth={2.5} />
                 </button>
@@ -857,12 +865,12 @@ export const FashionStoreHome: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Action Triggers & Shopping Cart */}
+          {/* Quick Action Triggers & Shopping Cart - NÚT BẤM VIỀN ĐEN 2PX ĐẬM NÉT RÕ RÀNG */}
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setIsVellStudioOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 border-2 border-purple-200 text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 border-2 border-black text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs"
             >
               <Sparkles size={15} className="text-purple-600" />
               <span>Phòng Thử Đồ Ảo 3D</span>
@@ -870,7 +878,7 @@ export const FashionStoreHome: React.FC = () => {
 
             <a
               href="/dashboard"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-950 border-2 border-blue-200 text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-950 border-2 border-black text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-2xs"
             >
               <Camera size={15} className="text-blue-600" />
               <span>Quét Đo AI 3D (ISO)</span>
@@ -882,17 +890,17 @@ export const FashionStoreHome: React.FC = () => {
                 setProfileModalTab('orders');
                 setIsProfileModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 border-2 border-slate-300 text-xs font-black transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-950 border-2 border-black text-xs font-black transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
               title="Xem lịch sử đơn hàng đã đặt"
             >
-              <Package size={15} className="text-slate-700" />
+              <Package size={15} className="text-slate-800" />
               <span>Đơn Hàng</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center gap-2 px-4.5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-black shadow-sm transition-all cursor-pointer border-2 border-slate-900 active:scale-95"
+              className="relative flex items-center gap-2 px-4.5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-black shadow-sm transition-all cursor-pointer border-2 border-black active:scale-95"
             >
               <ShoppingBag size={15} />
               <span>Giỏ Hàng</span>
@@ -906,13 +914,13 @@ export const FashionStoreHome: React.FC = () => {
         </div>
 
         {/* ── CORE HERO BANNER (100% AUTHENTIC FITVISION 3D - NO FILLER TEXT OR UNRELATED MODELS) ── */}
-        <section className="relative overflow-hidden bg-white border-b-2 border-stone-200">
+        <section className="relative overflow-hidden bg-white border-b-2 border-black">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-14">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               
               {/* Left Column: Value Proposition & Action Buttons */}
               <div className="lg:col-span-7 space-y-5 text-left">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold shadow-2xs">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-900 border-2 border-black text-xs font-black shadow-2xs">
                   <Sparkles size={13} className="text-blue-600" />
                   <span>NỀN TẢNG THỜI TRANG MAY ĐO & ĐO SIZE 3D THẾ HỆ MỚI</span>
                 </div>
@@ -922,16 +930,16 @@ export const FashionStoreHome: React.FC = () => {
                   <span className="text-blue-600">{t('ecommerce.hero.titleHighlight', 'Tuyệt Đối')}</span> {t('ecommerce.hero.title2', 'Từng Centimet.')}
                 </h1>
 
-                <p className="text-stone-600 text-sm sm:text-base leading-relaxed max-w-xl font-medium">
+                <p className="text-stone-700 text-sm sm:text-base leading-relaxed max-w-xl font-bold">
                   {t('ecommerce.hero.desc', 'Không còn nỗi lo chọn nhầm size hay phiền phức đổi trả. Thuật toán Trí Tuệ Nhân Tạo tự động phân tích vóc dáng và so khớp độ cử động (Ease Allowance) với từng đường kim mũi chỉ của nhà may.')}
                 </p>
 
-                {/* Nút hành động tương phản cao & rõ nét */}
+                {/* Nút hành động tương phản cao & viền đen 2px rõ nét */}
                 <div className="flex items-center gap-3 flex-wrap pt-2">
                   <button
                     type="button"
                     onClick={() => setIsVellStudioOpen(true)}
-                    className="px-5 py-3 rounded-xl bg-stone-950 hover:bg-black active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-xl flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+                    className="px-5 py-3 rounded-xl bg-stone-950 hover:bg-black active:scale-95 text-white font-black text-xs sm:text-sm shadow-xl flex items-center gap-2 transition-all cursor-pointer hover:scale-105 border-2 border-black"
                   >
                     <Sparkles size={16} className="text-yellow-400" />
                     <span>Thử Đồ Ảo 3D (Phòng Thử AI)</span>
@@ -939,7 +947,7 @@ export const FashionStoreHome: React.FC = () => {
 
                   <a
                     href="/dashboard"
-                    className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105"
+                    className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 border-2 border-black"
                   >
                     <Camera size={15} />
                     <span>Quét Vóc Dáng AI 30s</span>
@@ -952,7 +960,7 @@ export const FashionStoreHome: React.FC = () => {
                         setProfileModalTab('merchant');
                         setIsProfileModalOpen(true);
                       }}
-                      className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+                      className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs sm:text-sm shadow-md flex items-center gap-2 transition-all cursor-pointer hover:scale-105 border-2 border-black"
                     >
                       <Store size={16} className="text-white" />
                       <span>Đăng Ký Gian Hàng May Đo</span>
@@ -964,9 +972,9 @@ export const FashionStoreHome: React.FC = () => {
                         const el = document.getElementById('catalog');
                         if (el) el.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="px-5 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-900 font-extrabold text-xs sm:text-sm border-2 border-stone-300 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+                      className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-950 font-black text-xs sm:text-sm border-2 border-black flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
                     >
-                      <ShoppingBag size={16} className="text-stone-700" />
+                      <ShoppingBag size={16} className="text-slate-900" />
                       <span>Khám Phá Bộ Sưu Tập</span>
                     </button>
                   )}
@@ -1916,6 +1924,7 @@ export const FashionStoreHome: React.FC = () => {
         userBody={userBody}
         userRole={userRole}
         userName={currentUser?.full_name || currentUser?.email || 'Thắng Lê'}
+        avatarUrl={currentUser?.avatar_url || undefined}
         onOpenVellStudio={() => setIsVellStudioOpen(true)}
         onOpenMaisonRunway={() => setIsVellStudioOpen(true)}
         onOpenThermalSlip={() => setIsThermalSlipOpen(true)}
