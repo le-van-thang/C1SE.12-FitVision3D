@@ -172,15 +172,15 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           </div>
         </div>
 
-        {/* Tab Selector - Viền sắc nét, tương phản cao */}
-        <div className="flex border-b-2 border-slate-200 bg-slate-100 px-3 pt-2 gap-1 flex-shrink-0 overflow-x-auto scrollbar-none">
+        {/* Tab Selector - Viền sắc nét, từng tab là một nút độc lập có border 2px */}
+        <div className="flex border-b-2 border-slate-300 bg-slate-100 p-2 gap-2 flex-shrink-0 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-2.5 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-black rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
               activeTab === 'profile'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-2xs'
-                : 'border-transparent text-slate-700 hover:text-slate-950'
+                ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
+                : 'border-slate-300 bg-white text-slate-800 hover:border-slate-800 hover:bg-slate-50'
             }`}
           >
             <User size={14} />
@@ -190,10 +190,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('measurements')}
-            className={`flex-1 py-2.5 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-black rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
               activeTab === 'measurements'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-2xs'
-                : 'border-transparent text-slate-700 hover:text-slate-950'
+                ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
+                : 'border-slate-300 bg-white text-slate-800 hover:border-slate-800 hover:bg-slate-50'
             }`}
           >
             <Ruler size={14} />
@@ -203,10 +203,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('orders')}
-            className={`flex-1 py-2.5 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-black rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
               activeTab === 'orders'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-2xs'
-                : 'border-transparent text-slate-700 hover:text-slate-950'
+                ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
+                : 'border-slate-300 bg-white text-slate-800 hover:border-slate-800 hover:bg-slate-50'
             }`}
           >
             <ShoppingBag size={14} />
@@ -216,10 +216,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('merchant')}
-            className={`flex-1 py-2.5 px-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-black rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
               activeTab === 'merchant'
-                ? 'border-amber-600 text-amber-900 bg-white rounded-t-xl shadow-2xs'
-                : 'border-transparent text-slate-700 hover:text-slate-950'
+                ? 'border-amber-600 bg-amber-600 text-white shadow-xs'
+                : 'border-slate-300 bg-white text-slate-800 hover:border-slate-800 hover:bg-slate-50'
             }`}
           >
             <Store size={14} />
@@ -243,7 +243,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               )}
 
               {/* Header Box thông tin kèm nút bật/tắt Chỉnh Sửa */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between pb-1 border-b-2 border-slate-200">
                 <div>
                   <h4 className="font-black text-sm text-slate-900 uppercase tracking-wide">
                     Hồ Sơ Khách Hàng FitVision 3D
@@ -257,16 +257,16 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border-2 border-blue-300 text-xs font-black transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-500 text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-102 active:scale-98"
                   >
-                    <Edit3 size={13} className="text-blue-700" />
-                    <span>Chỉnh Sửa</span>
+                    <Edit3 size={14} />
+                    <span>Chỉnh Sửa Hồ Sơ</span>
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border-2 border-slate-300 text-xs font-bold transition-all cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 border-2 border-slate-400 text-xs font-bold transition-all cursor-pointer"
                   >
                     Hủy Bỏ
                   </button>
@@ -794,24 +794,24 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
 
         </div>
 
-        {/* Footer Logout Action */}
-        <div className="p-4 bg-stone-100 border-t border-stone-200 flex items-center justify-between flex-shrink-0">
+        {/* Footer Logout Action - Nút có viền 2px dày, ngăn cách rõ ràng */}
+        <div className="p-4 bg-slate-100 border-t-2 border-slate-300 flex items-center justify-between flex-shrink-0">
           <button
             type="button"
             onClick={() => {
               signOut();
               onClose();
             }}
-            className="px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-stone-300 hover:border-rose-300 font-extrabold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+            className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300 hover:border-rose-400 font-black text-xs flex items-center gap-2 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
           >
-            <LogOut size={14} />
+            <LogOut size={15} />
             <span>Đăng Xuất Tài Khoản</span>
           </button>
 
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-black text-white font-extrabold text-xs transition-colors cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-black text-xs border-2 border-slate-900 transition-all cursor-pointer shadow-xs hover:scale-102 active:scale-98"
           >
             Đóng
           </button>
