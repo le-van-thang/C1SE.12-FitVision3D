@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   SlidersHorizontal,
 } from 'lucide-react';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { UserBodyProfile } from './types';
 
 interface FashionSidebarNavProps {
@@ -86,8 +87,8 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
       <div className="relative w-80 max-w-[85vw] bg-white text-stone-900 h-full shadow-2xl flex flex-col z-10 border-r-2 border-black animate-in slide-in-from-left duration-300">
         
         {/* Top Header & Brand */}
-        <div className="h-16 px-5 border-b-2 border-black flex items-center justify-between flex-shrink-0 bg-stone-50">
-          <div className="flex items-center gap-2.5">
+        <div className="h-16 px-4 border-b-2 border-black flex items-center justify-between flex-shrink-0 bg-stone-50">
+          <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shadow-sm border border-black">
               <Scissors size={16} />
             </div>
@@ -101,13 +102,16 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-stone-200 hover:bg-stone-300 text-stone-700 flex items-center justify-center cursor-pointer transition-colors border border-black"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher compact variant="light" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-stone-200 hover:bg-stone-300 text-stone-700 flex items-center justify-center cursor-pointer transition-colors border border-black"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Navigation Body */}

@@ -242,7 +242,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       ? '✂️ Đối Tác Nhà May B2B'
                       : isPendingStore
                       ? '⏳ Chờ Admin Duyệt Mở Shop'
-                      : '👤 Khách Hàng FitVision 3D'}
+                      : '👤 Khách Hàng'}
                   </span>
                 </div>
               </div>
@@ -388,7 +388,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
               <div className="flex items-center justify-between pb-1 border-b-2 border-slate-200">
                 <div>
                   <h4 className="font-black text-sm text-slate-900 uppercase tracking-wide">
-                    Hồ Sơ Khách Hàng FitVision 3D
+                    Hồ Sơ Khách Hàng
                   </h4>
                   <p className="text-[11px] text-slate-600 font-medium">
                     {isEditing ? 'Nhập thông tin mới và nhấn Lưu để cập nhật' : 'Thông tin dùng để giao nhận trang phục may đo & liên hệ'}

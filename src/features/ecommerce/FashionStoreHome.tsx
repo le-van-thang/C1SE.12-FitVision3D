@@ -363,20 +363,23 @@ export const FashionStoreHome: React.FC = () => {
       {/* ── DESKTOP PERMANENT VERTICAL SIDEBAR (THANH DỌC TỪ TRÊN XUỐNG) ── */}
       <aside className="hidden lg:flex w-64 xl:w-72 shrink-0 border-r-2 border-stone-800 bg-white flex-col justify-between sticky top-0 h-screen select-none z-30 shadow-xs overflow-hidden">
         {/* Brand Header */}
-        <div className="h-16 px-5 border-b-2 border-stone-800 flex items-center justify-between flex-shrink-0 bg-stone-50">
-          <a href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+        <div className="h-16 px-4 border-b-2 border-black flex items-center justify-between flex-shrink-0 bg-stone-50">
+          <a href="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm border border-black">
               <Scissors size={18} strokeWidth={2} />
             </div>
             <div className="flex flex-col">
               <span className="font-black text-base tracking-tight text-stone-900 leading-none">
                 FitVision <span className="text-blue-600">3D</span>
               </span>
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-stone-400 mt-0.5">
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-stone-500 mt-0.5">
                 Atelier & May Đo 3D
               </span>
             </div>
           </a>
+
+          {/* Nút đổi ngôn ngữ VI/EN tinh gọn đặt góc trên bên phải header */}
+          <LanguageSwitcher compact variant="light" />
         </div>
 
         {/* Scrollable Navigation Body */}
@@ -467,6 +470,9 @@ export const FashionStoreHome: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Đường ngăn cách cực đậm 2.5px giữa Hồ Sơ Vóc Dáng và Tính Năng May Đo 3D */}
+          <div className="border-t-[2.5px] border-black my-3.5" />
 
           {/* Module tính năng may đo & 3D (MỌI NÚT ĐỀU CÓ VIỀN ĐEN 2PX BAO NGOÀI RÕ NÉT) */}
           <div className="space-y-2">
@@ -598,14 +604,14 @@ export const FashionStoreHome: React.FC = () => {
                   </div>
                   <div className="text-left min-w-0">
                     <span className="font-black text-xs text-slate-950 block truncate leading-tight group-hover:text-blue-700">
-                      {currentUser?.full_name || 'Khách Hàng May Đo'}
+                      {currentUser?.full_name || 'Khách Hàng'}
                     </span>
                     <span className="text-[10px] text-blue-700 font-black block truncate">
                       {userRole === 'store' || currentStore?.status === 'APPROVED'
-                        ? '✂️ Chủ Shop May Đo'
+                        ? '✂️ Chủ Shop'
                         : currentStore?.status === 'PENDING'
-                        ? '⏳ Chờ Duyệt Mở Shop'
-                        : '👤 Khách Hàng FitVision'}
+                        ? '⏳ Chờ Duyệt Shop'
+                        : '👤 Khách Hàng'}
                     </span>
                   </div>
                 </div>
@@ -636,8 +642,8 @@ export const FashionStoreHome: React.FC = () => {
                     {/* Header thông tin trong popover */}
                     <div className="px-2.5 py-1.5 border-b-2 border-black flex items-center justify-between">
                       <div className="min-w-0">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                          Tài Khoản FitVision 3D
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider block">
+                          Tài Khoản Cá Nhân
                         </span>
                         <span className="text-xs font-mono font-black text-slate-900 truncate block">
                           {currentUser?.email}
@@ -781,11 +787,6 @@ export const FashionStoreHome: React.FC = () => {
               </button>
             </div>
           )}
-
-          <div className="flex items-center justify-between pt-2 mt-1.5 border-t-2 border-black">
-            <span className="text-[10px] text-slate-950 font-black">Ngôn ngữ:</span>
-            <LanguageSwitcher compact variant="light" />
-          </div>
         </div>
       </aside>
 
@@ -840,11 +841,11 @@ export const FashionStoreHome: React.FC = () => {
 
         {/* Desktop Top Utility Bar (Search & Quick Action Triggers) - Viền phân cách rõ nét, không bị chìm */}
         <div className="hidden lg:flex items-center justify-between px-6 py-3 border-b-2 border-black bg-white shadow-xs sticky top-0 z-20">
-          {/* Thanh tìm kiếm đậm màu rõ nét, viền sắc nét theo chuẩn Pro UI - ĐÃ THU NGẮN LẠI KHÔNG CHẠM NÚT */}
-          <div className="relative w-56 sm:w-64 xl:w-72 shrink-0 group">
-            <div className="flex items-center w-full h-11 px-3.5 rounded-2xl bg-slate-100 border-2 border-black hover:border-black focus-within:border-black focus-within:bg-white focus-within:ring-2 focus-within:ring-black/10 shadow-2xs transition-all">
+          {/* Thanh tìm kiếm vừa vặn, viền sắc nét, khi bấm vào ĐẬM HƠN RÕ RỆT */}
+          <div className="relative w-72 sm:w-80 lg:w-[360px] xl:w-[410px] shrink-0 group">
+            <div className="flex items-center w-full h-11 px-3.5 rounded-2xl bg-slate-100 border-2 border-black hover:border-black focus-within:border-[2.5px] focus-within:border-black focus-within:bg-white focus-within:ring-2 focus-within:ring-black focus-within:shadow-md shadow-2xs transition-all">
               <div className="mr-2.5 flex items-center justify-center pointer-events-none text-slate-900 group-focus-within:text-black transition-colors flex-shrink-0">
-                <Search size={17} strokeWidth={2.6} />
+                <Search size={18} strokeWidth={2.6} />
               </div>
               <input
                 type="text"
