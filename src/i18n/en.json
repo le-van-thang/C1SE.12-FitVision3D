@@ -920,7 +920,9 @@
       "sidebarTitle": "Fashion Categories",
       "smartFilterTitle": "Anthropometric Filters",
       "geminiCardTitle": "Gemini 2.5 AI Stylist",
-      "geminiCardDesc": "Wondering about your size? Click the chatbot in the bottom right corner for instant AI fit advice!"
+      "geminiCardDesc": "Wondering about your size? Click the chatbot in the bottom right corner for instant AI fit advice!",
+      "showingResults": "Showing {count} garments",
+      "searchingFor": "Keyword:"
     },
     "sidebar": {
       "categories": "Product Categories",
@@ -959,7 +961,10 @@
       "menuSignOut": "Sign Out",
       "signInSignUp": "Sign In / Sign Up",
       "verticalNav": "Vertical Navigation",
-      "userPillTooltip": "Click to open account & orders menu"
+      "userPillTooltip": "Click to open account & orders menu",
+      "guestBodyProfileTitle": "DEMO BODY STATS (UNSAVED)",
+      "guestSyncHint": "Sign in to permanently save your 3D measurements",
+      "guestAuthHint": "Save 3D body profile & track bespoke orders"
     },
     "chatbot": {
       "pillTooltip": "Ask Gemini AI: Size & styling advice",
@@ -1057,7 +1062,9 @@
       "virtualRoom": "3D Virtual Fitting",
       "aiScan": "AI 3D Scan (ISO)",
       "orders": "Orders",
-      "cart": "Cart"
+      "cart": "Cart",
+      "login": "Sign In",
+      "searchBtn": "Search"
     },
     "profileModal": {
       "roleStore": "✂️ B2B Tailor Partner",

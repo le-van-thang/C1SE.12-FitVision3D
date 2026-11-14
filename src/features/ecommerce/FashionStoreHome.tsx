@@ -385,17 +385,25 @@ export const FashionStoreHome: React.FC = () => {
         {/* Scrollable Navigation Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           
-          {/* Hồ sơ vóc dáng 3D (Khung viền 1px thanh lịch, rõ ràng chuẩn web hiện đại) */}
+          {/* Hồ sơ vóc dáng 3D: Phân biệt rõ trạng thái Đã đăng nhập (Đã đồng bộ) vs Chưa đăng nhập (Số đo mẫu) */}
           <div className="rounded-2xl border border-slate-300 shadow-2xs overflow-hidden bg-white text-stone-900">
             {/* Header thanh lịch, nút thu gọn/mở rộng */}
             <div className="bg-slate-100/90 border-b border-slate-200 px-3.5 py-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 animate-pulse" />
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
-                  {t('ecommerce.sidebar.bodyProfileTitle', 'HỒ SƠ VÓC DÁNG 3D')}
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    isAuthenticated
+                      ? 'bg-emerald-500 ring-2 ring-emerald-200 animate-pulse'
+                      : 'bg-amber-500 ring-2 ring-amber-200'
+                  }`}
+                />
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 truncate">
+                  {isAuthenticated
+                    ? t('ecommerce.sidebar.bodyProfileTitle', 'HỒ SƠ VÓC DÁNG 3D')
+                    : t('ecommerce.sidebar.guestBodyProfileTitle', 'SỐ ĐO MẪU (CHƯA LƯU)')}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsBiometricModalOpen(true)}
@@ -467,6 +475,18 @@ export const FashionStoreHome: React.FC = () => {
                   />
                   <span className="font-semibold text-xs text-slate-800">{t('ecommerce.sidebar.onlyFitting', 'Chỉ hiện đồ vừa vặn (≥ 90%)')}</span>
                 </label>
+
+                {/* Nhắc nhở đăng nhập để lưu số đo nếu là khách vãng lai */}
+                {!isAuthenticated && (
+                  <button
+                    type="button"
+                    onClick={openSignIn}
+                    className="w-full py-1.5 px-2.5 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[11px] font-semibold text-amber-900 flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <span className="truncate">{t('ecommerce.sidebar.guestSyncHint', 'Đăng nhập để lưu cố định số đo 3D của bạn')}</span>
+                    <ChevronRight size={12} className="shrink-0 text-amber-700" />
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -775,8 +795,10 @@ export const FashionStoreHome: React.FC = () => {
               )}
             </div>
           ) : (
-            <div>
-              {/* Duy nhất 1 nút Đăng Nhập gọn gàng khi chưa đăng nhập */}
+            <div className="space-y-2">
+              <p className="text-[11px] text-slate-600 font-medium text-center px-1 leading-snug">
+                {t('ecommerce.sidebar.guestAuthHint', 'Lưu hồ sơ vóc dáng 3D & quản lý đơn may đo')}
+              </p>
               <button
                 type="button"
                 onClick={openSignIn}
@@ -839,39 +861,52 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         </header>
 
-        {/* Desktop Top Utility Bar (Search & Quick Action Triggers) */}
-        <div className="hidden lg:flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white sticky top-0 z-20">
-          {/* Thanh tìm kiếm vừa vặn, viền mảnh tinh tế, khi bấm vào nổi bật viền xanh */}
-          <div className="relative w-72 sm:w-80 lg:w-[360px] xl:w-[410px] shrink-0 group">
-            <div className="flex items-center w-full h-10.5 px-3.5 rounded-xl bg-slate-50 border border-slate-300 hover:border-slate-400 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-3 focus-within:ring-blue-500/15 transition-all">
-              <div className="mr-2.5 flex items-center justify-center pointer-events-none text-slate-500 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
-                <Search size={17} strokeWidth={2.2} />
+        {/* Desktop Top Utility Bar (Thanh Tìm Kiếm Duy Nhất + Nút Chức Năng Theo Trạng Thái Đăng Nhập) */}
+        <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-3 border-b border-slate-200 bg-white/95 backdrop-blur-md sticky top-0 z-20">
+          {/* Thanh tìm kiếm chính: Chiều cao chuẩn h-11 (44px) cân đối với các nút bên phải, có nút bấm Tìm rõ ràng */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const el = document.getElementById('catalog');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="relative flex-1 max-w-md xl:max-w-lg group"
+          >
+            <div className="flex items-center w-full h-11 pl-3.5 pr-1.5 rounded-xl bg-slate-50 border border-slate-300 hover:border-slate-400 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-3 focus-within:ring-blue-500/15 transition-all">
+              <div className="mr-2.5 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
+                <Search size={18} strokeWidth={2.2} />
               </div>
               <input
                 type="text"
                 placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 pr-1"
+                className="w-full h-full bg-transparent border-0 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 pr-2"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors"
+                  className="p-1 mr-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors"
                 >
                   <X size={14} strokeWidth={2} />
                 </button>
               )}
+              <button
+                type="submit"
+                className="h-8 px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1 shadow-2xs"
+              >
+                <span>{t('ecommerce.topbar.searchBtn', 'Tìm')}</span>
+              </button>
             </div>
-          </div>
+          </form>
 
-          {/* Quick Action Triggers & Shopping Cart - Viền 1px hài hòa theo tông màu */}
-          <div className="flex items-center gap-2.5">
+          {/* Quick Action Triggers & Shopping Cart - Hiển thị thông minh theo trạng thái Chưa đăng nhập / Đã đăng nhập */}
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
               onClick={() => setIsVellStudioOpen(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 hover:border-purple-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
+              className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 hover:border-purple-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
             >
               <Sparkles size={15} className="text-purple-600" />
               <span>{t('ecommerce.topbar.virtualRoom', 'Phòng Thử Đồ Ảo 3D')}</span>
@@ -879,29 +914,46 @@ export const FashionStoreHome: React.FC = () => {
 
             <a
               href="/dashboard"
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 hover:border-blue-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
+              className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 hover:border-blue-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
             >
               <Camera size={15} className="text-blue-600" />
               <span>{t('ecommerce.topbar.aiScan', 'Quét Đo AI 3D (ISO)')}</span>
             </a>
 
-            <button
-              type="button"
-              onClick={() => {
-                setProfileModalTab('orders');
-                setIsProfileModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 hover:border-slate-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
-              title={t('ecommerce.topbar.orders', 'Đơn Hàng')}
-            >
-              <Package size={15} className="text-slate-600" />
-              <span>{t('ecommerce.topbar.orders', 'Đơn Hàng')}</span>
-            </button>
+            {/* Khi ĐÃ ĐĂNG NHẬP: Hiện nút Đơn Hàng (kèm số lượng đơn). Khi CHƯA ĐĂNG NHẬP: Hiện nút Đăng Nhập */}
+            {isAuthenticated ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileModalTab('orders');
+                  setIsProfileModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 hover:border-slate-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
+                title={t('ecommerce.topbar.orders', 'Đơn Hàng')}
+              >
+                <Package size={15} className="text-slate-600" />
+                <span>{t('ecommerce.topbar.orders', 'Đơn Hàng')}</span>
+                {userOrders.length > 0 && (
+                  <span className="w-4.5 h-4.5 px-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-mono font-bold flex items-center justify-center">
+                    {userOrders.length}
+                  </span>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openSignIn}
+                className="flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-blue-600 border border-blue-200 hover:border-blue-400 text-xs font-bold transition-all cursor-pointer active:scale-95"
+              >
+                <LogIn size={15} />
+                <span>{t('ecommerce.topbar.login', 'Đăng Nhập')}</span>
+              </button>
+            )}
 
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all cursor-pointer border border-slate-900 active:scale-95"
+              className="relative flex items-center gap-2 h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all cursor-pointer border border-slate-900 active:scale-95"
             >
               <ShoppingBag size={15} />
               <span>{t('ecommerce.topbar.cart', 'Giỏ Hàng')}</span>
@@ -1218,32 +1270,51 @@ export const FashionStoreHome: React.FC = () => {
           })}
         </div>
 
-        {/* ── ACTION TOOLBAR (SEARCH, BIOMETRIC TOGGLE, ADVANCED FILTER) ── */}
-        <div className="bg-white rounded-2xl border border-stone-200/90 p-3 sm:p-4 mb-8 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        {/* ── ACTION TOOLBAR (BIOMETRIC TOGGLE, RESULT SUMMARY & ADVANCED FILTER - KHÔNG LẶP LẠI Ô TÌM KIẾM TRÊN DESKTOP) ── */}
+        <div className="bg-white rounded-2xl border border-stone-200/90 p-3 sm:p-4 mb-8 shadow-2xs flex flex-wrap items-center justify-between gap-3">
           
-          {/* Left: Clean Modern Search Box (Đậm màu, viền sắc nét) */}
-          <div className="relative w-full sm:w-80 group">
-            <div className="flex items-center w-full h-11 px-3.5 rounded-2xl bg-slate-100 border-2 border-slate-300 hover:border-slate-400 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100 shadow-xs transition-all">
-              <div className="mr-2 flex items-center justify-center pointer-events-none text-slate-600 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
-                <Search size={18} strokeWidth={2.4} />
+          {/* Mobile-only Search Box (Vì trên Desktop đã có thanh tìm kiếm cố định ở Top Bar) */}
+          <div className="relative w-full lg:hidden group">
+            <div className="flex items-center w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-300 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-3 focus-within:ring-blue-500/15 transition-all">
+              <div className="mr-2 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
+                <Search size={18} strokeWidth={2.2} />
               </div>
               <input
                 type="text"
                 placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-500 placeholder:font-medium focus:outline-none focus:ring-0 pr-2"
+                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 pr-2"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="p-1 rounded-full text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer transition-colors"
+                  className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors"
                 >
-                  <X size={14} strokeWidth={2.5} />
+                  <X size={14} strokeWidth={2} />
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Left (Desktop): Hiển thị tổng số trang phục & Tag từ khóa đang tìm (nếu có) */}
+          <div className="hidden lg:flex items-center gap-2.5">
+            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+              {t('ecommerce.catalog.showingResults', 'Hiển thị {count} trang phục').replace('{count}', String(filteredProducts.length))}
+            </span>
+            {searchQuery && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-xs font-bold text-blue-800">
+                <span>{t('ecommerce.catalog.searchingFor', 'Từ khóa:')} "{searchQuery}"</span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="p-0.5 rounded-full hover:bg-blue-200 text-blue-600 cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Center: Smart Biometric Fit Toggle */}

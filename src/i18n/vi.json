@@ -920,7 +920,9 @@
       "sidebarTitle": "Danh Mục Thời Trang",
       "smartFilterTitle": "Bộ Lọc Nhân Trắc Học",
       "geminiCardTitle": "Trợ Lý AI Gemini 2.5",
-      "geminiCardDesc": "Bạn phân vân chọn size? Bấm vào chatbot ở góc phải để AI tư vấn vóc dáng!"
+      "geminiCardDesc": "Bạn phân vân chọn size? Bấm vào chatbot ở góc phải để AI tư vấn vóc dáng!",
+      "showingResults": "Hiển thị {count} trang phục",
+      "searchingFor": "Từ khóa:"
     },
     "sidebar": {
       "categories": "Danh Mục Ngành Hàng",
@@ -959,7 +961,10 @@
       "menuSignOut": "Đăng xuất tài khoản",
       "signInSignUp": "Đăng Nhập / Đăng Ký",
       "verticalNav": "Thanh Điều Hướng Dọc",
-      "userPillTooltip": "Bấm để mở menu quản lý tài khoản & đơn hàng"
+      "userPillTooltip": "Bấm để mở menu quản lý tài khoản & đơn hàng",
+      "guestBodyProfileTitle": "SỐ ĐO MẪU (CHƯA LƯU)",
+      "guestSyncHint": "Đăng nhập để lưu cố định số đo 3D của bạn",
+      "guestAuthHint": "Lưu hồ sơ vóc dáng 3D & quản lý đơn may đo"
     },
     "chatbot": {
       "pillTooltip": "Hỏi AI Gemini: Tư vấn size & phối đồ",
@@ -1057,7 +1062,9 @@
       "virtualRoom": "Phòng Thử Đồ Ảo 3D",
       "aiScan": "Quét Đo AI 3D (ISO)",
       "orders": "Đơn Hàng",
-      "cart": "Giỏ Hàng"
+      "cart": "Giỏ Hàng",
+      "login": "Đăng Nhập",
+      "searchBtn": "Tìm"
     },
     "profileModal": {
       "roleStore": "✂️ Đối Tác Nhà May B2B",
