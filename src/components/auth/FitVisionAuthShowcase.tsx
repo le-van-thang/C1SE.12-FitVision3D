@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Camera, Ruler, ShieldCheck, Sparkles } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import {
@@ -6,7 +6,9 @@ import {
   type MetricKey,
 } from '@/features/anthropometry/MeshViewport';
 import type { MannequinViewZone } from '@/features/avatar3d/MannequinViewer';
-import { DEMO_MESH, DEMO_MEASUREMENT } from '@/data/mockData';
+import { DEMO_BIOMETRIC, DEMO_MEASUREMENT, DEMO_MESH } from '@/data/mockData';
+import { recommendGarmentSizes } from '@/utils/garmentSizeCalculator';
+import sizeCharts from '@shared/size-charts.json';
 
 interface AtelierPhase {
   id: number;
@@ -30,6 +32,27 @@ export const FitVisionAuthShowcase: React.FC = () => {
   const isEn = locale === 'en';
   const [phaseIdx, setPhaseIdx] = useState<number>(0);
 
+  const shoulderCm = DEMO_MEASUREMENT.shoulder_breadth_cm ?? 42.1;
+  const demoSizing = useMemo(
+    () =>
+      recommendGarmentSizes({
+        gender: DEMO_BIOMETRIC.gender === 'other' ? 'neutral' : DEMO_BIOMETRIC.gender,
+        chest_cm: DEMO_MEASUREMENT.chest_circ_cm,
+        waist_cm: DEMO_MEASUREMENT.waist_circ_cm,
+        hips_cm: DEMO_MEASUREMENT.hip_circ_cm ?? undefined,
+        shoulder_cm: shoulderCm,
+        inseam_cm: DEMO_MEASUREMENT.inseam_cm ?? undefined,
+        height_cm: DEMO_BIOMETRIC.stature_cm ?? undefined,
+        weight_kg: DEMO_BIOMETRIC.weight_kg ?? undefined,
+      }),
+    [shoulderCm]
+  );
+
+  const waistEaseCm = sizeCharts.ease_allowances?.trouser_waist_ease_cm ?? 2.0;
+  const confidencePct = Math.round((DEMO_MEASUREMENT.extraction_confidence ?? 0.94) * 100);
+  const ringCircumference = 94.2;
+  const ringOffset = Math.round(ringCircumference * (1 - confidencePct / 100) * 10) / 10;
+
   const phases: AtelierPhase[] = [
     {
       id: 0,
@@ -41,9 +64,9 @@ export const FitVisionAuthShowcase: React.FC = () => {
       tagEn: 'RAMANUJAN 3D SLICING',
       headlineVi: 'Vòng ngực & Cầu vai',
       headlineEn: 'Chest & Shoulder Line',
-      valueLabel: '92.4 cm · 42.1 cm',
-      captionVi: 'Trích xuất 13 mốc nhân trắc chuẩn ISO 8559-1 chỉ trong 1.25 giây.',
-      captionEn: 'Extracts 13 ISO 8559-1 body landmarks in just 1.25 seconds.',
+      valueLabel: `${DEMO_MEASUREMENT.chest_circ_cm.toFixed(1)} cm · ${shoulderCm.toFixed(1)} cm`,
+      captionVi: 'Trích xuất 13 mốc nhân trắc chuẩn ISO 8559-1 từ dữ liệu mẫu 1m72 / 70kg.',
+      captionEn: 'Extracts 13 ISO 8559-1 body landmarks (172cm / 70kg sample profile).',
       accentColor: '#38BDF8',
       icon: <Camera size={14} />,
     },
@@ -51,15 +74,15 @@ export const FitVisionAuthShowcase: React.FC = () => {
       id: 1,
       zone: 'waist',
       metric: 'waist_circ_cm',
-      pillVi: '2. Khớp Ease +4cm',
-      pillEn: '2. Ease Fit +4cm',
+      pillVi: `2. Khớp Ease +${waistEaseCm}cm`,
+      pillEn: `2. Ease Fit +${waistEaseCm}cm`,
       tagVi: 'ĐỘ CỬ ĐỘNG MAY ĐO',
       tagEn: 'TAILORED EASE ALLOWANCE',
-      headlineVi: 'Khuyên dùng Size M',
-      headlineEn: 'Size M Recommended',
-      valueLabel: 'Eo 78.0 cm · +4cm Ease',
-      captionVi: 'Tự động tính độ chùng vải giúp trang phục vừa phom và thoải mái.',
-      captionEn: 'Balances fabric drape and movement allowance automatically.',
+      headlineVi: `Khuyên dùng Size ${demoSizing.topwear.recommended_label}`,
+      headlineEn: `Size ${demoSizing.topwear.recommended_label} Recommended`,
+      valueLabel: `${isEn ? 'Waist' : 'Eo'} ${DEMO_MEASUREMENT.waist_circ_cm.toFixed(1)} cm · +${waistEaseCm}cm Ease`,
+      captionVi: `Cỡ quần ${demoSizing.bottomwear.waist_inches}W (≈ Size ${demoSizing.bottomwear.asia}), tổng cạp ${demoSizing.ease_allowance_recommendation.trouser_waist_ease_cm} cm khi cử động.`,
+      captionEn: `Waist ${demoSizing.bottomwear.waist_inches}W (≈ Size ${demoSizing.bottomwear.asia}), tailored to ${demoSizing.ease_allowance_recommendation.trouser_waist_ease_cm} cm with ease.`,
       accentColor: '#34D399',
       icon: <Ruler size={14} />,
     },
@@ -73,7 +96,7 @@ export const FitVisionAuthShowcase: React.FC = () => {
       tagEn: 'ZERO-RETENTION PRIVACY',
       headlineVi: 'Ướm đồ 3D trực tiếp',
       headlineEn: 'Live 3D Try-On',
-      valueLabel: '0 byte lưu máy chủ',
+      valueLabel: isEn ? '0 bytes saved on disk' : '0 byte lưu máy chủ',
       captionVi: 'Ảnh xử lý hoàn toàn trên RAM tạm thời và tự động xóa ngay lập tức.',
       captionEn: 'Images are processed strictly in RAM and destroyed immediately.',
       accentColor: '#FBBF24',
@@ -147,19 +170,19 @@ export const FitVisionAuthShowcase: React.FC = () => {
                 fill="none"
                 stroke="#10B981"
                 strokeWidth="3"
-                strokeDasharray="94.2"
-                strokeDashoffset="3.8"
+                strokeDasharray={String(ringCircumference)}
+                strokeDashoffset={String(ringOffset)}
                 strokeLinecap="round"
               />
             </svg>
-            <span className="absolute font-mono text-[10px] font-black text-emerald-300">98%</span>
+            <span className="absolute font-mono text-[10px] font-black text-emerald-300">{confidencePct}%</span>
           </div>
           <div className="leading-tight">
             <span className="text-[10px] font-bold text-white block">
-              {isEn ? 'Fit Match' : 'Độ Vừa AI'}
+              {isEn ? 'AI Confidence' : 'Độ Tin Cậy AI'}
             </span>
             <span className="text-[10px] font-mono text-[#F5EBD8]">
-              {isEn ? 'AI Tailored' : 'Chuẩn May Đo'}
+              {isEn ? `Demo · Size ${demoSizing.topwear.recommended_label}` : `Mẫu Demo · Size ${demoSizing.topwear.recommended_label}`}
             </span>
           </div>
         </div>
