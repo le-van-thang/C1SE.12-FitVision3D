@@ -737,6 +737,12 @@
   transition: background-color 5000000s ease-in-out 0s !important;
 }
 
+/* Hide browser-native password reveal eye button (Edge/IE) to avoid duplicate eye icons */
+.zf-auth-form-pane input::-ms-reveal,
+.zf-auth-form-pane input::-ms-clear {
+  display: none !important;
+}
+
 /* ── Search Bar Glowing Animated Light Border Beam ── */
 @keyframes beam-rotate {
   0% {

@@ -62,13 +62,7 @@ export const AuthModal: React.FC = () => {
   const [emailUnlocked, setEmailUnlocked] = useState(false);
   const [passwordUnlocked, setPasswordUnlocked] = useState(false);
 
-  // Per-field interaction & submit tracking for real-time inline validation
-  const [touched, setTouched] = useState({
-    fullName: false,
-    email: false,
-    password: false,
-    confirmPassword: false,
-  });
+  // Track form submit attempts for empty required fields
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
   // Reset inputs and unlock flags whenever the modal opens or tab switches
@@ -78,7 +72,6 @@ export const AuthModal: React.FC = () => {
     setEmailUnlocked(false);
     setPasswordUnlocked(false);
     setSubmitAttempted(false);
-    setTouched({ fullName: false, email: false, password: false, confirmPassword: false });
     if (authModalTab === 'signin' || authModalTab === 'register') {
       setForgotStep('request');
       setOtpCode('');
@@ -182,7 +175,7 @@ export const AuthModal: React.FC = () => {
   const passwordValidation = validatePassword(password);
   const trimmedName = fullName.trim();
 
-  const shouldValidateName = touched.fullName || submitAttempted || fullName.length > 0;
+  const shouldValidateName = submitAttempted || fullName.length > 0;
   const nameError =
     shouldValidateName && trimmedName.length < 2
       ? isEnLocale
@@ -190,7 +183,7 @@ export const AuthModal: React.FC = () => {
         : 'Họ và tên phải có tối thiểu 2 ký tự.'
       : null;
 
-  const shouldValidateEmail = touched.email || submitAttempted || email.trim().length > 0;
+  const shouldValidateEmail = submitAttempted || email.trim().length > 0;
   const emailSuggestion = shouldValidateEmail && !emailValidation.valid ? emailValidation.suggestion : undefined;
   const emailError = shouldValidateEmail && !emailValidation.valid
     ? (() => {
@@ -223,7 +216,7 @@ export const AuthModal: React.FC = () => {
 
   const hasValidLength = password.length >= 6 && password.length <= 32;
   const hasSpecialChar = SPECIAL_CHAR_REGEX.test(password);
-  const shouldValidatePassword = touched.password || submitAttempted || password.length > 0;
+  const shouldValidatePassword = submitAttempted || password.length > 0;
   const passwordError = shouldValidatePassword && !passwordValidation.valid
     ? passwordValidation.code === 'PASSWORD_REQUIRED'
       ? t('app.authErrors.AUTH_PASSWORD_REQUIRED', 'Vui lòng nhập mật khẩu.')
@@ -233,7 +226,7 @@ export const AuthModal: React.FC = () => {
     : null;
 
   const signInPasswordError =
-    (touched.password || submitAttempted) && password.length === 0
+    submitAttempted && password.length === 0
       ? t('app.authErrors.AUTH_PASSWORD_REQUIRED', 'Vui lòng nhập mật khẩu.')
       : null;
 
@@ -241,15 +234,15 @@ export const AuthModal: React.FC = () => {
   const confirmMatches = hasConfirmInput && confirmPassword === password;
   const shouldShowConfirmError =
     (hasConfirmInput && confirmPassword !== password) ||
-    ((touched.confirmPassword || submitAttempted) && confirmPassword.length === 0);
+    (submitAttempted && confirmPassword.length === 0);
   const confirmError = shouldShowConfirmError
     ? confirmPassword.length === 0
       ? isEnLocale
         ? 'Please re-enter your password to confirm.'
         : 'Vui lòng nhập lại mật khẩu xác nhận.'
       : isEnLocale
-      ? 'Passwords do not match yet.'
-      : 'Chưa giống mật khẩu phía trên.'
+      ? 'Passwords do not match.'
+      : 'Mật khẩu xác nhận không khớp.'
     : null;
 
   const termsError =
@@ -697,7 +690,6 @@ export const AuthModal: React.FC = () => {
                       onFocus={() => setEmailUnlocked(true)}
                       onClick={() => setEmailUnlocked(true)}
                       onFocusCapture={() => setEmailUnlocked(true)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={t('app.auth.emailPh', 'name@company.com')}
@@ -730,7 +722,6 @@ export const AuthModal: React.FC = () => {
                       onFocus={() => setPasswordUnlocked(true)}
                       onClick={() => setPasswordUnlocked(true)}
                       onFocusCapture={() => setPasswordUnlocked(true)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={t('app.auth.passwordPh', 'Mật khẩu của bạn')}
@@ -844,7 +835,6 @@ export const AuthModal: React.FC = () => {
                       type="text"
                       name="fv3d_reg_fullname"
                       required
-                      onBlur={() => setTouched((prev) => ({ ...prev, fullName: true }))}
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder={isEn ? 'John Doe' : 'Nguyễn Văn A'}
@@ -882,7 +872,6 @@ export const AuthModal: React.FC = () => {
                       onFocus={() => setEmailUnlocked(true)}
                       onClick={() => setEmailUnlocked(true)}
                       onFocusCapture={() => setEmailUnlocked(true)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@gmail.com"
@@ -915,7 +904,6 @@ export const AuthModal: React.FC = () => {
                       onFocus={() => setPasswordUnlocked(true)}
                       onClick={() => setPasswordUnlocked(true)}
                       onFocusCapture={() => setPasswordUnlocked(true)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="FitVision@2026"
@@ -974,7 +962,6 @@ export const AuthModal: React.FC = () => {
                       name="fv3d_reg_pass_confirm"
                       required
                       autoComplete="new-password"
-                      onBlur={() => setTouched((prev) => ({ ...prev, confirmPassword: true }))}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder={t('app.auth.confirmPh', 'Nhập lại mật khẩu')}
@@ -997,7 +984,7 @@ export const AuthModal: React.FC = () => {
                   ) : confirmMatches ? (
                     <p className="mt-1 text-[11.5px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
                       <CheckCircle2 size={13} className="shrink-0" />
-                      <span>{isEn ? 'Passwords match!' : 'Mật khẩu đã trùng khớp!'}</span>
+                      <span>{isEn ? 'Passwords match.' : 'Mật khẩu trùng khớp.'}</span>
                     </p>
                   ) : null}
                 </div>
@@ -1074,7 +1061,6 @@ export const AuthModal: React.FC = () => {
                         <input
                           type="email"
                           required
-                          onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="name@gmail.com"
@@ -1159,13 +1145,13 @@ export const AuthModal: React.FC = () => {
                       {confirmNewPassword.length > 0 && confirmNewPassword !== newPassword && (
                         <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
                           <AlertCircle size={13} className="shrink-0" />
-                          <span>{isEn ? 'Passwords do not match yet.' : 'Chưa giống mật khẩu mới phía trên.'}</span>
+                          <span>{isEn ? 'Passwords do not match.' : 'Mật khẩu xác nhận không khớp.'}</span>
                         </p>
                       )}
                       {confirmNewPassword.length > 0 && confirmNewPassword === newPassword && (
                         <p className="mt-1 text-[11.5px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
                           <CheckCircle2 size={13} className="shrink-0" />
-                          <span>{isEn ? 'Passwords match!' : 'Mật khẩu đã trùng khớp!'}</span>
+                          <span>{isEn ? 'Passwords match.' : 'Mật khẩu trùng khớp.'}</span>
                         </p>
                       )}
                     </div>
