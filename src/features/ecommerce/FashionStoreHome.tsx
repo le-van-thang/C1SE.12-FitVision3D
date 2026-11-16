@@ -58,6 +58,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { MerchantOnboardingModal } from '@/components/store/MerchantOnboardingModal';
+import { StoreStatusModal } from '@/components/store/StoreStatusModal';
 import { UserProfileDropdown } from '@/components/common/UserProfileDropdown';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { useI18n } from '@/i18n';
@@ -2737,6 +2738,7 @@ export const FashionStoreHome: React.FC = () => {
       {/* Global Modals: Auth & B2B Merchant */}
       <AuthModal />
       <MerchantOnboardingModal />
+      <StoreStatusModal />
 
       {/* VELL Virtual 3D Styling Studio (Auth Gated — Never Shows Mock Measurements to Guests) */}
       <VellVirtualStudioModal
