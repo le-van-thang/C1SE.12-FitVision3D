@@ -22,6 +22,7 @@ import type { CartItem, PaymentMethod, UserBodyProfile, Order } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
 import { useI18n } from '@/i18n';
+import { loadPlatformConfig } from '@/services/platformConfig';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -80,26 +81,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setCouponSuccess(null);
 
     const code = couponCode.trim().toUpperCase();
-    if (code === 'FITVISION10') {
-      const discount = Math.round(subtotal * 0.1);
+    const activeVouchers = loadPlatformConfig().vouchers;
+    const matchedVoucher = activeVouchers.find((v) => v.code.toUpperCase() === code && v.active);
+
+    if (matchedVoucher) {
+      const discount =
+        matchedVoucher.discountType === 'percent'
+          ? Math.round((subtotal * matchedVoucher.discountValue) / 100)
+          : Math.min(subtotal, matchedVoucher.discountValue);
       setAppliedDiscount(discount);
-      setCouponSuccess(locale === 'en' ? `Applied code FITVISION10 (-10%: -${discount.toLocaleString('vi-VN')} ₫)` : `Đã áp dụng mã FITVISION10 (-10%: -${discount.toLocaleString('vi-VN')} ₫)`);
-    } else if (code === 'FITSILVER5') {
-      const discount = Math.round(subtotal * 0.05);
-      setAppliedDiscount(discount);
-      setCouponSuccess(locale === 'en' ? `Applied member code FITSILVER5 (-5%: -${discount.toLocaleString('vi-VN')} ₫)` : `Đã áp dụng mã hội viên FITSILVER5 (-5%: -${discount.toLocaleString('vi-VN')} ₫)`);
-    } else if (code === 'CAPSTONE2026') {
-      const discount = Math.min(subtotal, 100000);
-      setAppliedDiscount(discount);
-      setCouponSuccess(locale === 'en' ? `Applied code CAPSTONE2026 (-${discount.toLocaleString('vi-VN')} ₫)` : `Đã áp dụng mã CAPSTONE2026 (-${discount.toLocaleString('vi-VN')} ₫)`);
-    } else if (code === 'FITMEMBER50') {
-      const discount = Math.min(subtotal, 50000);
-      setAppliedDiscount(discount);
-      setCouponSuccess(locale === 'en' ? `Applied member voucher FITMEMBER50 (-${discount.toLocaleString('vi-VN')} ₫)` : `Đã áp dụng ưu đãi hội viên FITMEMBER50 (-${discount.toLocaleString('vi-VN')} ₫)`);
-    } else if (code === 'FITVIP150') {
-      const discount = Math.min(subtotal, 150000);
-      setAppliedDiscount(discount);
-      setCouponSuccess(locale === 'en' ? `Applied Bespoke VIP voucher FITVIP150 (-${discount.toLocaleString('vi-VN')} ₫)` : `Đã áp dụng mã Bespoke VIP FITVIP150 (-${discount.toLocaleString('vi-VN')} ₫)`);
+      const label =
+        matchedVoucher.discountType === 'percent'
+          ? `-${matchedVoucher.discountValue}%`
+          : `-${discount.toLocaleString('vi-VN')} ₫`;
+      setCouponSuccess(
+        locale === 'en'
+          ? `Applied voucher ${matchedVoucher.code} (${label}: -${discount.toLocaleString('vi-VN')} ₫)`
+          : `Đã áp dụng mã ${matchedVoucher.code} (${label}: -${discount.toLocaleString('vi-VN')} ₫)`
+      );
     } else {
       setCouponError(locale === 'en' ? 'Coupon code is invalid or expired.' : 'Mã giảm giá không hợp lệ hoặc đã hết hạn.');
     }

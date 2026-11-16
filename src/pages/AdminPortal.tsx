@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Shield,
   Search,
@@ -22,11 +23,28 @@ import {
   Layers,
   Database,
   Calendar,
-  Sparkles,
+  LayoutDashboard,
+  ShoppingBag,
+  Tag,
+  Megaphone,
+  LogOut,
+  Menu,
+  Scissors,
 } from 'lucide-react';
-import { Navbar } from '@/components/common/Navbar';
 import { useAuth } from '@/context/AuthContext';
-import { useI18n } from '@/i18n';
+import { useOrders } from '@/context/OrderContext';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import {
+  loadPlatformConfig,
+  savePlatformConfig,
+  type PlatformConfig,
+} from '@/services/platformConfig';
+import {
+  AdminOverviewSection,
+  AdminOrdersSection,
+  AdminCatalogSection,
+  AdminCmsSection,
+} from '@/components/admin/AdminOperationsTabs';
 import {
   adminApi,
   AdminStoreItem,
@@ -35,18 +53,38 @@ import {
   AdminAuditLogItem,
 } from '@/services/adminApi';
 
-type AdminMainTab = 'STORES' | 'USERS' | 'AUDIT';
+export type AdminMainTab =
+  | 'OVERVIEW'
+  | 'STORES'
+  | 'USERS'
+  | 'ORDERS'
+  | 'CATALOG'
+  | 'CMS'
+  | 'AUDIT';
 type StoreFilterTab = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 type UserFilterRole = 'ALL' | 'ADMIN' | 'SHOP_OWNER' | 'USER';
 
 export const AdminPortal: React.FC = () => {
-  const { t } = useI18n();
-  const { currentUser, userRole } = useAuth();
+  const navigate = useNavigate();
+  const { currentUser, userRole, signOut } = useAuth();
+  const { orders, updateOrderStatus } = useOrders();
 
-  // Navigation tabs
-  const [mainTab, setMainTab] = useState<AdminMainTab>('STORES');
+  // Navigation tabs & Responsive Sidebar Drawer
+  const [mainTab, setMainTab] = useState<AdminMainTab>('OVERVIEW');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [platformConfig, setPlatformConfig] = useState<PlatformConfig>(() => loadPlatformConfig());
   const [storeFilterTab, setStoreFilterTab] = useState<StoreFilterTab>('ALL');
   const [userFilterRole, setUserFilterRole] = useState<UserFilterRole>('ALL');
+
+  const handleSavePlatformConfig = (next: PlatformConfig) => {
+    setPlatformConfig(next);
+    savePlatformConfig(next);
+  };
+
+  const handleAdminSignOut = async () => {
+    await signOut();
+    navigate('/', { replace: true });
+  };
 
   // Search queries
   const [storeSearch, setStoreSearch] = useState('');
@@ -238,248 +276,362 @@ export const AdminPortal: React.FC = () => {
     });
   }, [users, userFilterRole, userSearch]);
 
-  return (
-    <div className="min-h-screen bg-[#070B0E] text-slate-100 flex flex-col font-sans selection:bg-[#4FD1C5]/30 selection:text-white">
-      <Navbar />
+  const sidebarGroups: {
+    groupLabel: string;
+    items: {
+      id: AdminMainTab;
+      label: string;
+      icon: React.ReactNode;
+      badge?: string | number;
+      badgeTone?: 'amber' | 'cyan' | 'emerald';
+    }[];
+  }[] = [
+    {
+      groupLabel: 'Vận Hành & Thương Mại',
+      items: [
+        {
+          id: 'OVERVIEW',
+          label: 'Tổng Quan Sàn',
+          icon: <LayoutDashboard size={17} />,
+        },
+        {
+          id: 'ORDERS',
+          label: 'Đơn Hàng Toàn Sàn',
+          icon: <ShoppingBag size={17} />,
+          badge: orders.filter((o) => o.status === 'pending' || o.status === 'tailoring').length || orders.length,
+          badgeTone: orders.some((o) => o.status === 'pending') ? 'amber' : 'cyan',
+        },
+        {
+          id: 'CATALOG',
+          label: 'Sản Phẩm & Giá',
+          icon: <Tag size={17} />,
+          badge: platformConfig.hiddenProductIds.length > 0 ? `${platformConfig.hiddenProductIds.length} ẩn` : undefined,
+          badgeTone: 'amber',
+        },
+        {
+          id: 'CMS',
+          label: 'Banner & Voucher',
+          icon: <Megaphone size={17} />,
+          badge: platformConfig.vouchers.filter((v) => v.active).length,
+          badgeTone: 'emerald',
+        },
+      ],
+    },
+    {
+      groupLabel: 'Quản Trị Hệ Thống',
+      items: [
+        {
+          id: 'STORES',
+          label: 'Duyệt Nhà May',
+          icon: <StoreIcon size={17} />,
+          badge: stats.pendingStores > 0 ? `${stats.pendingStores} mới` : stores.length,
+          badgeTone: stats.pendingStores > 0 ? 'amber' : 'cyan',
+        },
+        {
+          id: 'USERS',
+          label: 'Tài Khoản & Quyền',
+          icon: <Users size={17} />,
+          badge: users.length,
+          badgeTone: 'cyan',
+        },
+        {
+          id: 'AUDIT',
+          label: 'Nhật Ký Hệ Thống',
+          icon: <Shield size={17} />,
+          badge: 'Live',
+          badgeTone: 'emerald',
+        },
+      ],
+    },
+  ];
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Toast Notification */}
-        {actionMessage && (
-          <div
-            className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl backdrop-blur-xl border transition-all animate-fade-in ${
-              actionMessage.type === 'success'
-                ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
-                : 'bg-rose-950/80 border-rose-500/40 text-rose-200'
-            }`}
-          >
-            {actionMessage.type === 'success' ? (
-              <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-            ) : (
-              <AlertTriangle size={18} className="text-rose-400 shrink-0" />
-            )}
-            <span className="text-sm font-medium">{actionMessage.text}</span>
-            <button
-              onClick={() => setActionMessage(null)}
-              className="ml-2 text-slate-400 hover:text-white"
-            >
-              <X size={14} />
-            </button>
+  const activeSectionMeta: Record<AdminMainTab, { title: string; subtitle: string }> = {
+    OVERVIEW: {
+      title: 'Tổng Quan Điều Hành Sàn',
+      subtitle: 'Theo dõi doanh thu GMV, tỷ lệ hoàn thành đơn may đo, hàng chờ xét duyệt và tình trạng toàn hệ thống.',
+    },
+    ORDERS: {
+      title: 'Điều Phối Đơn Hàng Toàn Sàn',
+      subtitle: 'Giám sát mọi đơn may đo xuyên suốt các nhà may đối tác và cập nhật tiến độ xử lý theo thời gian thực.',
+    },
+    CATALOG: {
+      title: 'Kiểm Duyệt Sản Phẩm & Giá Bán',
+      subtitle: 'Ẩn/hiện sản phẩm vi phạm hoặc hết vải và điều chỉnh giá niêm yết đồng bộ tức thì lên trang Khách hàng.',
+    },
+    CMS: {
+      title: 'Quản Lý Banner, Marquee & Voucher',
+      subtitle: 'Chỉnh sửa thanh thông báo chạy, thông điệp Hero trang chủ và phát hành mã giảm giá choCheckout.',
+    },
+    STORES: {
+      title: 'Thẩm Định & Xét Duyệt Nhà May Đối Tác',
+      subtitle: 'Kiểm tra ảnh minh chứng, địa chỉ Atelier và phê duyệt/từ chối hồ sơ đăng ký bán hàng.',
+    },
+    USERS: {
+      title: 'Quản Lý Tài Khoản & Phân Quyền RBAC',
+      subtitle: 'Điều chỉnh vai trò Admin / Chủ Shop / Khách hàng và khóa tạm thời tài khoản vi phạm trên PostgreSQL.',
+    },
+    AUDIT: {
+      title: 'Nhật Ký Kiểm Toán & Bảo Mật Hệ Thống',
+      subtitle: 'Truy vết thao tác quản trị, thời gian phản hồi hệ thống và toàn bộ biến động quyền hạn.',
+    },
+  };
+
+  const renderSidebarContent = () => (
+    <div className="flex flex-col h-full">
+      {/* Sidebar Brand Header */}
+      <div className="px-5 py-5 border-b border-slate-800/90">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#20E3B2] to-[#0EA5E9] flex items-center justify-center text-slate-950 shadow-lg shadow-cyan-500/20">
+            <Scissors size={20} strokeWidth={2.3} />
           </div>
-        )}
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold tracking-tight text-white text-base">FITVISION 3D</span>
+              <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/30 text-[9px] font-black text-cyan-300 uppercase">
+                ADMIN
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">Enterprise Console</p>
+          </div>
+        </div>
+      </div>
 
-        {/* Top Header Card */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0C151B] via-[#0E1B22] to-[#0A1318] border border-cyan-500/20 p-6 sm:p-8 mb-8 shadow-2xl shadow-cyan-950/20">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[#4FD1C5]/5 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold tracking-wider uppercase mb-3">
-                <ShieldCheck size={14} className="text-[#4FD1C5]" />
-                <span>FitVision 3D • Super Admin Platform Control</span>
+      {/* Navigation Groups */}
+      <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
+        {sidebarGroups.map((group) => (
+          <div key={group.groupLabel}>
+            <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              {group.groupLabel}
+            </p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const isActive = mainTab === item.id;
+                const badgeCls =
+                  item.badgeTone === 'amber'
+                    ? 'bg-amber-400 text-slate-950'
+                    : item.badgeTone === 'emerald'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setMainTab(item.id);
+                      setMobileNavOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/15 text-white border border-cyan-400/40 shadow-md shadow-cyan-950/30'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800/70 border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className={isActive ? 'text-cyan-300' : 'text-slate-400'}>{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {item.badge !== undefined && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono shrink-0 ${badgeCls}`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {/* Bottom Admin Account & Sign Out */}
+      <div className="p-4 border-t border-slate-800/90 bg-[#080F14] space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 font-bold text-sm flex items-center justify-center shrink-0">
+            {(currentUser?.full_name || 'A').charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-white truncate">
+              {currentUser?.full_name || 'Lê Văn Thắng'}
+            </p>
+            <p className="text-[10px] text-cyan-300 font-mono truncate">
+              {currentUser?.email || 'Super Administrator'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleAdminSignOut}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold transition cursor-pointer"
+        >
+          <LogOut size={14} />
+          <span>Đăng xuất Quản trị viên</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#070B0E] text-slate-100 flex font-sans selection:bg-[#4FD1C5]/30 selection:text-white">
+      {/* Desktop Fixed Admin Sidebar */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen bg-[#0A1117] border-r border-slate-800/90 z-30">
+        {renderSidebarContent()}
+      </aside>
+
+      {/* Mobile Sidebar Slide Drawer */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/75 backdrop-blur-xs"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <aside className="relative w-72 max-w-[85vw] bg-[#0A1117] border-r border-slate-800 h-full z-10 flex flex-col">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(false)}
+              className="absolute top-4 right-3 w-8 h-8 rounded-lg bg-slate-800 text-slate-300 flex items-center justify-center"
+            >
+              <X size={16} />
+            </button>
+            {renderSidebarContent()}
+          </aside>
+        </div>
+      )}
+
+      {/* Right Main Workspace */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Sticky Admin Workspace Header Bar (No Customer Storefront Links) */}
+        <header className="sticky top-0 z-20 h-16 px-4 sm:px-8 bg-[#091016]/95 backdrop-blur-md border-b border-slate-800/90 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center cursor-pointer"
+              aria-label="Mở menu quản trị"
+            >
+              <Menu size={18} />
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <ShieldCheck size={14} className="text-cyan-400 shrink-0" />
+                <span className="truncate font-semibold text-slate-300">
+                  Cổng Điều Hành FitVision 3D
+                </span>
+                <span className="text-slate-600">/</span>
+                <span className="text-cyan-300 font-bold truncate">
+                  {activeSectionMeta[mainTab].title}
+                </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-                Cổng Điều Hành & Quản Trị Hệ&nbsp;Thống
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0F1E24] border border-emerald-500/30 text-emerald-400 text-xs font-mono">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span>PostgreSQL: Kết nối thực</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => fetchLiveData(false)}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14232C] hover:bg-[#1A2E3A] border border-slate-700 hover:border-cyan-500/40 text-slate-200 hover:text-white text-xs font-medium transition cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-cyan-400' : ''} />
+              <span className="hidden sm:inline">{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
+            </button>
+
+            <LanguageSwitcher />
+          </div>
+        </header>
+
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Toast Notification */}
+          {actionMessage && (
+            <div
+              className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl backdrop-blur-xl border transition-all animate-fade-in ${
+                actionMessage.type === 'success'
+                  ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200'
+                  : 'bg-rose-950/90 border-rose-500/40 text-rose-200'
+              }`}
+            >
+              {actionMessage.type === 'success' ? (
+                <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+              ) : (
+                <AlertTriangle size={18} className="text-rose-400 shrink-0" />
+              )}
+              <span className="text-sm font-medium">{actionMessage.text}</span>
+              <button
+                onClick={() => setActionMessage(null)}
+                className="ml-2 text-slate-400 hover:text-white"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {/* Active Page Header Banner */}
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-slate-800/80">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+                {activeSectionMeta[mainTab].title}
               </h1>
-              <p className="mt-1 text-sm text-slate-300 max-w-2xl leading-relaxed">
-                Đồng bộ trực tiếp cơ sở dữ liệu PostgreSQL thực tế, xét duyệt nhà may đo 3D theo chuẩn ISO 8559 và phân quyền tài khoản người dùng.
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                {activeSectionMeta[mainTab].subtitle}
               </p>
             </div>
-
-            {/* Header Right Actions */}
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
-              {/* PostgreSQL Live Badge */}
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#0F1E24] border border-emerald-500/30 text-emerald-400 text-xs font-mono">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span>PostgreSQL: Kết nối thực</span>
-              </div>
-
-              {/* Refresh Button */}
-              <button
-                type="button"
-                onClick={() => fetchLiveData(false)}
-                disabled={isRefreshing}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#14232C] hover:bg-[#1A2E3A] border border-slate-700 hover:border-cyan-500/40 text-slate-200 hover:text-white text-xs font-medium transition cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-cyan-400' : ''} />
-                <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
-              </button>
-
-              {/* Logged in admin pill */}
-              <div className="px-3 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-xs text-slate-300">
-                <span className="text-slate-400">Admin: </span>
-                <span className="font-semibold text-cyan-300">{currentUser?.full_name || 'Lê Văn Thắng'}</span>
-              </div>
+            <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+              <span>Role: <strong className="text-cyan-300 uppercase">{userRole || 'ADMIN'}</strong></span>
             </div>
           </div>
-        </div>
 
-        {/* Real Metrics Stats Overview */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-          {/* Total Stores */}
-          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-slate-800 hover:border-cyan-500/40 p-4 transition duration-300 shadow-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Tổng nhà may</span>
-              <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
-                <StoreIcon size={18} />
-              </div>
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-white">
-              {stats.totalStores}
-            </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">Hồ sơ đối tác đã nộp</span>
-          </div>
-
-          {/* Pending Reviews */}
-          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-amber-500/20 hover:border-amber-500/50 p-4 transition duration-300 shadow-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-amber-300/80 uppercase tracking-wider">Chờ xét duyệt</span>
-              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
-                <Clock size={18} className="animate-pulse" />
-              </div>
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-amber-400">
-              {stats.pendingStores}
-            </div>
-            <span className="text-[11px] text-amber-300/70 mt-1 block">Cần quản trị viên duyệt</span>
-          </div>
-
-          {/* Approved Stores */}
-          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-emerald-500/20 hover:border-emerald-500/50 p-4 transition duration-300 shadow-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-emerald-300/80 uppercase tracking-wider">Đã kích hoạt</span>
-              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-                <CheckCircle2 size={18} />
-              </div>
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">
-              {stats.approvedStores}
-            </div>
-            <span className="text-[11px] text-emerald-300/70 mt-1 block">Đang hoạt động trên sàn</span>
-          </div>
-
-          {/* Total Registered Users */}
-          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-indigo-500/20 hover:border-indigo-500/50 p-4 transition duration-300 shadow-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-indigo-300/80 uppercase tracking-wider">Người dùng</span>
-              <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
-                <Users size={18} />
-              </div>
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-indigo-300">
-              {stats.totalUsers}
-            </div>
-            <span className="text-[11px] text-indigo-300/70 mt-1 block">Tài khoản trong CSDL</span>
-          </div>
-
-          {/* Biometric Scans */}
-          <div className="relative group overflow-hidden rounded-xl bg-[#0D161B] border border-purple-500/20 hover:border-purple-500/50 p-4 transition duration-300 shadow-lg col-span-2 sm:col-span-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-purple-300/80 uppercase tracking-wider">Phép đo 3D</span>
-              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
-                <Activity size={18} />
-              </div>
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-purple-300">
-              {stats.totalMeasurements}
-            </div>
-            <span className="text-[11px] text-purple-300/70 mt-1 block">Trích xuất nhân trắc</span>
-          </div>
-        </div>
-
-        {/* Main Navigation Tabs - Sáng sủa, Đẳng cấp & Nổi bật */}
-        <div className="flex flex-wrap items-center gap-3.5 mb-8 p-2 rounded-2xl bg-[#091217] border border-slate-700/80 shadow-2xl">
-          {/* TAB 1: STORES */}
-          <button
-            type="button"
-            onClick={() => setMainTab('STORES')}
-            className={`flex items-center gap-3 px-6 py-3.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
-              mainTab === 'STORES'
-                ? 'bg-gradient-to-r from-[#20E3B2] via-[#00D2B4] to-[#38BDF8] text-[#021518] shadow-[0_4px_25px_rgba(32,227,178,0.5)] border border-teal-200 scale-[1.02]'
-                : 'bg-[#13232C] hover:bg-[#1C323F] text-slate-100 hover:text-white border border-slate-700/90 hover:border-teal-400/60 shadow-md'
-            }`}
-          >
-            <StoreIcon
-              size={19}
-              className={mainTab === 'STORES' ? 'text-[#021518] stroke-[2.4]' : 'text-[#20E3B2] stroke-[2]'}
+          {/* ========================================================================= */}
+          {/* TAB 0: PLATFORM OVERVIEW */}
+          {/* ========================================================================= */}
+          {mainTab === 'OVERVIEW' && (
+            <AdminOverviewSection
+              stats={stats}
+              stores={stores}
+              orders={orders}
+              config={platformConfig}
+              onNavigateTab={(tab) => setMainTab(tab)}
             />
-            <span className="tracking-wide">Hồ sơ Nhà may / Cửa hàng</span>
-            {stats.pendingStores > 0 ? (
-              <span
-                className={`ml-1 px-2.5 py-0.5 rounded-full text-xs font-black font-mono transition shadow-md ${
-                  mainTab === 'STORES'
-                    ? 'bg-[#021518] text-[#20E3B2]'
-                    : 'bg-amber-400 text-slate-950 animate-bounce'
-                }`}
-              >
-                {stats.pendingStores} mới
-              </span>
-            ) : (
-              <span
-                className={`ml-1 px-2 py-0.5 rounded-md text-xs font-bold font-mono transition ${
-                  mainTab === 'STORES'
-                    ? 'bg-[#021518]/25 text-[#021518]'
-                    : 'bg-slate-800 text-slate-300'
-                }`}
-              >
-                {stores.length}
-              </span>
-            )}
-          </button>
+          )}
 
-          {/* TAB 2: USERS */}
-          <button
-            type="button"
-            onClick={() => setMainTab('USERS')}
-            className={`flex items-center gap-3 px-6 py-3.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
-              mainTab === 'USERS'
-                ? 'bg-gradient-to-r from-[#818CF8] via-[#6366F1] to-[#38BDF8] text-[#050814] shadow-[0_4px_25px_rgba(99,102,241,0.5)] border border-indigo-200 scale-[1.02]'
-                : 'bg-[#13232C] hover:bg-[#1C323F] text-slate-100 hover:text-white border border-slate-700/90 hover:border-indigo-400/60 shadow-md'
-            }`}
-          >
-            <Users
-              size={19}
-              className={mainTab === 'USERS' ? 'text-[#050814] stroke-[2.4]' : 'text-[#818CF8] stroke-[2]'}
+          {/* ========================================================================= */}
+          {/* TAB 4: PLATFORM ORDERS */}
+          {/* ========================================================================= */}
+          {mainTab === 'ORDERS' && (
+            <AdminOrdersSection
+              orders={orders}
+              onUpdateStatus={updateOrderStatus}
+              onToast={showToast}
             />
-            <span className="tracking-wide">Quản lý Người dùng & Phân quyền</span>
-            <span
-              className={`ml-1 px-2.5 py-0.5 rounded-full text-xs font-black font-mono transition shadow-md ${
-                mainTab === 'USERS'
-                  ? 'bg-[#050814] text-[#818CF8]'
-                  : 'bg-indigo-500/25 text-indigo-300 border border-indigo-500/40'
-              }`}
-            >
-              {users.length}
-            </span>
-          </button>
+          )}
 
-          {/* TAB 3: AUDIT */}
-          <button
-            type="button"
-            onClick={() => setMainTab('AUDIT')}
-            className={`flex items-center gap-3 px-6 py-3.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
-              mainTab === 'AUDIT'
-                ? 'bg-gradient-to-r from-[#FBBF24] via-[#F59E0B] to-[#FB923C] text-[#140D01] shadow-[0_4px_25px_rgba(245,158,11,0.5)] border border-amber-200 scale-[1.02]'
-                : 'bg-[#13232C] hover:bg-[#1C323F] text-slate-100 hover:text-white border border-slate-700/90 hover:border-amber-400/60 shadow-md'
-            }`}
-          >
-            <Shield
-              size={19}
-              className={mainTab === 'AUDIT' ? 'text-[#140D01] stroke-[2.4]' : 'text-[#FBBF24] stroke-[2]'}
+          {/* ========================================================================= */}
+          {/* TAB 5: CATALOG MODERATION */}
+          {/* ========================================================================= */}
+          {mainTab === 'CATALOG' && (
+            <AdminCatalogSection
+              config={platformConfig}
+              onSaveConfig={handleSavePlatformConfig}
+              onToast={showToast}
             />
-            <span className="tracking-wide">Nhật ký Kiểm toán Hệ thống</span>
-            <span
-              className={`ml-1 px-2 py-0.5 rounded-md text-xs font-bold font-mono transition ${
-                mainTab === 'AUDIT'
-                  ? 'bg-[#140D01]/25 text-[#140D01]'
-                  : 'bg-slate-800 text-slate-300'
-              }`}
-            >
-              Live
-            </span>
-          </button>
-        </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 6: CMS BANNER & VOUCHERS */}
+          {/* ========================================================================= */}
+          {mainTab === 'CMS' && (
+            <AdminCmsSection
+              config={platformConfig}
+              onSaveConfig={handleSavePlatformConfig}
+              onToast={showToast}
+            />
+          )}
 
         {/* ========================================================================= */}
         {/* TAB 1: STORES MANAGEMENT */}
@@ -1125,7 +1277,8 @@ export const AdminPortal: React.FC = () => {
             </div>
           </div>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

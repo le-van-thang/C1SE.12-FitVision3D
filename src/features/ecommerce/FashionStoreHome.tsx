@@ -48,6 +48,7 @@ import { QuickAdminModal } from './QuickAdminModal';
 import { CustomerProfileModal } from './CustomerProfileModal';
 import { CheckoutModal } from './CheckoutModal';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
+import { loadPlatformConfig, type PlatformConfig } from '@/services/platformConfig';
 import type { FashionProduct, ProductVariant, UserBodyProfile, CartItem } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
@@ -217,6 +218,17 @@ export const FashionStoreHome: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>('default'); // 'default' | 'fit-desc' | 'price-asc' | 'price-desc'
   const [activeMegaMenu, setActiveMegaMenu] = useState<string | null>(null);
   const [copiedVoucherCode, setCopiedVoucherCode] = useState<string | null>(null);
+  const [platformConfig, setPlatformConfig] = useState<PlatformConfig>(() => loadPlatformConfig());
+
+  useEffect(() => {
+    const syncConfig = () => setPlatformConfig(loadPlatformConfig());
+    window.addEventListener('fv3d-platform-config-updated', syncConfig);
+    window.addEventListener('storage', syncConfig);
+    return () => {
+      window.removeEventListener('fv3d-platform-config-updated', syncConfig);
+      window.removeEventListener('storage', syncConfig);
+    };
+  }, []);
 
   const availableColorFilters = useMemo(() => {
     const map = new Map<string, string>();
@@ -317,9 +329,21 @@ export const FashionStoreHome: React.FC = () => {
   const getProductFabric = (p: FashionProduct) => (locale === 'en' && p.fabric_material_en ? p.fabric_material_en : p.fabric_material);
   const getProductDesc = (p: FashionProduct) => (locale === 'en' && p.description_en ? p.description_en : p.description);
 
+  // Active platform catalog (respects Admin product visibility & price overrides)
+  const visibleCatalogProducts = useMemo(() => {
+    return MOCK_PRODUCTS.filter((p) => !platformConfig.hiddenProductIds.includes(p.id)).map((p) => {
+      const overridePrice = platformConfig.priceOverrides[p.id];
+      if (!overridePrice || overridePrice <= 0) return p;
+      return {
+        ...p,
+        sale_price: overridePrice,
+      };
+    });
+  }, [platformConfig.hiddenProductIds, platformConfig.priceOverrides]);
+
   // Pre-calculate fit scores for all products
   const productsWithFit = useMemo(() => {
-    return MOCK_PRODUCTS.map((prod) => {
+    return visibleCatalogProducts.map((prod) => {
       const fit = calculateProductFit(userBody, prod);
       const recommendedVariant =
         prod.variants.find((v) => v.size_label === fit.recommended_size) || prod.variants[0];
@@ -329,7 +353,7 @@ export const FashionStoreHome: React.FC = () => {
         recommendedVariant,
       };
     });
-  }, [userBody, locale]);
+  }, [visibleCatalogProducts, userBody, locale]);
 
   // Filtered and Sorted products
   const filteredProducts = useMemo(() => {
@@ -380,14 +404,14 @@ export const FashionStoreHome: React.FC = () => {
   // Category counts for vertical sidebar and horizontal tabs
   const categoryCounts = useMemo(() => {
     return {
-      all: MOCK_PRODUCTS.length,
-      shirt: MOCK_PRODUCTS.filter((p) => p.category === 'shirt').length,
-      polo: MOCK_PRODUCTS.filter((p) => p.category === 'polo').length,
-      pants: MOCK_PRODUCTS.filter((p) => p.category === 'pants').length,
-      dress: MOCK_PRODUCTS.filter((p) => p.category === 'dress').length,
-      tailored: MOCK_PRODUCTS.filter((p) => p.category === 'tailored').length,
+      all: visibleCatalogProducts.length,
+      shirt: visibleCatalogProducts.filter((p) => p.category === 'shirt').length,
+      polo: visibleCatalogProducts.filter((p) => p.category === 'polo').length,
+      pants: visibleCatalogProducts.filter((p) => p.category === 'pants').length,
+      dress: visibleCatalogProducts.filter((p) => p.category === 'dress').length,
+      tailored: visibleCatalogProducts.filter((p) => p.category === 'tailored').length,
     };
-  }, []);
+  }, [visibleCatalogProducts]);
 
   // Cart Actions
   const handleAddToCart = (product: FashionProduct, variant?: ProductVariant) => {
@@ -491,33 +515,38 @@ export const FashionStoreHome: React.FC = () => {
       {/* ── UNIFIED STICKY TOP STACK: MARQUEE + OBSIDIAN HEADER + WHITE CATEGORY NAV ── */}
       <div className="sticky top-0 z-40 w-full shadow-md">
         {/* ── BAND 1: TOP EDITORIAL CONTINUOUS MARQUEE ANNOUNCEMENT BAR ── */}
-        <div className="bg-[#0B0D10] text-amber-300 text-[11px] font-semibold border-b border-white/10 overflow-hidden">
-          <div className="h-8 flex items-center overflow-hidden">
-            <div className="animate-fv-marquee flex items-center">
-              {[0, 1].map((dupIdx) => (
-                <div key={dupIdx} className="flex items-center gap-8 pr-8 whitespace-nowrap">
-                  <span className="flex items-center gap-1.5 text-amber-300">
-                    <Sparkles size={11} />
-                    <span>{locale === 'en' ? 'ISO 8559-1 Anthropometric 3D Sizing' : 'Đo Size Chuẩn Nhân Trắc Học ISO 8559'}</span>
-                  </span>
-                  <span className="text-stone-600">•</span>
-                  <span className="text-stone-200">
-                    {locale === 'en' ? 'Free 14-Day Fit Adjustment Guarantee' : 'Đổi sửa size vừa vặn miễn phí trong 14 ngày'}
-                  </span>
-                  <span className="text-stone-600">•</span>
-                  <span className="text-emerald-400">
-                    {locale === 'en' ? 'Freeship Express Orders from 1,000,000₫' : 'Freeship hỏa tốc đơn hàng từ 1.000.000₫'}
-                  </span>
-                  <span className="text-stone-600">•</span>
-                  <span className="text-stone-200">
-                    {locale === 'en' ? 'Zero-Retention In-Memory Image Privacy 100%' : 'Bảo mật ảnh xử lý tạm thời RAM 100%'}
-                  </span>
-                  <span className="text-stone-600">•</span>
-                </div>
-              ))}
+        {platformConfig.marqueeEnabled && (
+          <div className="bg-[#0B0D10] text-amber-300 text-[11px] font-semibold border-b border-white/10 overflow-hidden">
+            <div className="h-8 flex items-center overflow-hidden">
+              <div className="animate-fv-marquee flex items-center">
+                {[0, 1].map((dupIdx) => {
+                  const items = locale === 'en' ? platformConfig.marqueeItemsEn : platformConfig.marqueeItemsVi;
+                  return (
+                    <div key={dupIdx} className="flex items-center gap-8 pr-8 whitespace-nowrap">
+                      {items.map((text, idx) => (
+                        <React.Fragment key={`${dupIdx}-${idx}`}>
+                          <span
+                            className={
+                              idx === 0
+                                ? 'flex items-center gap-1.5 text-amber-300'
+                                : idx === 2
+                                ? 'text-emerald-400'
+                                : 'text-stone-200'
+                            }
+                          >
+                            {idx === 0 && <Sparkles size={11} />}
+                            <span>{text}</span>
+                          </span>
+                          <span className="text-stone-600">•</span>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* ── BAND 2: PRIMARY DARK EDITORIAL HEADER ── */}
         <header className="relative z-30 bg-[#14171C] text-white border-b border-white/10">
@@ -1017,12 +1046,21 @@ export const FashionStoreHome: React.FC = () => {
               <div className="lg:col-span-7 space-y-5 text-left">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/20 text-amber-200 border border-white/20 text-[11px] font-bold tracking-wider uppercase backdrop-blur-xs">
                   <Sparkles size={13} className="text-amber-300" />
-                  <span>{t('ecommerce.hero.badge', 'NỀN TẢNG THỜI TRANG MAY ĐO & ĐO SIZE 3D THẾ HỆ MỚI')}</span>
+                  <span>
+                    {locale === 'en'
+                      ? t('ecommerce.hero.badge', 'NEXT-GEN 3D BODY SIZING & BESPOKE TAILORING')
+                      : platformConfig.heroBadgeVi}
+                  </span>
                 </div>
 
                 <h1 className="font-display text-3xl sm:text-5xl lg:text-[50px] font-bold tracking-normal text-white leading-[1.18] drop-shadow-xs">
-                  {t('ecommerce.hero.title1', 'Phong Cách May Đo')} <br className="hidden sm:inline" />
-                  <span className="text-amber-200 italic">{t('ecommerce.hero.titleHighlight', 'Chuẩn Xác')}</span>{' '}
+                  {locale === 'en' ? t('ecommerce.hero.title1', 'Phong Cách May Đo') : platformConfig.heroTitleVi}{' '}
+                  <br className="hidden sm:inline" />
+                  <span className="text-amber-200 italic">
+                    {locale === 'en'
+                      ? t('ecommerce.hero.titleHighlight', 'Chuẩn Xác')
+                      : platformConfig.heroHighlightVi}
+                  </span>{' '}
                   {t('ecommerce.hero.title2', 'Theo Vóc Dáng Bạn.')}
                 </h1>
 
@@ -1223,64 +1261,45 @@ export const FashionStoreHome: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[
-              {
-                code: 'FITVISION50',
-                titleVi: 'Giảm 50.000₫ cho mọi đơn từ 600K',
-                titleEn: '50,000₫ off orders from 600K',
-                subVi: 'Áp dụng khi chọn size theo gợi ý AI ISO 8559',
-                subEn: 'Applies with ISO 8559 AI size match',
-              },
-              {
-                code: 'TAILOR100',
-                titleVi: 'Giảm 100.000₫ Bộ May Đo Bespoke',
-                titleEn: '100,000₫ off Bespoke Sets',
-                subVi: 'Dành riêng cho Blazer Linen & Đầm Lụa Mulberry',
-                subEn: 'Valid for Linen Blazer & Mulberry Silk',
-              },
-              {
-                code: 'FREESHIP3D',
-                titleVi: 'Freeship Hỏa Tốc + Đổi Size 14 Ngày',
-                titleEn: 'Free Express + 14-Day Fit Swap',
-                subVi: 'Miễn phí chỉnh sửa phom dáng tận nhà toàn quốc',
-                subEn: 'Complimentary nationwide door-to-door adjustment',
-              },
-            ].map((v) => {
-              const isCopied = copiedVoucherCode === v.code;
-              return (
-                <div
-                  key={v.code}
-                  onClick={() => handleCopyVoucher(v.code)}
-                  className="bg-white rounded-xl border border-amber-200/90 hover:border-[#C8963E] p-3 flex items-center justify-between gap-3 shadow-2xs transition-all cursor-pointer group"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-xs font-black text-slate-950 tracking-wider">
-                        {v.code}
-                      </span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-900 truncate mt-0.5">
-                      {locale === 'en' ? v.titleEn : v.titleVi}
-                    </p>
-                    <p className="text-[10px] text-slate-500 truncate">
-                      {locale === 'en' ? v.subEn : v.subVi}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 flex-shrink-0 transition-colors cursor-pointer ${
-                      isCopied
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-[#14171C] text-white group-hover:bg-blue-600'
-                    }`}
+            {platformConfig.vouchers
+              .filter((v) => v.active && v.showOnStorefront)
+              .slice(0, 6)
+              .map((v) => {
+                const isCopied = copiedVoucherCode === v.code;
+                return (
+                  <div
+                    key={v.code}
+                    onClick={() => handleCopyVoucher(v.code)}
+                    className="bg-white rounded-xl border border-amber-200/90 hover:border-[#C8963E] p-3 flex items-center justify-between gap-3 shadow-2xs transition-all cursor-pointer group"
                   >
-                    {isCopied ? <Check size={11} /> : <Copy size={11} />}
-                    <span>{isCopied ? (locale === 'en' ? 'Copied' : 'Đã chép') : (locale === 'en' ? 'Copy' : 'Sao chép')}</span>
-                  </button>
-                </div>
-              );
-            })}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-black text-slate-950 tracking-wider">
+                          {v.code}
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-900 truncate mt-0.5">
+                        {locale === 'en' ? v.titleEn : v.titleVi}
+                      </p>
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {locale === 'en' ? v.subEn : v.subVi}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 flex-shrink-0 transition-colors cursor-pointer ${
+                        isCopied
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-[#14171C] text-white group-hover:bg-blue-600'
+                      }`}
+                    >
+                      {isCopied ? <Check size={11} /> : <Copy size={11} />}
+                      <span>{isCopied ? (locale === 'en' ? 'Copied' : 'Đã chép') : (locale === 'en' ? 'Copy' : 'Sao chép')}</span>
+                    </button>
+                  </div>
+                );
+              })}
           </div>
         </div>
       </section>
