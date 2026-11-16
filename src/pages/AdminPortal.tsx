@@ -377,30 +377,30 @@ export const AdminPortal: React.FC = () => {
   };
 
   const renderSidebarContent = () => (
-    <div className="flex flex-col h-full bg-[#14171C] text-white">
-      {/* Sidebar Brand Header (Matches Homepage Obsidian Header) */}
-      <div className="px-5 py-4 border-b border-white/10 shrink-0">
+    <div className="flex flex-col h-full bg-white text-[#14161A]">
+      {/* Sidebar Brand Header (h-16 aligned seamlessly with top workspace header) */}
+      <div className="h-16 px-5 border-b border-slate-200 flex items-center shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-[#14171C] flex items-center justify-center text-white shadow-xs">
             <Scissors size={18} strokeWidth={2.2} />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold tracking-tight text-white text-[15px]">FITVISION 3D</span>
-              <span className="px-1.5 py-0.5 rounded bg-[#C8963E]/20 border border-[#C8963E]/50 text-[9px] font-black text-amber-200 uppercase">
+              <span className="font-extrabold tracking-tight text-[#14161A] text-[15px]">FITVISION 3D</span>
+              <span className="px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[9px] font-black text-[#9A6E24] uppercase">
                 ADMIN
               </span>
             </div>
-            <p className="text-[10px] tracking-[0.14em] uppercase text-stone-400">Atelier Control</p>
+            <p className="text-[10px] tracking-[0.14em] uppercase text-slate-400 font-semibold">Atelier Control</p>
           </div>
         </div>
       </div>
 
-      {/* Navigation Groups (Compact spacing so zero ugly scrollbar) */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3.5 space-y-4 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full">
+      {/* Navigation Groups */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
         {sidebarGroups.map((group) => (
           <div key={group.groupLabel}>
-            <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">
+            <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
               {group.groupLabel}
             </p>
             <div className="space-y-1">
@@ -410,14 +410,14 @@ export const AdminPortal: React.FC = () => {
                   item.badgeTone === 'amber'
                     ? isActive
                       ? 'bg-[#C8963E] text-white'
-                      : 'bg-amber-400 text-[#14171C]'
+                      : 'bg-amber-100 text-[#9A6E24]'
                     : item.badgeTone === 'emerald'
                     ? isActive
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     : isActive
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-white/10 text-stone-300';
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-100 text-slate-600';
                 return (
                   <button
                     key={item.id}
@@ -426,14 +426,14 @@ export const AdminPortal: React.FC = () => {
                       setMainTab(item.id);
                       setMobileNavOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-white text-[#14171C] shadow-sm'
-                        : 'text-stone-300 hover:text-white hover:bg-white/10'
+                        ? 'bg-[#14171C] text-white shadow-sm'
+                        : 'text-slate-600 hover:text-[#14161A] hover:bg-[#F7F7F5]'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className={isActive ? 'text-blue-600' : 'text-stone-400'}>{item.icon}</span>
+                      <span className={isActive ? 'text-amber-300' : 'text-slate-400'}>{item.icon}</span>
                       <span className="truncate">{item.label}</span>
                     </div>
                     {item.badge !== undefined && (
@@ -450,16 +450,16 @@ export const AdminPortal: React.FC = () => {
       </nav>
 
       {/* Bottom Admin Account & Sign Out */}
-      <div className="p-3.5 border-t border-white/10 bg-[#0E1116] space-y-2.5 shrink-0">
+      <div className="p-3.5 border-t border-slate-200 bg-[#F7F7F5] space-y-2.5 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-[#14171C] text-white font-bold text-xs flex items-center justify-center shrink-0">
             {(currentUser?.full_name || 'A').charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-white truncate">
+            <p className="text-xs font-bold text-[#14161A] truncate">
               {currentUser?.full_name || 'Lê Văn Thắng'}
             </p>
-            <p className="text-[10px] text-amber-200/90 font-mono truncate">
+            <p className="text-[10px] text-slate-500 font-mono truncate">
               {currentUser?.email || 'Super Administrator'}
             </p>
           </div>
@@ -467,7 +467,7 @@ export const AdminPortal: React.FC = () => {
         <button
           type="button"
           onClick={handleAdminSignOut}
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white/5 hover:bg-rose-600 border border-white/10 hover:border-rose-500 text-stone-200 hover:text-white text-xs font-bold transition cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-700 hover:text-rose-600 text-xs font-bold transition cursor-pointer shadow-2xs"
         >
           <LogOut size={13} />
           <span>Đăng xuất Quản trị viên</span>
@@ -479,7 +479,7 @@ export const AdminPortal: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] flex font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
       {/* Desktop Fixed Admin Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen bg-[#14171C] border-r border-stone-800 z-30 shadow-xl">
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen bg-white border-r border-slate-200 z-30">
         {renderSidebarContent()}
       </aside>
 
@@ -487,14 +487,14 @@ export const AdminPortal: React.FC = () => {
       {mobileNavOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
             onClick={() => setMobileNavOpen(false)}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-[#14171C] border-r border-stone-800 h-full z-10 flex flex-col">
+          <aside className="relative w-72 max-w-[85vw] bg-white border-r border-slate-200 h-full z-10 flex flex-col">
             <button
               type="button"
               onClick={() => setMobileNavOpen(false)}
-              className="absolute top-3.5 right-3 w-8 h-8 rounded-lg bg-white/10 text-white flex items-center justify-center"
+              className="absolute top-3.5 right-3 w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center"
             >
               <X size={16} />
             </button>

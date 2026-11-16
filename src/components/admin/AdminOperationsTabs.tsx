@@ -116,7 +116,7 @@ export const AdminOverviewSection: React.FC<OverviewProps> = ({
         <button
           type="button"
           onClick={() => onNavigateTab('STORES')}
-          className="text-left rounded-2xl bg-white border border-amber-200 hover:border-[#C8963E] p-5 shadow-xs hover:shadow-md transition cursor-pointer"
+          className="text-left rounded-2xl bg-white border border-slate-200/90 hover:border-[#C8963E] p-5 shadow-xs hover:shadow-md transition cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#9A6E24]">
