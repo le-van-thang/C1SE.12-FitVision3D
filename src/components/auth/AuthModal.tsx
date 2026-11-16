@@ -13,6 +13,7 @@ import {
   KeyRound,
   CheckCircle2,
   Sparkles,
+  Scissors,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -350,55 +351,77 @@ export const AuthModal: React.FC = () => {
 
   const isEn = locale === 'en';
 
+  const handleGoHome = () => {
+    closeAuthModal();
+    if (window.location.pathname !== '/') {
+      window.location.href = '/';
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   const inputBaseClass =
-    'w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-950 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none transition-all';
+    'w-full h-11 pl-10 pr-4 rounded-xl bg-white border border-slate-300/90 text-sm text-[#14171C] placeholder:text-slate-400 focus:border-blue-600 focus:outline-none transition-all';
 
   return (
     <div className="zf-auth-fullscreen animate-fade-in">
-      {/* ── CỘT TRÁI: FITVISION 3D INTERACTIVE SHOWCASE (ĐÚNG MÀU & ANIMATION DỰ ÁN) ── */}
-      <FitVisionAuthShowcase />
+      {/* ── UNIFIED TOP STOREFRONT HEADER (#14171C OBSIDIAN) ── */}
+      <header className="h-14 sm:h-16 px-4 sm:px-8 bg-[#14171C] text-white border-b border-white/10 flex items-center justify-between gap-4 shrink-0 z-30">
+        {/* Left: Clickable FitVision 3D Brand -> Quay lại trang chủ */}
+        <button
+          type="button"
+          onClick={handleGoHome}
+          className="flex items-center gap-2.5 group bg-transparent border-0 p-0 text-left cursor-pointer"
+          title={isEn ? 'Back to FitVision 3D Storefront' : 'Quay lại trang chủ FitVision 3D'}
+        >
+          <div className="w-9 h-9 rounded-xl bg-blue-600 group-hover:bg-blue-500 text-white flex items-center justify-center shadow-sm transition-colors">
+            <Scissors size={18} strokeWidth={2.2} />
+          </div>
+          <div>
+            <span className="font-black text-base sm:text-lg tracking-tight text-white block leading-none">
+              FitVision <span className="text-blue-400">3D</span>
+            </span>
+            <span className="text-[10px] font-medium text-stone-400 group-hover:text-amber-300 flex items-center gap-1 mt-0.5 transition-colors">
+              <ArrowLeft size={10} />
+              <span>{t('app.auth.back', 'Quay lại trang chủ')}</span>
+            </span>
+          </div>
+        </button>
 
-      {/* ── CỘT PHẢI: EDITORIAL LIGHT FORM PANE (COBALT & CHAMPAGNE HARMONY) ── */}
-      <div ref={formPaneRef} className="zf-auth-form-pane">
-        {/* Top bar: Left Back Button | Right Corner [VI/EN + Close] */}
-        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-slate-200/80 bg-white/85 backdrop-blur-sm shrink-0">
+        {/* Right: VI/EN + Close Button */}
+        <div className="flex items-center gap-2.5">
+          <LanguageSwitcher compact variant="dark" />
           <button
             type="button"
             onClick={closeAuthModal}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50/70 text-xs font-bold transition-colors cursor-pointer"
+            className="w-9 h-9 grid place-items-center bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl text-white cursor-pointer transition-colors"
+            aria-label={t('app.auth.close', 'Đóng')}
           >
-            <ArrowLeft size={15} />
-            <span>{t('app.auth.back', 'Quay lại cửa hàng')}</span>
+            <X size={17} />
           </button>
-
-          <div className="flex items-center gap-2.5">
-            <LanguageSwitcher size="md" variant="light" />
-            <button
-              type="button"
-              onClick={closeAuthModal}
-              className="w-9 h-9 grid place-items-center bg-white border border-slate-200 hover:border-blue-600 rounded-xl text-slate-600 hover:text-blue-700 cursor-pointer transition-colors"
-              aria-label={t('app.auth.close', 'Đóng')}
-            >
-              <X size={17} />
-            </button>
-          </div>
         </div>
+      </header>
 
-        {/* Form Body - Centered */}
-        <div className="flex-1 flex flex-col justify-center items-center px-5 py-8 w-full">
-          <div className="zf-auth-card w-full">
-            {/* Header */}
-            <div className="mb-5 text-center">
-              <div className="zf-auth-badge">
+      {/* ── MAIN SPLIT BODY: 54% LIVE 3D ATELIER STAGE | 46% EDITORIAL FORM SHEET ── */}
+      <div className="zf-auth-body">
+        <FitVisionAuthShowcase />
+
+        <div ref={formPaneRef} className="zf-auth-form-pane px-6 sm:px-10 py-8">
+          <div className="zf-auth-sheet">
+            {/* Editorial Header */}
+            <div className="mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F5EBD8] border border-[#E5D3B3] text-[#14171C] text-[11px] font-bold mb-3">
                 {authModalTab === 'forgot' ? (
-                  <KeyRound size={20} strokeWidth={2} />
+                  <KeyRound size={13} className="text-blue-600" />
                 ) : authModalTab === 'verify' ? (
-                  <ShieldCheck size={20} strokeWidth={2} />
+                  <ShieldCheck size={13} className="text-emerald-700" />
                 ) : (
-                  <Lock size={20} strokeWidth={2} />
+                  <Lock size={13} className="text-blue-600" />
                 )}
+                <span>ISO 8559-1 · FitVision Atelier</span>
               </div>
-              <h1 className="font-display text-2xl font-bold text-slate-900 tracking-tight m-0">
+
+              <h1 className="font-sans text-2xl sm:text-[26px] font-extrabold text-[#14171C] tracking-tight m-0 leading-snug">
                 {authModalTab === 'signin'
                   ? t('app.auth.signinTitle', 'Đăng nhập FitVision 3D')
                   : authModalTab === 'register'
@@ -407,7 +430,7 @@ export const AuthModal: React.FC = () => {
                   ? t('app.auth.forgotTitle', 'Quên mật khẩu')
                   : t('app.auth.verifyTitle', 'Kích hoạt tài khoản')}
               </h1>
-              <p className="text-xs text-slate-500 mt-1.5 mb-0">
+              <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-0">
                 {authModalTab === 'signin'
                   ? t('app.auth.signinDesc', 'Truy cập hồ sơ số đo nhân trắc học & phòng thử đồ 3D')
                   : authModalTab === 'register'
@@ -418,16 +441,16 @@ export const AuthModal: React.FC = () => {
               </p>
             </div>
 
-            {/* Tab Switcher */}
+            {/* Clean Segmented Tab Switcher (Obsidian #14171C Active Tab) */}
             {(authModalTab === 'signin' || authModalTab === 'register') && (
-              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100/90 border border-slate-200 rounded-xl mb-5">
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-stone-200/70 border border-stone-300/60 rounded-xl mb-5">
                 <button
                   type="button"
                   onClick={openSignIn}
                   className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     authModalTab === 'signin'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-950 bg-transparent'
+                      ? 'bg-[#14171C] text-white shadow-sm'
+                      : 'text-slate-600 hover:text-[#14171C] bg-transparent'
                   }`}
                 >
                   {t('app.auth.tabSignin', 'Đăng nhập')}
@@ -437,8 +460,8 @@ export const AuthModal: React.FC = () => {
                   onClick={openRegister}
                   className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     authModalTab === 'register'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-950 bg-transparent'
+                      ? 'bg-[#14171C] text-white shadow-sm'
+                      : 'text-slate-600 hover:text-[#14171C] bg-transparent'
                   }`}
                 >
                   {t('app.auth.tabRegister', 'Tạo tài khoản')}

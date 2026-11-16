@@ -33,7 +33,7 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        display: ['"Lora"', '"Be Vietnam Pro"', 'Georgia', 'serif'],
         sans: ['"Be Vietnam Pro"', '"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
