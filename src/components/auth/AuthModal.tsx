@@ -8,7 +8,7 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  ShieldCheck,
+  Check,
   ArrowLeft,
   CheckCircle2,
   Scissors,
@@ -16,7 +16,10 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import { validateEmail, validatePassword } from '@/lib/validationRules';
 import { FitVisionAuthShowcase } from './FitVisionAuthShowcase';
+
+const SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/;
 
 export const AuthModal: React.FC = () => {
   const {
@@ -59,12 +62,23 @@ export const AuthModal: React.FC = () => {
   const [emailUnlocked, setEmailUnlocked] = useState(false);
   const [passwordUnlocked, setPasswordUnlocked] = useState(false);
 
+  // Per-field interaction & submit tracking for real-time inline validation
+  const [touched, setTouched] = useState({
+    fullName: false,
+    email: false,
+    password: false,
+    confirmPassword: false,
+  });
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
   // Reset inputs and unlock flags whenever the modal opens or tab switches
   useEffect(() => {
     setErrorMessage(null);
     setSuccessMessage(null);
     setEmailUnlocked(false);
     setPasswordUnlocked(false);
+    setSubmitAttempted(false);
+    setTouched({ fullName: false, email: false, password: false, confirmPassword: false });
     if (authModalTab === 'signin' || authModalTab === 'register') {
       setForgotStep('request');
       setOtpCode('');
@@ -162,23 +176,95 @@ export const AuthModal: React.FC = () => {
 
   if (!isAuthModalOpen) return null;
 
+  // ── Shared Live Field Validation (Reusing @/lib/validationRules.ts) ──
+  const isEnLocale = locale === 'en';
+  const emailValidation = validateEmail(email);
+  const passwordValidation = validatePassword(password);
+  const trimmedName = fullName.trim();
+
+  const shouldValidateName = touched.fullName || submitAttempted || fullName.length > 0;
+  const nameError =
+    shouldValidateName && trimmedName.length < 2
+      ? isEnLocale
+        ? 'Full name must be at least 2 characters.'
+        : 'Họ và tên phải có tối thiểu 2 ký tự.'
+      : null;
+
+  const shouldValidateEmail = touched.email || submitAttempted || email.trim().length > 0;
+  const emailError = shouldValidateEmail && !emailValidation.valid
+    ? emailValidation.code === 'EMAIL_REQUIRED'
+      ? t('app.authErrors.AUTH_EMAIL_REQUIRED', 'Vui lòng nhập địa chỉ email của bạn.')
+      : emailValidation.code === 'AUTH_DISPOSABLE_EMAIL'
+      ? t('app.authErrors.AUTH_DISPOSABLE_EMAIL', 'Không chấp nhận email tạm thời / email rác.')
+      : emailValidation.code === 'EMAIL_TOO_LONG'
+      ? isEnLocale
+        ? 'Email must not exceed 254 characters.'
+        : 'Email không được vượt quá 254 ký tự.'
+      : isEnLocale
+      ? 'Invalid email format (e.g. name@gmail.com).'
+      : 'Email chưa đúng định dạng (ví dụ: ten@gmail.com).'
+    : null;
+
+  const hasValidLength = password.length >= 6 && password.length <= 32;
+  const hasSpecialChar = SPECIAL_CHAR_REGEX.test(password);
+  const shouldValidatePassword = touched.password || submitAttempted || password.length > 0;
+  const passwordError = shouldValidatePassword && !passwordValidation.valid
+    ? passwordValidation.code === 'PASSWORD_REQUIRED'
+      ? t('app.authErrors.AUTH_PASSWORD_REQUIRED', 'Vui lòng nhập mật khẩu.')
+      : passwordValidation.code === 'PASSWORD_LENGTH_INVALID'
+      ? t('app.authErrors.PASSWORD_LENGTH_INVALID', 'Mật khẩu phải dài từ 6 đến 32 ký tự.')
+      : t('app.authErrors.PASSWORD_COMPLEXITY_FAILED', 'Mật khẩu cần ít nhất 1 ký tự đặc biệt (!@#$%^&*...).')
+    : null;
+
+  const signInPasswordError =
+    (touched.password || submitAttempted) && password.length === 0
+      ? t('app.authErrors.AUTH_PASSWORD_REQUIRED', 'Vui lòng nhập mật khẩu.')
+      : null;
+
+  const hasConfirmInput = confirmPassword.length > 0;
+  const confirmMatches = hasConfirmInput && confirmPassword === password;
+  const shouldShowConfirmError =
+    (hasConfirmInput && confirmPassword !== password) ||
+    ((touched.confirmPassword || submitAttempted) && confirmPassword.length === 0);
+  const confirmError = shouldShowConfirmError
+    ? confirmPassword.length === 0
+      ? isEnLocale
+        ? 'Please re-enter your password to confirm.'
+        : 'Vui lòng nhập lại mật khẩu xác nhận.'
+      : isEnLocale
+      ? 'Passwords do not match yet.'
+      : 'Chưa giống mật khẩu phía trên.'
+    : null;
+
+  const termsError =
+    submitAttempted && !termsAgreed
+      ? isEnLocale
+        ? 'Please agree to the Terms & Zero-Image Retention policy.'
+        : 'Vui lòng đồng ý với Điều khoản & Chính sách bảo mật trước khi đăng ký.'
+      : null;
+
   // 1. Handle Sign In
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setLoading(true);
 
+    if (!emailValidation.valid || password.length === 0) {
+      return;
+    }
+
+    setLoading(true);
     const res = await signIn(email, password, websiteTrap);
     setLoading(false);
 
     if (!res.success) {
       if (res.errorCode === 'AUTH_EMAIL_NOT_VERIFIED') {
         setErrorMessage(getLocalizedErrorMessage('AUTH_EMAIL_NOT_VERIFIED', res.error));
-      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         setErrorMessage(getLocalizedErrorMessage((res as any).errorCode, res.error));
-      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
   };
@@ -186,10 +272,21 @@ export const AuthModal: React.FC = () => {
   // 2. Handle Register
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setLoading(true);
 
+    if (
+      trimmedName.length < 2 ||
+      !emailValidation.valid ||
+      !passwordValidation.valid ||
+      confirmPassword !== password ||
+      !termsAgreed
+    ) {
+      return;
+    }
+
+    setLoading(true);
     const res = await register({
       fullName,
       email,
@@ -233,18 +330,19 @@ export const AuthModal: React.FC = () => {
   // 4. Handle Request Forgot Password OTP
   const handleRequestForgotOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setErrorMessage(t('app.authErrors.AUTH_EMAIL_REQUIRED'));
-      return;
-    }
+    setSubmitAttempted(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    if (!emailValidation.valid) {
+      return;
+    }
     setLoading(true);
 
     const res = await forgotPassword(email);
     setLoading(false);
 
     if (res.success) {
+      setSubmitAttempted(false);
       setSuccessMessage(t('app.auth.successForgot'));
       setOtpCode('');
       setForgotStep('reset');
@@ -256,8 +354,7 @@ export const AuthModal: React.FC = () => {
   // 5. Handle Reset Password with OTP
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmNewPassword) {
-      setErrorMessage(t('app.authErrors.AUTH_PASSWORD_MISMATCH'));
+    if (!validatePassword(newPassword).valid || newPassword !== confirmNewPassword) {
       return;
     }
     setErrorMessage(null);
@@ -368,8 +465,14 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const inputBaseClass =
-    'w-full h-11 pl-10 pr-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all';
+  const fieldBorderClass = (hasError: boolean, isValid = false) =>
+    hasError
+      ? 'border-rose-500 bg-rose-50/40 hover:border-rose-600 focus:border-rose-600'
+      : isValid
+      ? 'border-emerald-500/90 bg-white hover:border-emerald-600 focus:border-emerald-600'
+      : 'border-slate-400/80 bg-white hover:border-slate-500 focus:border-blue-600';
+
+  const inputBaseClass = `w-full h-11 pl-10 pr-4 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(false)}`;
 
   return (
     <div className="zf-auth-fullscreen animate-fade-in">
@@ -499,7 +602,7 @@ export const AuthModal: React.FC = () => {
 
             {/* ── 1. SIGN IN FORM ── */}
             {authModalTab === 'signin' && (
-              <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+              <form onSubmit={handleSignIn} noValidate className="flex flex-col gap-4">
                 {/* Browser autofill & honeypot traps */}
                 <input
                   type="text"
@@ -531,7 +634,7 @@ export const AuthModal: React.FC = () => {
                     {t('app.auth.email', 'Địa chỉ Email')}
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-400 pointer-events-none">
+                    <span className={`absolute left-3.5 pointer-events-none ${emailError ? 'text-rose-500' : email.trim() && emailValidation.valid ? 'text-emerald-600' : 'text-slate-400'}`}>
                       <Mail size={16} />
                     </span>
                     <input
@@ -543,12 +646,24 @@ export const AuthModal: React.FC = () => {
                       onFocus={() => setEmailUnlocked(true)}
                       onClick={() => setEmailUnlocked(true)}
                       onFocusCapture={() => setEmailUnlocked(true)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={t('app.auth.emailPh', 'name@company.com')}
-                      className={inputBaseClass}
+                      className={`w-full h-11 pl-10 pr-10 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(emailError), Boolean(email.trim() && emailValidation.valid))}`}
                     />
+                    {email.trim() && emailValidation.valid && (
+                      <span className="absolute right-3 text-emerald-600 pointer-events-none flex items-center">
+                        <CheckCircle2 size={16} />
+                      </span>
+                    )}
                   </div>
+                  {emailError && (
+                    <p className="mt-1.5 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{emailError}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Password */}
@@ -557,7 +672,7 @@ export const AuthModal: React.FC = () => {
                     {t('app.auth.password', 'Mật khẩu')}
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-400 pointer-events-none">
+                    <span className={`absolute left-3.5 pointer-events-none ${signInPasswordError ? 'text-rose-500' : 'text-slate-400'}`}>
                       <Lock size={16} />
                     </span>
                     <input
@@ -569,10 +684,11 @@ export const AuthModal: React.FC = () => {
                       onFocus={() => setPasswordUnlocked(true)}
                       onClick={() => setPasswordUnlocked(true)}
                       onFocusCapture={() => setPasswordUnlocked(true)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={t('app.auth.passwordPh', 'Mật khẩu của bạn')}
-                      className="w-full h-11 pl-10 pr-11 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
+                      className={`w-full h-11 pl-10 pr-11 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(signInPasswordError), false)}`}
                     />
                     <button
                       type="button"
@@ -582,6 +698,12 @@ export const AuthModal: React.FC = () => {
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
+                  {signInPasswordError && (
+                    <p className="mt-1.5 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{signInPasswordError}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Remember & Forgot */}
@@ -638,7 +760,7 @@ export const AuthModal: React.FC = () => {
 
             {/* ── 2. REGISTER FORM ── */}
             {authModalTab === 'register' && (
-              <form onSubmit={handleRegister} className="flex flex-col gap-3">
+              <form onSubmit={handleRegister} noValidate className="flex flex-col gap-3">
                 <input
                   type="text"
                   name="b_trap_username"
@@ -669,28 +791,40 @@ export const AuthModal: React.FC = () => {
                     {t('app.auth.nameReg', 'Họ và tên')}
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-500 pointer-events-none">
+                    <span className={`absolute left-3.5 pointer-events-none ${nameError ? 'text-rose-500' : trimmedName.length >= 2 ? 'text-emerald-600' : 'text-slate-500'}`}>
                       <User size={15} />
                     </span>
                     <input
                       type="text"
                       name="fv3d_reg_fullname"
                       required
+                      onBlur={() => setTouched((prev) => ({ ...prev, fullName: true }))}
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder={isEn ? 'John Doe' : 'Nguyễn Văn A'}
-                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
+                      className={`w-full h-10 pl-10 pr-9 rounded-xl border-[1.5px] shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(nameError), trimmedName.length >= 2)}`}
                     />
+                    {trimmedName.length >= 2 && (
+                      <span className="absolute right-3 text-emerald-600 pointer-events-none flex items-center">
+                        <CheckCircle2 size={15} />
+                      </span>
+                    )}
                   </div>
+                  {nameError && (
+                    <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{nameError}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Email */}
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    {t('app.auth.emailReg', 'Địa chỉ Email')}
+                    {t('app.auth.emailReg', 'Địa chỉ Email (Chặn domain rác)')}
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-500 pointer-events-none">
+                    <span className={`absolute left-3.5 pointer-events-none ${emailError ? 'text-rose-500' : email.trim() && emailValidation.valid ? 'text-emerald-600' : 'text-slate-500'}`}>
                       <Mail size={15} />
                     </span>
                     <input
@@ -702,83 +836,157 @@ export const AuthModal: React.FC = () => {
                       onFocus={() => setEmailUnlocked(true)}
                       onClick={() => setEmailUnlocked(true)}
                       onFocusCapture={() => setEmailUnlocked(true)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@company.com"
-                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
+                      placeholder="name@gmail.com"
+                      className={`w-full h-10 pl-10 pr-9 rounded-xl border-[1.5px] shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(emailError), Boolean(email.trim() && emailValidation.valid))}`}
                     />
+                    {email.trim() && emailValidation.valid && (
+                      <span className="absolute right-3 text-emerald-600 pointer-events-none flex items-center">
+                        <CheckCircle2 size={15} />
+                      </span>
+                    )}
+                  </div>
+                  {emailError ? (
+                    <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{emailError}</span>
+                    </p>
+                  ) : email.trim() && emailValidation.valid ? (
+                    <p className="mt-1 text-[11px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
+                      <Check size={13} className="shrink-0" />
+                      <span>{isEn ? 'Valid email — 6-digit verification OTP will be sent here.' : 'Email hợp lệ — mã OTP kích hoạt sẽ gửi về hộp thư này.'}</span>
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* Password (Full-width with real-time rule guidance) */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    {isEn ? 'Password' : 'Mật khẩu'}
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className={`absolute left-3.5 pointer-events-none ${passwordError ? 'text-rose-500' : passwordValidation.valid ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      <Lock size={15} />
+                    </span>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="fv3d_reg_pass"
+                      required
+                      autoComplete="new-password"
+                      readOnly={!passwordUnlocked}
+                      onFocus={() => setPasswordUnlocked(true)}
+                      onClick={() => setPasswordUnlocked(true)}
+                      onFocusCapture={() => setPasswordUnlocked(true)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="FitVision@2026"
+                      className={`w-full h-10 pl-10 pr-10 rounded-xl border-[1.5px] shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(passwordError), passwordValidation.valid)}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 p-1 text-slate-500 hover:text-[#14171C] bg-transparent border-0 cursor-pointer flex items-center"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+
+                  {/* Live Password Criteria Chips (Always guide user clearly; red when unmet, green when met) */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold transition-colors ${
+                        hasValidLength
+                          ? 'text-emerald-700'
+                          : shouldValidatePassword
+                          ? 'text-rose-600'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      {hasValidLength ? <Check size={12} strokeWidth={2.5} /> : <AlertCircle size={12} />}
+                      <span>{isEn ? '6–32 characters' : '6–32 ký tự'}</span>
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold transition-colors ${
+                        hasSpecialChar
+                          ? 'text-emerald-700'
+                          : shouldValidatePassword
+                          ? 'text-rose-600'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      {hasSpecialChar ? <Check size={12} strokeWidth={2.5} /> : <AlertCircle size={12} />}
+                      <span>{isEn ? '1 special char (!@#$%^&*...)' : 'Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)'}</span>
+                    </span>
                   </div>
                 </div>
 
-                {/* Password + Confirm Password Side-by-Side (Clean Ergonomic Layout) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                      {isEn ? 'Password (6-32)' : 'Mật khẩu (6-32 ký tự)'}
-                    </label>
-                    <div className="relative flex items-center">
-                      <span className="absolute left-3 text-slate-500 pointer-events-none">
-                        <Lock size={14} />
-                      </span>
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        name="fv3d_reg_pass"
-                        required
-                        autoComplete="new-password"
-                        readOnly={!passwordUnlocked}
-                        onFocus={() => setPasswordUnlocked(true)}
-                        onClick={() => setPasswordUnlocked(true)}
-                        onFocusCapture={() => setPasswordUnlocked(true)}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="FitVision@2026"
-                        className="w-full h-10 pl-9 pr-9 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2.5 p-1 text-slate-500 hover:text-[#14171C] bg-transparent border-0 cursor-pointer flex items-center"
-                      >
-                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </div>
+                {/* Confirm Password (Live stroke-by-stroke match / mismatch feedback) */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    {t('app.auth.confirm', 'Xác nhận mật khẩu')}
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className={`absolute left-3.5 pointer-events-none ${confirmError ? 'text-rose-500' : confirmMatches ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      <Lock size={15} />
+                    </span>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="fv3d_reg_pass_confirm"
+                      required
+                      autoComplete="new-password"
+                      onBlur={() => setTouched((prev) => ({ ...prev, confirmPassword: true }))}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder={t('app.auth.confirmPh', 'Nhập lại mật khẩu')}
+                      className={`w-full h-10 pl-10 pr-10 rounded-xl border-[1.5px] shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(confirmError), confirmMatches)}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 p-1 text-slate-500 hover:text-[#14171C] bg-transparent border-0 cursor-pointer flex items-center"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                      {t('app.auth.confirm', 'Xác nhận mật khẩu')}
-                    </label>
-                    <div className="relative flex items-center">
-                      <span className="absolute left-3 text-slate-500 pointer-events-none">
-                        <Lock size={14} />
-                      </span>
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        name="fv3d_reg_pass_confirm"
-                        required
-                        autoComplete="new-password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder={t('app.auth.confirmPh', 'Nhập lại')}
-                        className="w-full h-10 pl-9 pr-3 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
-                      />
-                    </div>
-                  </div>
+                  {confirmError ? (
+                    <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{confirmError}</span>
+                    </p>
+                  ) : confirmMatches ? (
+                    <p className="mt-1 text-[11.5px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
+                      <CheckCircle2 size={13} className="shrink-0" />
+                      <span>{isEn ? 'Passwords match!' : 'Mật khẩu đã trùng khớp!'}</span>
+                    </p>
+                  ) : null}
                 </div>
 
                 {/* Terms */}
-                <label className="flex items-start gap-2 pt-0.5 text-[11px] text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    id="terms-fullscreen"
-                    checked={termsAgreed}
-                    onChange={(e) => setTermsAgreed(e.target.checked)}
-                    className="mt-0.5 accent-blue-600 cursor-pointer rounded"
-                  />
-                  <span className="leading-snug">
-                    {t('app.auth.terms', 'Tôi đồng ý với Điều khoản Sử dụng và Cam kết Bảo vệ Dữ liệu')}
-                  </span>
-                </label>
+                <div>
+                  <label className="flex items-start gap-2 pt-0.5 text-[11px] text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      id="terms-fullscreen"
+                      checked={termsAgreed}
+                      onChange={(e) => setTermsAgreed(e.target.checked)}
+                      className="mt-0.5 accent-blue-600 cursor-pointer rounded"
+                    />
+                    <span className="leading-snug">
+                      {t('app.auth.terms', 'Tôi đồng ý với Điều khoản Sử dụng và Cam kết Bảo vệ Dữ liệu')}
+                    </span>
+                  </label>
+                  {termsError && (
+                    <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{termsError}</span>
+                    </p>
+                  )}
+                </div>
 
                 <button
                   type="submit"
@@ -818,24 +1026,36 @@ export const AuthModal: React.FC = () => {
             {authModalTab === 'forgot' && (
               <div>
                 {forgotStep === 'request' ? (
-                  <form onSubmit={handleRequestForgotOtp} className="flex flex-col gap-4">
+                  <form onSubmit={handleRequestForgotOtp} noValidate className="flex flex-col gap-4">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                         {t('app.auth.forgotEmailLabel', 'Địa chỉ Email cần lấy lại mật khẩu')}
                       </label>
                       <div className="relative flex items-center">
-                        <span className="absolute left-3.5 text-slate-400 pointer-events-none">
+                        <span className={`absolute left-3.5 pointer-events-none ${emailError ? 'text-rose-500' : email.trim() && emailValidation.valid ? 'text-emerald-600' : 'text-slate-400'}`}>
                           <Mail size={16} />
                         </span>
                         <input
                           type="email"
                           required
+                          onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="name@company.com"
-                          className={inputBaseClass}
+                          placeholder="name@gmail.com"
+                          className={`w-full h-11 pl-10 pr-10 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(emailError), Boolean(email.trim() && emailValidation.valid))}`}
                         />
+                        {email.trim() && emailValidation.valid && (
+                          <span className="absolute right-3 text-emerald-600 pointer-events-none flex items-center">
+                            <CheckCircle2 size={16} />
+                          </span>
+                        )}
                       </div>
+                      {emailError && (
+                        <p className="mt-1.5 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                          <AlertCircle size={13} className="shrink-0" />
+                          <span>{emailError}</span>
+                        </p>
+                      )}
                     </div>
 
                     <button
@@ -848,7 +1068,7 @@ export const AuthModal: React.FC = () => {
                     </button>
                   </form>
                 ) : (
-                  <form onSubmit={handleResetPassword} className="flex flex-col gap-3.5">
+                  <form onSubmit={handleResetPassword} noValidate className="flex flex-col gap-3.5">
                     <div>
                       <div className="flex justify-between mb-1">
                         <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
@@ -874,13 +1094,23 @@ export const AuthModal: React.FC = () => {
                         {t('app.auth.newPasswordLabel', 'Mật khẩu mới')}
                       </label>
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder={t('app.auth.newPasswordPh', 'Nhập mật khẩu mới')}
-                        className="w-full h-10 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm text-[#14171C] focus:border-blue-600 focus:outline-none"
+                        className={`w-full h-10 px-4 rounded-xl border-[1.5px] shadow-2xs text-sm text-[#14171C] focus:outline-none transition-all ${fieldBorderClass(newPassword.length > 0 && !validatePassword(newPassword).valid, newPassword.length > 0 && validatePassword(newPassword).valid)}`}
                       />
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${newPassword.length >= 6 && newPassword.length <= 32 ? 'text-emerald-700' : newPassword.length > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                          {newPassword.length >= 6 && newPassword.length <= 32 ? <Check size={12} strokeWidth={2.5} /> : <AlertCircle size={12} />}
+                          <span>{isEn ? '6–32 characters' : '6–32 ký tự'}</span>
+                        </span>
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${SPECIAL_CHAR_REGEX.test(newPassword) ? 'text-emerald-700' : newPassword.length > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                          {SPECIAL_CHAR_REGEX.test(newPassword) ? <Check size={12} strokeWidth={2.5} /> : <AlertCircle size={12} />}
+                          <span>{isEn ? '1 special char (!@#$%^&*...)' : 'Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)'}</span>
+                        </span>
+                      </div>
                     </div>
 
                     <div>
@@ -888,13 +1118,25 @@ export const AuthModal: React.FC = () => {
                         {t('app.auth.confirmNewPasswordLabel', 'Xác nhận mật khẩu mới')}
                       </label>
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         required
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         placeholder={t('app.auth.confirmNewPasswordPh', 'Nhập lại mật khẩu mới')}
-                        className="w-full h-10 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm text-[#14171C] focus:border-blue-600 focus:outline-none"
+                        className={`w-full h-10 px-4 rounded-xl border-[1.5px] shadow-2xs text-sm text-[#14171C] focus:outline-none transition-all ${fieldBorderClass(confirmNewPassword.length > 0 && confirmNewPassword !== newPassword, confirmNewPassword.length > 0 && confirmNewPassword === newPassword)}`}
                       />
+                      {confirmNewPassword.length > 0 && confirmNewPassword !== newPassword && (
+                        <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                          <AlertCircle size={13} className="shrink-0" />
+                          <span>{isEn ? 'Passwords do not match yet.' : 'Chưa giống mật khẩu mới phía trên.'}</span>
+                        </p>
+                      )}
+                      {confirmNewPassword.length > 0 && confirmNewPassword === newPassword && (
+                        <p className="mt-1 text-[11.5px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
+                          <CheckCircle2 size={13} className="shrink-0" />
+                          <span>{isEn ? 'Passwords match!' : 'Mật khẩu đã trùng khớp!'}</span>
+                        </p>
+                      )}
                     </div>
 
                     <button
