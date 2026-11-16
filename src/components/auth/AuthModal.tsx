@@ -191,18 +191,34 @@ export const AuthModal: React.FC = () => {
       : null;
 
   const shouldValidateEmail = touched.email || submitAttempted || email.trim().length > 0;
+  const emailSuggestion = shouldValidateEmail && !emailValidation.valid ? emailValidation.suggestion : undefined;
   const emailError = shouldValidateEmail && !emailValidation.valid
-    ? emailValidation.code === 'EMAIL_REQUIRED'
-      ? t('app.authErrors.AUTH_EMAIL_REQUIRED', 'Vui lòng nhập địa chỉ email của bạn.')
-      : emailValidation.code === 'AUTH_DISPOSABLE_EMAIL'
-      ? t('app.authErrors.AUTH_DISPOSABLE_EMAIL', 'Không chấp nhận email tạm thời / email rác.')
-      : emailValidation.code === 'EMAIL_TOO_LONG'
-      ? isEnLocale
-        ? 'Email must not exceed 254 characters.'
-        : 'Email không được vượt quá 254 ký tự.'
-      : isEnLocale
-      ? 'Invalid email format (e.g. name@gmail.com).'
-      : 'Email chưa đúng định dạng (ví dụ: ten@gmail.com).'
+    ? (() => {
+        if (emailValidation.code === 'EMAIL_REQUIRED') {
+          return t('app.authErrors.AUTH_EMAIL_REQUIRED', 'Vui lòng nhập địa chỉ email của bạn.');
+        }
+        if (emailValidation.code === 'AUTH_DISPOSABLE_EMAIL') {
+          return t('app.authErrors.AUTH_DISPOSABLE_EMAIL', 'Không chấp nhận email tạm thời / email rác.');
+        }
+        if (emailValidation.code === 'EMAIL_TOO_LONG') {
+          return isEnLocale ? 'Email must not exceed 254 characters.' : 'Email không được vượt quá 254 ký tự.';
+        }
+        if (isEnLocale) {
+          if (emailValidation.code === 'EMAIL_DOMAIN_TYPO') {
+            return emailSuggestion
+              ? `Possible domain typo. Did you mean ${emailSuggestion}?`
+              : 'Invalid top-level domain (check for typos like .con or .cpm).';
+          }
+          if (emailValidation.code === 'EMAIL_GMAIL_INVALID') {
+            return 'Gmail usernames can only contain letters (a-z), numbers (0-9), and periods (.).';
+          }
+          if (emailValidation.code === 'EMAIL_GMAIL_LENGTH') {
+            return 'Standard Gmail usernames must be between 6 and 30 characters long.';
+          }
+          return 'Invalid email format (e.g. name@gmail.com).';
+        }
+        return emailValidation.error || 'Email chưa đúng định dạng (ví dụ: ten@gmail.com).';
+      })()
     : null;
 
   const hasValidLength = password.length >= 6 && password.length <= 32;
@@ -474,6 +490,41 @@ export const AuthModal: React.FC = () => {
 
   const inputBaseClass = `w-full h-11 pl-10 pr-4 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(false)}`;
 
+  const renderEmailFeedback = (showSuccessHint = false) => {
+    if (emailError) {
+      return (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <p className="text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0 leading-snug">
+            <AlertCircle size={13} className="shrink-0" />
+            <span>{emailError}</span>
+          </p>
+          {emailSuggestion && (
+            <button
+              type="button"
+              onClick={() => setEmail(emailSuggestion)}
+              className="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 border border-rose-300 text-[11px] font-bold text-rose-700 cursor-pointer transition-colors"
+            >
+              {isEnLocale ? `Fix to ${emailSuggestion}` : `Sửa thành ${emailSuggestion}`}
+            </button>
+          )}
+        </div>
+      );
+    }
+    if (showSuccessHint && email.trim() && emailValidation.valid) {
+      return (
+        <p className="mt-1 text-[11px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
+          <Check size={13} className="shrink-0" />
+          <span>
+            {isEn
+              ? 'Valid email — 6-digit verification OTP will be sent here.'
+              : 'Email hợp lệ — mã OTP kích hoạt sẽ gửi về hộp thư này.'}
+          </span>
+        </p>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="zf-auth-fullscreen animate-fade-in">
       {/* ── UNIFIED TOP STOREFRONT HEADER (#14171C OBSIDIAN) ── */}
@@ -658,12 +709,7 @@ export const AuthModal: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  {emailError && (
-                    <p className="mt-1.5 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
-                      <AlertCircle size={13} className="shrink-0" />
-                      <span>{emailError}</span>
-                    </p>
-                  )}
+                  {renderEmailFeedback(false)}
                 </div>
 
                 {/* Password */}
@@ -848,17 +894,7 @@ export const AuthModal: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  {emailError ? (
-                    <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
-                      <AlertCircle size={13} className="shrink-0" />
-                      <span>{emailError}</span>
-                    </p>
-                  ) : email.trim() && emailValidation.valid ? (
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
-                      <Check size={13} className="shrink-0" />
-                      <span>{isEn ? 'Valid email — 6-digit verification OTP will be sent here.' : 'Email hợp lệ — mã OTP kích hoạt sẽ gửi về hộp thư này.'}</span>
-                    </p>
-                  ) : null}
+                  {renderEmailFeedback(true)}
                 </div>
 
                 {/* Password (Full-width with real-time rule guidance) */}
@@ -1050,12 +1086,7 @@ export const AuthModal: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      {emailError && (
-                        <p className="mt-1.5 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
-                          <AlertCircle size={13} className="shrink-0" />
-                          <span>{emailError}</span>
-                        </p>
-                      )}
+                      {renderEmailFeedback(false)}
                     </div>
 
                     <button

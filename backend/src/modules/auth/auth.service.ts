@@ -10,7 +10,10 @@ import {
 } from './auth.dto.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
-import { isDisposableEmail } from '../../constants/disposableEmails.js';
+import {
+  isDisposableEmail,
+  validateEmailDomainAndGmailPolicy,
+} from '../../constants/disposableEmails.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
 import {
   generateAccessToken,
@@ -34,12 +37,21 @@ export const authService = {
       };
     }
 
-    // 2. Kiểm tra Disposable Email (Lớp 3 chống spam)
+    // 2. Kiểm tra Disposable Email & Chuẩn Tên Miền / Gmail Policy
     if (isDisposableEmail(dto.email)) {
       throw new AppError(
         400,
         ErrorCode.AUTH_DISPOSABLE_EMAIL,
         'Hệ thống không chấp nhận email tạm thời/email rác. Vui lòng dùng email chính thức.'
+      );
+    }
+
+    const emailPolicy = validateEmailDomainAndGmailPolicy(dto.email);
+    if (!emailPolicy.valid) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        emailPolicy.message || 'Email không đúng định dạng hợp lệ.'
       );
     }
 
@@ -96,12 +108,21 @@ export const authService = {
       };
     }
 
-    // 2. Disposable Email check
+    // 2. Disposable Email & Domain Policy check
     if (isDisposableEmail(dto.email)) {
       throw new AppError(
         400,
         ErrorCode.AUTH_DISPOSABLE_EMAIL,
         'Hệ thống không chấp nhận email tạm thời. Vui lòng dùng email chính thức.'
+      );
+    }
+
+    const emailPolicy = validateEmailDomainAndGmailPolicy(dto.email);
+    if (!emailPolicy.valid) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        emailPolicy.message || 'Email không đúng định dạng hợp lệ.'
       );
     }
 
