@@ -74,20 +74,20 @@ interface CameraPreset {
 
 const VIEW_PRESETS: Record<ViewZone, CameraPreset> = {
   full_body: {
-    target: new THREE.Vector3(0, -0.02, 0),
-    pos: new THREE.Vector3(0, 0.04, 3.20),
+    target: new THREE.Vector3(0, 0.0, 0),
+    pos: new THREE.Vector3(0, 0.06, 3.05),
   },
   chest: {
-    target: new THREE.Vector3(0, 0.30, 0),
-    pos: new THREE.Vector3(0, 0.32, 1.35),
+    target: new THREE.Vector3(0, 0.42, 0),
+    pos: new THREE.Vector3(0, 0.44, 1.35),
   },
   waist: {
-    target: new THREE.Vector3(0, 0.08, 0),
-    pos: new THREE.Vector3(0, 0.10, 1.25),
+    target: new THREE.Vector3(0, 0.25, 0),
+    pos: new THREE.Vector3(0, 0.27, 1.25),
   },
   hips: {
-    target: new THREE.Vector3(0, -0.09, 0),
-    pos: new THREE.Vector3(0, -0.07, 1.35),
+    target: new THREE.Vector3(0, 0.02, 0),
+    pos: new THREE.Vector3(0, 0.04, 1.35),
   },
 };
 
@@ -143,19 +143,20 @@ function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
   const sChest = params.scale_chest || 1.0;
   const sWaist = params.scale_waist || 1.0;
   const sHips = params.scale_hips || 1.0;
+  const isFemale = params.gender === "female";
 
   return {
-    chest: new THREE.Vector3(-0.165 * sChest, 0.30, 0.015),
-    waist: new THREE.Vector3(-0.135 * sWaist, 0.08, 0.010),
-    hips: new THREE.Vector3(0.178 * sHips, -0.09, -0.005),
-    shoulders: new THREE.Vector3(0.195 * sChest, 0.43, 0.0),
+    chest: new THREE.Vector3((isFemale ? -0.140 : -0.145) * sChest, 0.42, isFemale ? 0.032 : 0.020),
+    waist: new THREE.Vector3((isFemale ? -0.116 : -0.118) * sWaist, isFemale ? 0.26 : 0.25, isFemale ? 0.015 : 0.035),
+    hips: new THREE.Vector3((isFemale ? 0.176 : 0.152) * sHips, 0.02, isFemale ? 0.050 : 0.038),
+    shoulders: new THREE.Vector3(0.195 * sChest, 0.50, 0.0),
     inseam: new THREE.Vector3(-0.085 * sHips, -0.35, 0.0),
-    arm_length: new THREE.Vector3(0.38 * sChest, 0.20, 0.0),
-    bicep: new THREE.Vector3(-0.27 * sChest, 0.28, 0.0),
-    wrist: new THREE.Vector3(-0.43 * sChest, 0.04, 0.015),
-    thigh: new THREE.Vector3(0.11 * sHips, -0.24, 0.015),
-    calf: new THREE.Vector3(0.10 * sHips, -0.52, -0.01),
-    ankle: new THREE.Vector3(0.09 * sHips, -0.74, 0.0),
+    arm_length: new THREE.Vector3(isFemale ? 0.45 : 0.34 * sChest, isFemale ? 0.48 : 0.28, 0.0),
+    bicep: new THREE.Vector3((isFemale ? -0.34 : -0.25) * sChest, isFemale ? 0.49 : 0.36, 0.0),
+    wrist: new THREE.Vector3((isFemale ? -0.62 : -0.38) * sChest, isFemale ? 0.48 : 0.08, 0.015),
+    thigh: new THREE.Vector3(0.105 * sHips, -0.18, 0.015),
+    calf: new THREE.Vector3(0.095 * sHips, -0.48, -0.01),
+    ankle: new THREE.Vector3(0.085 * sHips, -0.74, 0.0),
   };
 }
 
