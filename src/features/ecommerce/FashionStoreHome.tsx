@@ -996,21 +996,21 @@ export const FashionStoreHome: React.FC = () => {
                   {t('ecommerce.hero.desc', 'Không còn nỗi lo chọn nhầm size hay phiền phức đổi trả. Thuật toán Trí Tuệ Nhân Tạo tự động phân tích vóc dáng và so khớp độ cử động (Ease Allowance) với từng đường kim mũi chỉ của nhà may.')}
                 </p>
 
-                <div className="flex items-center gap-3 flex-wrap pt-2">
+                <div className="flex items-center gap-2.5 flex-wrap pt-2">
                   <button
                     type="button"
                     onClick={handleOpenVirtualStudio}
-                    className="px-6 py-3 rounded-xl bg-white hover:bg-stone-100 active:scale-95 text-[#14171C] font-bold text-xs sm:text-sm shadow-lg flex items-center gap-2 transition-all cursor-pointer"
+                    className="h-11 px-4 sm:px-5 rounded-xl bg-white hover:bg-stone-100 active:scale-95 text-[#14171C] font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer"
                   >
-                    <Sparkles size={16} className="text-blue-600" />
-                    <span>{t('ecommerce.hero.ctaTryOn', 'Thử Đồ Ảo 3D (Phòng Thử AI)')}</span>
+                    <Sparkles size={15} className="text-blue-600 shrink-0" />
+                    <span>{locale === 'en' ? '3D Virtual Try-On' : 'Thử Đồ Ảo 3D'}</span>
                   </button>
 
                   <a
                     href="/dashboard"
-                    className="px-6 py-3 rounded-xl bg-[#14171C] hover:bg-black active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-1.5 transition-all cursor-pointer border border-white/15"
+                    className="h-11 px-4 sm:px-5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer border border-blue-400/40"
                   >
-                    <Camera size={15} className="text-blue-400" />
+                    <Camera size={15} className="text-white shrink-0" />
                     <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng AI 30s')}</span>
                   </a>
 
@@ -1021,10 +1021,10 @@ export const FashionStoreHome: React.FC = () => {
                         setProfileModalTab('merchant');
                         setIsProfileModalOpen(true);
                       }}
-                      className="px-5 py-3 rounded-xl bg-black/20 hover:bg-black/30 active:scale-95 text-amber-200 font-bold text-xs sm:text-sm border border-white/25 flex items-center gap-2 transition-all cursor-pointer"
+                      className="h-11 px-4 sm:px-5 rounded-xl bg-[#F5EBD8] hover:bg-white active:scale-95 text-[#14171C] font-bold text-xs sm:text-sm shadow-md border border-[#E5D3B3] flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer"
                     >
-                      <Store size={16} />
-                      <span>{t('ecommerce.hero.ctaMerchant', 'Đăng Ký Gian Hàng May Đo')}</span>
+                      <Store size={15} className="text-[#9A6E27] shrink-0" />
+                      <span>{locale === 'en' ? 'Open Tailor Store' : 'Mở Gian Hàng May Đo'}</span>
                     </button>
                   ) : (
                     <button
@@ -1033,12 +1033,40 @@ export const FashionStoreHome: React.FC = () => {
                         const el = document.getElementById('catalog');
                         if (el) el.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="px-5 py-3 rounded-xl bg-black/20 hover:bg-black/30 active:scale-95 text-white font-bold text-xs sm:text-sm border border-white/25 flex items-center gap-2 transition-all cursor-pointer"
+                      className="h-11 px-4 sm:px-5 rounded-xl bg-[#F5EBD8] hover:bg-white active:scale-95 text-[#14171C] font-bold text-xs sm:text-sm shadow-md border border-[#E5D3B3] flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer"
                     >
-                      <ShoppingBag size={16} />
+                      <ShoppingBag size={15} className="text-[#9A6E27] shrink-0" />
                       <span>{t('ecommerce.hero.ctaExplore', 'Khám Phá Bộ Sưu Tập')}</span>
                     </button>
                   )}
+                </div>
+
+                {/* Architectural Editorial Proof Strip inside Hero */}
+                <div className="pt-5 mt-2 border-t border-white/20 grid grid-cols-3 gap-4 max-w-xl">
+                  <div>
+                    <span className="font-mono text-base sm:text-lg font-extrabold text-amber-200 block leading-tight">
+                      {t('ecommerce.hero.statLandmarks', '13 Mốc')}
+                    </span>
+                    <span className="text-[11px] text-stone-200/90 font-medium">
+                      {t('ecommerce.hero.statLandmarksSub', 'Chuẩn may đo ISO 8559-1')}
+                    </span>
+                  </div>
+                  <div className="border-l border-white/15 pl-4">
+                    <span className="font-mono text-base sm:text-lg font-extrabold text-white block leading-tight">
+                      &lt; 1.2%
+                    </span>
+                    <span className="text-[11px] text-stone-200/90 font-medium">
+                      {locale === 'en' ? 'Ramanujan 3D accuracy' : 'Sai số cắt lớp Elip 3D'}
+                    </span>
+                  </div>
+                  <div className="border-l border-white/15 pl-4">
+                    <span className="font-mono text-base sm:text-lg font-extrabold text-emerald-300 block leading-tight">
+                      0s Save
+                    </span>
+                    <span className="text-[11px] text-stone-200/90 font-medium">
+                      {locale === 'en' ? 'RAM zero-retention privacy' : 'Xóa ảnh tức thì trên RAM'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
