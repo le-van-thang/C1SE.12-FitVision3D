@@ -1,3 +1,5 @@
+import { commerceApi, type DbProduct } from './commerceApi';
+
 export interface PlatformVoucher {
   code: string;
   discountType: 'percent' | 'fixed';
@@ -171,4 +173,55 @@ export function savePlatformConfig(config: PlatformConfig): void {
 export function resetPlatformConfig(): PlatformConfig {
   savePlatformConfig(DEFAULT_PLATFORM_CONFIG);
   return DEFAULT_PLATFORM_CONFIG;
+}
+
+export async function syncPlatformConfigFromBackend(
+  includeHidden = true
+): Promise<{ config: PlatformConfig; products: DbProduct[] } | null> {
+  const res = await commerceApi.getBootstrap(includeHidden);
+  if (!res.success || !res.data) return null;
+
+  const { settings, vouchers, products } = res.data;
+  const hiddenProductIds = products.filter((p) => Boolean(p.is_hidden)).map((p) => p.id);
+  const priceOverrides: Record<string, number> = {};
+  products.forEach((p) => {
+    if (p.sale_price && p.sale_price > 0) {
+      priceOverrides[p.id] = p.sale_price;
+    }
+  });
+
+  const mappedVouchers: PlatformVoucher[] = Array.isArray(vouchers)
+    ? vouchers.map((v) => ({
+        code: v.code,
+        discountType: v.discount_type,
+        discountValue: v.discount_value,
+        titleVi: v.title_vi,
+        titleEn: v.title_en,
+        subVi: v.sub_vi || '',
+        subEn: v.sub_en || '',
+        active: Boolean(v.is_active),
+        showOnStorefront: Boolean(v.show_on_storefront),
+      }))
+    : DEFAULT_PLATFORM_CONFIG.vouchers;
+
+  const merged: PlatformConfig = {
+    marqueeEnabled: settings ? Boolean(settings.marquee_enabled) : DEFAULT_PLATFORM_CONFIG.marqueeEnabled,
+    marqueeItemsVi:
+      settings && Array.isArray(settings.marquee_items_vi) && settings.marquee_items_vi.length > 0
+        ? settings.marquee_items_vi
+        : DEFAULT_PLATFORM_CONFIG.marqueeItemsVi,
+    marqueeItemsEn:
+      settings && Array.isArray(settings.marquee_items_en) && settings.marquee_items_en.length > 0
+        ? settings.marquee_items_en
+        : DEFAULT_PLATFORM_CONFIG.marqueeItemsEn,
+    heroBadgeVi: settings?.hero_badge_vi || DEFAULT_PLATFORM_CONFIG.heroBadgeVi,
+    heroTitleVi: settings?.hero_title_vi || DEFAULT_PLATFORM_CONFIG.heroTitleVi,
+    heroHighlightVi: settings?.hero_highlight_vi || DEFAULT_PLATFORM_CONFIG.heroHighlightVi,
+    hiddenProductIds,
+    priceOverrides,
+    vouchers: mappedVouchers.length > 0 ? mappedVouchers : DEFAULT_PLATFORM_CONFIG.vouchers,
+  };
+
+  savePlatformConfig(merged);
+  return { config: merged, products };
 }

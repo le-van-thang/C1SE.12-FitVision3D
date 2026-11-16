@@ -10,8 +10,11 @@ import {
   ShieldCheck,
   CalendarCheck2,
   Percent,
+  History,
 } from 'lucide-react';
 import type { Order, UserBodyProfile } from './types';
+import { getAccessToken } from '@/services/authApi';
+import { commerceApi, type DbMembershipWallet } from '@/services/commerceApi';
 
 export type MembershipTierId = 'member' | 'silver' | 'gold' | 'vip';
 
@@ -276,12 +279,67 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
   const [previewTierId, setPreviewTierId] = useState<MembershipTierId>('member');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [dbWallet, setDbWallet] = useState<DbMembershipWallet | null>(null);
+  const [isSyncingWallet, setIsSyncingWallet] = useState(false);
 
-  const summary = computeMembershipSummary(orders, userBody);
+  const loadLiveMembership = async () => {
+    if (!getAccessToken()) return;
+    setIsSyncingWallet(true);
+    const res = await commerceApi.getMembership();
+    if (res.success && res.data) {
+      setDbWallet(res.data);
+      persistLoyalty({
+        bonusPoints: res.data.bonusPoints,
+        spentPoints: res.data.spentPoints,
+        unlockedCodes: res.data.unlockedCodes,
+        lastCheckInDate: res.data.lastCheckInDate,
+      });
+    }
+    setIsSyncingWallet(false);
+  };
 
   useEffect(() => {
-    setPreviewTierId(summary.currentTier.id);
-  }, [summary.currentTier.id]);
+    loadLiveMembership();
+    const onUpdated = () => {
+      loadLiveMembership();
+    };
+    window.addEventListener('fv3d-membership-updated', onUpdated);
+    return () => window.removeEventListener('fv3d-membership-updated', onUpdated);
+  }, [userId]);
+
+  const summary = computeMembershipSummary(orders, userBody);
+  const effectiveSummary: MembershipSummary = dbWallet
+    ? (() => {
+        const spend = Math.max(dbWallet.totalSpend, summary.totalSpend);
+        let idx = 0;
+        for (let i = MEMBERSHIP_TIERS.length - 1; i >= 0; i--) {
+          if (spend >= MEMBERSHIP_TIERS[i].minSpend) {
+            idx = i;
+            break;
+          }
+        }
+        const cur = MEMBERSHIP_TIERS[idx];
+        const nxt = MEMBERSHIP_TIERS[idx + 1] ?? null;
+        let pct = 100;
+        let rem = 0;
+        if (nxt) {
+          pct = Math.max(4, Math.min(100, Math.round(((spend - cur.minSpend) / (nxt.minSpend - cur.minSpend)) * 100)));
+          rem = Math.max(0, nxt.minSpend - spend);
+        }
+        return {
+          totalSpend: spend,
+          earnedPoints: Math.floor(spend / 10_000) + dbWallet.bonusPoints,
+          currentTier: cur,
+          nextTier: nxt,
+          progressPct: pct,
+          remainingToNext: rem,
+        };
+      })()
+    : summary;
+
+  useEffect(() => {
+    setPreviewTierId(effectiveSummary.currentTier.id);
+  }, [effectiveSummary.currentTier.id]);
 
   const persistLoyalty = (next: StoredLoyaltyState) => {
     setLoyaltyState(next);
@@ -292,31 +350,49 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
     }
   };
 
-  const availablePoints = Math.max(
-    0,
-    summary.earnedPoints + loyaltyState.bonusPoints - loyaltyState.spentPoints
-  );
+  const availablePoints = dbWallet
+    ? Math.max(0, Math.floor(effectiveSummary.totalSpend / 10_000) + dbWallet.bonusPoints - dbWallet.spentPoints)
+    : Math.max(0, summary.earnedPoints + loyaltyState.bonusPoints - loyaltyState.spentPoints);
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const alreadyCheckedInToday = loyaltyState.lastCheckInDate === todayStr;
+  const effectiveLastCheckIn = dbWallet?.lastCheckInDate ?? loyaltyState.lastCheckInDate;
+  const alreadyCheckedInToday = effectiveLastCheckIn === todayStr;
 
-  const handleDailyCheckIn = () => {
-    if (alreadyCheckedInToday) return;
-    persistLoyalty({
-      ...loyaltyState,
-      bonusPoints: loyaltyState.bonusPoints + 20,
-      lastCheckInDate: todayStr,
-    });
+  const handleDailyCheckIn = async () => {
+    if (alreadyCheckedInToday || isSyncingWallet) return;
+
+    if (getAccessToken()) {
+      setIsSyncingWallet(true);
+      const res = await commerceApi.checkInMembership();
+      setIsSyncingWallet(false);
+      if (res.success && res.data?.wallet) {
+        setDbWallet(res.data.wallet);
+        persistLoyalty({
+          bonusPoints: res.data.wallet.bonusPoints,
+          spentPoints: res.data.wallet.spentPoints,
+          unlockedCodes: res.data.wallet.unlockedCodes,
+          lastCheckInDate: res.data.wallet.lastCheckInDate,
+        });
+      }
+    } else {
+      persistLoyalty({
+        ...loyaltyState,
+        bonusPoints: loyaltyState.bonusPoints + 20,
+        lastCheckInDate: todayStr,
+      });
+    }
+
     setFeedbackMsg(
       isEn
-        ? 'Checked in! +20 FitPoints added to your Atelier balance.'
-        : 'Điểm danh thành công! Đã cộng +20 FitPoints vào ví hội viên.'
+        ? 'Checked in! +20 FitPoints saved to PostgreSQL Atelier wallet.'
+        : 'Điểm danh thành công! Đã cộng +20 FitPoints vào ví hội viên (PostgreSQL).'
     );
     setTimeout(() => setFeedbackMsg(null), 3500);
   };
 
-  const handleRedeemVoucher = (offer: VoucherOffer) => {
-    if (loyaltyState.unlockedCodes.includes(offer.code)) {
+  const handleRedeemVoucher = async (offer: VoucherOffer) => {
+    const unlockedList = dbWallet?.unlockedCodes ?? loyaltyState.unlockedCodes;
+    if (unlockedList.includes(offer.code)) {
       navigator.clipboard.writeText(offer.code);
       setCopiedCode(offer.code);
       setTimeout(() => setCopiedCode(null), 2000);
@@ -333,17 +409,36 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
       return;
     }
 
-    persistLoyalty({
-      ...loyaltyState,
-      spentPoints: loyaltyState.spentPoints + offer.costPts,
-      unlockedCodes: [...loyaltyState.unlockedCodes, offer.code],
-    });
+    if (getAccessToken()) {
+      setIsSyncingWallet(true);
+      const res = await commerceApi.redeemMembershipVoucher(offer.code);
+      setIsSyncingWallet(false);
+      if (!res.success || !res.data?.wallet) {
+        setFeedbackMsg(res.error?.message || 'Không thể đổi voucher lúc này.');
+        setTimeout(() => setFeedbackMsg(null), 3500);
+        return;
+      }
+      setDbWallet(res.data.wallet);
+      persistLoyalty({
+        bonusPoints: res.data.wallet.bonusPoints,
+        spentPoints: res.data.wallet.spentPoints,
+        unlockedCodes: res.data.wallet.unlockedCodes,
+        lastCheckInDate: res.data.wallet.lastCheckInDate,
+      });
+    } else {
+      persistLoyalty({
+        ...loyaltyState,
+        spentPoints: loyaltyState.spentPoints + offer.costPts,
+        unlockedCodes: [...loyaltyState.unlockedCodes, offer.code],
+      });
+    }
+
     navigator.clipboard.writeText(offer.code);
     setCopiedCode(offer.code);
     setFeedbackMsg(
       isEn
-        ? `Unlocked & copied code ${offer.code}! Paste it at Checkout.`
-        : `Đã đổi & sao chép mã ${offer.code}! Dùng ngay ở bước Thanh toán.`
+        ? `Unlocked & copied code ${offer.code}! Saved to PostgreSQL.`
+        : `Đã đổi & lưu mã ${offer.code} vào PostgreSQL! Dùng ngay ở bước Thanh toán.`
     );
     setTimeout(() => {
       setCopiedCode(null);
@@ -351,7 +446,8 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
     }, 3500);
   };
 
-  const previewTier = MEMBERSHIP_TIERS.find((t) => t.id === previewTierId) || summary.currentTier;
+  const previewTier = MEMBERSHIP_TIERS.find((t) => t.id === previewTierId) || effectiveSummary.currentTier;
+  const activeUnlockedCodes = dbWallet?.unlockedCodes ?? loyaltyState.unlockedCodes;
   const cardSerial = `FV3D-${(userId || 'ATELIER').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase().padEnd(6, '8')}`;
 
   return (
@@ -366,16 +462,23 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
 
       {/* 1. Digital Atelier Membership Card */}
       <div
-        className={`relative overflow-hidden rounded-2xl p-4 sm:p-5 bg-gradient-to-br ${summary.currentTier.cardGradient} border-[1.5px] ${summary.currentTier.cardBorder} ${summary.currentTier.cardText} shadow-sm`}
+        className={`relative overflow-hidden rounded-2xl p-4 sm:p-5 bg-gradient-to-br ${effectiveSummary.currentTier.cardGradient} border-[1.5px] ${effectiveSummary.currentTier.cardBorder} ${effectiveSummary.currentTier.cardText} shadow-sm`}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/8 border border-black/10 text-[10px] font-black uppercase tracking-wider">
-              <Crown size={12} className="text-amber-600" />
-              <span>FitVision Atelier Club</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/8 border border-black/10 text-[10px] font-black uppercase tracking-wider">
+                <Crown size={12} className="text-amber-600" />
+                <span>FitVision Atelier Club</span>
+              </div>
+              {dbWallet && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 text-[9px] font-bold">
+                  ● PostgreSQL Sync
+                </span>
+              )}
             </div>
             <h4 className="text-lg sm:text-xl font-black tracking-tight mt-2 leading-none">
-              {isEn ? summary.currentTier.nameEn : summary.currentTier.nameVi}
+              {isEn ? effectiveSummary.currentTier.nameEn : effectiveSummary.currentTier.nameVi}
             </h4>
             <p className="text-[11px] opacity-75 font-mono mt-1">
               {userName} · {cardSerial}
@@ -400,12 +503,12 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
           <div className="flex items-center justify-between text-[11px] font-bold">
             <span>
               {isEn ? 'Cumulative Spend: ' : 'Chi tiêu tích lũy: '}
-              <span className="font-mono">{summary.totalSpend.toLocaleString('vi-VN')}₫</span>
+              <span className="font-mono">{effectiveSummary.totalSpend.toLocaleString('vi-VN')}₫</span>
             </span>
-            {summary.nextTier ? (
+            {effectiveSummary.nextTier ? (
               <span className="opacity-80">
                 {isEn ? 'Next: ' : 'Tiếp theo: '}
-                {isEn ? summary.nextTier.nameEn : summary.nextTier.nameVi}
+                {isEn ? effectiveSummary.nextTier.nameEn : effectiveSummary.nextTier.nameVi}
               </span>
             ) : (
               <span className="text-amber-500 font-black">MAX VIP TIER</span>
@@ -414,17 +517,17 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
 
           <div className="h-2 rounded-full bg-black/10 overflow-hidden">
             <div
-              className={`h-full rounded-full ${summary.currentTier.accentBar} transition-all duration-500`}
-              style={{ width: `${summary.progressPct}%` }}
+              className={`h-full rounded-full ${effectiveSummary.currentTier.accentBar} transition-all duration-500`}
+              style={{ width: `${effectiveSummary.progressPct}%` }}
             />
           </div>
 
           <div className="flex items-center justify-between gap-2 text-[10.5px] opacity-80 pt-0.5">
             <span>
-              {summary.nextTier
+              {effectiveSummary.nextTier
                 ? isEn
-                  ? `${summary.remainingToNext.toLocaleString('vi-VN')}₫ away from ${summary.nextTier.nameEn}`
-                  : `Còn ${summary.remainingToNext.toLocaleString('vi-VN')}₫ để lên ${summary.nextTier.nameVi}`
+                  ? `${effectiveSummary.remainingToNext.toLocaleString('vi-VN')}₫ away from ${effectiveSummary.nextTier.nameEn}`
+                  : `Còn ${effectiveSummary.remainingToNext.toLocaleString('vi-VN')}₫ để lên ${effectiveSummary.nextTier.nameVi}`
                 : isEn
                 ? 'Unlocked all exclusive Atelier Bespoke VIP benefits'
                 : 'Đã mở khóa toàn bộ đặc quyền cao cấp nhất Atelier VIP'}
@@ -433,7 +536,7 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
             <button
               type="button"
               onClick={handleDailyCheckIn}
-              disabled={alreadyCheckedInToday}
+              disabled={alreadyCheckedInToday || isSyncingWallet}
               className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold inline-flex items-center gap-1 border transition-all cursor-pointer shrink-0 ${
                 alreadyCheckedInToday
                   ? 'bg-black/5 border-black/10 opacity-60 cursor-default'
@@ -475,7 +578,7 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {VOUCHER_OFFERS.map((offer) => {
-            const isUnlocked = loyaltyState.unlockedCodes.includes(offer.code);
+            const isUnlocked = activeUnlockedCodes.includes(offer.code);
             const isCopied = copiedCode === offer.code;
             const canAfford = availablePoints >= offer.costPts;
 
@@ -571,7 +674,7 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
         <div className="grid grid-cols-4 gap-1.5">
           {MEMBERSHIP_TIERS.map((tier) => {
             const isSelected = previewTier.id === tier.id;
-            const isCurrent = summary.currentTier.id === tier.id;
+            const isCurrent = effectiveSummary.currentTier.id === tier.id;
             return (
               <button
                 key={tier.id}
@@ -607,6 +710,43 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
           ))}
         </ul>
       </div>
+
+      {/* 4. Real PostgreSQL FitPoints Ledger */}
+      {dbWallet && dbWallet.logs && dbWallet.logs.length > 0 && (
+        <div className="bg-white rounded-2xl border-[1.5px] border-slate-300/85 p-4 space-y-2.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+              <History size={13} className="text-blue-600" />
+              <span>{isEn ? 'FitPoints Transaction Ledger' : 'Lịch Sử Giao Dịch Điểm (PostgreSQL)'}</span>
+            </span>
+            <span className="text-[10px] font-mono text-emerald-700 font-bold">
+              {dbWallet.logs.length} bản ghi
+            </span>
+          </div>
+          <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+            {dbWallet.logs.map((lg) => (
+              <div
+                key={lg.id}
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900 truncate">{lg.description}</p>
+                  <p className="text-[10px] font-mono text-slate-500">
+                    {new Date(lg.created_at).toLocaleString('vi-VN')}
+                  </p>
+                </div>
+                <span
+                  className={`font-mono font-black shrink-0 ${
+                    lg.points_delta >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                  }`}
+                >
+                  {lg.points_delta >= 0 ? `+${lg.points_delta}` : lg.points_delta} pts
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,10 @@
 import { app } from './app.js';
 import { env } from './config/env.js';
+import { ensureCommerceTablesAndSeed } from './modules/commerce/commerce.bootstrap.js';
+
+ensureCommerceTablesAndSeed().catch((err) => {
+  console.error('[Commerce Bootstrap Error]:', err);
+});
 
 const server = app.listen(env.PORT, () => {
   console.log('====================================================');

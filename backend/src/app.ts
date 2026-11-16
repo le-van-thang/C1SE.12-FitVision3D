@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
+import { commerceRouter } from './modules/commerce/commerce.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { env } from './config/env.js';
 
@@ -42,6 +43,7 @@ app.use(express.static(path.resolve(__dirname, '../public')));
 // 4. Mount API Routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/commerce', commerceRouter);
 
 // 5. Health Check Endpoint
 app.get('/health', (req, res) => {

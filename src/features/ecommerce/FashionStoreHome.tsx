@@ -48,7 +48,11 @@ import { QuickAdminModal } from './QuickAdminModal';
 import { CustomerProfileModal } from './CustomerProfileModal';
 import { CheckoutModal } from './CheckoutModal';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
-import { loadPlatformConfig, type PlatformConfig } from '@/services/platformConfig';
+import {
+  loadPlatformConfig,
+  syncPlatformConfigFromBackend,
+  type PlatformConfig,
+} from '@/services/platformConfig';
 import type { FashionProduct, ProductVariant, UserBodyProfile, CartItem } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
@@ -219,11 +223,20 @@ export const FashionStoreHome: React.FC = () => {
   const [activeMegaMenu, setActiveMegaMenu] = useState<string | null>(null);
   const [copiedVoucherCode, setCopiedVoucherCode] = useState<string | null>(null);
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig>(() => loadPlatformConfig());
+  const [dbProducts, setDbProducts] = useState<FashionProduct[]>(() => MOCK_PRODUCTS);
 
   useEffect(() => {
     const syncConfig = () => setPlatformConfig(loadPlatformConfig());
     window.addEventListener('fv3d-platform-config-updated', syncConfig);
     window.addEventListener('storage', syncConfig);
+
+    // Hydrate live products, CMS banners, and vouchers from PostgreSQL
+    syncPlatformConfigFromBackend(false).then((synced) => {
+      if (synced?.products && synced.products.length > 0) {
+        setDbProducts(synced.products);
+      }
+    });
+
     return () => {
       window.removeEventListener('fv3d-platform-config-updated', syncConfig);
       window.removeEventListener('storage', syncConfig);
@@ -232,7 +245,7 @@ export const FashionStoreHome: React.FC = () => {
 
   const availableColorFilters = useMemo(() => {
     const map = new Map<string, string>();
-    MOCK_PRODUCTS.forEach((p) => {
+    dbProducts.forEach((p) => {
       p.variants.forEach((v) => {
         if (!map.has(v.color_hex)) {
           map.set(v.color_hex, v.color_name.split('(')[0].trim());
@@ -240,7 +253,7 @@ export const FashionStoreHome: React.FC = () => {
       });
     });
     return Array.from(map.entries()).map(([hex, name]) => ({ hex, name }));
-  }, []);
+  }, [dbProducts]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -329,9 +342,9 @@ export const FashionStoreHome: React.FC = () => {
   const getProductFabric = (p: FashionProduct) => (locale === 'en' && p.fabric_material_en ? p.fabric_material_en : p.fabric_material);
   const getProductDesc = (p: FashionProduct) => (locale === 'en' && p.description_en ? p.description_en : p.description);
 
-  // Active platform catalog (respects Admin product visibility & price overrides)
+  // Active platform catalog (hydrated from PostgreSQL + Admin visibility & price overrides)
   const visibleCatalogProducts = useMemo(() => {
-    return MOCK_PRODUCTS.filter((p) => !platformConfig.hiddenProductIds.includes(p.id)).map((p) => {
+    return dbProducts.filter((p) => !platformConfig.hiddenProductIds.includes(p.id)).map((p) => {
       const overridePrice = platformConfig.priceOverrides[p.id];
       if (!overridePrice || overridePrice <= 0) return p;
       return {
@@ -339,7 +352,7 @@ export const FashionStoreHome: React.FC = () => {
         sale_price: overridePrice,
       };
     });
-  }, [platformConfig.hiddenProductIds, platformConfig.priceOverrides]);
+  }, [dbProducts, platformConfig.hiddenProductIds, platformConfig.priceOverrides]);
 
   // Pre-calculate fit scores for all products
   const productsWithFit = useMemo(() => {

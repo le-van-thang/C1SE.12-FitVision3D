@@ -37,6 +37,7 @@ import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import {
   loadPlatformConfig,
   savePlatformConfig,
+  syncPlatformConfigFromBackend,
   type PlatformConfig,
 } from '@/services/platformConfig';
 import {
@@ -124,12 +125,17 @@ export const AdminPortal: React.FC = () => {
     if (!quiet) setIsLoading(true);
     setIsRefreshing(true);
     try {
-      const [statsRes, storesRes, usersRes, logsRes] = await Promise.all([
+      const [statsRes, storesRes, usersRes, logsRes, commerceRes] = await Promise.all([
         adminApi.getStats(),
         adminApi.getStores(),
         adminApi.getUsers(),
         adminApi.getAuditLogs(30),
+        syncPlatformConfigFromBackend(true),
       ]);
+
+      if (commerceRes?.config) {
+        setPlatformConfig(commerceRes.config);
+      }
 
       if (statsRes.success && statsRes.data) {
         setStats(statsRes.data);

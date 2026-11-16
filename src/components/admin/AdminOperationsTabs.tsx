@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp,
   ShoppingBag,
@@ -18,6 +18,7 @@ import {
 import type { Order, OrderStatus } from '@/features/ecommerce/types';
 import { MOCK_PRODUCTS } from '@/features/ecommerce/mockProducts';
 import type { AdminStats, AdminStoreItem } from '@/services/adminApi';
+import { commerceApi } from '@/services/commerceApi';
 import {
   type PlatformConfig,
   type PlatformVoucher,
@@ -466,20 +467,24 @@ export const AdminCatalogSection: React.FC<CatalogProps> = ({
     });
   }, [search, catFilter]);
 
-  const toggleProductVisibility = (prodId: string, prodName: string) => {
+  const toggleProductVisibility = async (prodId: string, prodName: string) => {
     const isHidden = config.hiddenProductIds.includes(prodId);
+    const nextIsHidden = !isHidden;
     const nextHidden = isHidden
       ? config.hiddenProductIds.filter((id) => id !== prodId)
       : [...config.hiddenProductIds, prodId];
 
     onSaveConfig({ ...config, hiddenProductIds: nextHidden });
+    await commerceApi.moderateProduct(prodId, { isHidden: nextIsHidden });
     onToast(
       'success',
-      isHidden ? `Đã mở hiển thị sản phẩm "${prodName}" trên sàn.` : `Đã tạm ẩn sản phẩm "${prodName}" khỏi sàn.`
+      isHidden
+        ? `Đã mở hiển thị sản phẩm "${prodName}" trên sàn (PostgreSQL).`
+        : `Đã tạm ẩn sản phẩm "${prodName}" khỏi sàn (PostgreSQL).`
     );
   };
 
-  const commitPriceEdit = (prodId: string) => {
+  const commitPriceEdit = async (prodId: string) => {
     const parsed = Number(priceDraft.replace(/\D/g, ''));
     if (!Number.isFinite(parsed) || parsed < 50_000) {
       onToast('error', 'Giá bán phải tối thiểu 50.000₫.');
@@ -488,7 +493,8 @@ export const AdminCatalogSection: React.FC<CatalogProps> = ({
     const nextOverrides = { ...config.priceOverrides, [prodId]: parsed };
     onSaveConfig({ ...config, priceOverrides: nextOverrides });
     setEditingPriceId(null);
-    onToast('success', 'Đã cập nhật giá niêm yết mới đồng bộ ngay lên trang Cửa hàng.');
+    await commerceApi.moderateProduct(prodId, { salePrice: parsed });
+    onToast('success', 'Đã lưu giá niêm yết mới vào PostgreSQL & đồng bộ trang Cửa hàng.');
   };
 
   return (
@@ -650,30 +656,47 @@ export const AdminCmsSection: React.FC<CmsProps> = ({
   const [marqueeText, setMarqueeText] = useState(config.marqueeItemsVi.join('\n'));
   const [marqueeOn, setMarqueeOn] = useState(config.marqueeEnabled);
 
+  useEffect(() => {
+    setHeroBadge(config.heroBadgeVi);
+    setHeroTitle(config.heroTitleVi);
+    setHeroHighlight(config.heroHighlightVi);
+    setMarqueeText(config.marqueeItemsVi.join('\n'));
+    setMarqueeOn(config.marqueeEnabled);
+  }, [config.heroBadgeVi, config.heroTitleVi, config.heroHighlightVi, config.marqueeItemsVi, config.marqueeEnabled]);
+
   // Add Voucher state
   const [newCode, setNewCode] = useState('');
   const [newType, setNewType] = useState<'fixed' | 'percent'>('fixed');
   const [newValue, setNewValue] = useState('50000');
   const [newTitle, setNewTitle] = useState('');
 
-  const handleSaveBanner = (e: React.FormEvent) => {
+  const handleSaveBanner = async (e: React.FormEvent) => {
     e.preventDefault();
     const lines = marqueeText
       .split('\n')
       .map((s) => s.trim())
       .filter(Boolean);
-    onSaveConfig({
+    const nextConfig: PlatformConfig = {
       ...config,
       marqueeEnabled: marqueeOn,
       marqueeItemsVi: lines.length > 0 ? lines : config.marqueeItemsVi,
       heroBadgeVi: heroBadge.trim() || config.heroBadgeVi,
       heroTitleVi: heroTitle.trim() || config.heroTitleVi,
       heroHighlightVi: heroHighlight.trim() || config.heroHighlightVi,
+    };
+    onSaveConfig(nextConfig);
+    await commerceApi.saveSettings({
+      marqueeEnabled: nextConfig.marqueeEnabled,
+      marqueeItemsVi: nextConfig.marqueeItemsVi,
+      marqueeItemsEn: nextConfig.marqueeItemsEn,
+      heroBadgeVi: nextConfig.heroBadgeVi,
+      heroTitleVi: nextConfig.heroTitleVi,
+      heroHighlightVi: nextConfig.heroHighlightVi,
     });
-    onToast('success', 'Đã lưu cấu hình Banner & Marquee! Thay đổi có hiệu lực ngay trên trang Khách hàng.');
+    onToast('success', 'Đã lưu cấu hình Banner & Marquee vào PostgreSQL! Trang Khách hàng đã cập nhật.');
   };
 
-  const handleAddVoucher = (e: React.FormEvent) => {
+  const handleAddVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCode = newCode.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
     const val = Number(newValue);
@@ -704,21 +727,27 @@ export const AdminCmsSection: React.FC<CmsProps> = ({
       showOnStorefront: true,
     };
     onSaveConfig({ ...config, vouchers: [created, ...config.vouchers] });
+    await commerceApi.createVoucher(created);
     setNewCode('');
     setNewTitle('');
-    onToast('success', `Đã phát hành mã "${cleanCode}" cho toàn bộ trang chủ & thanh toán.`);
+    onToast('success', `Đã lưu mã "${cleanCode}" vào PostgreSQL & đồng bộ trang chủ.`);
   };
 
-  const toggleVoucherField = (code: string, field: 'active' | 'showOnStorefront') => {
+  const toggleVoucherField = async (code: string, field: 'active' | 'showOnStorefront') => {
+    const target = config.vouchers.find((v) => v.code === code);
+    if (!target) return;
+    const nextVal = !target[field];
     const next = config.vouchers.map((v) =>
-      v.code === code ? { ...v, [field]: !v[field] } : v
+      v.code === code ? { ...v, [field]: nextVal } : v
     );
     onSaveConfig({ ...config, vouchers: next });
+    await commerceApi.updateVoucher(code, { [field]: nextVal });
   };
 
-  const deleteVoucher = (code: string) => {
+  const deleteVoucher = async (code: string) => {
     onSaveConfig({ ...config, vouchers: config.vouchers.filter((v) => v.code !== code) });
-    onToast('success', `Đã xóa mã ${code}.`);
+    await commerceApi.deleteVoucher(code);
+    onToast('success', `Đã xóa mã ${code} khỏi PostgreSQL.`);
   };
 
   return (

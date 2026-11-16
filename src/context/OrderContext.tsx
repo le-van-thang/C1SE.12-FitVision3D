@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Order, CreateOrderInput, OrderStatus } from '@/features/ecommerce/types';
 import { MOCK_PRODUCTS } from '@/features/ecommerce/mockProducts';
+import { commerceApi } from '@/services/commerceApi';
 
 interface OrderContextType {
   orders: Order[];
@@ -132,6 +133,18 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   useEffect(() => {
+    let active = true;
+    commerceApi.getOrders().then((res) => {
+      if (active && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setOrders(res.data);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
     } catch (err) {
@@ -162,6 +175,11 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setOrders((prev) => [newOrder, ...prev]);
+    commerceApi.createOrder(newOrder).then((res) => {
+      if (res.success) {
+        window.dispatchEvent(new Event('fv3d-membership-updated'));
+      }
+    });
     return newOrder;
   }, []);
 
@@ -169,18 +187,29 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status } : o))
     );
+    commerceApi.updateOrderStatus(orderId, status).then((res) => {
+      if (res.success) {
+        window.dispatchEvent(new Event('fv3d-membership-updated'));
+      }
+    });
   }, []);
 
   const cancelOrder = useCallback((orderId: string) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: 'cancelled' } : o))
     );
+    commerceApi.updateOrderStatus(orderId, 'cancelled').then((res) => {
+      if (res.success) {
+        window.dispatchEvent(new Event('fv3d-membership-updated'));
+      }
+    });
   }, []);
 
   const markPaymentCompleted = useCallback((orderId: string) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, payment_status: 'paid' } : o))
     );
+    commerceApi.markOrderPaid(orderId);
   }, []);
 
   const getUserOrders = useCallback(

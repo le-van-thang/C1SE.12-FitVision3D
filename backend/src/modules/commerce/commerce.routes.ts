@@ -1,0 +1,45 @@
+import { Router } from 'express';
+import { commerceController } from './commerce.controller.js';
+import { requireAuth, requireRole } from '../../middlewares/authGuard.js';
+import { verifyAccessToken } from '../../utils/jwt.js';
+
+export const commerceRouter = Router();
+
+// Attach req.user when a valid Bearer token is present, without blocking anonymous storefront visitors
+function optionalAuth(req: any, _res: any, next: any) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      req.user = verifyAccessToken(authHeader.split(' ')[1]);
+    } catch {
+      // ignore invalid optional token
+    }
+  }
+  next();
+}
+
+// Public Storefront Bootstrap (Settings + Vouchers + Pre-seeded Products)
+commerceRouter.get('/bootstrap', commerceController.getBootstrap);
+
+// Orders (Public initial read + Checkout create + Status moderation)
+commerceRouter.get('/orders', commerceController.getOrders);
+commerceRouter.post('/orders', optionalAuth, commerceController.createOrder);
+commerceRouter.patch(
+  '/orders/:id/status',
+  requireAuth,
+  requireRole('ADMIN', 'SHOP_OWNER'),
+  commerceController.updateOrderStatus
+);
+commerceRouter.patch('/orders/:id/pay', optionalAuth, commerceController.markOrderPaid);
+
+// Real PostgreSQL Membership Endpoints (Authenticated user)
+commerceRouter.get('/membership', requireAuth, commerceController.getMembership);
+commerceRouter.post('/membership/check-in', requireAuth, commerceController.checkInMembership);
+commerceRouter.post('/membership/redeem', requireAuth, commerceController.redeemMembershipVoucher);
+
+// Admin CMS & Catalog Persistence Endpoints
+commerceRouter.put('/admin/settings', requireAuth, requireRole('ADMIN'), commerceController.saveSettings);
+commerceRouter.post('/admin/vouchers', requireAuth, requireRole('ADMIN'), commerceController.createVoucher);
+commerceRouter.patch('/admin/vouchers/:code', requireAuth, requireRole('ADMIN'), commerceController.updateVoucher);
+commerceRouter.delete('/admin/vouchers/:code', requireAuth, requireRole('ADMIN'), commerceController.deleteVoucher);
+commerceRouter.patch('/admin/products/:id', requireAuth, requireRole('ADMIN'), commerceController.moderateProduct);
