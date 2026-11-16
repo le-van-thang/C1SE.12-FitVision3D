@@ -17,6 +17,7 @@ import {
   Ruler,
   HelpCircle,
   FileImage,
+  Camera,
 } from "lucide-react";
 
 export interface PhotoUploadCaptureProps {
@@ -336,21 +337,21 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
         type="button"
         disabled={isProcessing}
         onClick={frontImage ? handleStartScan : loadSamplePhoto}
-        className={`w-full py-3.5 px-4 rounded-xl text-xs sm:text-sm font-black shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 ${
+        className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 ${
           isProcessing
-            ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+            ? 'bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed'
             : frontImage
-            ? 'bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-500 shadow-blue-500/20 hover:scale-[1.01]'
-            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-2 border-blue-400'
+            ? 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 shadow-blue-600/20'
+            : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-900'
         }`}
       >
         {isProcessing ? (
           <>
             <div
               style={{
-                width: "18px",
-                height: "18px",
-                border: "2.5px solid #ffffff",
+                width: "16px",
+                height: "16px",
+                border: "2.5px solid #64748b",
                 borderTopColor: "transparent",
                 borderRadius: "50%",
                 animation: "spin 0.8s linear infinite",
@@ -360,13 +361,13 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           </>
         ) : frontImage ? (
           <>
-            <Sparkles size={18} style={{ color: "#FACC15" }} />
+            <Sparkles size={16} className="text-amber-300" />
             <span>{t("cap.scanBtn")}</span>
           </>
         ) : (
           <>
-            <Sparkles size={18} style={{ color: "#38BDF8" }} />
-            <span>{t("cap.loadSamplePrompt", "⚡ Nạp Ảnh Mẫu & Bắt Đầu Quét 3D")}</span>
+            <Camera size={16} className="text-blue-300" />
+            <span>{t("cap.loadSamplePrompt", "Nạp Ảnh Mẫu & Bắt Đầu Quét 3D")}</span>
           </>
         )}
       </button>

@@ -4,26 +4,37 @@
    ================================================================ */
 @import "./styles/tokens.css";
 
-/* Base box-sizing and border style reset:
-   Ensures all elements have border-style: solid by default so standard 1px Tailwind borders render cleanly. */
-*, *::before, *::after {
-  box-sizing: border-box;
-  border-width: 0;
-  border-style: solid;
-  border-color: #e2e8f0;
-}
-
-button {
-  font-family: inherit;
-  border-width: 0;
-  border-style: solid;
-  border-color: transparent;
-  cursor: pointer;
-  background-color: transparent;
-}
-
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html, body, #root { min-height: 100%; }
+  body {
+    margin: 0;
+    background: #FAFAF9;
+    color: #1C1917;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+  a { color: inherit; text-decoration: none; }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
 
 :root {
   color-scheme: light;
@@ -32,14 +43,6 @@ button {
 .dark {
   color-scheme: dark;
 }
-html, body, #root { min-height: 100%; }
-body {
-  margin: 0; background: #FAFAF9; color: #1C1917;
-  font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-h1, h2, h3, p { margin: 0; }
-a { color: inherit; text-decoration: none; }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 /* ── Shell ── */

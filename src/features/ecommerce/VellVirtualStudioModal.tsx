@@ -1,21 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Sparkles,
   RotateCcw,
   Undo2,
   Redo2,
-  SlidersHorizontal,
   Bookmark,
   ShoppingBag,
   Check,
-  ChevronRight,
-  Info,
-  Layers,
   Ruler,
   User,
   ShieldCheck,
-  Flame,
+  Scissors,
 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import type { FashionProduct, UserBodyProfile } from './types';
@@ -28,7 +24,6 @@ export interface VellVirtualStudioModalProps {
   onAddToCart?: (product: FashionProduct, size: string) => void;
 }
 
-// 8 Verified Cut-outs from HERO PROMPT (VELL)
 const VELL_LOOKS = [
   {
     id: 0,
@@ -152,7 +147,7 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
   userBody,
   onAddToCart,
 }) => {
-  const { t } = useI18n();
+  const { locale } = useI18n();
   const [activeLookIndex, setActiveLookIndex] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<StudioTab>('outfits');
   const [isWiping, setIsWiping] = useState<boolean>(false);
@@ -163,13 +158,11 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
 
   const currentLook = VELL_LOOKS[activeLookIndex];
 
-  // Signature Scan Wipe Animation
   const handleSelectLook = (idx: number) => {
     if (idx === activeLookIndex) return;
     setIsWiping(true);
     setActiveLookIndex(idx);
 
-    // Record history
     const nextHistory = history.slice(0, historyPointer + 1);
     nextHistory.push(idx);
     setHistory(nextHistory);
@@ -177,7 +170,7 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
 
     setTimeout(() => {
       setIsWiping(false);
-    }, 1050);
+    }, 950);
   };
 
   const handleUndo = () => {
@@ -186,7 +179,7 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
       setHistoryPointer(prev);
       setActiveLookIndex(history[prev]);
       setIsWiping(true);
-      setTimeout(() => setIsWiping(false), 800);
+      setTimeout(() => setIsWiping(false), 750);
     }
   };
 
@@ -196,67 +189,61 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
       setHistoryPointer(next);
       setActiveLookIndex(history[next]);
       setIsWiping(true);
-      setTimeout(() => setIsWiping(false), 800);
+      setTimeout(() => setIsWiping(false), 750);
     }
   };
 
-  const filteredLooks = activeCategory === 'all'
-    ? VELL_LOOKS
-    : VELL_LOOKS.filter(l => l.category === activeCategory);
+  const filteredLooks =
+    activeCategory === 'all'
+      ? VELL_LOOKS
+      : VELL_LOOKS.filter((l) => l.category === activeCategory);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      
-      {/* Studio Canvas Window */}
-      <div className="relative w-full h-full max-w-7xl max-h-[96vh] m-2 sm:m-4 rounded-3xl overflow-hidden bg-stone-950 border border-white/15 shadow-2xl flex flex-col font-sans text-white select-none">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200 p-2 sm:p-4">
+      {/* Studio Window: Clean Architectural 3-Panel Layout with Crisp High Contrast */}
+      <div className="relative w-full h-full max-w-7xl max-h-[94vh] rounded-3xl overflow-hidden bg-white border border-slate-300 shadow-2xl flex flex-col font-sans text-slate-900 select-none">
         
-        {/* Background Loft Texture */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
-          style={{
-            backgroundImage: `url('https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20261112_034551_6394b127-5366-40a8-9c82-3c416f1161f1.png&w=2400&q=85')`,
-          }}
-        />
-
-        {/* ── TOP FROSTED GLASS CONTROL BAR ── */}
-        <header className="relative z-20 h-16 px-6 border-b border-white/10 bg-black/40 backdrop-blur-xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md">
-              <Sparkles size={16} />
+        {/* ── TOP HEADER BAR (DEEP NAVY SLATE FOR CLEAR HIERARCHY) ── */}
+        <header className="relative z-20 h-16 px-4 sm:px-6 border-b border-slate-800 bg-slate-900 text-white flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
+              <Scissors size={17} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-sm tracking-wider uppercase text-white">
+                <span className="font-extrabold text-sm tracking-wide uppercase text-white">
                   FitVision <span className="text-blue-400">VELL</span>
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-blue-500/20 text-blue-200 border border-blue-400/30 hidden sm:inline-block">
                   Virtual Fitting 3D
                 </span>
               </div>
-              <p className="text-[10px] text-stone-400 font-medium hidden sm:block">
-                Studio Thử Đồ Nhân Trắc Học & Dự Đoán Size Tự Động
+              <p className="text-[11px] text-slate-300 font-medium truncate hidden md:block">
+                {locale === 'en'
+                  ? 'Anthropometric Virtual Fitting Room & Auto Sizing'
+                  : 'Phòng Thử Đồ Nhân Trắc Học & Dự Đoán Size Tự Động'}
               </p>
             </div>
           </div>
 
           {/* Center Step Tabs */}
-          <nav className="flex items-center gap-1 p-1 bg-white/5 rounded-full border border-white/10 text-xs font-semibold">
+          <nav className="flex items-center gap-1 p-1 bg-slate-800 rounded-full border border-slate-700 text-xs font-semibold overflow-x-auto scrollbar-none">
             {[
-              { id: 'outfits', label: 'BỘ SƯU TẬP (OUTFITS)' },
-              { id: 'body', label: 'SỐ ĐO (BODY ISO)' },
-              { id: 'dna', label: 'TỈ LỆ (DNA)' },
-              { id: 'atelier', label: 'NHÀ MAY (ATELIER)' },
-            ].map(tab => (
+              { id: 'outfits', label: locale === 'en' ? 'OUTFITS' : 'BỘ SƯU TẬP' },
+              { id: 'body', label: locale === 'en' ? 'BODY ISO' : 'SỐ ĐO ISO' },
+              { id: 'dna', label: locale === 'en' ? 'PROPORTIONS' : 'TỈ LỆ DÁNG' },
+              { id: 'atelier', label: locale === 'en' ? 'ATELIER' : 'NHÀ MAY' },
+            ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as StudioTab)}
-                className={`px-3 py-1.5 rounded-full text-xs transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
                   activeTab === tab.id
-                    ? 'bg-blue-600 text-white font-extrabold shadow-md'
-                    : 'text-stone-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/70'
                 }`}
               >
                 {tab.label}
@@ -268,184 +255,220 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+            aria-label="Close Virtual Studio"
+            className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 flex items-center justify-center transition-colors cursor-pointer shrink-0"
           >
             <X size={18} />
           </button>
         </header>
 
-        {/* ── MAIN STUDIO STAGE (3 COLUMNS: PROFILE | 3D FIGURE WITH WIPE | CONTROLS) ── */}
+        {/* ── MAIN STUDIO STAGE: LEFT INSPECTOR (WHITE) | CENTER MODEL (GALLERY DARK) | RIGHT WARDROBE (SLATE-50) ── */}
         <div className="relative flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           
-          {/* Left Column (lg:col-span-3): Biometric Profile Floating Card */}
-          <div className="hidden lg:flex lg:col-span-3 p-6 flex-col justify-between z-10 pointer-events-auto">
-            
-            {/* User Fit Capsule Card */}
-            <div className="p-5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <div className="flex items-center gap-2">
-                  <User size={16} className="text-blue-400" />
-                  <span className="font-extrabold text-xs uppercase tracking-wider text-stone-200">
-                    Hồ Sơ Vóc Dáng Của Bạn
-                  </span>
+          {/* Left Column (lg:col-span-3): Crisp White Biometric & Fit Inspector */}
+          <aside className="hidden lg:flex lg:col-span-3 bg-white border-r border-slate-200 p-5 flex-col justify-between overflow-y-auto">
+            <div className="space-y-4">
+              {/* Biometric Profile Box */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <User size={15} className="text-blue-600" />
+                    <span className="font-extrabold text-[11px] uppercase tracking-wider text-slate-800">
+                      {locale === 'en' ? 'Your Body Profile' : 'Hồ Sơ Vóc Dáng Của Bạn'}
+                    </span>
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+
+                {/* 4 Core Dimensions */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                      {locale === 'en' ? 'Height' : 'Chiều cao'}
+                    </span>
+                    <span className="font-mono font-extrabold text-slate-900 text-sm">{userBody.height_cm} cm</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                      {locale === 'en' ? 'Weight' : 'Cân nặng'}
+                    </span>
+                    <span className="font-mono font-extrabold text-slate-900 text-sm">{userBody.weight_kg} kg</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                      {locale === 'en' ? 'Chest (V1)' : 'Vòng ngực (V1)'}
+                    </span>
+                    <span className="font-mono font-extrabold text-slate-900 text-sm">{userBody.chest_cm} cm</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                      {locale === 'en' ? 'Waist (V2)' : 'Vòng eo (V2)'}
+                    </span>
+                    <span className="font-mono font-extrabold text-slate-900 text-sm">{userBody.waist_cm} cm</span>
+                  </div>
+                </div>
               </div>
 
-              {/* 4 Core Dimensions */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                  <span className="text-[10px] text-stone-400 block">Chiều cao</span>
-                  <span className="font-mono font-extrabold text-emerald-400 text-sm">{userBody.height_cm} cm</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                  <span className="text-[10px] text-stone-400 block">Cân nặng</span>
-                  <span className="font-mono font-extrabold text-emerald-400 text-sm">{userBody.weight_kg} kg</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                  <span className="text-[10px] text-stone-400 block">Vòng ngực (V1)</span>
-                  <span className="font-mono font-extrabold text-white text-sm">{userBody.chest_cm} cm</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-                  <span className="text-[10px] text-stone-400 block">Vòng eo (V2)</span>
-                  <span className="font-mono font-extrabold text-white text-sm">{userBody.waist_cm} cm</span>
-                </div>
-              </div>
-
-              {/* Ramanujan 3D Fit Prediction */}
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/60 to-indigo-950/60 border border-blue-500/30 space-y-1.5">
+              {/* Fit Prediction Card (High Contrast Light Blue Card) */}
+              <div className="p-4 rounded-2xl bg-blue-50/90 border border-blue-200 space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-blue-300 font-bold">Khuyên dùng bộ này:</span>
-                  <span className="px-2 py-0.5 rounded font-mono font-black bg-blue-500 text-white text-xs">
+                  <span className="text-slate-700 font-bold">
+                    {locale === 'en' ? 'Recommended Size:' : 'Khuyên dùng bộ này:'}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-lg font-mono font-extrabold bg-blue-600 text-white text-xs shadow-2xs">
                     Size {currentLook.recommended_size}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-stone-300">
-                  <span>Độ vừa vặn AI:</span>
-                  <span className="font-bold text-emerald-400 font-mono">{currentLook.match_percentage}% Match</span>
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-blue-200/70">
+                  <span className="text-slate-600 font-medium">
+                    {locale === 'en' ? 'AI Fit Score:' : 'Độ vừa vặn AI:'}
+                  </span>
+                  <span className="font-extrabold text-emerald-700 font-mono">
+                    {currentLook.match_percentage}% Match
+                  </span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-stone-300">
-                  <span>Độ cử động may đo:</span>
-                  <span className="font-bold text-blue-300 font-mono">+{currentLook.chest_ease} cm (Êm ái)</span>
+                <div className="flex items-center justify-between text-xs gap-2">
+                  <span className="text-slate-600 font-medium whitespace-nowrap">
+                    {locale === 'en' ? 'Ease Allowance:' : 'Độ cử động:'}
+                  </span>
+                  <span className="font-bold text-blue-700 font-mono whitespace-nowrap">
+                    +{currentLook.chest_ease} cm ({locale === 'en' ? 'Comfort' : 'Êm ái'})
+                  </span>
                 </div>
               </div>
 
-              {/* Fabric Spec */}
-              <div className="text-[11px] text-stone-400">
-                <span className="font-bold text-stone-300 block mb-0.5">Chất liệu vải:</span>
-                <p className="leading-snug">{currentLook.fabric}</p>
+              {/* Fabric Spec Card */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                  {locale === 'en' ? 'Fabric Material' : 'Chất liệu vải'}
+                </span>
+                <p className="text-xs font-bold text-slate-800 leading-relaxed">
+                  {currentLook.fabric}
+                </p>
               </div>
             </div>
 
-            {/* Bottom Undo / Redo / Reset Floating Capsule */}
-            <div className="p-2 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-around shadow-xl">
+            {/* Bottom Undo / Redo / Reset Bar */}
+            <div className="mt-4 p-1.5 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between gap-1">
               <button
                 type="button"
                 onClick={handleUndo}
                 disabled={historyPointer <= 0}
-                className="p-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-all cursor-pointer"
+                className="flex-1 py-2 rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white disabled:opacity-35 transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold"
                 title="Quay lại bộ trước"
               >
-                <Undo2 size={16} />
+                <Undo2 size={14} />
+                <span>{locale === 'en' ? 'Undo' : 'Lùi'}</span>
               </button>
               <button
                 type="button"
                 onClick={handleRedo}
                 disabled={historyPointer >= history.length - 1}
-                className="p-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-all cursor-pointer"
+                className="flex-1 py-2 rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white disabled:opacity-35 transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold"
                 title="Tiếp theo"
               >
-                <Redo2 size={16} />
+                <Redo2 size={14} />
+                <span>{locale === 'en' ? 'Redo' : 'Tiến'}</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectLook(0)}
-                className="p-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                className="flex-1 py-2 rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold"
                 title="Khôi phục mặc định"
               >
-                <RotateCcw size={16} />
+                <RotateCcw size={14} />
+                <span>{locale === 'en' ? 'Reset' : 'Mặc định'}</span>
               </button>
             </div>
+          </aside>
 
-          </div>
-
-          {/* Center Column (lg:col-span-5): 3D Model Viewport with Signature Scan Line Wipe */}
-          <div className="lg:col-span-5 relative flex items-center justify-center overflow-hidden">
-            
-            {/* The Model Container */}
-            <div className="relative w-full h-[75vh] max-h-[800px] flex items-center justify-center">
+          {/* Center Column (lg:col-span-5): Clean Studio Viewport (No Blurry Double Background!) */}
+          <div
+            className="lg:col-span-5 relative flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden"
+            style={{
+              background: 'radial-gradient(circle at 50% 35%, #1e293b 0%, #0f172a 55%, #020617 100%)',
+            }}
+          >
+            {/* Clean Framed Portrait Container */}
+            <div className="relative h-full max-h-[76vh] w-full max-w-[420px] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-slate-700/80 bg-slate-900">
               
-              {/* Ground Shadow */}
-              <div className="absolute bottom-6 w-48 h-8 rounded-full bg-black/60 blur-md pointer-events-none" />
+              {/* Top Floating Fit Badge inside Viewport */}
+              <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
+                <span className="px-2.5 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-white/15 text-[11px] font-bold text-white shadow-sm">
+                  {currentLook.tag}
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-mono font-bold shadow-sm">
+                  {currentLook.match_percentage}% {locale === 'en' ? 'Fit' : 'Vừa vặn'}
+                </span>
+              </div>
 
-              {/* The Photoreal Cutout Image */}
-              <div className="relative h-full w-auto aspect-[1360/2048] flex items-center justify-center overflow-hidden">
+              {/* Crisp Model Look Image */}
+              <div className="relative flex-1 overflow-hidden bg-slate-900">
                 <img
                   src={currentLook.img}
                   alt={currentLook.name}
-                  className="w-full h-full object-contain object-bottom pointer-events-none transition-all duration-300 select-none"
+                  className="w-full h-full object-cover object-top pointer-events-none transition-all duration-300 select-none"
                   style={{
-                    filter: isWiping ? 'brightness(1.08)' : 'none',
+                    filter: isWiping ? 'brightness(1.06)' : 'none',
                   }}
                 />
 
-                {/* ── SIGNATURE SCAN LINE WIPE OVERLAY ── */}
+                {/* Scan Line Wipe Animation */}
                 {isWiping && (
                   <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    {/* Glowing White Scan Beam Riding Downwards */}
-                    <div
-                      className="absolute left-[-15%] right-[-15%] h-1 bg-gradient-to-r from-transparent via-white to-transparent shadow-[0_0_25px_8px_rgba(255,255,255,0.8),0_0_60px_18px_rgba(59,130,246,0.5)] animate-scan-wipe"
-                    />
+                    <div className="absolute left-[-15%] right-[-15%] h-1 bg-gradient-to-r from-transparent via-white to-transparent shadow-[0_0_25px_8px_rgba(255,255,255,0.85),0_0_60px_18px_rgba(59,130,246,0.55)] animate-scan-wipe" />
                   </div>
                 )}
 
-                {/* Hotspot 1: Chest Ease Allowance Dot */}
-                <div className="absolute top-[34%] left-[58%] group/hotspot cursor-pointer">
-                  <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-white/20 backdrop-blur-md border border-white/60 shadow-lg">
-                    <span className="w-2 h-2 rounded-full bg-white" />
-                    <span className="animate-ping absolute inset-0 rounded-full bg-blue-400 opacity-60" />
+                {/* Hotspot 1: Chest Ease Allowance */}
+                <div className="absolute top-[33%] left-[57%] group/hotspot cursor-pointer z-20">
+                  <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/60 backdrop-blur-md border-2 border-white shadow-lg">
+                    <span className="w-2 h-2 rounded-full bg-blue-400" />
+                    <span className="animate-ping absolute inset-0 rounded-full bg-blue-400 opacity-50" />
                   </div>
-                  {/* Tooltip */}
-                  <div className="absolute left-8 top-1/2 -translate-y-1/2 hidden group-hover/hotspot:block whitespace-nowrap px-3 py-1.5 rounded-xl bg-black/85 backdrop-blur-md border border-white/20 text-[11px] shadow-xl z-30">
-                    <span className="font-extrabold text-blue-300">Vòng Ngực Áo:</span> {userBody.chest_cm + currentLook.chest_ease}cm (+{currentLook.chest_ease}cm Ease)
+                  <div className="absolute left-8 top-1/2 -translate-y-1/2 hidden group-hover/hotspot:block whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-950/95 border border-slate-700 text-white text-[11px] shadow-xl z-30">
+                    <span className="font-bold text-blue-300">Vòng Ngực Áo:</span>{' '}
+                    {userBody.chest_cm + currentLook.chest_ease}cm (+{currentLook.chest_ease}cm Ease)
                   </div>
                 </div>
 
-                {/* Hotspot 2: Waist Ease Allowance Dot */}
-                <div className="absolute top-[48%] left-[42%] group/hotspot cursor-pointer">
-                  <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-white/20 backdrop-blur-md border border-white/60 shadow-lg">
+                {/* Hotspot 2: Waist Ease Allowance */}
+                <div className="absolute top-[47%] left-[41%] group/hotspot cursor-pointer z-20">
+                  <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/60 backdrop-blur-md border-2 border-white shadow-lg">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span className="animate-ping absolute inset-0 rounded-full bg-emerald-400 opacity-60" />
+                    <span className="animate-ping absolute inset-0 rounded-full bg-emerald-400 opacity-50" />
                   </div>
-                  <div className="absolute left-8 top-1/2 -translate-y-1/2 hidden group-hover/hotspot:block whitespace-nowrap px-3 py-1.5 rounded-xl bg-black/85 backdrop-blur-md border border-white/20 text-[11px] shadow-xl z-30">
-                    <span className="font-extrabold text-emerald-300">Vòng Eo Áo:</span> {userBody.waist_cm + currentLook.waist_ease}cm
+                  <div className="absolute left-8 top-1/2 -translate-y-1/2 hidden group-hover/hotspot:block whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-950/95 border border-slate-700 text-white text-[11px] shadow-xl z-30">
+                    <span className="font-bold text-emerald-300">Vòng Eo Áo:</span>{' '}
+                    {userBody.waist_cm + currentLook.waist_ease}cm
                   </div>
                 </div>
-
               </div>
 
-              {/* Active Look Name Pill Floating Bottom */}
-              <div className="absolute bottom-4 inset-x-8 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/15">
-                <div>
-                  <h3 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5">
-                    <span>{currentLook.name}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-white/10 text-stone-300">
-                      {currentLook.tag}
-                    </span>
+              {/* Clean Anchored Bottom Bar (High Contrast Dark Navy Footer) */}
+              <div className="px-4 py-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2 z-20">
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-sm font-bold text-white truncate">
+                    {currentLook.name}
                   </h3>
-                  <span className="text-xs font-bold text-amber-300 font-mono">
-                    {currentLook.price.toLocaleString('vi-VN')} ₫
-                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs font-extrabold text-amber-300 font-mono">
+                      {currentLook.price.toLocaleString('vi-VN')} ₫
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      · Size {currentLook.recommended_size}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => {
                       setSavedToLibrary(true);
                       setTimeout(() => setSavedToLibrary(false), 2000);
                     }}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-stone-200 transition-colors cursor-pointer"
+                    className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center transition-colors cursor-pointer"
                     title="Lưu vào tủ đồ"
                   >
                     {savedToLibrary ? <Check size={16} className="text-emerald-400" /> : <Bookmark size={16} />}
@@ -467,24 +490,20 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
                         onAddToCart(fakeProd, currentLook.recommended_size);
                       }
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/30 transition-all cursor-pointer"
+                    className="px-3.5 h-9 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                   >
                     <ShoppingBag size={14} />
-                    <span>Mua Size {currentLook.recommended_size}</span>
+                    <span>{locale === 'en' ? `Add Size ${currentLook.recommended_size}` : `Mua Size ${currentLook.recommended_size}`}</span>
                   </button>
                 </div>
               </div>
-
             </div>
-
           </div>
 
-          {/* Right Column (lg:col-span-4): Outfits Selector / Studio Tabs Panel */}
-          <div className="lg:col-span-4 p-4 sm:p-6 overflow-y-auto space-y-4 z-10 pointer-events-auto">
-            
+          {/* Right Column (lg:col-span-4): Clean Light Wardrobe Selector */}
+          <div className="lg:col-span-4 bg-slate-50 border-l border-slate-200 p-4 sm:p-5 overflow-y-auto space-y-4">
             {activeTab === 'outfits' && (
               <div className="space-y-4">
-                
                 {/* Outfits Category Chips */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
                   {[
@@ -494,15 +513,15 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
                     { id: 'athletic', label: 'Thể Thao' },
                     { id: 'sleep', label: 'Lụa Mềm' },
                     { id: 'street', label: 'Streetwear' },
-                  ].map(c => (
+                  ].map((c) => (
                     <button
                       key={c.id}
                       type="button"
                       onClick={() => setActiveCategory(c.id)}
-                      className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all cursor-pointer border ${
                         activeCategory === c.id
-                          ? 'bg-white text-stone-950 shadow-md'
-                          : 'bg-white/10 hover:bg-white/20 text-stone-300'
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                       }`}
                     >
                       {c.label}
@@ -510,21 +529,21 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
                   ))}
                 </div>
 
-                {/* 4x2 Looks Grid */}
-                <div className="grid grid-cols-2 gap-2.5">
+                {/* 2-Column Crisp White Outfit Cards */}
+                <div className="grid grid-cols-2 gap-3">
                   {filteredLooks.map((look) => {
                     const isSelected = look.id === activeLookIndex;
                     return (
                       <div
                         key={look.id}
                         onClick={() => handleSelectLook(look.id)}
-                        className={`group relative p-2 rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden ${
+                        className={`group relative p-2.5 rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden bg-white ${
                           isSelected
-                            ? 'bg-blue-600/20 border-blue-400 shadow-lg shadow-blue-500/20 ring-2 ring-blue-500'
-                            : 'bg-white/5 hover:bg-white/10 border-white/10'
+                            ? 'border-blue-600 ring-2 ring-blue-500/20 shadow-md'
+                            : 'border-slate-200 hover:border-slate-400 shadow-2xs hover:shadow-sm'
                         }`}
                       >
-                        <div className="relative aspect-[3/4] rounded-xl bg-black/40 overflow-hidden mb-2">
+                        <div className="relative aspect-[3/4] rounded-xl bg-slate-100 overflow-hidden mb-2.5">
                           <img
                             src={look.thumb}
                             alt={look.name}
@@ -532,107 +551,115 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
                             loading="lazy"
                           />
                           <div className="absolute top-1.5 right-1.5">
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-black/70 text-emerald-400 backdrop-blur">
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-600 text-white shadow-xs">
                               {look.match_percentage}%
                             </span>
                           </div>
                         </div>
 
-                        <h4 className="text-xs font-bold text-white line-clamp-1 group-hover:text-blue-300 transition-colors">
+                        <h4 className="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
                           {look.name}
                         </h4>
-                        <div className="flex items-center justify-between text-[11px] mt-0.5">
-                          <span className="font-mono text-amber-300 font-bold">{look.price.toLocaleString('vi-VN')} ₫</span>
-                          <span className="text-[10px] text-stone-400 font-mono">Size {look.recommended_size}</span>
+                        <div className="flex items-center justify-between text-[11px] mt-1">
+                          <span className="font-mono text-blue-700 font-extrabold">
+                            {look.price.toLocaleString('vi-VN')} ₫
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-mono font-bold">
+                            Size {look.recommended_size}
+                          </span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-
               </div>
             )}
 
             {activeTab === 'body' && (
-              <div className="p-5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 space-y-4">
-                <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-                  <Ruler size={16} className="text-blue-400" />
-                  <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+                  <Ruler size={16} className="text-blue-600" />
+                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900">
                     Trích Xuất Nhân Trắc Học ISO 8559-1
                   </h3>
                 </div>
-                <p className="text-xs text-stone-300 leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed">
                   Hệ thống sử dụng tích phân Ramanujan bậc hai để trích xuất các đường bao chu vi từ ảnh chụp dáng chuẩn của bạn:
                 </p>
                 <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
-                    <span className="text-stone-300">Chu vi ngực (Bust/Chest):</span>
-                    <span className="font-mono font-bold text-emerald-400">{userBody.chest_cm} cm</span>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-slate-700 font-medium">Chu vi ngực (Bust/Chest):</span>
+                    <span className="font-mono font-extrabold text-blue-700">{userBody.chest_cm} cm</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
-                    <span className="text-stone-300">Chu vi eo tự nhiên (Waist):</span>
-                    <span className="font-mono font-bold text-emerald-400">{userBody.waist_cm} cm</span>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-slate-700 font-medium">Chu vi eo tự nhiên (Waist):</span>
+                    <span className="font-mono font-extrabold text-blue-700">{userBody.waist_cm} cm</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
-                    <span className="text-stone-300">Chu vi mông (Hip):</span>
-                    <span className="font-mono font-bold text-emerald-400">{userBody.hip_cm} cm</span>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-slate-700 font-medium">Chu vi mông (Hip):</span>
+                    <span className="font-mono font-extrabold text-blue-700">{userBody.hip_cm} cm</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
-                    <span className="text-stone-300">Rộng vai (Bi-acromial):</span>
-                    <span className="font-mono font-bold text-emerald-400">{userBody.shoulder_cm || 43} cm</span>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-slate-700 font-medium">Rộng vai (Bi-acromial):</span>
+                    <span className="font-mono font-extrabold text-blue-700">{userBody.shoulder_cm || 43} cm</span>
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'dna' && (
-              <div className="p-5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 space-y-4 text-xs">
-                <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-                  <Sparkles size={16} className="text-purple-400" />
-                  <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4 text-xs">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+                  <Sparkles size={16} className="text-purple-600" />
+                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900">
                     Tỉ Lệ Vóc Dáng & Phân Tích Hình Thể
                   </h3>
                 </div>
-                <div className="space-y-3 text-stone-300 leading-relaxed">
-                  <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-400/20">
-                    <span className="font-bold text-purple-300 block mb-1">Dáng Người: V-Shape (Thước Đo Nam Giới Cân Đối)</span>
-                    <span>Tỉ lệ Vai/Eo đạt 1.25. Phù hợp nhất với các thiết kế Regular Slim hoặc Tuxedo tôn bờ vai vững chãi.</span>
+                <div className="space-y-3 text-slate-700 leading-relaxed">
+                  <div className="p-3.5 rounded-xl bg-purple-50 border border-purple-200">
+                    <span className="font-bold text-purple-900 block mb-1">
+                      Dáng Người: Cân Đối Chuẩn V-Shape
+                    </span>
+                    <span className="text-slate-700">
+                      Tỉ lệ Vai/Eo đạt 1.25. Phù hợp nhất với các thiết kế Regular Slim hoặc Tuxedo tôn bờ vai vững chãi.
+                    </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-400/20">
-                    <span className="font-bold text-blue-300 block mb-1">Khuyến Nghị Cổ Áo:</span>
-                    <span>Cổ bẻ Semi-spread hoặc Cổ bấm cổ điển tôn đường nét khuôn mặt góc cạnh.</span>
+                  <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200">
+                    <span className="font-bold text-blue-900 block mb-1">
+                      Khuyến Nghị Cổ Áo:
+                    </span>
+                    <span className="text-slate-700">
+                      Cổ bẻ Semi-spread hoặc Cổ bấm cổ điển tôn đường nét khuôn mặt góc cạnh.
+                    </span>
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'atelier' && (
-              <div className="p-5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 space-y-4 text-xs">
-                <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-                  <ShieldCheck size={16} className="text-amber-400" />
-                  <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4 text-xs">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+                  <ShieldCheck size={16} className="text-amber-600" />
+                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900">
                     Quy Trình Cắt May Nhà May (Bespoke Specs)
                   </h3>
                 </div>
-                <p className="text-stone-300 leading-relaxed">
+                <p className="text-slate-600 leading-relaxed">
                   Khi đặt may, số đo của bạn sẽ được mã hóa và chuyển thẳng đến tay thợ may trưởng. Không cần đến tiệm đo dây thủ công.
                 </p>
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-400/20 space-y-1">
-                  <span className="font-bold text-amber-300 block">Cam Kết Vừa Vặn 100%:</span>
-                  <p className="text-[11px] text-stone-300">Nếu áo không vừa như dự đoán 3D, xưởng may chỉnh sửa hoàn toàn miễn phí trong 14 ngày.</p>
+                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
+                  <span className="font-bold text-amber-900 block">Cam Kết Vừa Vặn 100%:</span>
+                  <p className="text-[11px] text-amber-950/80">
+                    Nếu áo không vừa như dự đoán 3D, xưởng may chỉnh sửa hoàn toàn miễn phí trong 14 ngày.
+                  </p>
                 </div>
               </div>
             )}
-
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 };
 
 export default VellVirtualStudioModal;
-
