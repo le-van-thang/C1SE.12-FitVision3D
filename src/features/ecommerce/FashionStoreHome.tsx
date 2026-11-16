@@ -488,40 +488,39 @@ export const FashionStoreHome: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
 
-      {/* ── BAND 1: TOP EDITORIAL CONTINUOUS MARQUEE ANNOUNCEMENT BAR ── */}
-      <div className="bg-[#0B0D10] text-amber-300 text-[11px] font-semibold border-b border-white/10 overflow-hidden">
-        <div className="h-8 flex items-center overflow-hidden">
-          <div className="animate-fv-marquee flex items-center">
-            {[0, 1].map((dupIdx) => (
-              <div key={dupIdx} className="flex items-center gap-8 pr-8 whitespace-nowrap">
-                <span className="flex items-center gap-1.5 text-amber-300">
-                  <Sparkles size={11} />
-                  <span>{locale === 'en' ? 'ISO 8559-1 Anthropometric 3D Sizing' : 'Đo Size Chuẩn Nhân Trắc Học ISO 8559'}</span>
-                </span>
-                <span className="text-stone-600">•</span>
-                <span className="text-stone-200">
-                  {locale === 'en' ? 'Free 14-Day Fit Adjustment Guarantee' : 'Đổi sửa size vừa vặn miễn phí trong 14 ngày'}
-                </span>
-                <span className="text-stone-600">•</span>
-                <span className="text-emerald-400">
-                  {locale === 'en' ? 'Freeship Express Orders from 1,000,000₫' : 'Freeship hỏa tốc đơn hàng từ 1.000.000₫'}
-                </span>
-                <span className="text-stone-600">•</span>
-                <span className="text-stone-200">
-                  {locale === 'en' ? 'Zero-Retention In-Memory Image Privacy 100%' : 'Bảo mật ảnh xử lý tạm thời RAM 100%'}
-                </span>
-                <span className="text-stone-600">•</span>
-              </div>
-            ))}
+      {/* ── UNIFIED STICKY TOP STACK: MARQUEE + OBSIDIAN HEADER + WHITE CATEGORY NAV ── */}
+      <div className="sticky top-0 z-40 w-full shadow-md">
+        {/* ── BAND 1: TOP EDITORIAL CONTINUOUS MARQUEE ANNOUNCEMENT BAR ── */}
+        <div className="bg-[#0B0D10] text-amber-300 text-[11px] font-semibold border-b border-white/10 overflow-hidden">
+          <div className="h-8 flex items-center overflow-hidden">
+            <div className="animate-fv-marquee flex items-center">
+              {[0, 1].map((dupIdx) => (
+                <div key={dupIdx} className="flex items-center gap-8 pr-8 whitespace-nowrap">
+                  <span className="flex items-center gap-1.5 text-amber-300">
+                    <Sparkles size={11} />
+                    <span>{locale === 'en' ? 'ISO 8559-1 Anthropometric 3D Sizing' : 'Đo Size Chuẩn Nhân Trắc Học ISO 8559'}</span>
+                  </span>
+                  <span className="text-stone-600">•</span>
+                  <span className="text-stone-200">
+                    {locale === 'en' ? 'Free 14-Day Fit Adjustment Guarantee' : 'Đổi sửa size vừa vặn miễn phí trong 14 ngày'}
+                  </span>
+                  <span className="text-stone-600">•</span>
+                  <span className="text-emerald-400">
+                    {locale === 'en' ? 'Freeship Express Orders from 1,000,000₫' : 'Freeship hỏa tốc đơn hàng từ 1.000.000₫'}
+                  </span>
+                  <span className="text-stone-600">•</span>
+                  <span className="text-stone-200">
+                    {locale === 'en' ? 'Zero-Retention In-Memory Image Privacy 100%' : 'Bảo mật ảnh xử lý tạm thời RAM 100%'}
+                  </span>
+                  <span className="text-stone-600">•</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── MAIN CONTENT WRAPPER ── */}
-      <div className="flex-1 min-w-0 flex flex-col">
-
-        {/* ── BAND 2: PRIMARY DARK EDITORIAL HEADER (STICKY Z-40 ABOVE CATEGORY BAR) ── */}
-        <header className="sticky top-0 z-40 bg-[#14171C] text-white border-b border-white/10 shadow-md">
+        {/* ── BAND 2: PRIMARY DARK EDITORIAL HEADER ── */}
+        <header className="relative z-30 bg-[#14171C] text-white border-b border-white/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 sm:gap-5">
             
             {/* Left: Menu Drawer Toggle (Desktop & Mobile) + Brand Wordmark */}
@@ -973,6 +972,10 @@ export const FashionStoreHome: React.FC = () => {
             </div>
           )}
         </nav>
+      </div>
+
+      {/* ── MAIN CONTENT WRAPPER ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
 
         {/* ── BAND 4: WIDE EDITORIAL STUDIO-GRAY HERO BANNER ── */}
         <section className="relative overflow-hidden bg-gradient-to-br from-[#7B7A76] via-[#6B6A66] to-[#585754] text-white border-b border-stone-500/40">
@@ -1576,7 +1579,7 @@ export const FashionStoreHome: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
           {/* LEFT SIDEBAR: 3D BIOMETRIC PROFILE & CLEAN EDITORIAL FILTERS (Desktop sticky) */}
-          <aside className="hidden lg:block lg:col-span-3 space-y-5 sticky top-24">
+          <aside className="hidden lg:block lg:col-span-3 space-y-5 sticky top-[156px]">
 
             {/* Card 1: Compact 3D Body Profile Card */}
             <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
