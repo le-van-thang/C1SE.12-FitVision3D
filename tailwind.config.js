@@ -33,8 +33,8 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Fraunces"', 'Georgia', 'serif'],
-        sans: ['"Instrument Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        sans: ['"Be Vietnam Pro"', '"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       borderRadius: {

@@ -488,34 +488,40 @@ export const FashionStoreHome: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
 
-      {/* ── BAND 1: TOP EDITORIAL ANNOUNCEMENT BAR ── */}
-      <div className="bg-[#0B0D10] text-stone-300 text-[11px] font-medium border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-8 flex items-center justify-center sm:justify-between gap-4 overflow-hidden">
-          <div className="flex items-center gap-6 whitespace-nowrap">
-            <span className="flex items-center gap-1.5 text-amber-300 font-semibold">
-              <Sparkles size={11} />
-              <span>{locale === 'en' ? 'ISO 8559-1 Anthropometric 3D Sizing' : 'Đo Size Chuẩn Nhân Trắc Học ISO 8559'}</span>
-            </span>
-            <span className="hidden md:inline text-stone-600">•</span>
-            <span className="hidden md:inline">
-              {locale === 'en' ? 'Free 14-Day Fit Adjustment Guarantee' : 'Đổi sửa size vừa vặn miễn phí trong 14 ngày'}
-            </span>
-            <span className="hidden lg:inline text-stone-600">•</span>
-            <span className="hidden lg:inline">
-              {locale === 'en' ? 'Zero-Retention In-Memory Image Privacy' : 'Bảo mật ảnh xử lý tạm thời RAM 100%'}
-            </span>
+      {/* ── BAND 1: TOP EDITORIAL CONTINUOUS MARQUEE ANNOUNCEMENT BAR ── */}
+      <div className="bg-[#0B0D10] text-amber-300 text-[11px] font-semibold border-b border-white/10 overflow-hidden">
+        <div className="h-8 flex items-center overflow-hidden">
+          <div className="animate-fv-marquee flex items-center">
+            {[0, 1].map((dupIdx) => (
+              <div key={dupIdx} className="flex items-center gap-8 pr-8 whitespace-nowrap">
+                <span className="flex items-center gap-1.5 text-amber-300">
+                  <Sparkles size={11} />
+                  <span>{locale === 'en' ? 'ISO 8559-1 Anthropometric 3D Sizing' : 'Đo Size Chuẩn Nhân Trắc Học ISO 8559'}</span>
+                </span>
+                <span className="text-stone-600">•</span>
+                <span className="text-stone-200">
+                  {locale === 'en' ? 'Free 14-Day Fit Adjustment Guarantee' : 'Đổi sửa size vừa vặn miễn phí trong 14 ngày'}
+                </span>
+                <span className="text-stone-600">•</span>
+                <span className="text-emerald-400">
+                  {locale === 'en' ? 'Freeship Express Orders from 1,000,000₫' : 'Freeship hỏa tốc đơn hàng từ 1.000.000₫'}
+                </span>
+                <span className="text-stone-600">•</span>
+                <span className="text-stone-200">
+                  {locale === 'en' ? 'Zero-Retention In-Memory Image Privacy 100%' : 'Bảo mật ảnh xử lý tạm thời RAM 100%'}
+                </span>
+                <span className="text-stone-600">•</span>
+              </div>
+            ))}
           </div>
-          <span className="hidden sm:inline font-mono text-[10px] text-emerald-400 font-bold tracking-wide">
-            {locale === 'en' ? 'FREE SHIPPING NATIONWIDE' : 'FREESHIP ĐƠN MAY ĐO TOÀN QUỐC'}
-          </span>
         </div>
       </div>
 
       {/* ── MAIN CONTENT WRAPPER ── */}
       <div className="flex-1 min-w-0 flex flex-col">
 
-        {/* ── BAND 2: PRIMARY DARK EDITORIAL HEADER (TORANO-INSPIRED HIERARCHY, FITVISION IDENTITY) ── */}
-        <header className="sticky top-0 z-30 bg-[#14171C] text-white border-b border-white/10 shadow-md">
+        {/* ── BAND 2: PRIMARY DARK EDITORIAL HEADER (STICKY Z-40 ABOVE CATEGORY BAR) ── */}
+        <header className="sticky top-0 z-40 bg-[#14171C] text-white border-b border-white/10 shadow-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 sm:gap-5">
             
             {/* Left: Menu Drawer Toggle (Desktop & Mobile) + Brand Wordmark */}
@@ -816,20 +822,20 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         </header>
 
-        {/* ── BAND 3: CRISP WHITE CATEGORY NAVIGATION BAR WITH HOVER MEGA-MENU ── */}
+        {/* ── BAND 3: CRISP WHITE CATEGORY NAVIGATION BAR WITH HOVER MEGA-MENU (Z-20 UNDER STICKY HEADER) ── */}
         <nav
-          className="bg-white border-b border-slate-200 hidden lg:block relative z-30"
+          className="bg-white border-b border-slate-200 hidden lg:block relative z-20"
           onMouseLeave={() => setActiveMegaMenu(null)}
         >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-11 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-11 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-4 xl:gap-5 min-w-0">
               {[
-                { id: 'all', label: t('ecommerce.categories.all', 'SẢN PHẨM MỚI & TẤT CẢ'), megaKey: null },
-                { id: 'shirt', label: t('ecommerce.categories.shirt', 'ÁO SƠ MI MAY ĐO'), megaKey: 'tops' },
-                { id: 'polo', label: t('ecommerce.categories.polo', 'ÁO POLO CAO CẤP'), megaKey: 'tops' },
-                { id: 'pants', label: t('ecommerce.categories.pants', 'QUẦN TÂY & CHINO'), megaKey: 'bottoms' },
-                { id: 'dress', label: t('ecommerce.categories.dress', 'ĐẦM LỤA TỰ NHIÊN'), megaKey: 'bottoms' },
-                { id: 'tailored', label: t('ecommerce.categories.tailored', 'MAY ĐO BESPOKE'), megaKey: 'tops' },
+                { id: 'all', label: locale === 'en' ? 'ALL ITEMS' : 'TẤT CẢ', megaKey: null },
+                { id: 'shirt', label: locale === 'en' ? 'SHIRTS' : 'ÁO SƠ MI', megaKey: 'tops' },
+                { id: 'polo', label: locale === 'en' ? 'POLO' : 'ÁO POLO', megaKey: 'tops' },
+                { id: 'pants', label: locale === 'en' ? 'TROUSERS & CHINO' : 'QUẦN TÂY & CHINO', megaKey: 'bottoms' },
+                { id: 'dress', label: locale === 'en' ? 'SILK DRESSES' : 'ĐẦM LỤA', megaKey: 'bottoms' },
+                { id: 'tailored', label: locale === 'en' ? 'BESPOKE' : 'MAY ĐO BESPOKE', megaKey: 'tops' },
               ].map((cat) => {
                 const isActive = activeCategory === cat.id;
                 return (
@@ -843,12 +849,12 @@ export const FashionStoreHome: React.FC = () => {
                       const el = document.getElementById('catalog');
                       if (el) el.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className={`relative h-11 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1 ${
+                    className={`relative h-11 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1 ${
                       isActive ? 'text-blue-600' : 'text-slate-700 hover:text-slate-950'
                     }`}
                   >
                     <span>{cat.label}</span>
-                    {cat.megaKey && <ChevronDown size={12} className="opacity-60" />}
+                    {cat.megaKey && <ChevronDown size={11} className="opacity-60" />}
                     {isActive && (
                       <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
                     )}
@@ -859,9 +865,9 @@ export const FashionStoreHome: React.FC = () => {
               <button
                 type="button"
                 onClick={handleOpenVirtualStudio}
-                className="h-7 px-2.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-colors"
+                className="h-7 px-3 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
               >
-                <Sparkles size={11} />
+                <Sparkles size={11} className="shrink-0" />
                 <span>{locale === 'en' ? '3D STUDIO' : 'PHÒNG THỬ ĐỒ 3D'}</span>
               </button>
             </div>
@@ -870,9 +876,9 @@ export const FashionStoreHome: React.FC = () => {
             <button
               type="button"
               onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
-              className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer shrink-0"
+              className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
-              <span className={`w-2 h-2 rounded-full ${isAuthenticated && hasBodyProfile ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span className={`w-2 h-2 rounded-full shrink-0 ${isAuthenticated && hasBodyProfile ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
               {isAuthenticated && hasBodyProfile ? (
                 <span className="font-mono font-bold text-slate-900">
                   {userBody.height_cm}cm · {userBody.weight_kg}kg
@@ -880,8 +886,8 @@ export const FashionStoreHome: React.FC = () => {
               ) : (
                 <span>
                   {!isAuthenticated
-                    ? (locale === 'en' ? 'Sign in for 3D profile' : 'Chưa đồng bộ số đo 3D')
-                    : (locale === 'en' ? 'Set 3D measurements' : 'Thiết lập số đo 3D')}
+                    ? (locale === 'en' ? '3D Profile' : 'Chưa đồng bộ 3D')
+                    : (locale === 'en' ? 'Set 3D Size' : 'Thiết lập số đo 3D')}
                 </span>
               )}
             </button>
@@ -968,24 +974,25 @@ export const FashionStoreHome: React.FC = () => {
           )}
         </nav>
 
-        {/* ── BAND 4: WIDE EDITORIAL FASHION-TECH HERO BANNER ── */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-[#2E3238] via-[#21252B] to-[#14171C] text-white border-b border-slate-800">
+        {/* ── BAND 4: WIDE EDITORIAL STUDIO-GRAY HERO BANNER ── */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-[#7B7A76] via-[#6B6A66] to-[#585754] text-white border-b border-stone-500/40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               
               {/* Left Column: Editorial Serif Headline & CTAs */}
               <div className="lg:col-span-7 space-y-5 text-left">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-blue-300 border border-white/15 text-[11px] font-bold tracking-wider uppercase">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/20 text-amber-200 border border-white/20 text-[11px] font-bold tracking-wider uppercase backdrop-blur-xs">
                   <Sparkles size={13} className="text-amber-300" />
                   <span>{t('ecommerce.hero.badge', 'NỀN TẢNG THỜI TRANG MAY ĐO & ĐO SIZE 3D THẾ HỆ MỚI')}</span>
                 </div>
 
-                <h1 className="font-display text-3xl sm:text-5xl lg:text-[52px] font-bold tracking-tight text-white leading-[1.15]">
-                  {t('ecommerce.hero.title1', 'Thời Trang Vừa Vặn')} <br className="hidden sm:inline" />
-                  <span className="text-blue-400 italic">{t('ecommerce.hero.titleHighlight', 'Tuyệt Đối')}</span> {t('ecommerce.hero.title2', 'Từng Centimet.')}
+                <h1 className="font-display text-3xl sm:text-5xl lg:text-[50px] font-bold tracking-normal text-white leading-[1.18] drop-shadow-xs">
+                  {t('ecommerce.hero.title1', 'Phong Cách May Đo')} <br className="hidden sm:inline" />
+                  <span className="text-amber-200 italic">{t('ecommerce.hero.titleHighlight', 'Chuẩn Xác')}</span>{' '}
+                  {t('ecommerce.hero.title2', 'Theo Vóc Dáng Bạn.')}
                 </h1>
 
-                <p className="text-stone-300 text-sm sm:text-base leading-relaxed max-w-xl font-normal">
+                <p className="text-stone-100/95 text-sm sm:text-base leading-relaxed max-w-xl font-normal">
                   {t('ecommerce.hero.desc', 'Không còn nỗi lo chọn nhầm size hay phiền phức đổi trả. Thuật toán Trí Tuệ Nhân Tạo tự động phân tích vóc dáng và so khớp độ cử động (Ease Allowance) với từng đường kim mũi chỉ của nhà may.')}
                 </p>
 
@@ -993,7 +1000,7 @@ export const FashionStoreHome: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleOpenVirtualStudio}
-                    className="px-6 py-3 rounded-xl bg-white hover:bg-stone-100 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm shadow-lg flex items-center gap-2 transition-all cursor-pointer"
+                    className="px-6 py-3 rounded-xl bg-white hover:bg-stone-100 active:scale-95 text-[#14171C] font-bold text-xs sm:text-sm shadow-lg flex items-center gap-2 transition-all cursor-pointer"
                   >
                     <Sparkles size={16} className="text-blue-600" />
                     <span>{t('ecommerce.hero.ctaTryOn', 'Thử Đồ Ảo 3D (Phòng Thử AI)')}</span>
@@ -1001,9 +1008,9 @@ export const FashionStoreHome: React.FC = () => {
 
                   <a
                     href="/dashboard"
-                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-1.5 transition-all cursor-pointer border border-blue-500"
+                    className="px-6 py-3 rounded-xl bg-[#14171C] hover:bg-black active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-1.5 transition-all cursor-pointer border border-white/15"
                   >
-                    <Camera size={15} />
+                    <Camera size={15} className="text-blue-400" />
                     <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng AI 30s')}</span>
                   </a>
 
@@ -1014,7 +1021,7 @@ export const FashionStoreHome: React.FC = () => {
                         setProfileModalTab('merchant');
                         setIsProfileModalOpen(true);
                       }}
-                      className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 text-amber-300 font-bold text-xs sm:text-sm border border-white/20 flex items-center gap-2 transition-all cursor-pointer"
+                      className="px-5 py-3 rounded-xl bg-black/20 hover:bg-black/30 active:scale-95 text-amber-200 font-bold text-xs sm:text-sm border border-white/25 flex items-center gap-2 transition-all cursor-pointer"
                     >
                       <Store size={16} />
                       <span>{t('ecommerce.hero.ctaMerchant', 'Đăng Ký Gian Hàng May Đo')}</span>
@@ -1026,7 +1033,7 @@ export const FashionStoreHome: React.FC = () => {
                         const el = document.getElementById('catalog');
                         if (el) el.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 text-white font-bold text-xs sm:text-sm border border-white/20 flex items-center gap-2 transition-all cursor-pointer"
+                      className="px-5 py-3 rounded-xl bg-black/20 hover:bg-black/30 active:scale-95 text-white font-bold text-xs sm:text-sm border border-white/25 flex items-center gap-2 transition-all cursor-pointer"
                     >
                       <ShoppingBag size={16} />
                       <span>{t('ecommerce.hero.ctaExplore', 'Khám Phá Bộ Sưu Tập')}</span>

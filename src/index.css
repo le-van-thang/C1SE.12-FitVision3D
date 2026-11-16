@@ -34,6 +34,23 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+  .animate-fv-marquee {
+    display: flex;
+    width: max-content;
+    animation: fv-marquee 30s linear infinite;
+  }
+  .animate-fv-marquee:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes fv-marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 :root {
