@@ -11,6 +11,8 @@ import {
   Ruler,
   User,
   ShieldCheck,
+  Lock,
+  LogIn,
 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import type { FashionProduct, UserBodyProfile } from './types';
@@ -19,6 +21,10 @@ export interface VellVirtualStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
   userBody: UserBodyProfile;
+  isAuthenticated?: boolean;
+  hasBodyProfile?: boolean;
+  onOpenSignIn?: () => void;
+  onOpenBiometrics?: () => void;
   initialProduct?: FashionProduct | null;
   onAddToCart?: (product: FashionProduct, size: string) => void;
 }
@@ -144,6 +150,10 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
   isOpen,
   onClose,
   userBody,
+  isAuthenticated = false,
+  hasBodyProfile = false,
+  onOpenSignIn,
+  onOpenBiometrics,
   onAddToCart,
 }) => {
   const { locale } = useI18n();
@@ -198,6 +208,65 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
       : VELL_LOOKS.filter((l) => l.category === activeCategory);
 
   if (!isOpen) return null;
+
+  // Guard: Unauthenticated users cannot enter the personalized 3D Fitting Room with mock body data
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-200 p-4">
+        <div className="relative w-full max-w-md rounded-3xl overflow-hidden bg-stone-950/90 border border-white/20 shadow-2xl p-7 text-center text-white space-y-5">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+          >
+            <X size={16} />
+          </button>
+
+          <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-400/40 text-blue-400 flex items-center justify-center mx-auto shadow-inner">
+            <Lock size={26} />
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-blue-300 block">
+              FitVision VELL · Virtual Fitting 3D
+            </span>
+            <h3 className="text-lg font-extrabold text-white">
+              {locale === 'en'
+                ? 'Sign In to Enter 3D Fitting Room'
+                : 'Đăng Nhập Để Dùng Phòng Thử Đồ Ảo 3D'}
+            </h3>
+            <p className="text-xs text-stone-300 leading-relaxed">
+              {locale === 'en'
+                ? 'Please sign in so FitVision can load your real 3D body profile and compute accurate Ease Allowance & size matches.'
+                : 'Vui lòng đăng nhập để hệ thống đồng bộ số đo 3D cá nhân của bạn, tính toán độ vừa vặn và gợi ý kích cỡ chính xác.'}
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-stone-200 text-xs font-bold border border-white/15 cursor-pointer transition-colors"
+            >
+              {locale === 'en' ? 'Cancel' : 'Để sau'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                if (onOpenSignIn) onOpenSignIn();
+              }}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <LogIn size={14} />
+              <span>{locale === 'en' ? 'Sign In Now' : 'Đăng Nhập Ngay'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
@@ -291,56 +360,85 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
                     {locale === 'en' ? 'Your Body Profile' : 'Hồ Sơ Vóc Dáng Của Bạn'}
                   </span>
                 </div>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className={`w-2 h-2 rounded-full ${hasBodyProfile ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
               </div>
 
-              {/* 4 Core Dimensions — Crisp High Contrast Text */}
+              {/* 4 Core Dimensions — Shows Real User Profile or Empty Prompt if Not Yet Measured */}
               <div className="grid grid-cols-2 gap-2.5 text-xs">
                 <div className="p-2.5 rounded-xl bg-white/10 border border-white/15">
                   <span className="text-[10px] font-semibold text-stone-300 block">
                     {locale === 'en' ? 'Height' : 'Chiều cao'}
                   </span>
-                  <span className="font-mono font-extrabold text-emerald-400 text-sm">{userBody.height_cm} cm</span>
+                  <span className="font-mono font-extrabold text-emerald-400 text-sm">
+                    {hasBodyProfile ? `${userBody.height_cm} cm` : '— cm'}
+                  </span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-white/10 border border-white/15">
                   <span className="text-[10px] font-semibold text-stone-300 block">
                     {locale === 'en' ? 'Weight' : 'Cân nặng'}
                   </span>
-                  <span className="font-mono font-extrabold text-emerald-400 text-sm">{userBody.weight_kg} kg</span>
+                  <span className="font-mono font-extrabold text-emerald-400 text-sm">
+                    {hasBodyProfile ? `${userBody.weight_kg} kg` : '— kg'}
+                  </span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-white/10 border border-white/15">
                   <span className="text-[10px] font-semibold text-stone-300 block">
                     {locale === 'en' ? 'Chest (V1)' : 'Vòng ngực (V1)'}
                   </span>
-                  <span className="font-mono font-extrabold text-white text-sm">{userBody.chest_cm} cm</span>
+                  <span className="font-mono font-extrabold text-white text-sm">
+                    {hasBodyProfile ? `${userBody.chest_cm} cm` : '— cm'}
+                  </span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-white/10 border border-white/15">
                   <span className="text-[10px] font-semibold text-stone-300 block">
                     {locale === 'en' ? 'Waist (V2)' : 'Vòng eo (V2)'}
                   </span>
-                  <span className="font-mono font-extrabold text-white text-sm">{userBody.waist_cm} cm</span>
+                  <span className="font-mono font-extrabold text-white text-sm">
+                    {hasBodyProfile ? `${userBody.waist_cm} cm` : '— cm'}
+                  </span>
                 </div>
               </div>
 
-              {/* Ramanujan 3D Fit Prediction */}
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/90 to-indigo-950/90 border border-blue-400/40 space-y-2 shadow-inner">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-blue-200 font-bold">Khuyên dùng bộ này:</span>
-                  <span className="px-2.5 py-0.5 rounded-md font-mono font-black bg-blue-500 text-white text-xs shadow-xs">
-                    Size {currentLook.recommended_size}
-                  </span>
+              {!hasBodyProfile ? (
+                <div className="p-3.5 rounded-xl bg-amber-950/70 border border-amber-400/40 space-y-2.5 text-xs">
+                  <p className="text-amber-200 font-semibold leading-snug">
+                    {locale === 'en'
+                      ? 'Add your 3D measurements to calculate personalized fit %.'
+                      : 'Tài khoản chưa có số đo 3D. Hãy cập nhật số đo để tính % vừa vặn.'}
+                  </p>
+                  {onOpenBiometrics && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenBiometrics();
+                      }}
+                      className="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold text-xs cursor-pointer transition-colors"
+                    >
+                      {locale === 'en' ? 'Enter 3D Measurements' : 'Nhập Số Đo Ngay'}
+                    </button>
+                  )}
                 </div>
-                <div className="flex items-center justify-between text-xs text-stone-100">
-                  <span className="text-stone-300">Độ vừa vặn AI:</span>
-                  <span className="font-extrabold text-emerald-400 font-mono">{currentLook.match_percentage}% Match</span>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/90 to-indigo-950/90 border border-blue-400/40 space-y-2 shadow-inner">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-blue-200 font-bold">Khuyên dùng bộ này:</span>
+                    <span className="px-2.5 py-0.5 rounded-md font-mono font-black bg-blue-500 text-white text-xs shadow-xs">
+                      Size {currentLook.recommended_size}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-stone-100">
+                    <span className="text-stone-300">Độ vừa vặn AI:</span>
+                    <span className="font-extrabold text-emerald-400 font-mono">{currentLook.match_percentage}% Match</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-stone-100 gap-2">
+                    <span className="text-stone-300 whitespace-nowrap">Độ cử động:</span>
+                    <span className="font-bold text-blue-300 font-mono whitespace-nowrap">
+                      +{currentLook.chest_ease} cm (Êm ái)
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-xs text-stone-100 gap-2">
-                  <span className="text-stone-300 whitespace-nowrap">Độ cử động:</span>
-                  <span className="font-bold text-blue-300 font-mono whitespace-nowrap">
-                    +{currentLook.chest_ease} cm (Êm ái)
-                  </span>
-                </div>
-              </div>
+              )}
 
               {/* Fabric Spec */}
               <div className="p-3 rounded-xl bg-white/10 border border-white/10 text-xs">
@@ -579,19 +677,27 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between p-3 rounded-xl bg-white/10 border border-white/10">
                     <span className="text-stone-200 font-medium">Chu vi ngực (Bust/Chest):</span>
-                    <span className="font-mono font-extrabold text-emerald-400">{userBody.chest_cm} cm</span>
+                    <span className="font-mono font-extrabold text-emerald-400">
+                      {hasBodyProfile ? `${userBody.chest_cm} cm` : '— cm'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-white/10 border border-white/10">
                     <span className="text-stone-200 font-medium">Chu vi eo tự nhiên (Waist):</span>
-                    <span className="font-mono font-extrabold text-emerald-400">{userBody.waist_cm} cm</span>
+                    <span className="font-mono font-extrabold text-emerald-400">
+                      {hasBodyProfile ? `${userBody.waist_cm} cm` : '— cm'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-white/10 border border-white/10">
                     <span className="text-stone-200 font-medium">Chu vi mông (Hip):</span>
-                    <span className="font-mono font-extrabold text-emerald-400">{userBody.hip_cm} cm</span>
+                    <span className="font-mono font-extrabold text-emerald-400">
+                      {hasBodyProfile ? `${userBody.hip_cm} cm` : '— cm'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-white/10 border border-white/10">
                     <span className="text-stone-200 font-medium">Rộng vai (Bi-acromial):</span>
-                    <span className="font-mono font-extrabold text-emerald-400">{userBody.shoulder_cm || 43} cm</span>
+                    <span className="font-mono font-extrabold text-emerald-400">
+                      {hasBodyProfile ? `${userBody.shoulder_cm || 43} cm` : '— cm'}
+                    </span>
                   </div>
                 </div>
               </div>

@@ -164,18 +164,40 @@ export const FashionStoreHome: React.FC = () => {
 
   const userOrders = getUserOrders(currentUser?.id);
 
-  // State
-  const [userBody, setUserBody] = useState<UserBodyProfile>(() => {
-    const saved = sessionStorage.getItem('fv3d_user_body');
+  // State: Only expose personalized measurements when authenticated (never show mock data to guests)
+  const [userBody, setUserBody] = useState<UserBodyProfile>(INITIAL_USER_BODY);
+  const [hasBodyProfile, setHasBodyProfile] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) {
+      setHasBodyProfile(false);
+      setFilterByMyFitOnly(false);
+      return;
+    }
+
+    const storageKey = `fv3d_user_body_${currentUser.id}`;
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // fallback
+        setUserBody(JSON.parse(saved));
+        setHasBodyProfile(true);
+        return;
+      } catch {
+        // ignore invalid stored payload
       }
     }
-    return INITIAL_USER_BODY;
-  });
+
+    // Seed default anthropometric profile only for built-in demo accounts
+    const isSeededDemo =
+      currentUser.id.startsWith('usr-') ||
+      (currentUser.email || '').toLowerCase() === 'levanthanglvt01@gmail.com';
+    if (isSeededDemo) {
+      setUserBody(INITIAL_USER_BODY);
+      setHasBodyProfile(true);
+    } else {
+      setHasBodyProfile(false);
+    }
+  }, [isAuthenticated, currentUser]);
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -237,10 +259,26 @@ export const FashionStoreHome: React.FC = () => {
     return () => clearInterval(interval);
   }, [isBannerPaused]);
 
-  // Save body changes
+  // Save body changes per-user in localStorage
   const handleSaveBody = (newBody: UserBodyProfile) => {
     setUserBody(newBody);
-    sessionStorage.setItem('fv3d_user_body', JSON.stringify(newBody));
+    setHasBodyProfile(true);
+    if (isAuthenticated && currentUser) {
+      localStorage.setItem(`fv3d_user_body_${currentUser.id}`, JSON.stringify(newBody));
+    }
+  };
+
+  // Gated actions for personalized 3D Studio & Biometric measurements
+  const handleOpenBiometrics = () => {
+    if (!isAuthenticated) {
+      openSignIn();
+      return;
+    }
+    setIsBiometricModalOpen(true);
+  };
+
+  const handleOpenVirtualStudio = () => {
+    setIsVellStudioOpen(true);
   };
 
   // Helpers for bilingual product representation
@@ -347,6 +385,14 @@ export const FashionStoreHome: React.FC = () => {
   };
 
   const handleOpenAnalysis = (product: FashionProduct) => {
+    if (!isAuthenticated) {
+      openSignIn();
+      return;
+    }
+    if (!hasBodyProfile) {
+      setIsBiometricModalOpen(true);
+      return;
+    }
     const fit = calculateProductFit(userBody, product);
     const variant =
       product.variants.find((v) => v.size_label === fit.recommended_size) || product.variants[0];
@@ -385,32 +431,31 @@ export const FashionStoreHome: React.FC = () => {
         {/* Scrollable Navigation Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           
-          {/* Hồ sơ vóc dáng 3D: Phân biệt rõ trạng thái Đã đăng nhập (Đã đồng bộ) vs Chưa đăng nhập (Số đo mẫu) */}
+          {/* Hồ sơ vóc dáng 3D: Chỉ hiển thị số đo thật khi đã đăng nhập & có hồ sơ */}
           <div className="rounded-2xl border border-slate-300 shadow-2xs overflow-hidden bg-white text-stone-900">
-            {/* Header thanh lịch, nút thu gọn/mở rộng */}
             <div className="bg-slate-100/90 border-b border-slate-200 px-3.5 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
-                    isAuthenticated
+                    isAuthenticated && hasBodyProfile
                       ? 'bg-emerald-500 ring-2 ring-emerald-200 animate-pulse'
-                      : 'bg-amber-500 ring-2 ring-amber-200'
+                      : 'bg-slate-400'
                   }`}
                 />
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 truncate">
-                  {isAuthenticated
-                    ? t('ecommerce.sidebar.bodyProfileTitle', 'HỒ SƠ VÓC DÁNG 3D')
-                    : t('ecommerce.sidebar.guestBodyProfileTitle', 'SỐ ĐO MẪU (CHƯA LƯU)')}
+                  {t('ecommerce.sidebar.bodyProfileTitle', 'HỒ SƠ VÓC DÁNG 3D')}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsBiometricModalOpen(true)}
-                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
-                >
-                  {t('ecommerce.sidebar.editMeasurements', 'Đổi số đo')}
-                </button>
+                {isAuthenticated && (
+                  <button
+                    type="button"
+                    onClick={handleOpenBiometrics}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                  >
+                    {t('ecommerce.sidebar.editMeasurements', 'Đổi số đo')}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsBodyProfileCollapsed(!isBodyProfileCollapsed)}
@@ -422,69 +467,83 @@ export const FashionStoreHome: React.FC = () => {
               </div>
             </div>
 
-            {/* Chế độ Thu Gọn: Hiển thị 1 thanh tóm tắt siêu gọn */}
             {isBodyProfileCollapsed ? (
               <div className="p-3 bg-slate-50/50 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-800 px-0.5">
-                  <span className="font-mono">{userBody.height_cm}cm · {userBody.weight_kg}kg</span>
-                  <span className="text-slate-600 font-mono text-[11px]">N:{userBody.chest_cm}cm · E:{userBody.waist_cm}cm</span>
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-700 font-semibold border-t border-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={filterByMyFitOnly}
-                    onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 border border-slate-300 accent-blue-600 cursor-pointer"
-                  />
-                  <span className="font-semibold text-xs text-slate-800">{t('ecommerce.sidebar.onlyFitting', 'Chỉ hiện đồ vừa vặn (≥ 90%)')}</span>
-                </label>
+                {isAuthenticated && hasBodyProfile ? (
+                  <>
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-800 px-0.5">
+                      <span className="font-mono">{userBody.height_cm}cm · {userBody.weight_kg}kg</span>
+                      <span className="text-slate-600 font-mono text-[11px]">N:{userBody.chest_cm}cm · E:{userBody.waist_cm}cm</span>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-700 font-semibold border-t border-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={filterByMyFitOnly}
+                        onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
+                        className="w-4 h-4 rounded text-blue-600 border border-slate-300 accent-blue-600 cursor-pointer"
+                      />
+                      <span className="font-semibold text-xs text-slate-800">{t('ecommerce.sidebar.onlyFitting', 'Chỉ hiện đồ vừa vặn (≥ 90%)')}</span>
+                    </label>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-slate-500 font-medium text-center py-0.5">
+                    {!isAuthenticated
+                      ? (locale === 'en' ? 'Sign in to sync 3D measurements' : 'Đăng nhập để đồng bộ số đo 3D')
+                      : (locale === 'en' ? 'No 3D measurements yet' : 'Chưa có số đo 3D')}
+                  </p>
+                )}
               </div>
             ) : (
-              /* Chế độ Mở Rộng: 4 ô số đo có viền mảnh hài hòa theo tông màu */
               <div className="p-3 bg-white space-y-2.5">
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {/* Chiều cao */}
                   <div className="bg-sky-50/70 p-2.5 rounded-xl border border-sky-200 text-sky-950">
                     <span className="text-sky-700 text-[10px] block font-bold uppercase tracking-wider">{t('ecommerce.sidebar.height', 'Chiều cao')}</span>
-                    <span className="font-extrabold text-sky-950 text-sm">{userBody.height_cm} cm</span>
+                    <span className="font-extrabold text-sky-950 text-sm">
+                      {isAuthenticated && hasBodyProfile ? `${userBody.height_cm} cm` : '— cm'}
+                    </span>
                   </div>
-                  {/* Cân nặng */}
                   <div className="bg-purple-50/70 p-2.5 rounded-xl border border-purple-200 text-purple-950">
                     <span className="text-purple-700 text-[10px] block font-bold uppercase tracking-wider">{t('ecommerce.sidebar.weight', 'Cân nặng')}</span>
-                    <span className="font-extrabold text-purple-950 text-sm">{userBody.weight_kg} kg</span>
+                    <span className="font-extrabold text-purple-950 text-sm">
+                      {isAuthenticated && hasBodyProfile ? `${userBody.weight_kg} kg` : '— kg'}
+                    </span>
                   </div>
-                  {/* Vòng ngực */}
                   <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 text-emerald-950">
                     <span className="text-emerald-700 text-[10px] block font-bold uppercase tracking-wider">{t('ecommerce.sidebar.chest', 'Vòng ngực')}</span>
-                    <span className="font-extrabold text-emerald-950 text-sm">{userBody.chest_cm} cm</span>
+                    <span className="font-extrabold text-emerald-950 text-sm">
+                      {isAuthenticated && hasBodyProfile ? `${userBody.chest_cm} cm` : '— cm'}
+                    </span>
                   </div>
-                  {/* Vòng eo */}
                   <div className="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 text-amber-950">
                     <span className="text-amber-700 text-[10px] block font-bold uppercase tracking-wider">{t('ecommerce.sidebar.waist', 'Vòng eo')}</span>
-                    <span className="font-extrabold text-amber-950 text-sm">{userBody.waist_cm} cm</span>
+                    <span className="font-extrabold text-amber-950 text-sm">
+                      {isAuthenticated && hasBodyProfile ? `${userBody.waist_cm} cm` : '— cm'}
+                    </span>
                   </div>
                 </div>
 
-                {/* Lọc đồ vừa vặn */}
-                <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-800 font-semibold border-t border-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={filterByMyFitOnly}
-                    onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 border border-slate-300 accent-blue-600 cursor-pointer"
-                  />
-                  <span className="font-semibold text-xs text-slate-800">{t('ecommerce.sidebar.onlyFitting', 'Chỉ hiện đồ vừa vặn (≥ 90%)')}</span>
-                </label>
-
-                {/* Nhắc nhở đăng nhập để lưu số đo nếu là khách vãng lai */}
-                {!isAuthenticated && (
+                {isAuthenticated && hasBodyProfile ? (
+                  <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-800 font-semibold border-t border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={filterByMyFitOnly}
+                      onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 border border-slate-300 accent-blue-600 cursor-pointer"
+                    />
+                    <span className="font-semibold text-xs text-slate-800">{t('ecommerce.sidebar.onlyFitting', 'Chỉ hiện đồ vừa vặn (≥ 90%)')}</span>
+                  </label>
+                ) : (
                   <button
                     type="button"
-                    onClick={openSignIn}
-                    className="w-full py-1.5 px-2.5 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[11px] font-semibold text-amber-900 flex items-center justify-between transition-colors cursor-pointer"
+                    onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
+                    className="w-full py-2 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[11px] font-bold text-blue-700 flex items-center justify-between transition-colors cursor-pointer"
                   >
-                    <span className="truncate">{t('ecommerce.sidebar.guestSyncHint', 'Đăng nhập để lưu cố định số đo 3D của bạn')}</span>
-                    <ChevronRight size={12} className="shrink-0 text-amber-700" />
+                    <span className="truncate">
+                      {!isAuthenticated
+                        ? (locale === 'en' ? 'Sign in to sync 3D profile' : 'Đăng nhập để đồng bộ số đo')
+                        : (locale === 'en' ? 'Add / Scan 3D measurements' : 'Thiết lập số đo 3D ngay')}
+                    </span>
+                    <ChevronRight size={13} className="shrink-0 text-blue-600" />
                   </button>
                 )}
               </div>
@@ -861,11 +920,11 @@ export const FashionStoreHome: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setIsBiometricModalOpen(true)}
+              onClick={handleOpenBiometrics}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-100 text-xs font-mono font-bold text-stone-800"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{userBody.height_cm}cm</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${isAuthenticated && hasBodyProfile ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span>{isAuthenticated && hasBodyProfile ? `${userBody.height_cm}cm` : 'ISO 3D'}</span>
             </button>
 
             <button
@@ -1070,12 +1129,19 @@ export const FashionStoreHome: React.FC = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
-                  {/* Top Floating Match Badge */}
+                  {/* Top Floating Match Badge — Show personalized % only when signed in with measurements */}
                   <div className="absolute top-4 right-4 z-10 animate-in fade-in slide-in-from-top-2">
-                    <div className="bg-emerald-600 text-white px-3 py-1.5 rounded-2xl shadow-xl flex items-center gap-1.5 text-xs font-mono font-black border border-emerald-400/40">
-                      <CheckCircle2 size={14} />
-                      <span>{HERO_PRODUCT_SLIDES[activeBannerSlide].fitPercentage}% {t('ecommerce.hero.perfectFit', 'Vừa Vặn Tuyệt Đối')}</span>
-                    </div>
+                    {isAuthenticated && hasBodyProfile ? (
+                      <div className="bg-emerald-600 text-white px-3 py-1.5 rounded-2xl shadow-xl flex items-center gap-1.5 text-xs font-mono font-black border border-emerald-400/40">
+                        <CheckCircle2 size={14} />
+                        <span>{HERO_PRODUCT_SLIDES[activeBannerSlide].fitPercentage}% {t('ecommerce.hero.perfectFit', 'Vừa Vặn Tuyệt Đối')}</span>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-900/85 backdrop-blur-md text-white px-3 py-1.5 rounded-2xl shadow-xl flex items-center gap-1.5 text-xs font-bold border border-white/20">
+                        <Ruler size={13} className="text-blue-400" />
+                        <span>{locale === 'en' ? 'ISO 8559 3D Tailored' : 'Chuẩn May Đo ISO 8559'}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Slide Carousel Controls */}
@@ -1115,9 +1181,15 @@ export const FashionStoreHome: React.FC = () => {
                       <span className="text-xs text-amber-300 font-mono font-bold">
                         {HERO_PRODUCT_SLIDES[activeBannerSlide].price.toLocaleString('vi-VN')} ₫
                       </span>
-                      <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-700/60 font-bold">
-                        {t('ecommerce.hero.suggestedSize', 'Gợi ý: Size {size}').replace('{size}', HERO_PRODUCT_SLIDES[activeBannerSlide].fitSize)}
-                      </span>
+                      {isAuthenticated && hasBodyProfile ? (
+                        <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-700/60 font-bold">
+                          {t('ecommerce.hero.suggestedSize', 'Gợi ý: Size {size}').replace('{size}', HERO_PRODUCT_SLIDES[activeBannerSlide].fitSize)}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-200 bg-slate-900/70 px-2 py-0.5 rounded-md border border-white/20 font-semibold">
+                          {locale === 'en' ? 'Sign in for AI size' : 'Đăng nhập để gợi ý size'}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1207,7 +1279,7 @@ export const FashionStoreHome: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setIsBiometricModalOpen(true)}
+                onClick={handleOpenBiometrics}
                 className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-bold transition-all cursor-pointer"
               >
                 {t('ecommerce.guestBanner.quickMeasurements', 'Nhập Số Đo Nhanh')}
@@ -1339,21 +1411,36 @@ export const FashionStoreHome: React.FC = () => {
             )}
           </div>
 
-          {/* Center: Smart Biometric Fit Toggle */}
-          <label className="flex items-center gap-2 cursor-pointer select-none px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-xs transition-colors">
-            <input
-              type="checkbox"
-              checked={filterByMyFitOnly}
-              onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-stone-300 accent-blue-600 cursor-pointer"
-            />
-            <span className="font-bold text-stone-900">
-              {t('ecommerce.biometricsBar.filterMyFit', 'Chỉ hiện đồ vừa chuẩn dáng tôi (≥ 90%)')}
-            </span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-              ISO 8559
-            </span>
-          </label>
+          {/* Center: Smart Biometric Fit Toggle (Only active when authenticated with body profile) */}
+          {isAuthenticated && hasBodyProfile ? (
+            <label className="flex items-center gap-2 cursor-pointer select-none px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-xs transition-colors">
+              <input
+                type="checkbox"
+                checked={filterByMyFitOnly}
+                onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-stone-300 accent-blue-600 cursor-pointer"
+              />
+              <span className="font-bold text-stone-900">
+                {t('ecommerce.biometricsBar.filterMyFit', 'Chỉ hiện đồ vừa chuẩn dáng tôi (≥ 90%)')}
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                ISO 8559
+              </span>
+            </label>
+          ) : (
+            <button
+              type="button"
+              onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-xs font-bold text-blue-700 transition-colors cursor-pointer"
+            >
+              <Ruler size={14} />
+              <span>
+                {!isAuthenticated
+                  ? (locale === 'en' ? 'Sign in to filter items by your 3D fit' : 'Đăng nhập để lọc đồ vừa chuẩn dáng bạn')
+                  : (locale === 'en' ? 'Add 3D profile to filter by fit %' : 'Thiết lập số đo 3D để lọc đồ vừa vặn')}
+              </span>
+            </button>
+          )}
 
           {/* Right: Quick Sort & Filter Drawer Button */}
           <div className="flex items-center gap-2">
@@ -1496,16 +1583,23 @@ export const FashionStoreHome: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* AI Match Score Tag Top Right */}
+                    {/* AI Match Score Tag Top Right — Personalized % shown only when authenticated with measurements */}
                     <div className="absolute top-2.5 right-2.5">
-                      <div
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black flex items-center gap-1 shadow-md ${
-                          isPerfect ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
-                        }`}
-                      >
-                        <Sparkles size={10} />
-                        <span>{fit.match_percentage}% {t('ecommerce.catalog.fitMatch', 'Vừa')}</span>
-                      </div>
+                      {isAuthenticated && hasBodyProfile ? (
+                        <div
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black flex items-center gap-1 shadow-md ${
+                            isPerfect ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
+                          }`}
+                        >
+                          <Sparkles size={10} />
+                          <span>{fit.match_percentage}% {t('ecommerce.catalog.fitMatch', 'Vừa')}</span>
+                        </div>
+                      ) : (
+                        <div className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900/80 text-white backdrop-blur flex items-center gap-1 shadow-sm border border-white/15">
+                          <Ruler size={10} className="text-blue-300" />
+                          <span>ISO 8559</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Quick 3D Fit Peek Action on Hover */}
@@ -1515,7 +1609,11 @@ export const FashionStoreHome: React.FC = () => {
                       className="absolute inset-x-3 bottom-3 py-2 px-3 rounded-xl bg-white/95 text-blue-700 font-black text-xs shadow-md border border-stone-300 backdrop-blur opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-1.5 hover:bg-white cursor-pointer"
                     >
                       <Ruler size={14} className="text-blue-600" />
-                      <span>{t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}</span>
+                      <span>
+                        {isAuthenticated && hasBodyProfile
+                          ? t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')
+                          : (locale === 'en' ? 'Sign in for 3D Fit Check' : 'Đăng nhập để đo độ vừa 3D')}
+                      </span>
                     </button>
                   </div>
 
@@ -1530,22 +1628,35 @@ export const FashionStoreHome: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* AI Size Advice Pill (Clickable for 3D fit analysis) */}
+                    {/* AI Size Advice Pill */}
                     <div
                       onClick={() => handleOpenAnalysis(product)}
                       className="p-2.5 rounded-xl bg-blue-50/80 hover:bg-blue-100 border border-blue-200 text-xs transition-colors cursor-pointer group/fit"
                       title={t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-stone-800 font-bold">{t('ecommerce.catalog.recommendLabel', 'Khuyên dùng:')}</span>
-                        <span className="font-mono font-black text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-300 shadow-2xs flex items-center gap-1">
-                          <span>Size {fit.recommended_size}</span>
-                          <ChevronRight size={12} className="text-blue-500 group-hover/fit:translate-x-0.5 transition-transform" />
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-stone-700 mt-1 line-clamp-1 font-bold">
-                        {locale === 'en' && fit.advisor_advice_en ? fit.advisor_advice_en : fit.advisor_advice_vi}
-                      </p>
+                      {isAuthenticated && hasBodyProfile ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-stone-800 font-bold">{t('ecommerce.catalog.recommendLabel', 'Khuyên dùng:')}</span>
+                            <span className="font-mono font-black text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-300 shadow-2xs flex items-center gap-1">
+                              <span>Size {fit.recommended_size}</span>
+                              <ChevronRight size={12} className="text-blue-500 group-hover/fit:translate-x-0.5 transition-transform" />
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-stone-700 mt-1 line-clamp-1 font-bold">
+                            {locale === 'en' && fit.advisor_advice_en ? fit.advisor_advice_en : fit.advisor_advice_vi}
+                          </p>
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-700 font-bold text-[11px] truncate">
+                            {!isAuthenticated
+                              ? (locale === 'en' ? 'Sign in for AI size advice' : 'Đăng nhập để gợi ý size chuẩn')
+                              : (locale === 'en' ? 'Add body profile for AI size' : 'Cập nhật số đo để gợi ý size')}
+                          </span>
+                          <ChevronRight size={13} className="text-blue-600 shrink-0 group-hover/fit:translate-x-0.5 transition-transform" />
+                        </div>
+                      )}
                     </div>
 
                     {/* Price and Action Buttons */}
@@ -1570,7 +1681,7 @@ export const FashionStoreHome: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setIsVellStudioOpen(true)}
+                          onClick={handleOpenVirtualStudio}
                           className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
                           title={t('ecommerce.sidebar.virtualTryOn', 'Thử đồ ảo 3D (VELL Studio)')}
                         >
@@ -1582,11 +1693,15 @@ export const FashionStoreHome: React.FC = () => {
                           onClick={() => handleAddToCart(product, product.recommendedVariant)}
                           style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
                           className="relative overflow-hidden py-2 px-3 sm:px-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 ease-out transform hover:-translate-y-0.5 flex items-center gap-1.5 cursor-pointer group whitespace-nowrap"
-                          title={t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)}
+                          title={isAuthenticated && hasBodyProfile
+                            ? t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)
+                            : (locale === 'en' ? 'Add to Cart' : 'Thêm vào giỏ hàng')}
                         >
                           <ShoppingBag size={13} className="text-white group-hover:scale-110 transition-transform duration-200" />
                           <span className="tracking-tight">
-                            {t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)}
+                            {isAuthenticated && hasBodyProfile
+                              ? t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)
+                              : (locale === 'en' ? 'Select & Buy' : 'Chọn Mua')}
                           </span>
                         </button>
                       </div>
@@ -1909,11 +2024,15 @@ export const FashionStoreHome: React.FC = () => {
       <AuthModal />
       <MerchantOnboardingModal />
 
-      {/* VELL Virtual 3D Styling Studio (Scan Line Wipe Effect) */}
+      {/* VELL Virtual 3D Styling Studio (Auth Gated — Never Shows Mock Measurements to Guests) */}
       <VellVirtualStudioModal
         isOpen={isVellStudioOpen}
         onClose={() => setIsVellStudioOpen(false)}
         userBody={userBody}
+        isAuthenticated={isAuthenticated}
+        hasBodyProfile={hasBodyProfile}
+        onOpenSignIn={openSignIn}
+        onOpenBiometrics={handleOpenBiometrics}
         onAddToCart={(fakeProduct, size) => {
           const fakeVariant: ProductVariant = {
             id: `var-${fakeProduct.id}-${size}`,
@@ -2016,13 +2135,14 @@ export const FashionStoreHome: React.FC = () => {
         }}
         categoryCounts={categoryCounts}
         userBody={userBody}
+        hasBodyProfile={hasBodyProfile}
         userRole={userRole}
         userName={currentUser?.full_name || currentUser?.email || 'Thắng Lê'}
         avatarUrl={currentUser?.avatar_url || undefined}
-        onOpenVellStudio={() => setIsVellStudioOpen(true)}
-        onOpenMaisonRunway={() => setIsVellStudioOpen(true)}
+        onOpenVellStudio={handleOpenVirtualStudio}
+        onOpenMaisonRunway={handleOpenVirtualStudio}
         onOpenThermalSlip={() => setIsThermalSlipOpen(true)}
-        onOpenBiometrics={() => setIsBiometricModalOpen(true)}
+        onOpenBiometrics={handleOpenBiometrics}
         onOpenOnboarding={openOnboarding}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenOrders={() => {
@@ -2034,15 +2154,22 @@ export const FashionStoreHome: React.FC = () => {
         onSignOut={signOut}
       />
 
-      {/* Floating Gemini 2.5 Fashion & Fit Stylist Chatbot */}
+      {/* Floating FitVision 3D Assistant Mascot Chatbot */}
       <GeminiAssistantWidget
-        userBody={{
-          height_cm: userBody.height_cm,
-          weight_kg: userBody.weight_kg,
-          chest_cm: userBody.chest_cm,
-          waist_cm: userBody.waist_cm,
-          hip_cm: userBody.hip_cm,
-        }}
+        isAuthenticated={isAuthenticated}
+        hasBodyProfile={hasBodyProfile}
+        onOpenSignIn={openSignIn}
+        userBody={
+          isAuthenticated && hasBodyProfile
+            ? {
+                height_cm: userBody.height_cm,
+                weight_kg: userBody.weight_kg,
+                chest_cm: userBody.chest_cm,
+                waist_cm: userBody.waist_cm,
+                hip_cm: userBody.hip_cm,
+              }
+            : undefined
+        }
       />
 
     </div>

@@ -29,6 +29,7 @@ interface FashionSidebarNavProps {
   onSelectCategory: (cat: string) => void;
   categoryCounts: Record<string, number>;
   userBody: UserBodyProfile;
+  hasBodyProfile?: boolean;
   userRole?: string;
   userName?: string;
   avatarUrl?: string | null;
@@ -51,6 +52,7 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
   onSelectCategory,
   categoryCounts,
   userBody,
+  hasBodyProfile = false,
   userRole = 'user',
   userName = 'Thắng Lê',
   avatarUrl,
@@ -238,40 +240,42 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
           <div className="rounded-2xl border border-slate-300 shadow-2xs overflow-hidden bg-white space-y-0">
             <div className="bg-slate-100/90 border-b border-slate-200 px-3.5 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 animate-pulse" />
+                <span className={`w-2 h-2 rounded-full ${isAuthenticated && hasBodyProfile ? 'bg-emerald-500 ring-2 ring-emerald-200 animate-pulse' : 'bg-slate-400'}`} />
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
                   {t('ecommerce.sidebar.bodyProfileTitle', 'HỒ SƠ VÓC DÁNG 3D')}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenBiometrics();
-                }}
-                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
-              >
-                {t('ecommerce.sidebar.editMeasurements', 'Đổi số đo')}
-              </button>
+              {isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenBiometrics();
+                  }}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                >
+                  {t('ecommerce.sidebar.editMeasurements', 'Đổi số đo')}
+                </button>
+              )}
             </div>
 
             <div className="p-3 bg-white space-y-2">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-sky-50/70 p-2.5 rounded-xl border border-sky-200">
                   <span className="text-sky-700 text-[10px] block font-bold uppercase">{t('ecommerce.sidebar.height', 'CHIỀU CAO')}</span>
-                  <span className="font-extrabold text-sky-950 text-sm">{userBody.height_cm} cm</span>
+                  <span className="font-extrabold text-sky-950 text-sm">{isAuthenticated && hasBodyProfile ? `${userBody.height_cm} cm` : '— cm'}</span>
                 </div>
                 <div className="bg-purple-50/70 p-2.5 rounded-xl border border-purple-200">
                   <span className="text-purple-700 text-[10px] block font-bold uppercase">{t('ecommerce.sidebar.weight', 'CÂN NẶNG')}</span>
-                  <span className="font-extrabold text-purple-950 text-sm">{userBody.weight_kg} kg</span>
+                  <span className="font-extrabold text-purple-950 text-sm">{isAuthenticated && hasBodyProfile ? `${userBody.weight_kg} kg` : '— kg'}</span>
                 </div>
                 <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
                   <span className="text-emerald-700 text-[10px] block font-bold uppercase">{t('ecommerce.sidebar.chest', 'VÒNG NGỰC')}</span>
-                  <span className="font-extrabold text-emerald-950 text-sm">{userBody.chest_cm} cm</span>
+                  <span className="font-extrabold text-emerald-950 text-sm">{isAuthenticated && hasBodyProfile ? `${userBody.chest_cm} cm` : '— cm'}</span>
                 </div>
                 <div className="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200">
                   <span className="text-amber-700 text-[10px] block font-bold uppercase">{t('ecommerce.sidebar.waist', 'VÒNG EO')}</span>
-                  <span className="font-extrabold text-amber-950 text-sm">{userBody.waist_cm} cm</span>
+                  <span className="font-extrabold text-amber-950 text-sm">{isAuthenticated && hasBodyProfile ? `${userBody.waist_cm} cm` : '— cm'}</span>
                 </div>
               </div>
             </div>
