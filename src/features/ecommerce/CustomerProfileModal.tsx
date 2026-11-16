@@ -173,8 +173,8 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
       {/* Dialog Box - Crisp Light Layered Atelier Styling */}
       <div className="relative w-full max-w-xl bg-slate-50 rounded-3xl shadow-2xl border-[1.5px] border-slate-300 overflow-hidden z-10 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
         
-        {/* Cool Airy Sky-Pearl Profile Hero (Distinct from white body & gold membership) */}
-        <div className="p-5 sm:p-6 bg-gradient-to-br from-[#F4F8FE] via-[#EAF1FC] to-[#DFEAFA] border-b-[1.5px] border-slate-300/80 text-slate-900 flex-shrink-0">
+        {/* Medium-Deep Atelier Navy-Cobalt Profile Hero (Sharp contrast vs white body & silver card) */}
+        <div className="p-5 sm:p-6 bg-gradient-to-br from-[#1F314F] via-[#284066] to-[#1D2D48] border-b-[1.5px] border-slate-300 text-white flex-shrink-0">
           <input
             ref={fileInputRef}
             type="file"
@@ -183,14 +183,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             onChange={handleAvatarUpload}
           />
 
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              {/* Interactive Avatar with Crisp Framed Border */}
+          <div className="flex items-start justify-between gap-3.5">
+            <div className="flex items-center gap-4 min-w-0">
+              {/* Interactive Avatar (Fixed valid Tailwind w-16 h-16 size!) */}
               <div className="relative group shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-                  className="w-15 h-15 sm:w-17 sm:h-17 rounded-2xl bg-[#14171C] text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-white ring-2 ring-blue-300/70 overflow-hidden cursor-pointer relative transition-transform group-hover:scale-105 active:scale-95"
+                  className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center font-black text-2xl shadow-lg border-2 border-white/90 overflow-hidden cursor-pointer relative transition-transform group-hover:scale-105 active:scale-95"
                   title={isEn ? 'Update profile photo' : 'Cập nhật ảnh đại diện'}
                 >
                   {currentUser.avatar_url ? (
@@ -202,7 +202,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   ) : (
                     <span>{(currentUser.full_name || 'U').charAt(0).toUpperCase()}</span>
                   )}
-                  <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity">
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity">
                     <Camera size={16} />
                     <span className="text-[8.5px] font-bold mt-0.5">{isEn ? 'Photo' : 'Ảnh'}</span>
                   </div>
@@ -211,7 +211,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-                  className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border-[1.5px] border-slate-300 flex items-center justify-center text-slate-900 shadow-sm cursor-pointer hover:bg-blue-50 transition-colors"
+                  className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-white border-[1.5px] border-slate-300 flex items-center justify-center text-slate-900 shadow-md cursor-pointer hover:bg-sky-50 transition-colors"
                   title={isEn ? 'Change portrait photo' : 'Cập nhật ảnh đại diện'}
                 >
                   <Camera size={11} />
@@ -220,30 +220,30 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
 
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 leading-tight truncate">
+                  <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-white leading-tight truncate">
                     {currentUser.full_name || t('ecommerce.sidebar.customerDefault', 'Khách Hàng')}
                   </h3>
                   <button
                     type="button"
                     onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white hover:bg-slate-50 border-[1.5px] border-slate-300 text-[10.5px] font-bold text-slate-800 shadow-2xs cursor-pointer transition-all"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/30 text-[10.5px] font-bold text-white shadow-2xs cursor-pointer transition-all"
                   >
                     <Camera size={10} />
                     <span>{isEn ? 'Update photo' : 'Cập nhật ảnh'}</span>
                   </button>
                 </div>
 
-                <p className="text-xs text-slate-700 font-mono font-semibold mt-0.5 truncate">
+                <p className="text-xs text-sky-200 font-mono font-semibold mt-0.5 truncate">
                   {currentUser.email}
                 </p>
 
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border-[1.5px] ${
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
                     isApprovedStore
-                      ? 'bg-amber-100 text-amber-950 border-amber-400'
+                      ? 'bg-amber-400 text-amber-950 border-amber-300'
                       : isPendingStore
-                      ? 'bg-amber-50 text-amber-900 border-amber-300'
-                      : 'bg-white text-slate-800 border-slate-300'
+                      ? 'bg-amber-400/20 text-amber-200 border-amber-300/50'
+                      : 'bg-white/15 text-white border-white/25'
                   }`}>
                     {isApprovedStore
                       ? t('ecommerce.profileModal.roleStore', '✂️ Đối Tác Nhà May B2B')
@@ -255,9 +255,9 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveTab('membership')}
-                    className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border-[1.5px] cursor-pointer transition-transform hover:scale-[1.03] ${membership.currentTier.badgeBg} ${membership.currentTier.badgeText}`}
+                    className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-300/60 bg-amber-300/20 hover:bg-amber-300/30 text-amber-200 cursor-pointer transition-all"
                   >
-                    <Crown size={10} className="text-amber-600" />
+                    <Crown size={10} className="text-amber-300" />
                     <span>{isEn ? membership.currentTier.nameEn : membership.currentTier.nameVi}</span>
                   </button>
                 </div>
@@ -267,7 +267,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 flex items-center justify-center cursor-pointer transition-colors border-[1.5px] border-slate-300 shadow-2xs shrink-0"
+              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-colors border border-white/25 shadow-2xs shrink-0"
               title={t('ecommerce.profileModal.close', 'Đóng')}
             >
               <X size={17} />
