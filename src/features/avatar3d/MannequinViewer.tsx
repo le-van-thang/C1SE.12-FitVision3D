@@ -24,6 +24,8 @@ export type MetricKey =
   | "calf_circ_cm"
   | "ankle_circ_cm";
 
+export type MannequinViewZone = "full_body" | "chest" | "waist" | "hips";
+
 export interface MannequinViewerProps {
   meshParams: MeshParameter | null;
   measurement: (Pick<
@@ -43,9 +45,15 @@ export interface MannequinViewerProps {
   activeMetric?: MetricKey | null;
   onSelectMetric?: (metric: MetricKey) => void;
   zonePillAlign?: "center" | "left" | "right";
+  variant?: "dark" | "studio";
+  autoRotate?: boolean;
+  hideCallouts?: boolean;
+  hideZonePill?: boolean;
+  hideDragHint?: boolean;
+  externalZone?: MannequinViewZone;
 }
 
-type ViewZone = "full_body" | "chest" | "waist" | "hips";
+type ViewZone = MannequinViewZone;
 type ActiveZoneKey =
   | "chest"
   | "waist"
@@ -183,6 +191,12 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   activeMetric: controlledMetric,
   onSelectMetric,
   zonePillAlign = "center",
+  variant = "dark",
+  autoRotate = false,
+  hideCallouts = false,
+  hideZonePill = false,
+  hideDragHint = false,
+  externalZone,
 }) => {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement>(null);
@@ -229,6 +243,19 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     threeRef.current.isTransitioning = true;
   }, []);
 
+  // Sync external zone when driven by parent showcase
+  useEffect(() => {
+    if (!externalZone) return;
+    handleZoneSelect(externalZone);
+  }, [externalZone, handleZoneSelect]);
+
+  // Update autoRotate dynamically when prop changes
+  useEffect(() => {
+    if (!threeRef.current) return;
+    threeRef.current.controls.autoRotate = Boolean(autoRotate);
+    threeRef.current.controls.autoRotateSpeed = 1.4;
+  }, [autoRotate]);
+
   // Update active ring color/opacity when activeMetric changes
   useEffect(() => {
     activeMetricRef.current = activeMetric;
@@ -270,6 +297,8 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
+    controls.autoRotate = Boolean(autoRotate);
+    controls.autoRotateSpeed = 1.4;
     controls.target.copy(initialPreset.target);
     controls.maxPolarAngle = Math.PI * 0.65;
     controls.minPolarAngle = Math.PI * 0.25;
@@ -434,6 +463,8 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   const rightCallouts = CALLOUTS.filter((c) => c.side === "right");
   const showLoading = isLoading || modelLoading;
 
+  const isStudio = variant === "studio";
+
   return (
     <div
       id={id}
@@ -442,15 +473,17 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
         position: "relative",
         width: "100%",
         height,
-        background:
-          "radial-gradient(ellipse 70% 50% at 50% 88%, rgba(56, 189, 248, 0.08) 0%, rgba(12, 34, 43, 0.22) 45%, #0A0F12 85%)",
+        background: isStudio
+          ? "transparent"
+          : "radial-gradient(ellipse 70% 50% at 50% 88%, rgba(56, 189, 248, 0.08) 0%, rgba(12, 34, 43, 0.22) 45%, #0A0F12 85%)",
         overflow: "hidden",
-        borderRadius: "12px",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: isStudio ? "0px" : "12px",
+        border: isStudio ? "none" : "1px solid rgba(255, 255, 255, 0.08)",
         userSelect: "none",
       }}
     >
       {/* 1. Top Centered Viewport Zoom Pill Dropdown */}
+      {!hideZonePill && (
       <div
         style={{
           position: "absolute",
@@ -536,6 +569,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           )}
         </div>
       </div>
+      )}
 
       {/* 2. Three.js Mount Canvas Container */}
       <div
@@ -548,6 +582,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       />
 
       {/* 3. Overlay SVG for 2D/3D Leader Lines */}
+      {!hideCallouts && (
       <svg
         ref={svgRef}
         style={{
@@ -575,8 +610,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           </g>
         ))}
       </svg>
+      )}
 
       {/* 4. ZOZOFIT Left Floating Typography Callouts (Chest, Waist, Inseam) */}
+      {!hideCallouts && (
       <div
         style={{
           position: "absolute",
@@ -640,8 +677,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           );
         })}
       </div>
+      )}
 
       {/* 5. ZOZOFIT Right Floating Typography Callouts (Shoulders, Hips) */}
+      {!hideCallouts && (
       <div
         style={{
           position: "absolute",
@@ -706,8 +745,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           );
         })}
       </div>
+      )}
 
       {/* 6. Bottom Rotation Hint */}
+      {!hideDragHint && (
       <div
         style={{
           position: "absolute",
@@ -716,7 +757,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           transform: "translateX(-50%)",
           fontSize: "11px",
           fontFamily: "var(--font-mono)",
-          color: "var(--muted)",
+          color: isStudio ? "#475569" : "var(--muted)",
           pointerEvents: "none",
           letterSpacing: "0.04em",
           zIndex: 15,
@@ -724,6 +765,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       >
         {t("viewer.drag")}
       </div>
+      )}
 
       {/* 7. Loading Overlay */}
       {showLoading && (
@@ -737,7 +779,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
             alignItems: "center",
             justifyContent: "center",
             gap: "12px",
-            background: "rgba(10, 15, 18, 0.88)",
+            background: isStudio ? "rgba(226, 228, 232, 0.85)" : "rgba(10, 15, 18, 0.88)",
             zIndex: 40,
           }}
         >
@@ -746,12 +788,12 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               width: "36px",
               height: "36px",
               borderRadius: "50%",
-              border: "2px solid rgba(56, 189, 248, 0.2)",
-              borderTopColor: "#38BDF8",
+              border: isStudio ? "2px solid rgba(37, 99, 235, 0.2)" : "2px solid rgba(56, 189, 248, 0.2)",
+              borderTopColor: isStudio ? "#2563EB" : "#38BDF8",
               animation: "spin 0.8s linear infinite",
             }}
           />
-          <span style={{ color: "#94A3B8", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
+          <span style={{ color: isStudio ? "#334155" : "#94A3B8", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
             {t("viewer.loading")}
           </span>
         </div>
