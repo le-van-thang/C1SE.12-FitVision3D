@@ -325,6 +325,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setCurrentUserId(offlineProfile.id);
         setIsAuthModalOpen(false);
+        showGlobalToast({
+          type: 'success',
+          title: 'Đăng nhập thành công!',
+          message: `Chào mừng ${offlineProfile.full_name} đến với FitVision 3D.`,
+        });
         return { success: true };
       }
 
@@ -501,9 +506,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 7. Sign Out
   const signOut = useCallback(async () => {
-    try {
-      await authApi.logout();
-    } catch {}
     setCurrentUserId(null);
     try {
       localStorage.setItem(STORAGE_KEY_USER_ID, 'guest');
@@ -513,6 +515,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       title: 'Đã đăng xuất tài khoản',
       message: 'Phiên đăng nhập của bạn đã được kết thúc an toàn.',
     });
+    try {
+      await authApi.logout();
+    } catch {}
   }, []);
 
   // 8. Merchant Onboarding (Apply for Store)
