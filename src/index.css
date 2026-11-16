@@ -595,6 +595,7 @@
 .zf-auth-body {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   display: grid;
   grid-template-columns: 1fr;
 }
@@ -632,9 +633,10 @@
     radial-gradient(circle at 90% 10%, rgba(245, 235, 216, 0.55) 0%, transparent 42%),
     #FAF9F6 !important;
   height: 100% !important;
+  min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: center !important;
+  justify-content: flex-start !important;
   position: relative !important;
   overflow-y: auto !important;
 }
@@ -689,8 +691,8 @@
 
 .zf-auth-sheet {
   width: 100%;
-  max-width: 420px;
-  margin: 0 auto;
+  max-width: 440px;
+  margin: auto;
   animation: zfAuthRise 0.35s ease both;
 }
 

@@ -361,7 +361,7 @@ export const AuthModal: React.FC = () => {
   };
 
   const inputBaseClass =
-    'w-full h-11 pl-10 pr-4 rounded-xl bg-white border border-slate-300/90 text-sm text-[#14171C] placeholder:text-slate-400 focus:border-blue-600 focus:outline-none transition-all';
+    'w-full h-11 pl-10 pr-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all';
 
   return (
     <div className="zf-auth-fullscreen animate-fade-in">
@@ -575,12 +575,12 @@ export const AuthModal: React.FC = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={t('app.auth.passwordPh', 'Mật khẩu của bạn')}
-                      className="w-full h-11 pl-10 pr-11 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-950 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                      className="w-full h-11 pl-10 pr-11 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 p-1 text-slate-400 hover:text-slate-700 bg-transparent border-0 cursor-pointer flex items-center"
+                      className="absolute right-3 p-1 text-slate-500 hover:text-[#14171C] bg-transparent border-0 cursor-pointer flex items-center"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -589,14 +589,14 @@ export const AuthModal: React.FC = () => {
 
                 {/* Remember & Forgot */}
                 <div className="flex items-center justify-between text-xs">
-                  <label className="flex items-center gap-2 text-slate-600 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-slate-700 font-medium cursor-pointer select-none">
                     <input type="checkbox" defaultChecked className="accent-blue-600 cursor-pointer rounded" />
                     <span>{t('app.auth.rememberMe', 'Ghi nhớ đăng nhập')}</span>
                   </label>
                   <button
                     type="button"
                     onClick={openForgotPassword}
-                    className="text-blue-600 hover:text-blue-800 font-semibold text-xs bg-transparent border-0 cursor-pointer p-0"
+                    className="text-blue-600 hover:text-blue-800 font-bold text-xs bg-transparent border-0 cursor-pointer p-0"
                   >
                     {t('app.auth.forgotPassword', 'Quên mật khẩu?')}
                   </button>
@@ -614,11 +614,11 @@ export const AuthModal: React.FC = () => {
 
                 {/* OR divider */}
                 <div className="flex items-center gap-3 my-1">
-                  <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div className="flex-1 h-px bg-slate-300/80" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     {t('app.auth.orContinueWith', 'Hoặc tiếp tục với')}
                   </span>
-                  <div className="flex-1 h-px bg-slate-200" />
+                  <div className="flex-1 h-px bg-slate-300/80" />
                 </div>
 
                 {/* Google Sign In */}
@@ -626,7 +626,7 @@ export const AuthModal: React.FC = () => {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={loading}
-                  className="h-11 w-full rounded-xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 font-semibold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-2xs"
+                  className="h-11 w-full rounded-xl bg-white hover:bg-slate-50 border-[1.5px] border-slate-400/85 hover:border-[#14171C] text-[#14171C] font-bold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-xs"
                 >
                   <svg width="17" height="17" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -641,7 +641,7 @@ export const AuthModal: React.FC = () => {
 
             {/* ── 2. REGISTER FORM ── */}
             {authModalTab === 'register' && (
-              <form onSubmit={handleRegister} className="flex flex-col gap-3.5">
+              <form onSubmit={handleRegister} className="flex flex-col gap-3">
                 <input
                   type="text"
                   name="b_trap_username"
@@ -668,11 +668,11 @@ export const AuthModal: React.FC = () => {
 
                 {/* Full Name */}
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                     {t('app.auth.nameReg', 'Họ và tên')}
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-400 pointer-events-none">
+                    <span className="absolute left-3.5 text-slate-500 pointer-events-none">
                       <User size={15} />
                     </span>
                     <input
@@ -682,18 +682,18 @@ export const AuthModal: React.FC = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder={isEn ? 'John Doe' : 'Nguyễn Văn A'}
-                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-950 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                     {t('app.auth.emailReg', 'Địa chỉ Email')}
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-400 pointer-events-none">
+                    <span className="absolute left-3.5 text-slate-500 pointer-events-none">
                       <Mail size={15} />
                     </span>
                     <input
@@ -708,68 +708,69 @@ export const AuthModal: React.FC = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@company.com"
-                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-950 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
 
-                {/* Password */}
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    {isEn ? 'PASSWORD (6-32 CHARS, NUMBERS & SPECIAL CHAR)' : 'MẬT KHẨU (6-32 KÝ TỰ, SỐ & KÝ TỰ ĐẶC BIỆT)'}
-                  </label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-400 pointer-events-none">
-                      <Lock size={15} />
-                    </span>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      name="fv3d_reg_pass"
-                      required
-                      autoComplete="new-password"
-                      readOnly={!passwordUnlocked}
-                      onFocus={() => setPasswordUnlocked(true)}
-                      onClick={() => setPasswordUnlocked(true)}
-                      onFocusCapture={() => setPasswordUnlocked(true)}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="FitVision@2026"
-                      className="w-full h-10 pl-10 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-950 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 p-1 text-slate-400 hover:text-slate-700 bg-transparent border-0 cursor-pointer flex items-center"
-                    >
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
+                {/* Password + Confirm Password Side-by-Side (Clean Ergonomic Layout) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      {isEn ? 'Password (6-32)' : 'Mật khẩu (6-32 ký tự)'}
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3 text-slate-500 pointer-events-none">
+                        <Lock size={14} />
+                      </span>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="fv3d_reg_pass"
+                        required
+                        autoComplete="new-password"
+                        readOnly={!passwordUnlocked}
+                        onFocus={() => setPasswordUnlocked(true)}
+                        onClick={() => setPasswordUnlocked(true)}
+                        onFocusCapture={() => setPasswordUnlocked(true)}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="FitVision@2026"
+                        className="w-full h-10 pl-9 pr-9 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 p-1 text-slate-500 hover:text-[#14171C] bg-transparent border-0 cursor-pointer flex items-center"
+                      >
+                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Confirm Password */}
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    {t('app.auth.confirm', 'Xác nhận lại mật khẩu')}
-                  </label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-400 pointer-events-none">
-                      <Lock size={15} />
-                    </span>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      name="fv3d_reg_pass_confirm"
-                      required
-                      autoComplete="new-password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder={t('app.auth.confirmPh', 'Nhập lại mật khẩu')}
-                      className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-950 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
-                    />
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      {t('app.auth.confirm', 'Xác nhận mật khẩu')}
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3 text-slate-500 pointer-events-none">
+                        <Lock size={14} />
+                      </span>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="fv3d_reg_pass_confirm"
+                        required
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder={t('app.auth.confirmPh', 'Nhập lại')}
+                        className="w-full h-10 pl-9 pr-3 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 hover:border-slate-500 focus:border-blue-600 focus:outline-none transition-all"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* Terms */}
-                <label className="flex items-start gap-2 pt-0.5 text-[11px] text-slate-600 cursor-pointer select-none">
+                <label className="flex items-start gap-2 pt-0.5 text-[11px] text-slate-700 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     id="terms-fullscreen"
@@ -785,25 +786,25 @@ export const AuthModal: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="h-11 mt-1 w-full rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-pointer border-0"
+                  className="h-11 mt-0.5 w-full rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-pointer border-0"
                 >
                   <span>{loading ? t('app.auth.loadingRegister', 'Đang đăng ký...') : t('app.auth.submitRegister', 'Tạo tài khoản cá nhân')}</span>
                   <ArrowRight size={16} />
                 </button>
 
                 <div className="flex items-center gap-3 my-0.5">
-                  <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div className="flex-1 h-px bg-slate-300/80" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     {t('app.auth.orContinueWith', 'Hoặc tiếp tục với')}
                   </span>
-                  <div className="flex-1 h-px bg-slate-200" />
+                  <div className="flex-1 h-px bg-slate-300/80" />
                 </div>
 
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={loading}
-                  className="h-10 w-full rounded-xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 font-semibold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-2xs"
+                  className="h-10.5 py-2.5 w-full rounded-xl bg-white hover:bg-slate-50 border-[1.5px] border-slate-400/85 hover:border-[#14171C] text-[#14171C] font-bold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-xs"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -867,12 +868,12 @@ export const AuthModal: React.FC = () => {
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value)}
                         placeholder="123456"
-                        className="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-950 font-mono text-base font-bold tracking-[0.35em] text-center focus:bg-white focus:border-blue-600 focus:outline-none"
+                        className="w-full h-11 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-[#14171C] font-mono text-base font-bold tracking-[0.35em] text-center focus:border-blue-600 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                         {t('app.auth.newPasswordLabel', 'Mật khẩu mới')}
                       </label>
                       <input
@@ -881,12 +882,12 @@ export const AuthModal: React.FC = () => {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder={t('app.auth.newPasswordPh', 'Nhập mật khẩu mới')}
-                        className="w-full h-10 px-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-950 focus:bg-white focus:border-blue-600 focus:outline-none"
+                        className="w-full h-10 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm text-[#14171C] focus:border-blue-600 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                         {t('app.auth.confirmNewPasswordLabel', 'Xác nhận mật khẩu mới')}
                       </label>
                       <input
@@ -895,7 +896,7 @@ export const AuthModal: React.FC = () => {
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         placeholder={t('app.auth.confirmNewPasswordPh', 'Nhập lại mật khẩu mới')}
-                        className="w-full h-10 px-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-950 focus:bg-white focus:border-blue-600 focus:outline-none"
+                        className="w-full h-10 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm text-[#14171C] focus:border-blue-600 focus:outline-none"
                       />
                     </div>
 
@@ -926,7 +927,7 @@ export const AuthModal: React.FC = () => {
             {authModalTab === 'verify' && (
               <form onSubmit={handleVerifyEmail} className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                     {t('app.auth.verifyEmailLabel', 'Email cần kích hoạt')}
                   </label>
                   <input
@@ -934,13 +935,13 @@ export const AuthModal: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-10 px-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-950 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    className="w-full h-10 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm text-[#14171C] focus:border-blue-600 focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between mb-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                       {t('app.auth.verifyOtpLabel', 'Mã kích hoạt OTP (6 chữ số)')}
                     </label>
                     <span className="text-[11px] font-mono font-semibold text-blue-600">
@@ -954,7 +955,7 @@ export const AuthModal: React.FC = () => {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
                     placeholder="123456"
-                    className="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 text-blue-700 font-mono text-lg font-bold tracking-[0.4em] text-center focus:bg-white focus:border-blue-600 focus:outline-none"
+                    className="w-full h-11 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-blue-700 font-mono text-lg font-bold tracking-[0.4em] text-center focus:border-blue-600 focus:outline-none"
                   />
                 </div>
 
