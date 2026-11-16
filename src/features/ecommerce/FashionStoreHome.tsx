@@ -404,684 +404,436 @@ export const FashionStoreHome: React.FC = () => {
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] text-[#1C1917] font-sans flex flex-col lg:flex-row antialiased selection:bg-blue-100 selection:text-blue-900">
-      
-      {/* ── DESKTOP PERMANENT VERTICAL SIDEBAR (THANH DỌC TỪ TRÊN XUỐNG) ── */}
-      <aside className="hidden lg:flex w-64 xl:w-72 shrink-0 border-r border-slate-200 bg-white flex-col justify-between sticky top-0 h-screen select-none z-30 shadow-2xs overflow-hidden">
-        {/* Brand Header */}
-        <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50/60">
-          <a href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
-              <Scissors size={18} strokeWidth={2} />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-black text-base tracking-tight text-stone-900 leading-none">
-                FitVision <span className="text-blue-600">3D</span>
-              </span>
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-stone-500 mt-0.5">
-                {t('ecommerce.sidebar.brandSub', 'Atelier & May Đo 3D')}
-              </span>
-            </div>
-          </a>
+    <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
 
-          {/* Nút đổi ngôn ngữ VI/EN tinh gọn đặt góc trên bên phải header */}
-          <LanguageSwitcher compact variant="light" />
-        </div>
-
-        {/* Scrollable Navigation Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          
-          {/* Hồ sơ vóc dáng 3D: Chỉ hiển thị số đo thật khi đã đăng nhập & có hồ sơ */}
-          <div className="rounded-2xl border border-slate-300 shadow-2xs overflow-hidden bg-white text-stone-900">
-            <div className="bg-slate-100/90 border-b border-slate-200 px-3.5 py-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    isAuthenticated && hasBodyProfile
-                      ? 'bg-emerald-500 ring-2 ring-emerald-200 animate-pulse'
-                      : 'bg-slate-400'
-                  }`}
-                />
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 truncate">
-                  {t('ecommerce.sidebar.bodyProfileTitle', 'HỒ SƠ VÓC DÁNG 3D')}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {isAuthenticated && (
-                  <button
-                    type="button"
-                    onClick={handleOpenBiometrics}
-                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
-                  >
-                    {t('ecommerce.sidebar.editMeasurements', 'Đổi số đo')}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsBodyProfileCollapsed(!isBodyProfileCollapsed)}
-                  className="p-1 rounded-md hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
-                  title={isBodyProfileCollapsed ? t('ecommerce.sidebar.expandMeasurements', 'Mở rộng chi tiết 4 ô số đo') : t('ecommerce.sidebar.collapseMeasurements', 'Thu gọn số đo')}
-                >
-                  {isBodyProfileCollapsed ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronUp size={14} strokeWidth={2} />}
-                </button>
-              </div>
-            </div>
-
-            {isBodyProfileCollapsed ? (
-              <div className="p-3 bg-slate-50/50 space-y-2">
-                {isAuthenticated && hasBodyProfile ? (
-                  <>
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-800 px-0.5">
-                      <span className="font-mono">{userBody.height_cm}cm · {userBody.weight_kg}kg</span>
-                      <span className="text-slate-600 font-mono text-[11px]">N:{userBody.chest_cm}cm · E:{userBody.waist_cm}cm</span>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-700 font-semibold border-t border-slate-200">
-                      <input
-                        type="checkbox"
-                        checked={filterByMyFitOnly}
-                        onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                        className="w-4 h-4 rounded text-blue-600 border border-slate-300 accent-blue-600 cursor-pointer"
-                      />
-                      <span className="font-semibold text-xs text-slate-800">{t('ecommerce.sidebar.onlyFitting', 'Chỉ hiện đồ vừa vặn (≥ 90%)')}</span>
-                    </label>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-slate-500 font-medium text-center py-0.5">
-                    {!isAuthenticated
-                      ? (locale === 'en' ? 'Sign in to sync 3D measurements' : 'Đăng nhập để đồng bộ số đo 3D')
-                      : (locale === 'en' ? 'No 3D measurements yet' : 'Chưa có số đo 3D')}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="p-3 bg-white space-y-2.5">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-sky-50/70 p-2.5 rounded-xl border border-sky-200 text-sky-950">
-                    <span className="text-sky-700 text-[10px] block font-bold uppercase tracking-wider">{t('ecommerce.sidebar.height', 'Chiều cao')}</span>
-                    <span className="font-extrabold text-sky-950 text-sm">
-                      {isAuthenticated && hasBodyProfile ? `${userBody.height_cm} cm` : '— cm'}
-                    </span>
-                  </div>
-                  <div className="bg-purple-50/70 p-2.5 rounded-xl border border-purple-200 text-purple-950">
-                    <span className="text-purple-700 text-[10px] block font-bold uppercase tracking-wider">{t('ecommerce.sidebar.weight', 'Cân nặng')}</span>
-                    <span className="font-extrabold text-purple-950 text-sm">
-                      {isAuthenticated && hasBodyProfile ? `${userBody.weight_kg} kg` : '— kg'}
-                    </span>
-                  </div>
-                  <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 text-emerald-950">
-                    <span className="text-emerald-700 text-[10px] block font-bold uppercase tracking-wider">{t('ecommerce.sidebar.chest', 'Vòng ngực')}</span>
-                    <span className="font-extrabold text-emerald-950 text-sm">
-                      {isAuthenticated && hasBodyProfile ? `${userBody.chest_cm} cm` : '— cm'}
-                    </span>
-                  </div>
-                  <div className="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 text-amber-950">
-                    <span className="text-amber-700 text-[10px] block font-bold uppercase tracking-wider">{t('ecommerce.sidebar.waist', 'Vòng eo')}</span>
-                    <span className="font-extrabold text-amber-950 text-sm">
-                      {isAuthenticated && hasBodyProfile ? `${userBody.waist_cm} cm` : '— cm'}
-                    </span>
-                  </div>
-                </div>
-
-                {isAuthenticated && hasBodyProfile ? (
-                  <label className="flex items-center gap-2 cursor-pointer pt-2 text-xs text-slate-800 font-semibold border-t border-slate-200">
-                    <input
-                      type="checkbox"
-                      checked={filterByMyFitOnly}
-                      onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                      className="w-4 h-4 rounded text-blue-600 border border-slate-300 accent-blue-600 cursor-pointer"
-                    />
-                    <span className="font-semibold text-xs text-slate-800">{t('ecommerce.sidebar.onlyFitting', 'Chỉ hiện đồ vừa vặn (≥ 90%)')}</span>
-                  </label>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
-                    className="w-full py-2 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[11px] font-bold text-blue-700 flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <span className="truncate">
-                      {!isAuthenticated
-                        ? (locale === 'en' ? 'Sign in to sync 3D profile' : 'Đăng nhập để đồng bộ số đo')
-                        : (locale === 'en' ? 'Add / Scan 3D measurements' : 'Thiết lập số đo 3D ngay')}
-                    </span>
-                    <ChevronRight size={13} className="shrink-0 text-blue-600" />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Đường ngăn cách thanh mảnh giữa Hồ Sơ Vóc Dáng và Tính Năng May Đo 3D */}
-          <div className="border-t border-slate-200 my-3" />
-
-          {/* Module tính năng may đo & 3D */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 px-1 block">
-              {t('ecommerce.sidebar.featuresTitle', 'TÍNH NĂNG MAY ĐO & 3D')}
+      {/* ── BAND 1: TOP EDITORIAL ANNOUNCEMENT BAR ── */}
+      <div className="bg-[#0B0D10] text-stone-300 text-[11px] font-medium border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-8 flex items-center justify-center sm:justify-between gap-4 overflow-hidden">
+          <div className="flex items-center gap-6 whitespace-nowrap">
+            <span className="flex items-center gap-1.5 text-amber-300 font-semibold">
+              <Sparkles size={11} />
+              <span>{locale === 'en' ? 'ISO 8559-1 Anthropometric 3D Sizing' : 'Đo Size Chuẩn Nhân Trắc Học ISO 8559'}</span>
             </span>
+            <span className="hidden md:inline text-stone-600">•</span>
+            <span className="hidden md:inline">
+              {locale === 'en' ? 'Free 14-Day Fit Adjustment Guarantee' : 'Đổi sửa size vừa vặn miễn phí trong 14 ngày'}
+            </span>
+            <span className="hidden lg:inline text-stone-600">•</span>
+            <span className="hidden lg:inline">
+              {locale === 'en' ? 'Zero-Retention In-Memory Image Privacy' : 'Bảo mật ảnh xử lý tạm thời RAM 100%'}
+            </span>
+          </div>
+          <span className="hidden sm:inline font-mono text-[10px] text-emerald-400 font-bold tracking-wide">
+            {locale === 'en' ? 'FREE SHIPPING NATIONWIDE' : 'FREESHIP ĐƠN MAY ĐO TOÀN QUỐC'}
+          </span>
+        </div>
+      </div>
 
-            <button
-              type="button"
-              onClick={() => {
+      {/* ── MAIN CONTENT WRAPPER ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+
+        {/* ── BAND 2: PRIMARY DARK EDITORIAL HEADER (TORANO-INSPIRED HIERARCHY, FITVISION IDENTITY) ── */}
+        <header className="sticky top-0 z-30 bg-[#14171C] text-white border-b border-white/10 shadow-md">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3 sm:gap-5">
+            
+            {/* Left: Menu Drawer Toggle (Desktop & Mobile) + Brand Wordmark */}
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(true)}
+                className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-colors cursor-pointer"
+                aria-label={t('ecommerce.sidebar.openMenu', 'Mở menu danh mục & 3D')}
+                title={t('ecommerce.sidebar.openMenu', 'Danh mục & Tính năng 3D')}
+              >
+                <Menu size={18} />
+              </button>
+
+              <a href="/" className="flex items-center gap-2.5 group">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm group-hover:bg-blue-500 transition-colors">
+                  <Scissors size={17} strokeWidth={2.2} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-black text-base sm:text-lg tracking-wider uppercase text-white leading-none">
+                    FitVision <span className="text-blue-400">3D</span>
+                  </span>
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-stone-400 hidden sm:block mt-0.5">
+                    {t('ecommerce.sidebar.brandSub', 'Atelier & May Đo 3D')}
+                  </span>
+                </div>
+              </a>
+            </div>
+
+            {/* Center (Desktop): Crisp White Search Bar on Dark Header */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
                 const el = document.getElementById('catalog');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="w-full px-3 py-2.5 rounded-xl bg-blue-50/80 hover:bg-blue-100/80 text-slate-900 font-bold text-xs flex items-center justify-between transition-all border border-blue-200 hover:border-blue-300 cursor-pointer group"
+              className="hidden md:flex flex-1 max-w-md lg:max-w-lg"
             >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-2xs">
-                  <ShoppingBag size={14} />
-                </div>
-                <span>{t('ecommerce.sidebar.collection', 'Bộ Sưu Tập Thời Trang')}</span>
-              </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-md bg-white text-blue-700 font-mono font-bold border border-blue-200">
-                {MOCK_PRODUCTS.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsVellStudioOpen(true)}
-              className="w-full px-3 py-2.5 rounded-xl bg-purple-50/80 hover:bg-purple-100/80 text-slate-900 font-bold text-xs flex items-center justify-between transition-all border border-purple-200 hover:border-purple-300 cursor-pointer group"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center shadow-2xs">
-                  <Sparkles size={14} className="text-amber-300" />
-                </div>
-                <span>{t('ecommerce.sidebar.virtualTryOn', 'Phòng Thử Đồ Ảo 3D')}</span>
-              </div>
-              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white text-purple-700 font-mono font-bold border border-purple-200">
-                3D AI
-              </span>
-            </button>
-
-            <a
-              href="/dashboard"
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-between transition-all border border-slate-200 hover:border-slate-300 cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-slate-800 text-white flex items-center justify-center shadow-2xs">
-                  <Ruler size={14} />
-                </div>
-                <span>{t('ecommerce.sidebar.measurementLab', 'Phòng Đo Nhân Trắc Học')}</span>
-              </div>
-              <span className="text-[9px] px-2 py-0.5 rounded-md bg-white text-slate-700 font-mono font-bold border border-slate-200">
-                ISO 8559
-              </span>
-            </a>
-          </div>
-
-          {/* Đường kẻ phân cách nhẹ nhàng giữa Nhóm Tính Năng và Danh Mục */}
-          <div className="border-t border-slate-200 my-3" />
-
-          {/* Danh mục thời trang thuần Việt */}
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 px-1 block">
-              {t('ecommerce.sidebar.categoriesTitle', 'DANH MỤC THỜI TRANG')}
-            </span>
-
-            {[
-              { id: 'all', label: t('ecommerce.categories.all', 'Tất Cả Sản Phẩm'), count: categoryCounts.all },
-              { id: 'shirt', label: t('ecommerce.categories.shirt', 'Áo Sơ Mi May Đo'), count: categoryCounts.shirt },
-              { id: 'polo', label: t('ecommerce.categories.polo', 'Áo Polo Cao Cấp'), count: categoryCounts.polo },
-              { id: 'pants', label: t('ecommerce.categories.pants', 'Quần Tây & Chino Ý'), count: categoryCounts.pants },
-              { id: 'dress', label: t('ecommerce.categories.dress', 'Đầm & Váy Lụa Tự Nhiên'), count: categoryCounts.dress },
-              { id: 'tailored', label: t('ecommerce.categories.tailored', 'Thiết Kế May Đo Riêng'), count: categoryCounts.tailored },
-            ].map((cat) => {
-              const isActive = activeCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory(cat.id);
-                    const el = document.getElementById('catalog');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer border ${
-                    isActive
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <span>{cat.label}</span>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold border ${
-                      isActive ? 'bg-white/20 text-white border-white/20' : 'bg-slate-100 text-slate-600 border-slate-200'
-                    }`}
+              <div className="flex items-center w-full h-10 pl-4 pr-1 rounded-xl bg-white text-slate-900 border border-white/20 focus-within:ring-2 focus-within:ring-blue-500 transition-all shadow-inner">
+                <input
+                  type="text"
+                  placeholder={t('ecommerce.catalog.searchPlaceholder', 'Bạn đang tìm áo sơ mi, blazer, quần tây...')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 pr-2"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="p-1 mr-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
                   >
-                    {cat.count}
+                    <X size={14} />
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="h-8 px-3 rounded-lg bg-[#14171C] hover:bg-blue-600 text-white flex items-center justify-center gap-1.5 text-xs font-bold transition-colors cursor-pointer shrink-0"
+                  aria-label="Search"
+                >
+                  <Search size={14} />
+                  <span className="hidden lg:inline">{t('ecommerce.topbar.searchBtn', 'Tìm')}</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Right: Language Switch + 3D Tools + Account Popover + Cart */}
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+              <div className="hidden sm:block">
+                <LanguageSwitcher compact variant="dark" />
+              </div>
+
+              {/* Phòng Thử Đồ Ảo 3D */}
+              <button
+                type="button"
+                onClick={handleOpenVirtualStudio}
+                className="hidden xl:flex flex-col items-center justify-center px-2.5 py-1 rounded-lg hover:bg-white/10 text-stone-200 hover:text-white transition-colors cursor-pointer"
+                title={t('ecommerce.topbar.virtualRoom', 'Phòng Thử Đồ Ảo 3D')}
+              >
+                <Sparkles size={17} className="text-blue-400" />
+                <span className="text-[10px] font-semibold mt-0.5 whitespace-nowrap">
+                  {locale === 'en' ? '3D Try-On' : 'Thử Đồ 3D'}
+                </span>
+              </button>
+
+              {/* Quét Đo AI 3D (ISO) */}
+              <a
+                href="/dashboard"
+                className="hidden sm:flex flex-col items-center justify-center px-2.5 py-1 rounded-lg hover:bg-white/10 text-stone-200 hover:text-white transition-colors cursor-pointer"
+                title={t('ecommerce.topbar.aiScan', 'Quét Đo AI 3D (ISO)')}
+              >
+                <Camera size={17} className="text-emerald-400" />
+                <span className="text-[10px] font-semibold mt-0.5 whitespace-nowrap">
+                  {locale === 'en' ? '3D Scan' : 'Quét AI 3D'}
+                </span>
+              </a>
+
+              {/* Tài Khoản (Popover Dropdown khi đã đăng nhập / Nút Đăng nhập khi chưa) */}
+              {isAuthenticated ? (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 transition-colors cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center overflow-hidden shrink-0">
+                      {currentUser?.avatar_url ? (
+                        <img
+                          src={currentUser.avatar_url}
+                          alt={currentUser.full_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        (currentUser?.full_name || 'U').charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="hidden md:block text-left max-w-[110px]">
+                      <span className="text-xs font-bold text-white block truncate leading-none">
+                        {currentUser?.full_name || t('ecommerce.sidebar.customerDefault', 'Khách Hàng')}
+                      </span>
+                      <span className="text-[9px] text-blue-300 font-semibold block truncate mt-0.5">
+                        {userRole === 'store' || currentStore?.status === 'APPROVED'
+                          ? t('ecommerce.sidebar.roleStore', '✂️ Chủ Shop')
+                          : currentStore?.status === 'PENDING'
+                          ? t('ecommerce.sidebar.rolePending', '⏳ Chờ Duyệt')
+                          : t('ecommerce.sidebar.roleCustomer', 'Tài khoản')}
+                      </span>
+                    </div>
+                    <ChevronDown size={13} className={`text-stone-300 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isUserMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      />
+                      <div className="absolute top-full right-0 mt-2.5 w-72 bg-slate-100 rounded-2xl border border-slate-300 shadow-2xl z-50 animate-in slide-in-from-top-2 duration-150 overflow-hidden text-slate-900">
+                        <div className="px-4 py-3 bg-[#14171C] text-white flex items-center justify-between">
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
+                              {t('ecommerce.sidebar.menuTitle', 'Tài Khoản Cá Nhân')}
+                            </span>
+                            <span className="text-xs font-mono font-semibold text-white truncate block">
+                              {currentUser?.email}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+
+                        <div className="p-2 space-y-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              setProfileModalTab('profile');
+                              setIsProfileModalOpen(true);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-left bg-white hover:bg-blue-50 text-xs font-bold text-slate-800 flex items-center justify-between border border-slate-200 hover:border-blue-300 cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <UserIcon size={14} className="text-blue-600" />
+                              <span>{t('ecommerce.sidebar.menuProfile', 'Hồ sơ cá nhân & Chỉnh sửa')}</span>
+                            </div>
+                            <ChevronRight size={13} className="text-slate-400" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              setProfileModalTab('orders');
+                              setIsProfileModalOpen(true);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-left bg-white hover:bg-blue-50 text-xs font-bold text-slate-800 flex items-center justify-between border border-slate-200 hover:border-blue-300 cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Package size={14} className="text-blue-600" />
+                              <span>{t('ecommerce.sidebar.menuOrders', 'Đơn hàng của tôi')}</span>
+                            </div>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-blue-600 text-white">
+                              {userOrders.length}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              setProfileModalTab('measurements');
+                              setIsProfileModalOpen(true);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-left bg-white hover:bg-purple-50 text-xs font-bold text-slate-800 flex items-center justify-between border border-slate-200 hover:border-purple-300 cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Ruler size={14} className="text-purple-600" />
+                              <span>{t('ecommerce.sidebar.menuMeasurements', 'Số đo vóc dáng 3D')}</span>
+                            </div>
+                            <ChevronRight size={13} className="text-slate-400" />
+                          </button>
+
+                          {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
+                            <a
+                              href="/tailor"
+                              className="w-full px-3 py-2 rounded-xl text-left bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white flex items-center justify-between cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Store size={14} />
+                                <span>{t('ecommerce.sidebar.menuTailorChannel', 'Vào Kênh Nhà May (/tailor)')}</span>
+                              </div>
+                              <ChevronRight size={13} />
+                            </a>
+                          ) : currentStore?.status === 'PENDING' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsUserMenuOpen(false);
+                                openStatusModal();
+                              }}
+                              className="w-full px-3 py-2 rounded-xl text-left bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 flex items-center justify-between border border-amber-300 cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Clock size={14} className="text-amber-600 animate-pulse" />
+                                <span>{t('ecommerce.sidebar.menuPendingApproval', 'Hồ sơ chờ Admin duyệt')}</span>
+                              </div>
+                              <ChevronRight size={13} />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsUserMenuOpen(false);
+                                setProfileModalTab('merchant');
+                                setIsProfileModalOpen(true);
+                              }}
+                              className="w-full px-3 py-2 rounded-xl text-left bg-amber-500 hover:bg-amber-600 text-xs font-bold text-white flex items-center justify-between cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Store size={14} />
+                                <span>{t('ecommerce.sidebar.menuRegisterStore', 'Đăng ký mở gian hàng')}</span>
+                              </div>
+                              <ChevronRight size={13} />
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              signOut();
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-left bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 flex items-center gap-2 border border-rose-200 cursor-pointer"
+                          >
+                            <LogOut size={14} />
+                            <span>{t('ecommerce.sidebar.menuSignOut', 'Đăng xuất tài khoản')}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openSignIn}
+                  className="flex flex-col items-center justify-center px-2.5 py-1 rounded-lg hover:bg-white/10 text-stone-200 hover:text-white transition-colors cursor-pointer"
+                >
+                  <UserIcon size={17} />
+                  <span className="text-[10px] font-semibold mt-0.5 whitespace-nowrap">
+                    {t('ecommerce.topbar.login', 'Đăng Nhập')}
                   </span>
                 </button>
-              );
-            })}
-          </div>
-
-        </div>
-
-        {/* Chân thanh điều hướng: Khu vực Tài Khoản nền xám tách biệt rõ ràng với thanh chức năng trắng phía trên */}
-        <div className="p-3 border-t-2 border-slate-300 bg-slate-100 flex-shrink-0 relative">
-          {isAuthenticated ? (
-            <div className="relative">
-              {/* User Pill Button: Khung viền rõ nét, khi mở menu sẽ sáng viền xanh */}
-              <button
-                type="button"
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className={`w-full p-2.5 rounded-xl bg-white border-[1.5px] flex items-center justify-between transition-all cursor-pointer group ${
-                  isUserMenuOpen
-                    ? 'border-blue-600 ring-2 ring-blue-500/20 shadow-md'
-                    : 'border-slate-400 hover:border-blue-500 shadow-xs hover:shadow-sm'
-                }`}
-                title={t('ecommerce.sidebar.userPillTooltip', 'Bấm để mở menu quản lý tài khoản & đơn hàng')}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-blue-700 overflow-hidden group-hover:scale-105 transition-transform">
-                    {currentUser?.avatar_url ? (
-                      <img
-                        src={currentUser.avatar_url}
-                        alt={currentUser.full_name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      (currentUser?.full_name || 'U').charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <div className="text-left min-w-0">
-                    <span className="font-extrabold text-xs text-slate-900 block truncate leading-tight group-hover:text-blue-600">
-                      {currentUser?.full_name || t('ecommerce.sidebar.customerDefault', 'Khách Hàng')}
-                    </span>
-                    <span className="text-[10px] text-blue-600 font-bold block truncate">
-                      {userRole === 'store' || currentStore?.status === 'APPROVED'
-                        ? t('ecommerce.sidebar.roleStore', '✂️ Chủ Shop')
-                        : currentStore?.status === 'PENDING'
-                        ? t('ecommerce.sidebar.rolePending', '⏳ Chờ Duyệt Shop')
-                        : t('ecommerce.sidebar.roleCustomer', '👤 Khách Hàng')}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {userOrders.length > 0 && (
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-mono font-bold flex items-center justify-center shadow-2xs">
-                      {userOrders.length}
-                    </span>
-                  )}
-                  <ChevronUp
-                    size={16}
-                    className={`text-slate-600 transition-transform ${isUserMenuOpen ? 'rotate-180 text-blue-600' : ''}`}
-                  />
-                </div>
-              </button>
-
-              {/* Floating Popover Menu: Header tối màu + Khung viền đậm tách biệt hoàn toàn khỏi nền trắng của Sidebar */}
-              {isUserMenuOpen && (
-                <>
-                  {/* Invisible Backdrop để click ra ngoài tự đóng */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  />
-
-                  <div className="absolute bottom-full left-0 right-0 mb-2.5 bg-slate-100 rounded-2xl border-2 border-slate-700 shadow-[0_12px_32px_-4px_rgba(15,23,42,0.3)] z-50 animate-in slide-in-from-bottom-2 duration-150 overflow-hidden">
-                    {/* Header màu tối (Slate-900) để không bao giờ bị trùng màu với thanh chức năng trắng phía sau */}
-                    <div className="px-3.5 py-2.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider block">
-                          {t('ecommerce.sidebar.menuTitle', 'Tài Khoản Cá Nhân')}
-                        </span>
-                        <span className="text-xs font-mono font-bold text-white truncate block">
-                          {currentUser?.email}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
-                      >
-                        <X size={13} />
-                      </button>
-                    </div>
-
-                    {/* Danh sách nút bấm: Mỗi mục là 1 thẻ có nền trắng và khung viền riêng rõ ràng */}
-                    <div className="p-2 space-y-1.5">
-                      {/* 1. Hồ Sơ Cá Nhân & Chỉnh Sửa Thông Tin */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsUserMenuOpen(false);
-                          setProfileModalTab('profile');
-                          setIsProfileModalOpen(true);
-                        }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-white hover:bg-blue-50 text-xs font-bold text-slate-800 hover:text-blue-900 flex items-center justify-between transition-all cursor-pointer group border border-slate-300 hover:border-blue-400 shadow-2xs"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
-                            <UserIcon size={13} />
-                          </div>
-                          <span>{t('ecommerce.sidebar.menuProfile', 'Hồ sơ cá nhân & Chỉnh sửa')}</span>
-                        </div>
-                        <ChevronRight size={13} className="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
-                      </button>
-
-                      {/* 2. Đơn Hàng Của Tôi */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsUserMenuOpen(false);
-                          setProfileModalTab('orders');
-                          setIsProfileModalOpen(true);
-                        }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-white hover:bg-blue-50 text-xs font-bold text-slate-800 hover:text-blue-900 flex items-center justify-between transition-all cursor-pointer group border border-slate-300 hover:border-blue-400 shadow-2xs"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
-                            <Package size={13} />
-                          </div>
-                          <span>{t('ecommerce.sidebar.menuOrders', 'Đơn hàng của tôi')}</span>
-                        </div>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-blue-600 text-white shadow-2xs">
-                          {userOrders.length}
-                        </span>
-                      </button>
-
-                      {/* 3. Hồ Sơ Số Đo Vóc Dáng 3D */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsUserMenuOpen(false);
-                          setProfileModalTab('measurements');
-                          setIsProfileModalOpen(true);
-                        }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-white hover:bg-purple-50 text-xs font-bold text-slate-800 hover:text-purple-900 flex items-center justify-between transition-all cursor-pointer group border border-slate-300 hover:border-purple-400 shadow-2xs"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center shrink-0">
-                            <Ruler size={13} />
-                          </div>
-                          <span>{t('ecommerce.sidebar.menuMeasurements', 'Số đo vóc dáng 3D')}</span>
-                        </div>
-                        <ChevronRight size={13} className="text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
-                      </button>
-
-                      {/* 4. Đăng Ký Mở Gian Hàng May Đo B2B */}
-                      {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
-                        <a
-                          href="/tailor"
-                          className="w-full px-2.5 py-2 rounded-xl text-left bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white flex items-center justify-between transition-colors cursor-pointer border border-emerald-700 shadow-xs"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
-                              <Store size={13} />
-                            </div>
-                            <span>{t('ecommerce.sidebar.menuTailorChannel', 'Vào Kênh Nhà May (/tailor)')}</span>
-                          </div>
-                          <ChevronRight size={13} className="text-white" />
-                        </a>
-                      ) : currentStore?.status === 'PENDING' ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            openStatusModal();
-                          }}
-                          className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-950 flex items-center justify-between transition-colors cursor-pointer border border-amber-300 shadow-2xs"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center shrink-0">
-                              <Clock size={13} className="animate-pulse" />
-                            </div>
-                            <span>{t('ecommerce.sidebar.menuPendingApproval', 'Hồ sơ chờ Admin duyệt')}</span>
-                          </div>
-                          <ChevronRight size={13} className="text-amber-600" />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            setProfileModalTab('merchant');
-                            setIsProfileModalOpen(true);
-                          }}
-                          className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-between transition-colors cursor-pointer shadow-xs border border-amber-600"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
-                              <Store size={13} />
-                            </div>
-                            <span>{t('ecommerce.sidebar.menuRegisterStore', 'Đăng ký mở gian hàng')}</span>
-                          </div>
-                          <ChevronRight size={13} />
-                        </button>
-                      )}
-
-                      {/* 5. Đăng Xuất Tài Khoản */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsUserMenuOpen(false);
-                          signOut();
-                        }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 flex items-center justify-between transition-colors cursor-pointer border border-rose-200 hover:border-rose-300 shadow-2xs"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-lg bg-white text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
-                            <LogOut size={13} />
-                          </div>
-                          <span>{t('ecommerce.sidebar.menuSignOut', 'Đăng xuất tài khoản')}</span>
-                        </div>
-                        <ChevronRight size={13} className="text-rose-400" />
-                      </button>
-                    </div>
-                  </div>
-                </>
               )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-[11px] text-slate-600 font-medium text-center px-1 leading-snug">
-                {t('ecommerce.sidebar.guestAuthHint', 'Lưu hồ sơ vóc dáng 3D & quản lý đơn may đo')}
-              </p>
+
+              {/* Giỏ Hàng */}
               <button
                 type="button"
-                onClick={openSignIn}
-                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-bold shadow-xs border border-blue-700 transition-all cursor-pointer flex items-center justify-center gap-2"
+                onClick={() => setIsCartOpen(true)}
+                className="relative flex flex-col items-center justify-center px-2.5 py-1 rounded-lg hover:bg-white/10 text-stone-200 hover:text-white transition-colors cursor-pointer"
               >
-                <LogIn size={15} strokeWidth={2.2} />
-                <span>{t('ecommerce.sidebar.signInSignUp', 'Đăng Nhập / Đăng Ký')}</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </aside>
-
-      {/* ── RIGHT MAIN CONTENT AREA (BÊN PHẢI THANH DỌC) ── */}
-      <div className="flex-1 min-w-0 flex flex-col">
-
-        {/* Mobile-only Top Bar (<lg) */}
-        <header className="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 cursor-pointer"
-              aria-label={t('ecommerce.sidebar.openMenu', 'Mở menu dọc')}
-            >
-              <Menu size={18} />
-            </button>
-            <a href="/" className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                <Scissors size={15} />
-              </div>
-              <span className="font-black text-sm tracking-tight text-stone-900">
-                FitVision <span className="text-blue-600">3D</span>
-              </span>
-            </a>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleOpenBiometrics}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-100 text-xs font-mono font-bold text-stone-800"
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${isAuthenticated && hasBodyProfile ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              <span>{isAuthenticated && hasBodyProfile ? `${userBody.height_cm}cm` : 'ISO 3D'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="relative w-8 h-8 rounded-full bg-stone-100 text-stone-800 flex items-center justify-center cursor-pointer"
-            >
-              <ShoppingBag size={16} />
-              {totalCartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
-                  {totalCartCount}
+                <div className="relative">
+                  <ShoppingBag size={17} />
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-slate-950 text-[9px] font-mono font-extrabold flex items-center justify-center shadow-xs">
+                    {totalCartCount}
+                  </span>
+                </div>
+                <span className="text-[10px] font-semibold mt-0.5 whitespace-nowrap">
+                  {t('ecommerce.topbar.cart', 'Giỏ Hàng')}
                 </span>
-              )}
-            </button>
+              </button>
+            </div>
           </div>
         </header>
 
-        {/* Desktop Top Utility Bar (Thanh Tìm Kiếm Duy Nhất + Nút Chức Năng Theo Trạng Thái Đăng Nhập) */}
-        <div className="hidden lg:flex items-center justify-between gap-4 px-6 py-3 border-b border-slate-200 bg-white/95 backdrop-blur-md sticky top-0 z-20">
-          {/* Thanh tìm kiếm chính: Chiều cao chuẩn h-11 (44px) cân đối với các nút bên phải, có nút bấm Tìm rõ ràng */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const el = document.getElementById('catalog');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="relative flex-1 max-w-md xl:max-w-lg group"
-          >
-            <div className="flex items-center w-full h-11 pl-3.5 pr-1.5 rounded-xl bg-slate-50 border border-slate-300 hover:border-slate-400 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-3 focus-within:ring-blue-500/15 transition-all">
-              <div className="mr-2.5 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
-                <Search size={18} strokeWidth={2.2} />
-              </div>
-              <input
-                type="text"
-                placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-full bg-transparent border-0 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 pr-2"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="p-1 mr-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors"
-                >
-                  <X size={14} strokeWidth={2} />
-                </button>
-              )}
+        {/* ── BAND 3: CRISP WHITE CATEGORY NAVIGATION BAR ── */}
+        <nav className="bg-white border-b border-slate-200 hidden lg:block">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-11 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-6 overflow-x-auto scrollbar-none">
+              {[
+                { id: 'all', label: t('ecommerce.categories.all', 'SẢN PHẨM MỚI & TẤT CẢ') },
+                { id: 'shirt', label: t('ecommerce.categories.shirt', 'ÁO SƠ MI MAY ĐO') },
+                { id: 'polo', label: t('ecommerce.categories.polo', 'ÁO POLO CAO CẤP') },
+                { id: 'pants', label: t('ecommerce.categories.pants', 'QUẦN TÂY & CHINO') },
+                { id: 'dress', label: t('ecommerce.categories.dress', 'ĐẦM LỤA TỰ NHIÊN') },
+                { id: 'tailored', label: t('ecommerce.categories.tailored', 'MAY ĐO BESPOKE') },
+              ].map((cat) => {
+                const isActive = activeCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(cat.id);
+                      const el = document.getElementById('catalog');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className={`relative h-11 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors cursor-pointer flex items-center ${
+                      isActive ? 'text-blue-600' : 'text-slate-700 hover:text-slate-950'
+                    }`}
+                  >
+                    <span>{cat.label}</span>
+                    {isActive && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                    )}
+                  </button>
+                );
+              })}
+
               <button
-                type="submit"
-                className="h-8 px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1 shadow-2xs"
+                type="button"
+                onClick={handleOpenVirtualStudio}
+                className="h-7 px-2.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-colors"
               >
-                <span>{t('ecommerce.topbar.searchBtn', 'Tìm')}</span>
+                <Sparkles size={11} />
+                <span>{locale === 'en' ? '3D STUDIO' : 'PHÒNG THỬ ĐỒ 3D'}</span>
               </button>
             </div>
-          </form>
 
-          {/* Quick Action Triggers & Shopping Cart - Hiển thị thông minh theo trạng thái Chưa đăng nhập / Đã đăng nhập */}
-          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Live 3D Body Status Pill on Right */}
             <button
               type="button"
-              onClick={() => setIsVellStudioOpen(true)}
-              className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 hover:border-purple-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
+              onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
+              className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer shrink-0"
             >
-              <Sparkles size={15} className="text-purple-600" />
-              <span>{t('ecommerce.topbar.virtualRoom', 'Phòng Thử Đồ Ảo 3D')}</span>
-            </button>
-
-            <a
-              href="/dashboard"
-              className="flex items-center gap-2 h-10 px-3.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 hover:border-blue-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
-            >
-              <Camera size={15} className="text-blue-600" />
-              <span>{t('ecommerce.topbar.aiScan', 'Quét Đo AI 3D (ISO)')}</span>
-            </a>
-
-            {/* Khi ĐÃ ĐĂNG NHẬP: Hiện nút Đơn Hàng (kèm số lượng đơn). Khi CHƯA ĐĂNG NHẬP: Hiện nút Đăng Nhập */}
-            {isAuthenticated ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileModalTab('orders');
-                  setIsProfileModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 hover:border-slate-300 text-xs font-bold transition-all cursor-pointer active:scale-95"
-                title={t('ecommerce.topbar.orders', 'Đơn Hàng')}
-              >
-                <Package size={15} className="text-slate-600" />
-                <span>{t('ecommerce.topbar.orders', 'Đơn Hàng')}</span>
-                {userOrders.length > 0 && (
-                  <span className="w-4.5 h-4.5 px-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-mono font-bold flex items-center justify-center">
-                    {userOrders.length}
-                  </span>
-                )}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={openSignIn}
-                className="flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-blue-600 border border-blue-200 hover:border-blue-400 text-xs font-bold transition-all cursor-pointer active:scale-95"
-              >
-                <LogIn size={15} />
-                <span>{t('ecommerce.topbar.login', 'Đăng Nhập')}</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center gap-2 h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all cursor-pointer border border-slate-900 active:scale-95"
-            >
-              <ShoppingBag size={15} />
-              <span>{t('ecommerce.topbar.cart', 'Giỏ Hàng')}</span>
-              {totalCartCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-mono font-bold flex items-center justify-center">
-                  {totalCartCount}
+              <span className={`w-2 h-2 rounded-full ${isAuthenticated && hasBodyProfile ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              {isAuthenticated && hasBodyProfile ? (
+                <span className="font-mono font-bold text-slate-900">
+                  {userBody.height_cm}cm · {userBody.weight_kg}kg
+                </span>
+              ) : (
+                <span>
+                  {!isAuthenticated
+                    ? (locale === 'en' ? 'Sign in for 3D profile' : 'Chưa đồng bộ số đo 3D')
+                    : (locale === 'en' ? 'Set 3D measurements' : 'Thiết lập số đo 3D')}
                 </span>
               )}
             </button>
           </div>
-        </div>
+        </nav>
 
-        {/* ── CORE HERO BANNER (100% AUTHENTIC FITVISION 3D - NO FILLER TEXT OR UNRELATED MODELS) ── */}
-        <section className="relative overflow-hidden bg-white border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-14">
+        {/* ── BAND 4: WIDE EDITORIAL FASHION-TECH HERO BANNER ── */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-[#2E3238] via-[#21252B] to-[#14171C] text-white border-b border-slate-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               
-              {/* Left Column: Value Proposition & Action Buttons */}
+              {/* Left Column: Editorial Serif Headline & CTAs */}
               <div className="lg:col-span-7 space-y-5 text-left">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold">
-                  <Sparkles size={13} className="text-blue-600" />
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-blue-300 border border-white/15 text-[11px] font-bold tracking-wider uppercase">
+                  <Sparkles size={13} className="text-amber-300" />
                   <span>{t('ecommerce.hero.badge', 'NỀN TẢNG THỜI TRANG MAY ĐO & ĐO SIZE 3D THẾ HỆ MỚI')}</span>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-stone-950 leading-[1.2]">
+                <h1 className="font-display text-3xl sm:text-5xl lg:text-[52px] font-bold tracking-tight text-white leading-[1.15]">
                   {t('ecommerce.hero.title1', 'Thời Trang Vừa Vặn')} <br className="hidden sm:inline" />
-                  <span className="text-blue-600">{t('ecommerce.hero.titleHighlight', 'Tuyệt Đối')}</span> {t('ecommerce.hero.title2', 'Từng Centimet.')}
+                  <span className="text-blue-400 italic">{t('ecommerce.hero.titleHighlight', 'Tuyệt Đối')}</span> {t('ecommerce.hero.title2', 'Từng Centimet.')}
                 </h1>
 
-                <p className="text-stone-600 text-sm sm:text-base leading-relaxed max-w-xl font-medium">
+                <p className="text-stone-300 text-sm sm:text-base leading-relaxed max-w-xl font-normal">
                   {t('ecommerce.hero.desc', 'Không còn nỗi lo chọn nhầm size hay phiền phức đổi trả. Thuật toán Trí Tuệ Nhân Tạo tự động phân tích vóc dáng và so khớp độ cử động (Ease Allowance) với từng đường kim mũi chỉ của nhà may.')}
                 </p>
 
-                {/* Nút hành động hiện đại, tinh tế */}
                 <div className="flex items-center gap-3 flex-wrap pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsVellStudioOpen(true)}
-                    className="px-5 py-3 rounded-xl bg-stone-950 hover:bg-stone-800 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 transition-all cursor-pointer border border-stone-900"
+                    onClick={handleOpenVirtualStudio}
+                    className="px-6 py-3 rounded-xl bg-white hover:bg-stone-100 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm shadow-lg flex items-center gap-2 transition-all cursor-pointer"
                   >
-                    <Sparkles size={16} className="text-yellow-400" />
+                    <Sparkles size={16} className="text-blue-600" />
                     <span>{t('ecommerce.hero.ctaTryOn', 'Thử Đồ Ảo 3D (Phòng Thử AI)')}</span>
                   </button>
 
                   <a
                     href="/dashboard"
-                    className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-sm flex items-center gap-1.5 transition-all cursor-pointer border border-blue-600"
+                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-1.5 transition-all cursor-pointer border border-blue-500"
                   >
                     <Camera size={15} />
                     <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng AI 30s')}</span>
@@ -1094,9 +846,9 @@ export const FashionStoreHome: React.FC = () => {
                         setProfileModalTab('merchant');
                         setIsProfileModalOpen(true);
                       }}
-                      className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition-all cursor-pointer border border-amber-500"
+                      className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 text-amber-300 font-bold text-xs sm:text-sm border border-white/20 flex items-center gap-2 transition-all cursor-pointer"
                     >
-                      <Store size={16} className="text-white" />
+                      <Store size={16} />
                       <span>{t('ecommerce.hero.ctaMerchant', 'Đăng Ký Gian Hàng May Đo')}</span>
                     </button>
                   ) : (
@@ -1106,9 +858,9 @@ export const FashionStoreHome: React.FC = () => {
                         const el = document.getElementById('catalog');
                         if (el) el.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-xs sm:text-sm border border-slate-300 flex items-center gap-2 transition-all cursor-pointer"
+                      className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 text-white font-bold text-xs sm:text-sm border border-white/20 flex items-center gap-2 transition-all cursor-pointer"
                     >
-                      <ShoppingBag size={16} className="text-slate-700" />
+                      <ShoppingBag size={16} />
                       <span>{t('ecommerce.hero.ctaExplore', 'Khám Phá Bộ Sưu Tập')}</span>
                     </button>
                   )}
@@ -1121,7 +873,7 @@ export const FashionStoreHome: React.FC = () => {
                 onMouseEnter={() => setIsBannerPaused(true)}
                 onMouseLeave={() => setIsBannerPaused(false)}
               >
-                <div className="relative mx-auto max-w-md lg:max-w-none aspect-[4/5] rounded-3xl overflow-hidden shadow-xl border border-stone-200 bg-stone-900 group">
+                <div className="relative mx-auto max-w-md lg:max-w-none aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl border border-white/15 bg-stone-900 group">
                   <img
                     src={HERO_PRODUCT_SLIDES[activeBannerSlide].imageUrl}
                     alt={HERO_PRODUCT_SLIDES[activeBannerSlide].titleVi}
@@ -1170,7 +922,7 @@ export const FashionStoreHome: React.FC = () => {
                   </button>
 
                   {/* Bottom Product Details Card */}
-                  <div className="absolute bottom-4 left-4 right-4 p-4 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white space-y-1">
+                  <div className="absolute bottom-4 left-4 right-4 p-4 rounded-2xl bg-black/55 backdrop-blur-md border border-white/20 text-white space-y-1">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold block">
                       {locale === 'en' ? HERO_PRODUCT_SLIDES[activeBannerSlide].categoryTagEn : HERO_PRODUCT_SLIDES[activeBannerSlide].categoryTagVi}
                     </span>
@@ -1215,29 +967,28 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         </section>
 
-      {/* ── MAIN PRODUCT CATALOG SECTION (HIGH-FASHION EDITORIAL GRID) ── */}
-      <main id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 flex-1">
-        
-        {/* Section Heading & Interactive VELL Studio Banner */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+      {/* ── BAND 5: 2-COLUMN EDITORIAL CATALOG SECTION ── */}
+      <main id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14 flex-1 w-full">
+
+        {/* Editorial Section Heading */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 mb-6 border-b border-slate-200">
           <div>
-            <span className="text-xs font-black uppercase tracking-widest text-blue-700">
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
               {t('ecommerce.catalog.tagline', 'BỘ SƯU TẬP THỜI TRANG THÔNG MINH')}
             </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-950 tracking-tight mt-1">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#14171C] tracking-tight mt-1">
               {t('ecommerce.catalog.heading', 'Khám Phá Kích Cỡ Dành Riêng Cho Bạn')}
             </h2>
-            <p className="text-xs sm:text-sm text-stone-600 font-medium mt-1">
+            <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1">
               {t('ecommerce.catalog.subheading', 'Tất cả sản phẩm đã được AI tính toán sẵn kích cỡ tối ưu dựa trên số đo của bạn')}
             </p>
           </div>
 
-          {/* Action Triggers */}
           <div className="self-start md:self-auto flex items-center gap-2.5 flex-wrap">
             <button
               type="button"
-              onClick={() => setIsVellStudioOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-950 hover:bg-black text-white text-xs sm:text-sm font-black shadow-lg border-2 border-stone-800 transition-all cursor-pointer hover:scale-105 active:scale-95"
+              onClick={handleOpenVirtualStudio}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14171C] hover:bg-black text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer active:scale-95"
             >
               <Sparkles size={15} className="text-amber-400" />
               <span>{t('ecommerce.sidebar.virtualTryOn', 'Thử Đồ Ảo 3D')}</span>
@@ -1245,7 +996,7 @@ export const FashionStoreHome: React.FC = () => {
 
             <a
               href="/dashboard"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-black shadow-md border-2 border-blue-700 transition-all cursor-pointer hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer active:scale-95"
             >
               <Camera size={15} className="text-white" />
               <span>{t('ecommerce.topbar.aiScan', 'Quét Đo AI 3D (ISO)')}</span>
@@ -1255,16 +1006,16 @@ export const FashionStoreHome: React.FC = () => {
 
         {/* ── GUEST ONBOARDING BAR (When not authenticated) ── */}
         {!isAuthenticated && (
-          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-indigo-50/60 to-white border border-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-50/90 via-slate-50 to-white border border-blue-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold flex-shrink-0 shadow-sm">
-                <Sparkles size={18} />
+              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold flex-shrink-0 shadow-xs">
+                <Sparkles size={17} />
               </div>
               <div>
-                <h4 className="text-xs sm:text-sm font-bold text-stone-900">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900">
                   {t('ecommerce.guestBanner.title', 'Trải nghiệm mua sắm chuẩn may đo cá nhân hóa')}
                 </h4>
-                <p className="text-[11px] sm:text-xs text-stone-600 mt-0.5">
+                <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5">
                   {t('ecommerce.guestBanner.desc', 'Đăng nhập để tự động lưu số đo vóc dáng 13 điểm chuẩn ISO 8559 và nhận đề xuất size chính xác cho mọi thương hiệu.')}
                 </p>
               </div>
@@ -1273,14 +1024,14 @@ export const FashionStoreHome: React.FC = () => {
               <button
                 type="button"
                 onClick={openSignIn}
-                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
               >
                 {t('ecommerce.guestBanner.login', 'Đăng Nhập')}
               </button>
               <button
                 type="button"
                 onClick={handleOpenBiometrics}
-                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-bold transition-all cursor-pointer"
+                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 text-xs font-bold transition-all cursor-pointer"
               >
                 {t('ecommerce.guestBanner.quickMeasurements', 'Nhập Số Đo Nhanh')}
               </button>
@@ -1290,21 +1041,21 @@ export const FashionStoreHome: React.FC = () => {
 
         {/* ── TAILOR / MERCHANT STORE BAR (When in Store Role) ── */}
         {userRole === 'store' && (
-          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50/60 to-white border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50/60 to-white border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold flex-shrink-0 shadow-sm">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold flex-shrink-0 shadow-xs">
                 <Store size={18} />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-xs sm:text-sm font-bold text-stone-950">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-950">
                     {t('ecommerce.storeBanner.title', 'Chế Độ Chủ Shop & Nhà May May Đo B2B')}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-bold text-[10px]">
                     Atelier Active
                   </span>
                 </div>
-                <p className="text-[11px] sm:text-xs text-stone-700 mt-0.5">
+                <p className="text-[11px] sm:text-xs text-slate-700 mt-0.5">
                   {t('ecommerce.storeBanner.desc', 'Quản lý rập mẫu áo sơ mi, blazer và thông số Ease Allowance cho từng size rập.')}
                 </p>
               </div>
@@ -1313,7 +1064,7 @@ export const FashionStoreHome: React.FC = () => {
               <button
                 type="button"
                 onClick={openOnboarding}
-                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Plus size={14} />
                 <span>{t('ecommerce.storeBanner.addPattern', 'Thêm Mẫu Rập May')}</span>
@@ -1329,194 +1080,320 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         )}
 
-        {/* ── MINIMALIST LUXURY CATEGORY TABS (NO THICK CLUNKY BLOCKS!) ── */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-6 border-b border-stone-200 scrollbar-none">
-          {[
-            { id: 'all', label: t('ecommerce.catalog.tabAll', 'Tất Cả Sản Phẩm'), count: MOCK_PRODUCTS.length },
-            { id: 'shirt', label: t('ecommerce.catalog.tabShirt', 'Áo Sơ Mi Nam'), count: MOCK_PRODUCTS.filter(p => p.category === 'shirt').length },
-            { id: 'polo', label: t('ecommerce.catalog.tabPolo', 'Áo Polo Lụa'), count: MOCK_PRODUCTS.filter(p => p.category === 'polo').length },
-            { id: 'pants', label: t('ecommerce.catalog.tabPants', 'Quần Tây & Chino'), count: MOCK_PRODUCTS.filter(p => p.category === 'pants').length },
-            { id: 'dress', label: t('ecommerce.catalog.tabDress', 'Đầm Lụa Nữ'), count: MOCK_PRODUCTS.filter(p => p.category === 'dress').length },
-            { id: 'tailored', label: t('ecommerce.catalog.tabTailored', 'May Đo Bespoke'), count: MOCK_PRODUCTS.filter(p => p.category === 'tailored').length },
-          ].map((cat) => {
-            const isActive = activeCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setActiveCategory(cat.id)}
-                className={`relative px-4 py-2 text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-2 rounded-xl ${
-                  isActive
-                    ? 'bg-stone-900 text-white shadow-sm'
-                    : 'text-stone-600 hover:text-stone-950 hover:bg-stone-100'
-                }`}
-              >
-                <span>{cat.label}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isActive ? 'bg-white/20 text-white font-bold' : 'bg-stone-200/80 text-stone-600'
-                  }`}
-                >
-                  {cat.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── ACTION TOOLBAR (BIOMETRIC TOGGLE, RESULT SUMMARY & ADVANCED FILTER - KHÔNG LẶP LẠI Ô TÌM KIẾM TRÊN DESKTOP) ── */}
-        <div className="bg-white rounded-2xl border border-stone-200/90 p-3 sm:p-4 mb-8 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-          
-          {/* Mobile-only Search Box (Vì trên Desktop đã có thanh tìm kiếm cố định ở Top Bar) */}
-          <div className="relative w-full lg:hidden group">
-            <div className="flex items-center w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-300 focus-within:border-blue-600 focus-within:bg-white focus-within:ring-3 focus-within:ring-blue-500/15 transition-all">
-              <div className="mr-2 flex items-center justify-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors flex-shrink-0">
-                <Search size={18} strokeWidth={2.2} />
-              </div>
-              <input
-                type="text"
-                placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 pr-2"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer transition-colors"
-                >
-                  <X size={14} strokeWidth={2} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Left (Desktop): Hiển thị tổng số trang phục & Tag từ khóa đang tìm (nếu có) */}
-          <div className="hidden lg:flex items-center gap-2.5">
-            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-              {t('ecommerce.catalog.showingResults', 'Hiển thị {count} trang phục').replace('{count}', String(filteredProducts.length))}
-            </span>
+        {/* ── MOBILE / TABLET SEARCH, CATEGORY PILLS & FILTER TOGGLE (< lg) ── */}
+        <div className="lg:hidden space-y-3 mb-6">
+          <div className="flex items-center h-11 px-3.5 rounded-xl bg-white border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/15 transition-all">
+            <Search size={17} className="text-slate-400 mr-2 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder={t('ecommerce.catalog.searchPlaceholder', 'Tìm áo, quần, chất liệu...')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-full bg-transparent border-0 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            />
             {searchQuery && (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-xs font-bold text-blue-800">
-                <span>{t('ecommerce.catalog.searchingFor', 'Từ khóa:')} "{searchQuery}"</span>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="p-0.5 rounded-full hover:bg-blue-200 text-blue-600 cursor-pointer"
-                >
-                  <X size={12} />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X size={14} />
+              </button>
             )}
           </div>
 
-          {/* Center: Smart Biometric Fit Toggle (Only active when authenticated with body profile) */}
-          {isAuthenticated && hasBodyProfile ? (
-            <label className="flex items-center gap-2 cursor-pointer select-none px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-xs transition-colors">
-              <input
-                type="checkbox"
-                checked={filterByMyFitOnly}
-                onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-stone-300 accent-blue-600 cursor-pointer"
-              />
-              <span className="font-bold text-stone-900">
-                {t('ecommerce.biometricsBar.filterMyFit', 'Chỉ hiện đồ vừa chuẩn dáng tôi (≥ 90%)')}
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                ISO 8559
-              </span>
-            </label>
-          ) : (
-            <button
-              type="button"
-              onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-xs font-bold text-blue-700 transition-colors cursor-pointer"
-            >
-              <Ruler size={14} />
-              <span>
-                {!isAuthenticated
-                  ? (locale === 'en' ? 'Sign in to filter items by your 3D fit' : 'Đăng nhập để lọc đồ vừa chuẩn dáng bạn')
-                  : (locale === 'en' ? 'Add 3D profile to filter by fit %' : 'Thiết lập số đo 3D để lọc đồ vừa vặn')}
-              </span>
-            </button>
-          )}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { id: 'all', label: t('ecommerce.catalog.tabAll', 'Tất Cả Sản Phẩm'), count: categoryCounts.all },
+              { id: 'shirt', label: t('ecommerce.catalog.tabShirt', 'Áo Sơ Mi Nam'), count: categoryCounts.shirt },
+              { id: 'polo', label: t('ecommerce.catalog.tabPolo', 'Áo Polo Lụa'), count: categoryCounts.polo },
+              { id: 'pants', label: t('ecommerce.catalog.tabPants', 'Quần Tây & Chino'), count: categoryCounts.pants },
+              { id: 'dress', label: t('ecommerce.catalog.tabDress', 'Đầm Lụa Nữ'), count: categoryCounts.dress },
+              { id: 'tailored', label: t('ecommerce.catalog.tabTailored', 'May Đo Bespoke'), count: categoryCounts.tailored },
+            ].map((cat) => {
+              const isActive = activeCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`px-3.5 py-1.5 text-xs font-bold whitespace-nowrap rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-[#14171C] text-white'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                  <span className={`text-[10px] font-mono ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Right: Quick Sort & Filter Drawer Button */}
-          <div className="flex items-center gap-2">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="py-2 px-3 rounded-xl bg-stone-50 border border-stone-200 text-xs font-bold text-stone-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-            >
-              <option value="default">{t('ecommerce.catalog.sortDefault', 'Sắp xếp: Mặc định')}</option>
-              <option value="fit-desc">{t('ecommerce.catalog.sortFitDesc', 'Độ vừa AI cao nhất')}</option>
-              <option value="price-asc">{t('ecommerce.catalog.sortPriceAsc', 'Giá: Thấp đến Cao')}</option>
-              <option value="price-desc">{t('ecommerce.catalog.sortPriceDesc', 'Giá: Cao đến Thấp')}</option>
-            </select>
-
+          <div className="flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setIsFilterOpen(!isFilterOpen)}
               className={`py-2 px-3.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 isFilterOpen || activeFilterCount > 0
-                  ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
-                  : 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200'
+                  ? 'bg-[#14171C] text-white border-[#14171C]'
+                  : 'bg-white text-slate-800 border-slate-200'
               }`}
             >
               <SlidersHorizontal size={14} />
-              <span>{t('ecommerce.catalog.filterBtn', 'Lọc nâng cao')}</span>
+              <span>{t('ecommerce.catalog.filterBtn', 'Bộ lọc & Số đo')}</span>
               {activeFilterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-amber-400 text-stone-950 text-[10px] font-black flex items-center justify-center">
+                <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-black flex items-center justify-center">
                   {activeFilterCount}
                 </span>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
+              className="py-2 px-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer truncate"
+            >
+              <Ruler size={13} />
+              <span className="truncate">
+                {isAuthenticated && hasBodyProfile
+                  ? `${userBody.height_cm}cm · ${userBody.weight_kg}kg`
+                  : (locale === 'en' ? '3D Body Profile' : 'Hồ Sơ Vóc Dáng 3D')}
+              </span>
+            </button>
           </div>
 
-        </div>
+          {isFilterOpen && (
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  {t('ecommerce.catalog.filterTitle', 'Lọc Theo Giá, Chất Liệu & Độ Vừa')}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetAllFilters}
+                  className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+                >
+                  {t('ecommerce.catalog.resetFilters', 'Đặt lại bộ lọc')}
+                </button>
+              </div>
 
-        {/* Expandable Advanced Filter Drawer (Price Range & Fabric) */}
-        {isFilterOpen && (
-          <div className="mb-8 p-5 rounded-2xl bg-white border border-stone-200 shadow-md animate-in slide-in-from-top-2 space-y-4">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-              <span className="font-extrabold text-xs uppercase tracking-wider text-stone-900">
-                {t('ecommerce.catalog.filterTitle', 'Tùy Chọn Lọc Nâng Cao Theo Giá & Chất Liệu')}
-              </span>
-              <button
-                type="button"
-                onClick={handleResetAllFilters}
-                className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
-              >
-                {t('ecommerce.catalog.resetFilters', 'Đặt lại bộ lọc')}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div>
-                <label className="block font-bold text-stone-800 mb-2">{t('ecommerce.catalog.priceRange', 'Khoảng Giá')}:</label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: 'all', label: t('ecommerce.catalog.priceAll', 'Tất cả mức giá') },
-                    { id: 'under-600', label: t('ecommerce.catalog.priceUnder600', 'Dưới 600.000 ₫') },
-                    { id: '600-1000', label: t('ecommerce.catalog.price600To1000', '600k - 1.000.000 ₫') },
-                    { id: 'above-1000', label: t('ecommerce.catalog.priceAbove1000', 'Trên 1.000.000 ₫') },
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setPriceRange(p.id)}
-                      className={`px-3 py-1.5 rounded-lg font-bold border transition-all cursor-pointer ${
-                        priceRange === p.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+              {isAuthenticated && hasBodyProfile && (
+                <label className="flex items-center gap-2 cursor-pointer select-none px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={filterByMyFitOnly}
+                    onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
+                    className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
+                  />
+                  <span className="font-bold text-slate-900">
+                    {t('ecommerce.biometricsBar.filterMyFit', 'Chỉ hiện đồ vừa chuẩn dáng tôi (≥ 90%)')}
+                  </span>
+                </label>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p className="font-bold text-slate-800 mb-1.5">{t('ecommerce.catalog.priceRange', 'Khoảng Giá')}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { id: 'all', label: t('ecommerce.catalog.priceAll', 'Tất cả mức giá') },
+                      { id: 'under-600', label: t('ecommerce.catalog.priceUnder600', 'Dưới 600.000 ₫') },
+                      { id: '600-1000', label: t('ecommerce.catalog.price600To1000', '600k - 1.000.000 ₫') },
+                      { id: 'above-1000', label: t('ecommerce.catalog.priceAbove1000', 'Trên 1.000.000 ₫') },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setPriceRange(p.id)}
+                        className={`px-2.5 py-1.5 rounded-lg font-bold border cursor-pointer ${
+                          priceRange === p.id ? 'bg-[#14171C] text-white border-[#14171C]' : 'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800 mb-1.5">{t('ecommerce.catalog.fabricTitle', 'Chất Liệu May Đo')}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { id: 'all', label: t('ecommerce.catalog.fabricAll', 'Tất cả chất liệu') },
+                      { id: 'cotton', label: t('ecommerce.catalog.fabricCotton', 'Cotton Ai Cập') },
+                      { id: 'silk', label: t('ecommerce.catalog.fabricSilk', 'Lụa Tơ Tằm') },
+                      { id: 'wool', label: t('ecommerce.catalog.fabricWool', 'Wool Úc') },
+                      { id: 'linen', label: t('ecommerce.catalog.fabricLinen', 'Linen Pháp') },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setFabricFilter(f.id)}
+                        className={`px-2.5 py-1.5 rounded-lg font-bold border cursor-pointer ${
+                          fabricFilter === f.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── 2-COLUMN WORKSPACE: LEFT FILTER + 3D BODY PROFILE (3 cols) | RIGHT PRODUCT GRID (9 cols) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+          {/* LEFT SIDEBAR: 3D BIOMETRIC PROFILE & CLEAN EDITORIAL FILTERS (Desktop sticky) */}
+          <aside className="hidden lg:block lg:col-span-3 space-y-5 sticky top-24">
+
+            {/* Card 1: Compact 3D Body Profile Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isAuthenticated && hasBodyProfile ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-900 truncate">
+                    {t('ecommerce.sidebar.bodyProfileTitle', 'Hồ Sơ Vóc Dáng 3D')}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex-shrink-0"
+                >
+                  {isAuthenticated && hasBodyProfile
+                    ? t('ecommerce.sidebar.editMeasurements', 'Đổi số đo')
+                    : (locale === 'en' ? 'Set up' : 'Thiết lập')}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    {t('ecommerce.biometrics.height', 'Chiều cao')}
+                  </span>
+                  <span className="font-mono text-sm font-black text-slate-900">
+                    {isAuthenticated && hasBodyProfile ? `${userBody.height_cm} cm` : '— cm'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    {t('ecommerce.biometrics.weight', 'Cân nặng')}
+                  </span>
+                  <span className="font-mono text-sm font-black text-slate-900">
+                    {isAuthenticated && hasBodyProfile ? `${userBody.weight_kg} kg` : '— kg'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    {t('ecommerce.biometrics.chest', 'Vòng ngực')}
+                  </span>
+                  <span className="font-mono text-sm font-black text-slate-900">
+                    {isAuthenticated && hasBodyProfile ? `${userBody.chest_cm} cm` : '— cm'}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    {t('ecommerce.biometrics.waist', 'Vòng eo')}
+                  </span>
+                  <span className="font-mono text-sm font-black text-slate-900">
+                    {isAuthenticated && hasBodyProfile ? `${userBody.waist_cm} cm` : '— cm'}
+                  </span>
+                </div>
+              </div>
+
+              {isAuthenticated && hasBodyProfile ? (
+                <label className="flex items-start gap-2 pt-1 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={filterByMyFitOnly}
+                    onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-blue-600 border-slate-300 accent-blue-600 cursor-pointer flex-shrink-0"
+                  />
+                  <span className="text-[11px] font-bold text-slate-800 leading-snug">
+                    {t('ecommerce.biometricsBar.filterMyFit', 'Chỉ hiện đồ vừa chuẩn dáng tôi (≥ 90%)')}
+                  </span>
+                </label>
+              ) : (
+                <button
+                  type="button"
+                  onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
+                  className="w-full py-2 px-3 rounded-xl bg-[#14171C] hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Ruler size={13} className="text-blue-400" />
+                  <span>
+                    {!isAuthenticated
+                      ? (locale === 'en' ? 'Sign in for 3D Fit' : 'Đăng nhập đo độ vừa 3D')
+                      : (locale === 'en' ? 'Enter 3D Measurements' : 'Nhập số đo vóc dáng 3D')}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Card 2: Accordion-style Storefront Filters (Torano Rhythm) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <SlidersHorizontal size={13} className="text-blue-600" />
+                  <span>{t('ecommerce.catalog.filterBtn', 'Bộ Lọc Sản Phẩm')}</span>
+                </span>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResetAllFilters}
+                    className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                  >
+                    {t('ecommerce.catalog.resetFilters', 'Đặt lại')}
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Group A: Categories */}
               <div>
-                <label className="block font-bold text-stone-800 mb-2">{t('ecommerce.catalog.fabricTitle', 'Chất Liệu May Đo')}:</label>
-                <div className="flex flex-wrap gap-2">
+                <h4 className="text-xs font-extrabold text-slate-900 mb-2.5">
+                  {locale === 'en' ? 'Category' : 'Loại Sản Phẩm'}
+                </h4>
+                <div className="space-y-1.5">
+                  {[
+                    { id: 'all', label: t('ecommerce.catalog.tabAll', 'Tất Cả Sản Phẩm'), count: categoryCounts.all },
+                    { id: 'shirt', label: t('ecommerce.catalog.tabShirt', 'Áo Sơ Mi Nam'), count: categoryCounts.shirt },
+                    { id: 'polo', label: t('ecommerce.catalog.tabPolo', 'Áo Polo Lụa'), count: categoryCounts.polo },
+                    { id: 'pants', label: t('ecommerce.catalog.tabPants', 'Quần Tây & Chino'), count: categoryCounts.pants },
+                    { id: 'dress', label: t('ecommerce.catalog.tabDress', 'Đầm Lụa Nữ'), count: categoryCounts.dress },
+                    { id: 'tailored', label: t('ecommerce.catalog.tabTailored', 'May Đo Bespoke'), count: categoryCounts.tailored },
+                  ].map((cat) => {
+                    const isActive = activeCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setActiveCategory(cat.id)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                          isActive
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'text-slate-700 hover:bg-slate-100 font-medium'
+                        }`}
+                      >
+                        <span className="truncate">{cat.label}</span>
+                        <span className={`text-[10px] font-mono ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                          {cat.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Filter Group B: Fabric Material */}
+              <div className="pt-4 border-t border-slate-100">
+                <h4 className="text-xs font-extrabold text-slate-900 mb-2.5">
+                  {t('ecommerce.catalog.fabricTitle', 'Chất Liệu Vải')}
+                </h4>
+                <div className="space-y-1.5">
                   {[
                     { id: 'all', label: t('ecommerce.catalog.fabricAll', 'Tất cả chất liệu') },
                     { id: 'cotton', label: t('ecommerce.catalog.fabricCotton', 'Cotton Ai Cập') },
@@ -1524,243 +1401,379 @@ export const FashionStoreHome: React.FC = () => {
                     { id: 'wool', label: t('ecommerce.catalog.fabricWool', 'Wool Úc') },
                     { id: 'linen', label: t('ecommerce.catalog.fabricLinen', 'Linen Pháp') },
                   ].map((f) => (
-                    <button
+                    <label
                       key={f.id}
-                      type="button"
-                      onClick={() => setFabricFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-lg font-bold border transition-all cursor-pointer ${
-                        fabricFilter === f.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200'
-                      }`}
+                      className="flex items-center gap-2 px-1 py-0.5 text-xs text-slate-700 hover:text-slate-950 cursor-pointer select-none"
                     >
-                      {f.label}
-                    </button>
+                      <input
+                        type="radio"
+                        name="fabricFilter"
+                        checked={fabricFilter === f.id}
+                        onChange={() => setFabricFilter(f.id)}
+                        className="accent-blue-600 cursor-pointer"
+                      />
+                      <span className={fabricFilter === f.id ? 'font-bold text-blue-700' : 'font-medium'}>
+                        {f.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter Group C: Price Range */}
+              <div className="pt-4 border-t border-slate-100">
+                <h4 className="text-xs font-extrabold text-slate-900 mb-2.5">
+                  {t('ecommerce.catalog.priceRange', 'Khoảng Giá')}
+                </h4>
+                <div className="space-y-1.5">
+                  {[
+                    { id: 'all', label: t('ecommerce.catalog.priceAll', 'Tất cả mức giá') },
+                    { id: 'under-600', label: t('ecommerce.catalog.priceUnder600', 'Dưới 600.000 ₫') },
+                    { id: '600-1000', label: t('ecommerce.catalog.price600To1000', '600k - 1.000.000 ₫') },
+                    { id: 'above-1000', label: t('ecommerce.catalog.priceAbove1000', 'Trên 1.000.000 ₫') },
+                  ].map((p) => (
+                    <label
+                      key={p.id}
+                      className="flex items-center gap-2 px-1 py-0.5 text-xs text-slate-700 hover:text-slate-950 cursor-pointer select-none"
+                    >
+                      <input
+                        type="radio"
+                        name="priceRangeFilter"
+                        checked={priceRange === p.id}
+                        onChange={() => setPriceRange(p.id)}
+                        className="accent-[#14171C] cursor-pointer"
+                      />
+                      <span className={priceRange === p.id ? 'font-bold text-slate-950' : 'font-medium'}>
+                        {p.label}
+                      </span>
+                    </label>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          </aside>
 
-        {/* ── SPACIOUS 4-COLUMN PRODUCT GRID (FARFETCH / ZARA AESTHETIC) ── */}
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-stone-200 p-8 space-y-3">
-            <SlidersHorizontal size={36} className="mx-auto text-stone-300" />
-            <h3 className="text-base font-extrabold text-stone-900">{t('ecommerce.catalog.emptyTitle', 'Không tìm thấy sản phẩm phù hợp')}</h3>
-            <p className="text-xs text-stone-600 max-w-sm mx-auto font-medium">
-              {t('ecommerce.catalog.emptyDesc', 'Thử tắt bộ lọc hoặc tìm kiếm từ khóa khác.')}
-            </p>
-            <button
-              onClick={handleResetAllFilters}
-              className="mt-2 text-xs font-extrabold text-blue-600 hover:underline cursor-pointer"
-            >
-              {t('ecommerce.catalog.resetAllFilters', 'Đặt lại tất cả bộ lọc')}
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {filteredProducts.map((product) => {
-              const fit = product.fitResult;
-              const isPerfect = fit.match_percentage >= 95;
+          {/* RIGHT MAIN CATALOG AREA (9 cols) */}
+          <div className="lg:col-span-9 space-y-5">
 
-              return (
-                <div
-                  key={product.id}
-                  className="group bg-white rounded-2xl border border-stone-200/90 hover:border-stone-400 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-                >
-                  {/* Card Top: Image & Overlay Badges */}
-                  <div className="relative aspect-[3/4] bg-stone-100 overflow-hidden">
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-
-                    {/* Brand Tag Top Left */}
-                    <div className="absolute top-2.5 left-2.5">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-stone-900 backdrop-blur shadow-2xs border border-stone-200">
-                        {product.brand_name}
-                      </span>
-                    </div>
-
-                    {/* AI Match Score Tag Top Right — Personalized % shown only when authenticated with measurements */}
-                    <div className="absolute top-2.5 right-2.5">
-                      {isAuthenticated && hasBodyProfile ? (
-                        <div
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black flex items-center gap-1 shadow-md ${
-                            isPerfect ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
-                          }`}
-                        >
-                          <Sparkles size={10} />
-                          <span>{fit.match_percentage}% {t('ecommerce.catalog.fitMatch', 'Vừa')}</span>
-                        </div>
-                      ) : (
-                        <div className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900/80 text-white backdrop-blur flex items-center gap-1 shadow-sm border border-white/15">
-                          <Ruler size={10} className="text-blue-300" />
-                          <span>ISO 8559</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Quick 3D Fit Peek Action on Hover */}
+            {/* Catalog Header Bar: Result Count + Active Search Tag + Sort Select */}
+            <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="text-xs font-bold text-slate-800">
+                  {t('ecommerce.catalog.showingResults', 'Hiển thị {count} trang phục').replace('{count}', String(filteredProducts.length))}
+                </span>
+                {isAuthenticated && hasBodyProfile && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    ISO 8559 Active
+                  </span>
+                )}
+                {searchQuery && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-bold text-blue-800">
+                    <span>{t('ecommerce.catalog.searchingFor', 'Từ khóa:')} "{searchQuery}"</span>
                     <button
                       type="button"
-                      onClick={() => handleOpenAnalysis(product)}
-                      className="absolute inset-x-3 bottom-3 py-2 px-3 rounded-xl bg-white/95 text-blue-700 font-black text-xs shadow-md border border-stone-300 backdrop-blur opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-1.5 hover:bg-white cursor-pointer"
+                      onClick={() => setSearchQuery('')}
+                      className="p-0.5 rounded-full hover:bg-blue-200 text-blue-600 cursor-pointer"
                     >
-                      <Ruler size={14} className="text-blue-600" />
-                      <span>
-                        {isAuthenticated && hasBodyProfile
-                          ? t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')
-                          : (locale === 'en' ? 'Sign in for 3D Fit Check' : 'Đăng nhập để đo độ vừa 3D')}
-                      </span>
+                      <X size={12} />
                     </button>
                   </div>
+                )}
+              </div>
 
-                  {/* Card Bottom: Product Info & Actions */}
-                  <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
-                    <div>
-                      <h4 className="font-extrabold text-xs sm:text-sm text-stone-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
-                        {getProductName(product)}
-                      </h4>
-                      <p className="text-xs text-stone-600 font-medium mt-1 line-clamp-1">
-                        {getProductFabric(product)}
-                      </p>
-                    </div>
+              <div className="flex items-center gap-2">
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResetAllFilters}
+                    className="hidden sm:inline-flex text-xs font-bold text-rose-600 hover:underline cursor-pointer mr-1"
+                  >
+                    {t('ecommerce.catalog.resetFilters', 'Xóa bộ lọc')} ({activeFilterCount})
+                  </button>
+                )}
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="py-1.5 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+                >
+                  <option value="default">{t('ecommerce.catalog.sortDefault', 'Sắp xếp: Mặc định')}</option>
+                  <option value="fit-desc">{t('ecommerce.catalog.sortFitDesc', 'Độ vừa AI cao nhất')}</option>
+                  <option value="price-asc">{t('ecommerce.catalog.sortPriceAsc', 'Giá: Thấp đến Cao')}</option>
+                  <option value="price-desc">{t('ecommerce.catalog.sortPriceDesc', 'Giá: Cao đến Thấp')}</option>
+                </select>
+              </div>
+            </div>
 
-                    {/* AI Size Advice Pill */}
+            {/* 3-COLUMN HARMONIOUS PRODUCT GRID */}
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 p-8 space-y-3">
+                <SlidersHorizontal size={36} className="mx-auto text-slate-300" />
+                <h3 className="text-base font-extrabold text-slate-900">
+                  {t('ecommerce.catalog.emptyTitle', 'Không tìm thấy sản phẩm phù hợp')}
+                </h3>
+                <p className="text-xs text-slate-600 max-w-sm mx-auto font-medium">
+                  {t('ecommerce.catalog.emptyDesc', 'Thử tắt bộ lọc hoặc tìm kiếm từ khóa khác.')}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResetAllFilters}
+                  className="mt-2 px-4 py-2 rounded-xl bg-[#14171C] text-white text-xs font-bold hover:bg-black cursor-pointer"
+                >
+                  {t('ecommerce.catalog.resetAllFilters', 'Đặt lại tất cả bộ lọc')}
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                {filteredProducts.map((product) => {
+                  const fit = product.fitResult;
+                  const isPerfect = fit.match_percentage >= 95;
+
+                  // Unique variants by size_label for Quick-Size hover buttons
+                  const sizeVariants = product.variants.filter(
+                    (v, idx, arr) => arr.findIndex((x) => x.size_label === v.size_label) === idx
+                  );
+                  // Unique color swatches
+                  const colorSwatches = product.variants.filter(
+                    (v, idx, arr) => arr.findIndex((x) => x.color_hex === v.color_hex) === idx
+                  );
+
+                  return (
                     <div
-                      onClick={() => handleOpenAnalysis(product)}
-                      className="p-2.5 rounded-xl bg-blue-50/80 hover:bg-blue-100 border border-blue-200 text-xs transition-colors cursor-pointer group/fit"
-                      title={t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}
+                      key={product.id}
+                      className="group bg-white rounded-2xl border border-slate-200/90 hover:border-slate-300 overflow-hidden shadow-2xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
                     >
-                      {isAuthenticated && hasBodyProfile ? (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <span className="text-stone-800 font-bold">{t('ecommerce.catalog.recommendLabel', 'Khuyên dùng:')}</span>
-                            <span className="font-mono font-black text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-300 shadow-2xs flex items-center gap-1">
-                              <span>Size {fit.recommended_size}</span>
-                              <ChevronRight size={12} className="text-blue-500 group-hover/fit:translate-x-0.5 transition-transform" />
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-stone-700 mt-1 line-clamp-1 font-bold">
-                            {locale === 'en' && fit.advisor_advice_en ? fit.advisor_advice_en : fit.advisor_advice_vi}
-                          </p>
-                        </>
-                      ) : (
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-slate-700 font-bold text-[11px] truncate">
-                            {!isAuthenticated
-                              ? (locale === 'en' ? 'Sign in for AI size advice' : 'Đăng nhập để gợi ý size chuẩn')
-                              : (locale === 'en' ? 'Add body profile for AI size' : 'Cập nhật số đo để gợi ý size')}
+                      {/* Top: Product Media + Hover Quick-Size Strip */}
+                      <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
+                        <img
+                          src={product.image_url}
+                          alt={getProductName(product)}
+                          onClick={() => handleOpenAnalysis(product)}
+                          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105 cursor-pointer"
+                          loading="lazy"
+                        />
+
+                        {/* Brand Tag Top Left */}
+                        <div className="absolute top-2.5 left-2.5 pointer-events-none">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-slate-900 shadow-2xs border border-slate-200/80">
+                            {product.brand_name}
                           </span>
-                          <ChevronRight size={13} className="text-blue-600 shrink-0 group-hover/fit:translate-x-0.5 transition-transform" />
                         </div>
-                      )}
-                    </div>
 
-                    {/* Price and Action Buttons */}
-                    <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
-                      <div>
-                        {product.sale_price ? (
-                          <div className="flex flex-col">
-                            <span className="font-black text-stone-950 text-xs sm:text-sm">
-                              {product.sale_price.toLocaleString('vi-VN')} ₫
+                        {/* Fit Score Top Right (Authenticated + Biometrics only; ISO 8559 badge for guests) */}
+                        <div className="absolute top-2.5 right-2.5 pointer-events-none">
+                          {isAuthenticated && hasBodyProfile ? (
+                            <div
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black flex items-center gap-1 shadow-md ${
+                                isPerfect ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
+                              }`}
+                            >
+                              <Sparkles size={10} />
+                              <span>{fit.match_percentage}% {t('ecommerce.catalog.fitMatch', 'Vừa')}</span>
+                            </div>
+                          ) : (
+                            <div className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#14171C]/85 text-white backdrop-blur flex items-center gap-1 border border-white/15">
+                              <Ruler size={10} className="text-blue-300" />
+                              <span>ISO 8559</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Torano-inspired Quick-Size Hover Bar */}
+                        <div className="absolute inset-x-2.5 bottom-2.5 p-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200">
+                          <div className="flex items-center justify-between mb-1.5 px-0.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                              {locale === 'en' ? 'Quick Add Size' : 'Chọn nhanh size'}
                             </span>
-                            <span className="text-[10px] text-stone-400 line-through font-bold">
-                              {product.price.toLocaleString('vi-VN')} ₫
-                            </span>
+                            {isAuthenticated && hasBodyProfile && (
+                              <span className="text-[10px] font-mono font-bold text-blue-600">
+                                {locale === 'en' ? `Best: ${fit.recommended_size}` : `Gợi ý: ${fit.recommended_size}`}
+                              </span>
+                            )}
                           </div>
-                        ) : (
-                          <span className="font-black text-stone-950 text-xs sm:text-sm">
-                            {product.price.toLocaleString('vi-VN')} ₫
-                          </span>
-                        )}
+                          <div className="grid grid-cols-4 gap-1">
+                            {sizeVariants.slice(0, 4).map((variant) => {
+                              const isRec = isAuthenticated && hasBodyProfile && variant.size_label === fit.recommended_size;
+                              return (
+                                <button
+                                  key={variant.id}
+                                  type="button"
+                                  onClick={() => handleAddToCart(product, variant)}
+                                  className={`py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer active:scale-95 ${
+                                    isRec
+                                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xs'
+                                      : 'bg-slate-100 text-slate-900 hover:bg-[#14171C] hover:text-white'
+                                  }`}
+                                  title={locale === 'en' ? `Add Size ${variant.size_label}` : `Thêm nhanh Size ${variant.size_label}`}
+                                >
+                                  {variant.size_label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={handleOpenVirtualStudio}
-                          className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
-                          title={t('ecommerce.sidebar.virtualTryOn', 'Thử đồ ảo 3D (VELL Studio)')}
-                        >
-                          <Sparkles size={14} className="text-purple-600" />
-                        </button>
+                      {/* Bottom: Clean Editorial Metadata, Swatches, 3D Fit & Add to Cart */}
+                      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
+                        <div className="space-y-1.5">
+                          <h4
+                            onClick={() => handleOpenAnalysis(product)}
+                            className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors cursor-pointer"
+                          >
+                            {getProductName(product)}
+                          </h4>
 
-                        <button
-                          type="button"
-                          onClick={() => handleAddToCart(product, product.recommendedVariant)}
-                          style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-                          className="relative overflow-hidden py-2 px-3 sm:px-3.5 rounded-xl hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 ease-out transform hover:-translate-y-0.5 flex items-center gap-1.5 cursor-pointer group whitespace-nowrap"
-                          title={isAuthenticated && hasBodyProfile
-                            ? t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)
-                            : (locale === 'en' ? 'Add to Cart' : 'Thêm vào giỏ hàng')}
+                          {/* Price + Color Swatch Dots Row */}
+                          <div className="flex items-center justify-between gap-2 pt-0.5">
+                            <div className="flex items-baseline gap-1.5 flex-wrap">
+                              {product.sale_price ? (
+                                <>
+                                  <span className="font-black text-slate-950 text-xs sm:text-sm">
+                                    {product.sale_price.toLocaleString('vi-VN')} ₫
+                                  </span>
+                                  <span className="text-[11px] text-slate-400 line-through font-medium">
+                                    {product.price.toLocaleString('vi-VN')} ₫
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="font-black text-slate-950 text-xs sm:text-sm">
+                                  {product.price.toLocaleString('vi-VN')} ₫
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0" title={getProductFabric(product)}>
+                              {colorSwatches.slice(0, 4).map((sw) => (
+                                <span
+                                  key={sw.id}
+                                  className="w-3 h-3 rounded-full border border-slate-300 shadow-2xs"
+                                  style={{ backgroundColor: sw.color_hex }}
+                                  title={sw.color_name}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Compact 1-line AI Fit Insight (Authenticated) or Auth Prompt */}
+                        <div
+                          onClick={() => handleOpenAnalysis(product)}
+                          className="px-2.5 py-2 rounded-xl bg-slate-50 hover:bg-blue-50/70 border border-slate-200/80 hover:border-blue-200 text-[11px] transition-colors cursor-pointer flex items-center justify-between gap-2"
+                          title={t('ecommerce.catalog.viewAnalysis', 'Xem Phân Tích Độ Vừa 3D')}
                         >
-                          <ShoppingBag size={13} className="text-white group-hover:scale-110 transition-transform duration-200" />
-                          <span className="tracking-tight">
-                            {isAuthenticated && hasBodyProfile
-                              ? t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)
-                              : (locale === 'en' ? 'Select & Buy' : 'Chọn Mua')}
-                          </span>
-                        </button>
+                          {isAuthenticated && hasBodyProfile ? (
+                            <>
+                              <span className="text-slate-700 font-medium truncate">
+                                <strong className="text-blue-700 font-mono">Size {fit.recommended_size}</strong>
+                                {' · '}
+                                {locale === 'en' && fit.advisor_advice_en ? fit.advisor_advice_en : fit.advisor_advice_vi}
+                              </span>
+                              <ChevronRight size={13} className="text-blue-600 flex-shrink-0" />
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-slate-600 font-semibold truncate">
+                                {!isAuthenticated
+                                  ? (locale === 'en' ? 'Sign in for AI size advice' : 'Đăng nhập để gợi ý size chuẩn')
+                                  : (locale === 'en' ? 'Add body profile for AI size' : 'Cập nhật số đo để gợi ý size')}
+                              </span>
+                              <ChevronRight size={13} className="text-slate-400 flex-shrink-0" />
+                            </>
+                          )}
+                        </div>
+
+                        {/* Card Actions: Phân tích 3D + Thử 3D + Chọn Mua */}
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAnalysis(product)}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                              title={t('ecommerce.catalog.viewAnalysis', 'Phân tích độ vừa 3D')}
+                            >
+                              <Ruler size={14} className="text-blue-600" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleOpenVirtualStudio}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                              title={t('ecommerce.sidebar.virtualTryOn', 'Thử đồ ảo 3D (VELL Studio)')}
+                            >
+                              <Sparkles size={14} className="text-purple-600" />
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCart(product, product.recommendedVariant)}
+                            className="flex-1 py-2 px-3 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                            title={isAuthenticated && hasBodyProfile
+                              ? t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)
+                              : (locale === 'en' ? 'Add to Cart' : 'Thêm vào giỏ hàng')}
+                          >
+                            <ShoppingBag size={13} className="text-white" />
+                            <span>
+                              {isAuthenticated && hasBodyProfile
+                                ? t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)
+                                : (locale === 'en' ? 'Select & Buy' : 'Chọn Mua')}
+                            </span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-
+        </div>
       </main>
 
-      {/* ── TECHNOLOGY DEEP DIVE (3-TIER ARCHITECTURE SHOWCASE) ── */}
-      <section className="bg-white border-t border-stone-200 py-12 md:py-16">
+      {/* ── BAND 6: MINIMALIST TECHNOLOGY TRUST STRIP ── */}
+      <section className="bg-white border-t border-slate-200 py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-widest text-blue-700">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
               {t('ecommerce.tech.subtitle', 'Công Nghệ Đằng Sau Sự Vừa Vặn')}
             </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight mt-1">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#14171C] tracking-tight mt-1.5">
               {t('ecommerce.tech.title', 'Tại Sao FitVision 3D Chuẩn Xác Hơn Bảng Size Thông Thường?')}
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-2xl bg-stone-50 border border-stone-200 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+            <div className="p-6 rounded-2xl bg-[#FAFAFB] border border-slate-200/90 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/70 text-blue-600 flex items-center justify-center">
                 <Ruler size={20} />
               </div>
-              <h3 className="font-bold text-stone-900 text-sm">
+              <h3 className="font-bold text-slate-900 text-sm">
                 {t('ecommerce.tech.f1Title', 'Xấp Xỉ Elip Ramanujan 3D')}
               </h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 {t('ecommerce.tech.f1Desc', 'Không dùng ước lượng thô sơ. Hệ thống cắt lớp mặt phẳng ngực, eo, hông và áp dụng tích phân chu vi elip bậc hai kết hợp mật độ mô sinh học Siri-Deurenberg để trích xuất số đo thực tế.')}
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-stone-50 border border-stone-200 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <div className="p-6 rounded-2xl bg-[#FAFAFB] border border-slate-200/90 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/70 text-emerald-600 flex items-center justify-center">
                 <ShieldCheck size={20} />
               </div>
-              <h3 className="font-bold text-stone-900 text-sm">
+              <h3 className="font-bold text-slate-900 text-sm">
                 {t('ecommerce.tech.f2Title', 'Bảo Mật Quyền Riêng Tư Tuyệt Đối')}
               </h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 {t('ecommerce.tech.f2Desc', 'Ảnh chụp của khách hàng được xử lý ngay trong bộ nhớ tạm In-Memory RAM và tự động xóa vĩnh viễn (Zero-Retention Policy). Không lưu trữ hình ảnh nhạy cảm trên máy chủ.')}
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-stone-50 border border-stone-200 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <div className="p-6 rounded-2xl bg-[#FAFAFB] border border-slate-200/90 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-600 flex items-center justify-center">
                 <TrendingUp size={20} />
               </div>
-              <h3 className="font-bold text-stone-900 text-sm">
+              <h3 className="font-bold text-slate-900 text-sm">
                 {t('ecommerce.tech.f3Title', 'Độ Cử Động May Đo (Ease Allowance)')}
               </h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 {t('ecommerce.tech.f3Desc', 'Áo quần không bao giờ may bằng khít với da thịt. FitVision 3D tính toán chính xác độ chùng vải (ease: +3cm đến +6cm) để đảm bảo bạn mặc đẹp nhưng vẫn cử động thoải mái khi làm việc.')}
               </p>
             </div>
@@ -1768,58 +1781,70 @@ export const FashionStoreHome: React.FC = () => {
         </div>
       </section>
 
-      {/* ── FOOTER (GIAO DIỆN XANH DA TRỜI NHẠT THANH LỊCH) ── */}
-      <footer className="bg-sky-50 text-slate-700 text-xs py-12 border-t-2 border-sky-200">
+      {/* ── BAND 7: DEEP CHARCOAL EDITORIAL FOOTER ── */}
+      <footer className="bg-[#14171C] text-slate-300 text-xs pt-14 pb-24 md:pb-12 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-sky-200">
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-white/10">
             {/* Brand & Vision */}
-            <div className="md:col-span-2 space-y-3 text-left">
+            <div className="md:col-span-2 space-y-3.5 text-left">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/30">
                   <Scissors size={18} strokeWidth={2.2} />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-lg text-slate-900 tracking-tight">
-                    FitVision <span className="text-blue-600">3D</span>
+                  <span className="font-extrabold text-lg text-white tracking-tight">
+                    FitVision <span className="text-blue-400">3D</span>
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-300">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-slate-200 border border-white/15">
                     {t('ecommerce.footer.smartTailoring', 'May Đo Thông Minh')}
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-600 font-normal leading-relaxed max-w-md">
+              <p className="text-xs text-slate-400 font-normal leading-relaxed max-w-md">
                 {t('ecommerce.footer.desc', 'Nền tảng thương mại điện tử thời trang may đo ứng dụng công nghệ quét 3D và nhân trắc học ISO 8559-1. Đảm bảo trang phục vừa vặn hoàn hảo từng centimet, xóa bỏ nỗi lo chọn nhầm kích cỡ.')}
               </p>
 
-              <div className="flex items-center gap-3 pt-1">
-                <div className="px-3 py-1.5 rounded-lg bg-white border-2 border-sky-200 text-[11px] text-slate-800 flex items-center gap-2 shadow-xs">
-                  <ShieldCheck size={14} className="text-emerald-600" />
+              <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] text-slate-200 flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-emerald-400" />
                   <span>{t('ecommerce.footer.guarantee', 'Cam kết vừa vặn 100% đổi trả miễn phí')}</span>
                 </div>
+              </div>
+
+              {/* Payment Method Badges */}
+              <div className="flex items-center gap-2 pt-1 flex-wrap">
+                {['COD', 'VietQR', 'SePay', 'ATM / Visa'].map((pm) => (
+                  <span
+                    key={pm}
+                    className="px-2.5 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-slate-300"
+                  >
+                    {pm}
+                  </span>
+                ))}
               </div>
             </div>
 
             {/* Customer Care Links */}
-            <div className="space-y-2.5 text-left">
-              <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+            <div className="space-y-3 text-left">
+              <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">
                 {t('ecommerce.footer.services', 'Dịch Vụ & Đo Đạc')}
               </h4>
-              <ul className="space-y-2 text-slate-600">
+              <ul className="space-y-2.5 text-slate-400">
                 <li>
-                  <a href="/dashboard" className="hover:text-blue-600 transition-colors duration-200 flex items-center gap-1.5 font-medium">
-                    <Camera size={13} className="text-blue-600" />
+                  <a href="/dashboard" className="hover:text-white transition-colors duration-200 flex items-center gap-2 font-medium">
+                    <Camera size={13} className="text-blue-400" />
                     <span>{t('ecommerce.footer.booth', 'Buồng Quét 3D Online')}</span>
                   </a>
                 </li>
                 <li>
                   <button
                     type="button"
-                    onClick={() => setIsBiometricModalOpen(true)}
-                    className="hover:text-blue-600 transition-colors duration-200 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left p-0 text-xs text-slate-600 font-medium"
+                    onClick={handleOpenBiometrics}
+                    className="hover:text-white transition-colors duration-200 flex items-center gap-2 bg-transparent border-0 cursor-pointer text-left p-0 text-xs text-slate-400 font-medium"
                   >
-                    <Ruler size={13} className="text-amber-600" />
+                    <Ruler size={13} className="text-amber-400" />
                     <span>{t('ecommerce.footer.sizingGuide', 'Hướng Dẫn Lấy Số Đo')}</span>
                   </button>
                 </li>
@@ -1827,9 +1852,9 @@ export const FashionStoreHome: React.FC = () => {
                   <button
                     type="button"
                     onClick={openOnboarding}
-                    className="hover:text-blue-600 transition-colors duration-200 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left p-0 text-xs text-slate-600 font-medium"
+                    className="hover:text-white transition-colors duration-200 flex items-center gap-2 bg-transparent border-0 cursor-pointer text-left p-0 text-xs text-slate-400 font-medium"
                   >
-                    <Store size={13} className="text-emerald-600" />
+                    <Store size={13} className="text-emerald-400" />
                     <span>{t('ecommerce.footer.registerMerchant', 'Dành Cho Nhà May & Đối Tác')}</span>
                   </button>
                 </li>
@@ -1837,51 +1862,49 @@ export const FashionStoreHome: React.FC = () => {
             </div>
 
             {/* Quick Actions & Repository */}
-            <div className="space-y-2.5 text-left">
-              <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+            <div className="space-y-3 text-left">
+              <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">
                 {t('ecommerce.footer.connect', 'Kết Nối & Hỗ Trợ')}
               </h4>
-              <ul className="space-y-2 text-slate-600">
+              <ul className="space-y-2.5 text-slate-400">
                 <li>
                   <a
                     href="https://github.com/le-van-thang/C1SE.12-FitVision3D"
                     target="_blank"
                     rel="noreferrer"
-                    className="hover:text-blue-600 transition-colors duration-200 flex items-center gap-1.5 font-medium"
+                    className="hover:text-white transition-colors duration-200 flex items-center gap-2 font-medium"
                   >
-                    <Layers size={13} className="text-purple-600" />
+                    <Layers size={13} className="text-purple-400" />
                     <span>{t('ecommerce.footer.github', 'GitHub Repository')}</span>
                   </a>
                 </li>
-                <li className="text-[11px] text-slate-600 font-medium">
+                <li className="text-[11px] text-slate-400 font-medium">
                   {t('ecommerce.footer.supportEmail', 'Hỗ trợ: support@fitvision3d.com')}
                 </li>
-                <li className="text-[11px] text-slate-600 font-medium">
+                <li className="text-[11px] text-slate-400 font-medium">
                   {t('ecommerce.footer.hours', 'Hoạt động: 8:00 - 21:00 (T2 - CN)')}
                 </li>
               </ul>
             </div>
-
           </div>
 
           {/* Bottom Copyright and Standards */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
             <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
-              <span className="font-semibold text-slate-900">© 2026 FitVision 3D Inc.</span>
-              <span className="text-sky-300">•</span>
-              <span className="px-2 py-0.5 rounded bg-white border border-sky-200 text-slate-700 font-mono text-[10px]">
+              <span className="font-semibold text-white">© 2026 FitVision 3D Inc.</span>
+              <span className="text-slate-600">•</span>
+              <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 font-mono text-[10px]">
                 {t('ecommerce.footer.isoBadge', 'Chuẩn ISO 8559-1:2014')}
               </span>
-              <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono text-[10px]">
+              <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 font-mono text-[10px]">
                 {t('ecommerce.footer.privacyBadge', 'Bảo Mật RAM 100%')}
               </span>
             </div>
 
-            <p className="text-slate-600 text-center sm:text-right font-medium">
+            <p className="text-slate-400 text-center sm:text-right font-medium">
               {t('ecommerce.footer.tagline', 'Thời Trang Vừa Vặn Chuẩn Xác Cho Mọi Vóc Dáng')}
             </p>
           </div>
-
         </div>
       </footer>
       </div> {/* End Right Main Content Area */}
