@@ -273,7 +273,7 @@ export const FashionStoreHome: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
-  const [profileModalTab, setProfileModalTab] = useState<'profile' | 'measurements' | 'orders' | 'merchant'>('profile');
+  const [profileModalTab, setProfileModalTab] = useState<'profile' | 'membership' | 'measurements' | 'orders' | 'merchant'>('profile');
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState<boolean>(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [isBodyProfileCollapsed, setIsBodyProfileCollapsed] = useState<boolean>(false);
@@ -641,12 +641,14 @@ export const FashionStoreHome: React.FC = () => {
                       <span className="text-xs font-bold text-white block truncate leading-none">
                         {currentUser?.full_name || t('ecommerce.sidebar.customerDefault', 'Khách Hàng')}
                       </span>
-                      <span className="text-[9px] text-blue-300 font-semibold block truncate mt-0.5">
-                        {userRole === 'store' || currentStore?.status === 'APPROVED'
+                      <span className={`text-[9px] font-semibold block truncate mt-0.5 ${userRole === 'admin' ? 'text-amber-300' : 'text-blue-300'}`}>
+                        {userRole === 'admin'
+                          ? (locale === 'en' ? '🛡️ Super Admin' : '🛡️ Quản Trị Viên')
+                          : userRole === 'store' || currentStore?.status === 'APPROVED'
                           ? t('ecommerce.sidebar.roleStore', '✂️ Chủ Shop')
                           : currentStore?.status === 'PENDING'
                           ? t('ecommerce.sidebar.rolePending', '⏳ Chờ Duyệt')
-                          : t('ecommerce.sidebar.roleCustomer', 'Tài khoản')}
+                          : t('ecommerce.sidebar.roleCustomer', 'Khách Hàng')}
                       </span>
                     </div>
                     <ChevronDown size={13} className={`text-stone-300 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
@@ -661,8 +663,10 @@ export const FashionStoreHome: React.FC = () => {
                       <div className="absolute top-full right-0 mt-2.5 w-72 bg-slate-100 rounded-2xl border border-slate-300 shadow-2xl z-50 animate-in slide-in-from-top-2 duration-150 overflow-hidden text-slate-900">
                         <div className="px-4 py-3 bg-[#14171C] text-white flex items-center justify-between">
                           <div className="min-w-0">
-                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
-                              {t('ecommerce.sidebar.menuTitle', 'Tài Khoản Cá Nhân')}
+                            <span className={`text-[10px] font-bold uppercase tracking-wider block ${userRole === 'admin' ? 'text-amber-300' : 'text-blue-400'}`}>
+                              {userRole === 'admin'
+                                ? 'SUPER ADMINISTRATOR'
+                                : t('ecommerce.sidebar.menuTitle', 'Tài Khoản Cá Nhân')}
                             </span>
                             <span className="text-xs font-mono font-semibold text-white truncate block">
                               {currentUser?.email}
@@ -728,7 +732,34 @@ export const FashionStoreHome: React.FC = () => {
                             <ChevronRight size={13} className="text-slate-400" />
                           </button>
 
-                          {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
+                          {userRole === 'admin' ? (
+                            <div className="space-y-1.5">
+                              <a
+                                href="/admin"
+                                className="w-full px-3 py-2 rounded-xl text-left bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white flex items-center justify-between cursor-pointer transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <ShieldCheck size={14} />
+                                  <span>{locale === 'en' ? 'Admin Control Portal (/admin)' : 'Cổng Quản Trị Admin (/admin)'}</span>
+                                </div>
+                                <ChevronRight size={13} />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsUserMenuOpen(false);
+                                  setIsAdminModalOpen(true);
+                                }}
+                                className="w-full px-3 py-2 rounded-xl text-left bg-white hover:bg-indigo-50 text-xs font-bold text-indigo-800 flex items-center justify-between border border-indigo-200 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <SlidersHorizontal size={14} />
+                                  <span>{locale === 'en' ? 'Quick Approve Stores' : 'Duyệt Shop & Quản Lý Nhanh'}</span>
+                                </div>
+                                <ChevronRight size={13} className="text-indigo-400" />
+                              </button>
+                            </div>
+                          ) : userRole === 'store' || currentStore?.status === 'APPROVED' ? (
                             <a
                               href="/tailor"
                               className="w-full px-3 py-2 rounded-xl text-left bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white flex items-center justify-between cursor-pointer"

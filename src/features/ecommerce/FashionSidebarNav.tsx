@@ -371,7 +371,11 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                       {userName || 'Thắng Lê'}
                     </span>
                     <span className="text-[10px] text-blue-600 font-semibold block truncate">
-                      {userRole === 'store' ? t('ecommerce.sidebar.roleStore', '✂️ Chủ Shop May Đo') : t('ecommerce.sidebar.roleCustomer', '👤 Khách Hàng')}
+                      {userRole === 'admin'
+                        ? '🛡️ Super Admin'
+                        : userRole === 'store'
+                        ? t('ecommerce.sidebar.roleStore', '✂️ Chủ Shop May Đo')
+                        : t('ecommerce.sidebar.roleCustomer', '👤 Khách Hàng')}
                     </span>
                   </div>
                 </div>

@@ -239,13 +239,17 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
 
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                    isApprovedStore
+                    userRole === 'admin'
+                      ? 'bg-indigo-500/25 text-indigo-100 border-indigo-300/60'
+                      : isApprovedStore
                       ? 'bg-amber-400 text-amber-950 border-amber-300'
                       : isPendingStore
                       ? 'bg-amber-400/20 text-amber-200 border-amber-300/50'
                       : 'bg-white/15 text-white border-white/25'
                   }`}>
-                    {isApprovedStore
+                    {userRole === 'admin'
+                      ? '🛡️ Super Admin'
+                      : isApprovedStore
                       ? t('ecommerce.profileModal.roleStore', '✂️ Đối Tác Nhà May B2B')
                       : isPendingStore
                       ? t('ecommerce.profileModal.rolePending', '⏳ Chờ Admin Duyệt Mở Shop')
