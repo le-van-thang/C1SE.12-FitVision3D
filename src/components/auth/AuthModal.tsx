@@ -9,19 +9,15 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  Layers,
   ArrowLeft,
   KeyRound,
   CheckCircle2,
-  Scissors,
   Sparkles,
-  Plus,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
-import { MeshViewport } from '@/features/anthropometry/MeshViewport';
-import { DEMO_MESH, DEMO_MEASUREMENT } from '@/data/mockData';
+import { SpinTurntableShowcase } from './SpinTurntableShowcase';
 
 export const AuthModal: React.FC = () => {
   const {
@@ -53,8 +49,6 @@ export const AuthModal: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeHotspot, setActiveHotspot] = useState<string | null>('chest');
-  const [activeStagePreset, setActiveStagePreset] = useState<'front' | 'ease'>('front');
 
   // Forgot password & Verify states
   const [forgotStep, setForgotStep] = useState<'request' | 'reset'>('request');
@@ -79,16 +73,6 @@ export const AuthModal: React.FC = () => {
       setConfirmNewPassword('');
     }
   }, [authModalTab, isAuthModalOpen]);
-
-  // Responsive 3D viewport height so the showcase never overflows the screen
-  const [meshHeight, setMeshHeight] = useState(() =>
-    Math.max(150, Math.min(320, window.innerHeight - 520)),
-  );
-  useEffect(() => {
-    const onResize = () => setMeshHeight(Math.max(150, Math.min(320, window.innerHeight - 520)));
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
 
   
   // Helper dịch mã lỗi sang ngôn ngữ đang chọn (VI/EN)
@@ -366,254 +350,38 @@ export const AuthModal: React.FC = () => {
 
   const isEn = locale === 'en';
 
-  const stageHotspots = [
-    {
-      id: 'chest',
-      top: '28%',
-      left: '36%',
-      title: isEn ? 'Chest Circumference' : 'Vòng ngực 3D',
-      metric: '96.0 cm',
-      note: isEn
-        ? 'Ramanujan quadratic ellipse scan · +4cm Tailored Ease Allowance'
-        : 'Cắt lớp elip Ramanujan · Cộng +4cm độ cử động may đo',
-    },
-    {
-      id: 'shoulder',
-      top: '21%',
-      left: '63%',
-      title: isEn ? 'Shoulder Span' : 'Rộng cầu vai',
-      metric: '43.0 cm',
-      note: isEn
-        ? 'ISO 8559 acromion alignment for crisp collar & sleeve drape'
-        : 'Định chuẩn mỏm vai ISO 8559 giúp vai áo đứng phom tự nhiên',
-    },
-    {
-      id: 'waist',
-      top: '46%',
-      left: '58%',
-      title: isEn ? 'Natural Waistline' : 'Vòng eo chuẩn',
-      metric: '78.0 cm',
-      note: isEn
-        ? 'Dynamic posture compensation · Zero-Retention RAM extraction'
-        : 'Bù trừ tư thế ngồi/đứng · Ảnh xử lý xong xóa ngay khỏi RAM',
-    },
-  ];
-
   const inputBaseClass =
     'w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-950 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none transition-all';
 
   return (
     <div className="zf-auth-fullscreen animate-fade-in">
-      {/* ── CỘT TRÁI: SPIN PRODUCT COOL-GRAY STUDIO STAGE + FITVISION 3D INTERACTIVE MESH ── */}
-      <div className="zf-auth-showcase-pane">
-        <div className="zf-auth-grid" />
-        <div className="zf-auth-orb" />
-        <div className="zf-auth-scan" />
+      {/* ── CỘT TRÁI: SPIN PRODUCT 360° TURNTABLE STAGE + FITVISION 3D METRICS ── */}
+      <SpinTurntableShowcase />
 
-        {/* Top Brand Header (Đồng bộ 100% FitVision 3D Storefront) */}
-        <div className="relative z-10 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/25">
-              <Scissors size={19} strokeWidth={2.2} />
-            </div>
-            <div>
-              <span className="font-black text-lg tracking-tight text-[#14171C] block leading-tight">
-                FitVision <span className="text-blue-600">3D</span>
-              </span>
-              <span className="text-[11px] font-medium text-slate-600 block">
-                {t('app.auth.engine', 'Atelier & Công cụ phân tích hình thể 3D')}
-              </span>
-            </div>
-          </div>
-
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/90 border border-slate-300/80 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-800 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>{t('app.auth.isoBadge', 'CHUẨN ISO 8559-1')}</span>
-          </div>
-        </div>
-
-        {/* Center Stage: Interactive 3D Viewport + Spin Product SVG Connectors & Pulsing + Hotspots */}
-        <div className="relative z-10 my-auto w-full space-y-2.5">
-          <div className="relative rounded-2xl overflow-hidden bg-[#14171C] border border-slate-300 shadow-xl">
-            <MeshViewport
-              meshParams={DEMO_MESH}
-              measurement={DEMO_MEASUREMENT}
-              height={meshHeight}
-              zonePillAlign="right"
-            />
-
-            {/* Spin-Product Inspired Architectural SVG Connector Lines */}
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-            >
-              <path
-                key={`line-chest-${activeHotspot}`}
-                d="M 10 28 H 28 L 36 28"
-                fill="none"
-                stroke="rgba(255,255,255,0.45)"
-                strokeWidth="0.4"
-                pathLength={1}
-                className="fv-connector-path"
-              />
-              <path
-                key={`line-waist-${activeHotspot}`}
-                d="M 90 46 H 70 L 58 46"
-                fill="none"
-                stroke="rgba(255,255,255,0.45)"
-                strokeWidth="0.4"
-                pathLength={1}
-                className="fv-connector-path"
-              />
-            </svg>
-
-            {/* Spin-Product Interactive Pulsing + Biometric Hotspots */}
-            {stageHotspots.map((hs) => {
-              const isSelected = activeHotspot === hs.id;
-              const isRightSide = parseFloat(hs.left) > 50;
-              return (
-                <div
-                  key={hs.id}
-                  style={{ top: hs.top, left: hs.left }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
-                  onMouseEnter={() => setActiveHotspot(hs.id)}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setActiveHotspot(isSelected ? null : hs.id)}
-                    className={`relative w-6 h-6 rounded-full flex items-center justify-center shadow-md border transition-transform cursor-pointer ${
-                      isSelected
-                        ? 'bg-blue-600 text-white border-white scale-110'
-                        : 'bg-white/95 text-[#14171C] border-slate-300 hover:scale-110'
-                    }`}
-                    aria-label={hs.title}
-                  >
-                    <span className="absolute inset-0 rounded-full bg-blue-400/50 animate-ping" />
-                    <Plus size={12} className={`relative z-10 transition-transform ${isSelected ? 'rotate-45' : ''}`} />
-                  </button>
-
-                  {isSelected && (
-                    <div
-                      className={`hidden xl:block absolute top-1/2 -translate-y-1/2 w-52 p-2.5 bg-white/95 backdrop-blur-md text-slate-900 rounded-lg shadow-xl border border-slate-200 pointer-events-none animate-in fade-in duration-200 ${
-                        isRightSide ? 'right-8' : 'left-8'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1 mb-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                          {hs.title}
-                        </span>
-                        <span className="font-mono text-xs font-black text-blue-600">{hs.metric}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-600 leading-snug">{hs.note}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Top-left Spin Product Corner-Bracket Stage Switcher */}
-            <div className="absolute top-3 left-3 flex items-center gap-1.5 z-20">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveStagePreset('front');
-                  setActiveHotspot('chest');
-                }}
-                className={`px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider cursor-pointer transition-all ${
-                  activeStagePreset === 'front'
-                    ? 'bg-white text-[#14171C] fv-bracket-active shadow-sm'
-                    : 'bg-black/45 text-stone-200 hover:bg-black/65 rounded'
-                }`}
-              >
-                {isEn ? '3D Body Scan' : 'Mô hình 3D'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveStagePreset('ease');
-                  setActiveHotspot('waist');
-                }}
-                className={`px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider cursor-pointer transition-all ${
-                  activeStagePreset === 'ease'
-                    ? 'bg-white text-[#14171C] fv-bracket-active shadow-sm'
-                    : 'bg-black/45 text-stone-200 hover:bg-black/65 rounded'
-                }`}
-              >
-                {isEn ? 'Ease Allowance' : 'Độ cử động'}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-600 px-1">
-            <span className="flex items-center gap-1.5 font-semibold">
-              <Layers size={13} className="text-blue-600" />
-              <span>{t('app.auth.topology', 'Lưới 3D hai lớp · Khớp 13 điểm ISO')}</span>
-            </span>
-            <span className="text-emerald-700 font-bold">
-              {t('app.auth.latency', 'Độ trễ < 1.25s')}
-            </span>
-          </div>
-        </div>
-
-        {/* Bottom: Spin-Product Notched Editorial Card with FitVision 3D Stats & Privacy Guarantee */}
-        <div className="relative z-10 space-y-3">
-          <h2 className="font-display text-xl xl:text-2xl font-bold text-[#14171C] leading-snug">
-            {t('app.auth.taglinePre', 'Đo lường chuẩn ')}{' '}
-            <span className="text-blue-600 italic">{t('app.auth.taglineHi', 'Nhân Trắc Học 3D')}</span>,{' '}
-            {t('app.auth.taglinePost', 'vừa vặn từng đường may.')}
-          </h2>
-
-          <div className="grid grid-cols-3 gap-2.5">
-            {[
-              { v: '±0.8cm', l: t('app.auth.chipError', 'Sai số phép đo') },
-              { v: '1.25s', l: t('app.auth.chipSpeed', 'Trích xuất 3D') },
-              { v: '0 byte', l: t('app.auth.chipRetention', 'Lưu ảnh máy chủ') },
-            ].map((s) => (
-              <div key={s.l} className="zf-auth-chip">
-                <b>{s.v}</b>
-                <small>{s.l}</small>
-              </div>
-            ))}
-          </div>
-
-          <div className="fv-notched-card bg-white/95 border border-slate-200 px-5 py-3.5 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
-              <strong className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
-                {t('app.auth.aboutTitle', 'Cam Kết Quyền Riêng Tư FitVision 3D')}
-              </strong>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed m-0">
-              {t('app.auth.aboutDesc', 'Nền tảng đo nhân trắc học 3D theo chuẩn ISO 8559-1: trích xuất 13 số đo cơ thể và gợi ý size may đo phù hợp. Ảnh chụp chỉ xử lý trên bộ nhớ tạm RAM và xóa ngay lập tức.')}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── CỘT PHẢI: EDITORIAL LIGHT FORM PANE (ĐỒNG BỘ MÀU STOREFRONT) ── */}
+      {/* ── CỘT PHẢI: EDITORIAL LIGHT FORM PANE (COBALT & CHAMPAGNE HARMONY) ── */}
       <div ref={formPaneRef} className="zf-auth-form-pane">
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-slate-200/80 bg-white/80 backdrop-blur-sm shrink-0">
+        {/* Top bar: Left Back Button | Right Corner [VI/EN + Close] */}
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-slate-200/80 bg-white/85 backdrop-blur-sm shrink-0">
           <button
             type="button"
             onClick={closeAuthModal}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-600 hover:text-[#14171C] hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50/70 text-xs font-bold transition-colors cursor-pointer"
           >
             <ArrowLeft size={15} />
             <span>{t('app.auth.back', 'Quay lại cửa hàng')}</span>
           </button>
 
-          <LanguageSwitcher size="md" variant="light" />
-
-          <button
-            type="button"
-            onClick={closeAuthModal}
-            className="w-9 h-9 grid place-items-center bg-white border border-slate-200 hover:border-blue-600 rounded-xl text-slate-600 hover:text-[#14171C] cursor-pointer transition-colors"
-            aria-label={t('app.auth.close', 'Đóng')}
-          >
-            <X size={17} />
-          </button>
+          <div className="flex items-center gap-2.5">
+            <LanguageSwitcher size="md" variant="light" />
+            <button
+              type="button"
+              onClick={closeAuthModal}
+              className="w-9 h-9 grid place-items-center bg-white border border-slate-200 hover:border-blue-600 rounded-xl text-slate-600 hover:text-blue-700 cursor-pointer transition-colors"
+              aria-label={t('app.auth.close', 'Đóng')}
+            >
+              <X size={17} />
+            </button>
+          </div>
         </div>
 
         {/* Form Body - Centered */}
@@ -630,7 +398,7 @@ export const AuthModal: React.FC = () => {
                   <Lock size={20} strokeWidth={2} />
                 )}
               </div>
-              <h1 className="font-display text-2xl font-bold text-[#14171C] tracking-tight m-0">
+              <h1 className="font-display text-2xl font-bold text-slate-900 tracking-tight m-0">
                 {authModalTab === 'signin'
                   ? t('app.auth.signinTitle', 'Đăng nhập FitVision 3D')
                   : authModalTab === 'register'
@@ -652,14 +420,14 @@ export const AuthModal: React.FC = () => {
 
             {/* Tab Switcher */}
             {(authModalTab === 'signin' || authModalTab === 'register') && (
-              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 border border-slate-200 rounded-xl mb-5">
+              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100/90 border border-slate-200 rounded-xl mb-5">
                 <button
                   type="button"
                   onClick={openSignIn}
                   className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     authModalTab === 'signin'
-                      ? 'bg-white text-[#14171C] shadow-xs border border-slate-200/80'
-                      : 'text-slate-500 hover:text-slate-800 bg-transparent border border-transparent'
+                      ? 'bg-white text-blue-700 shadow-xs border border-blue-200/70'
+                      : 'text-slate-500 hover:text-slate-900 bg-transparent border border-transparent'
                   }`}
                 >
                   {t('app.auth.tabSignin', 'Đăng nhập')}
@@ -669,8 +437,8 @@ export const AuthModal: React.FC = () => {
                   onClick={openRegister}
                   className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     authModalTab === 'register'
-                      ? 'bg-white text-[#14171C] shadow-xs border border-slate-200/80'
-                      : 'text-slate-500 hover:text-slate-800 bg-transparent border border-transparent'
+                      ? 'bg-white text-blue-700 shadow-xs border border-blue-200/70'
+                      : 'text-slate-500 hover:text-slate-900 bg-transparent border border-transparent'
                   }`}
                 >
                   {t('app.auth.tabRegister', 'Tạo tài khoản')}
@@ -1189,15 +957,15 @@ export const AuthModal: React.FC = () => {
             )}
 
             {/* Editorial Trust Footer inside Auth Card */}
-            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center gap-4 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1">
+            <div className="mt-5 px-3 py-2 rounded-xl bg-[#F5EBD8]/65 border border-[#E5D3B3]/80 flex items-center justify-center gap-4 text-[11px] font-semibold text-slate-800">
+              <span className="flex items-center gap-1.5">
                 <Sparkles size={12} className="text-blue-600" />
                 <span>ISO 8559-1</span>
               </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <ShieldCheck size={12} className="text-emerald-600" />
-                <span>{isEn ? 'RAM Privacy' : 'Bảo mật RAM'}</span>
+              <span className="text-amber-700/50">•</span>
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck size={12} className="text-emerald-700" />
+                <span>{isEn ? 'RAM Zero-Retention' : 'Bảo mật RAM 100%'}</span>
               </span>
             </div>
           </div>

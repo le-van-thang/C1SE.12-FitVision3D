@@ -577,7 +577,7 @@
 }
 
 
-/* ── Full-Screen Auth View (Editorial Light + Spin Product Studio Stage) ── */
+/* ── Full-Screen Auth View (Editorial Atelier + Spin Product 360 Stage) ── */
 .zf-auth-fullscreen {
   position: fixed !important;
   inset: 0 !important;
@@ -587,28 +587,27 @@
   z-index: 9999 !important;
   display: grid !important;
   grid-template-columns: 1fr !important;
-  background: #F7F7F5 !important;
+  background: #F4F5F7 !important;
   color: #14171C !important;
   overflow: hidden !important;
 }
 
 @media (min-width: 1024px) {
   .zf-auth-fullscreen {
-    grid-template-columns: minmax(480px, 48%) 1fr !important;
+    grid-template-columns: minmax(500px, 50%) 1fr !important;
   }
 }
 
 .zf-auth-showcase-pane {
   display: none !important;
-  background: radial-gradient(circle at 50% 42%, #F1F2F5 0%, #E2E4E8 62%, #D4D7DD 100%) !important;
+  background: #E2E4E8 !important;
   border-right: 1px solid #CBD5E1 !important;
-  padding: 28px 36px !important;
+  padding: 22px 28px !important;
   flex-direction: column !important;
   justify-content: space-between !important;
   position: relative !important;
   height: 100dvh !important;
   overflow: hidden !important;
-  gap: 12px;
 }
 
 @media (min-width: 1024px) {
@@ -619,9 +618,9 @@
 
 .zf-auth-form-pane {
   background:
-    radial-gradient(circle at 85% 8%, rgba(37, 99, 235, 0.05) 0%, transparent 45%),
-    radial-gradient(circle at 10% 95%, rgba(245, 235, 216, 0.5) 0%, transparent 45%),
-    #F7F7F5 !important;
+    radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 15% 88%, rgba(200, 150, 62, 0.14) 0%, transparent 48%),
+    linear-gradient(160deg, #F8FAFC 0%, #F5F2EB 55%, #EFF3FA 100%) !important;
   height: 100dvh !important;
   display: flex !important;
   flex-direction: column !important;
@@ -636,8 +635,8 @@
   pointer-events: none;
   z-index: 1;
   background-image:
-    linear-gradient(rgba(20, 23, 28, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20, 23, 28, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(20, 23, 28, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 23, 28, 0.035) 1px, transparent 1px);
   background-size: 40px 40px;
   -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 30%, transparent 80%);
   mask-image: radial-gradient(circle at 50% 45%, #000 30%, transparent 80%);
@@ -650,37 +649,30 @@
   width: 360px;
   height: 360px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.09) 0%, transparent 70%);
-  filter: blur(12px);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+  filter: blur(14px);
   pointer-events: none;
   z-index: 1;
   animation: zfAuthFloat 9s ease-in-out infinite;
 }
 
 .zf-auth-scan {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 110px;
-  pointer-events: none;
-  z-index: 1;
-  background: linear-gradient(180deg, transparent, rgba(37, 99, 235, 0.06), transparent);
-  animation: zfAuthScan 7s linear infinite;
+  display: none;
 }
 
 /* Spin-Product Notched Card Shape (Architectural Ticket Cutout) */
 .fv-notched-card {
   clip-path: polygon(
     0 0,
-    110px 0,
-    120px 7px,
-    100% 7px,
-    100% calc(100% - 7px),
-    calc(100% - 140px) calc(100% - 7px),
-    calc(100% - 150px) 100%,
-    8px 100%,
-    8px calc(100% - 28px),
-    0 calc(100% - 36px)
+    92px 0,
+    100px 6px,
+    100% 6px,
+    100% calc(100% - 6px),
+    calc(100% - 110px) calc(100% - 6px),
+    calc(100% - 118px) 100%,
+    6px 100%,
+    6px calc(100% - 22px),
+    0 calc(100% - 28px)
   );
 }
 
@@ -710,71 +702,45 @@
 .fv-connector-path {
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
-  animation: fvLineDraw 0.9s cubic-bezier(0.65, 0, 0.25, 1) forwards;
+  animation: fvLineDraw 0.7s cubic-bezier(0.65, 0, 0.25, 1) forwards;
 }
 
-@keyframes zfAuthScan { 0% { top: -110px; } 100% { top: 100%; } }
 @keyframes zfAuthFloat { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px,-24px); } }
 @keyframes zfAuthRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-
-.zf-auth-chip {
-  padding: 10px 12px;
-  border-radius: 12px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid #CBD5E1;
-  box-shadow: 0 2px 6px rgba(20, 23, 28, 0.04);
-}
-.zf-auth-chip b {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  color: #14171C;
-}
-.zf-auth-chip small {
-  display: block;
-  margin-top: 2px;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #475569;
-}
 
 .zf-auth-card {
   position: relative;
   max-width: 450px !important;
   padding: 32px 30px;
-  background: #FFFFFF !important;
-  border: 1px solid #E2E8F0 !important;
-  border-radius: 20px;
-  box-shadow: 0 20px 50px -20px rgba(20, 23, 28, 0.12), 0 4px 12px -2px rgba(20, 23, 28, 0.04) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(203, 213, 225, 0.85) !important;
+  border-radius: 22px;
+  box-shadow: 0 24px 55px -20px rgba(30, 41, 59, 0.16), 0 6px 16px -4px rgba(37, 99, 235, 0.08) !important;
+  backdrop-filter: blur(12px);
   animation: zfAuthRise 0.4s ease both;
 }
 .zf-auth-card::before {
   content: '';
   position: absolute;
-  left: 28px;
-  right: 28px;
+  left: 32px;
+  right: 32px;
   top: 0;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: linear-gradient(90deg, #14171C, #2563EB, #14171C);
+  height: 3.5px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, #2563EB, #C8963E, #4F46E5);
 }
 @media (max-width: 520px) { .zf-auth-card { padding: 24px 18px; } }
-@media (max-height: 760px) { .zf-auth-chip { display: none !important; } .zf-auth-showcase-pane { padding: 20px 30px !important; } }
-@media (max-height: 640px) { .zf-auth-showcase-pane h2 { display: none; } }
 
 .zf-auth-badge {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   margin: 0 auto 12px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 15px;
   color: #FFFFFF;
-  background: #14171C;
-  box-shadow: 0 8px 20px -6px rgba(20, 23, 28, 0.35);
+  background: linear-gradient(135deg, #2563EB 0%, #4F46E5 100%);
+  box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.42);
 }
 
 .zf-auth-form-pane input:not([type=checkbox]) {
@@ -782,18 +748,18 @@
 }
 .zf-auth-form-pane input:not([type=checkbox]):focus {
   border-color: #2563EB !important;
-  box-shadow: 0 0 0 1000px #FFFFFF inset, 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
+  box-shadow: 0 0 0 1000px #FFFFFF inset, 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
 }
 .zf-auth-form-pane button[type=submit] {
-  background: #14171C !important;
+  background: linear-gradient(135deg, #2563EB 0%, #4338CA 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 8px 20px -6px rgba(20, 23, 28, 0.3) !important;
-  transition: transform 0.18s, background-color 0.18s, box-shadow 0.18s !important;
+  box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.42) !important;
+  transition: transform 0.18s, filter 0.18s, box-shadow 0.18s !important;
 }
 .zf-auth-form-pane button[type=submit]:hover {
-  background: #2563EB !important;
+  filter: brightness(1.07);
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.4) !important;
+  box-shadow: 0 14px 28px -6px rgba(37, 99, 235, 0.5) !important;
 }
 .zf-auth-form-pane button[type=submit]:active { transform: translateY(0); }
 
