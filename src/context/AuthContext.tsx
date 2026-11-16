@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Profile, Store, UserRole } from '@/types/database.types';
 import { TEST_USERS, INITIAL_MOCK_STORES } from '@/data/mockData';
 import {
@@ -147,6 +148,7 @@ function initCurrentUserId(): string | null {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>(initProfiles);
   const [stores, setStores] = useState<Store[]>(initStores);
   const [currentUserId, setCurrentUserId] = useState<string | null>(initCurrentUserId);
@@ -284,6 +286,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setCurrentUserId(profile.id);
         setIsAuthModalOpen(false);
+        if (profile.role === 'admin') {
+          navigate('/admin');
+        }
         return { success: true };
       }
 
@@ -455,6 +460,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setCurrentUserId(prof.id);
         setIsAuthModalOpen(false);
+        if (prof.role === 'admin') {
+          navigate('/admin');
+        }
         return { success: true };
       }
       return {

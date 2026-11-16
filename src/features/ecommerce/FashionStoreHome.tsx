@@ -1357,6 +1357,48 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         )}
 
+        {/* ── SUPER ADMIN COMMAND BAR (When browsing storefront as Admin) ── */}
+        {userRole === 'admin' && (
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-50 via-slate-50 to-white border-[1.5px] border-indigo-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold flex-shrink-0 shadow-xs">
+                <ShieldCheck size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-950">
+                    {locale === 'en' ? 'Super Admin Mode — Viewing Customer Storefront' : 'Chế Độ Super Admin — Đang Xem Giao Diện Cửa Hàng'}
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-[10px]">
+                    ADMIN
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-slate-700 mt-0.5">
+                  {locale === 'en'
+                    ? 'Open the dedicated Admin Control Portal (/admin) to manage users, approve partner shops, and inspect audit logs.'
+                    : 'Mở Trang Quản Trị (/admin) để phê duyệt nhà may, quản lý người dùng và xem nhật ký hệ thống.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+              <a
+                href="/admin"
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <ShieldCheck size={14} />
+                <span>{locale === 'en' ? 'Open Admin Portal' : 'Vào Trang Quản Trị (/admin)'}</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setIsAdminModalOpen(true)}
+                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-indigo-50 text-indigo-800 border border-indigo-300 text-xs font-bold transition-all cursor-pointer"
+              >
+                {locale === 'en' ? 'Quick Review Shops' : 'Duyệt Shop Nhanh'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── TAILOR / MERCHANT STORE BAR (When in Store Role) ── */}
         {userRole === 'store' && (
           <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50/60 to-white border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
