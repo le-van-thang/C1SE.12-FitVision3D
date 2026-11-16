@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { Order, CreateOrderInput, OrderStatus } from '@/features/ecommerce/types';
 import { MOCK_PRODUCTS } from '@/features/ecommerce/mockProducts';
 import { commerceApi } from '@/services/commerceApi';
+import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
 interface OrderContextType {
   orders: Order[];
@@ -175,6 +176,11 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setOrders((prev) => [newOrder, ...prev]);
+    showGlobalToast({
+      type: 'success',
+      title: `Đặt đơn hàng ${orderId} thành công!`,
+      message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫ · Đã lưu vào hệ thống.`,
+    });
     commerceApi.createOrder(newOrder).then((res) => {
       if (res.success) {
         window.dispatchEvent(new Event('fv3d-membership-updated'));
@@ -198,6 +204,11 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: 'cancelled' } : o))
     );
+    showGlobalToast({
+      type: 'warning',
+      title: `Đã hủy đơn hàng ${orderId}`,
+      message: 'Trạng thái đơn hàng đã được cập nhật.',
+    });
     commerceApi.updateOrderStatus(orderId, 'cancelled').then((res) => {
       if (res.success) {
         window.dispatchEvent(new Event('fv3d-membership-updated'));

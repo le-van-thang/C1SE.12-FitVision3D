@@ -9,6 +9,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { TailorStudio } from "./pages/TailorStudio";
 import { SizeChartManager } from "./pages/SizeChartManager";
 import { AdminPortal } from "./pages/AdminPortal";
+import { GlobalToastHost } from "./components/common/GlobalToastHost";
 import "./index.css";
 
 /** Guests can only use the Dashboard; other studio pages need a signed-in account. */
@@ -68,6 +69,7 @@ export const App: React.FC = () => (
     <I18nProvider>
       <AuthProvider>
         <OrderProvider>
+          <GlobalToastHost />
           <Routes>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/legacy-landing" element={<Landing />} />

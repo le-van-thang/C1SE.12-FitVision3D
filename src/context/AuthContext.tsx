@@ -11,6 +11,7 @@ import {
 } from '@/lib/validationRules';
 import { authApi } from '@/services/authApi';
 import { adminApi } from '@/services/adminApi';
+import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
 const STORAGE_KEY_PROFILES = 'fv3d_auth_profiles_v1';
 const STORAGE_KEY_STORES = 'fv3d_auth_stores_v1';
@@ -286,6 +287,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setCurrentUserId(profile.id);
         setIsAuthModalOpen(false);
+        showGlobalToast({
+          type: 'success',
+          title: 'Đăng nhập thành công!',
+          message: `Chào mừng ${profile.full_name} quay lại FitVision 3D.`,
+        });
         if (profile.role === 'admin') {
           navigate('/admin');
         }
@@ -370,6 +376,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.success) {
+        showGlobalToast({
+          type: 'info',
+          title: 'Đăng ký tài khoản thành công!',
+          message: 'Vui lòng kiểm tra hộp thư Gmail để lấy mã OTP kích hoạt.',
+        });
         return {
           success: true,
           message: res.data?.message || 'Đăng ký thành công! Hãy kiểm tra email để kích hoạt tài khoản.',
@@ -389,6 +400,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyEmail = useCallback(async (email: string, otp: string) => {
     const res = await authApi.verifyEmail(email.trim(), otp.trim());
     if (res.success) {
+      showGlobalToast({
+        type: 'success',
+        title: 'Xác thực email thành công!',
+        message: 'Tài khoản đã được kích hoạt, bạn có thể đăng nhập ngay.',
+      });
       return {
         success: true,
         message: res.data?.message || 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.',
@@ -435,6 +451,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.success) {
+        showGlobalToast({
+          type: 'success',
+          title: 'Đặt lại mật khẩu thành công!',
+          message: 'Bạn có thể đăng nhập bằng mật khẩu mới ngay bây giờ.',
+        });
         return {
           success: true,
           message: res.data?.message || 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.',
@@ -460,6 +481,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setCurrentUserId(prof.id);
         setIsAuthModalOpen(false);
+        showGlobalToast({
+          type: 'success',
+          title: 'Đăng nhập Google thành công!',
+          message: `Xin chào ${prof.full_name} · Chúc bạn trải nghiệm FitVision 3D.`,
+        });
         if (prof.role === 'admin') {
           navigate('/admin');
         }
@@ -482,6 +508,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       localStorage.setItem(STORAGE_KEY_USER_ID, 'guest');
     } catch {}
+    showGlobalToast({
+      type: 'info',
+      title: 'Đã đăng xuất tài khoản',
+      message: 'Phiên đăng nhập của bạn đã được kết thúc an toàn.',
+    });
   }, []);
 
   // 8. Merchant Onboarding (Apply for Store)
@@ -598,6 +629,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setStores((prev) => [newStore, ...prev]);
       setIsOnboardingModalOpen(false);
       setIsStatusModalOpen(true);
+      showGlobalToast({
+        type: 'success',
+        title: 'Đã gửi hồ sơ mở gian hàng!',
+        message: `Hồ sơ "${brandName}" đã chuyển tới Admin xét duyệt.`,
+      });
 
       return { success: true };
     },
