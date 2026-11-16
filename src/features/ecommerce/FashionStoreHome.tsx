@@ -599,19 +599,23 @@ export const FashionStoreHome: React.FC = () => {
 
         </div>
 
-        {/* Chân thanh điều hướng: Hồ Sơ Người Dùng gọn gàng, thanh lịch */}
-        <div className="p-3 border-t border-slate-200 bg-slate-50/80 flex-shrink-0 relative">
+        {/* Chân thanh điều hướng: Khu vực Tài Khoản nền xám tách biệt rõ ràng với thanh chức năng trắng phía trên */}
+        <div className="p-3 border-t-2 border-slate-300 bg-slate-100 flex-shrink-0 relative">
           {isAuthenticated ? (
             <div className="relative">
-              {/* User Pill Button */}
+              {/* User Pill Button: Khung viền rõ nét, khi mở menu sẽ sáng viền xanh */}
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="w-full p-2.5 rounded-xl bg-white border border-slate-300 hover:border-blue-400 shadow-2xs hover:shadow-xs flex items-center justify-between transition-all cursor-pointer group"
+                className={`w-full p-2.5 rounded-xl bg-white border-[1.5px] flex items-center justify-between transition-all cursor-pointer group ${
+                  isUserMenuOpen
+                    ? 'border-blue-600 ring-2 ring-blue-500/20 shadow-md'
+                    : 'border-slate-400 hover:border-blue-500 shadow-xs hover:shadow-sm'
+                }`}
                 title={t('ecommerce.sidebar.userPillTooltip', 'Bấm để mở menu quản lý tài khoản & đơn hàng')}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs overflow-hidden group-hover:scale-105 transition-transform">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs border border-blue-700 overflow-hidden group-hover:scale-105 transition-transform">
                     {currentUser?.avatar_url ? (
                       <img
                         src={currentUser.avatar_url}
@@ -623,10 +627,10 @@ export const FashionStoreHome: React.FC = () => {
                     )}
                   </div>
                   <div className="text-left min-w-0">
-                    <span className="font-bold text-xs text-slate-900 block truncate leading-tight group-hover:text-blue-600">
+                    <span className="font-extrabold text-xs text-slate-900 block truncate leading-tight group-hover:text-blue-600">
                       {currentUser?.full_name || t('ecommerce.sidebar.customerDefault', 'Khách Hàng')}
                     </span>
-                    <span className="text-[10px] text-blue-600 font-semibold block truncate">
+                    <span className="text-[10px] text-blue-600 font-bold block truncate">
                       {userRole === 'store' || currentStore?.status === 'APPROVED'
                         ? t('ecommerce.sidebar.roleStore', '✂️ Chủ Shop')
                         : currentStore?.status === 'PENDING'
@@ -644,12 +648,12 @@ export const FashionStoreHome: React.FC = () => {
                   )}
                   <ChevronUp
                     size={16}
-                    className={`text-slate-500 transition-transform ${isUserMenuOpen ? 'rotate-180 text-blue-600' : ''}`}
+                    className={`text-slate-600 transition-transform ${isUserMenuOpen ? 'rotate-180 text-blue-600' : ''}`}
                   />
                 </div>
               </button>
 
-              {/* Floating Popover Menu khi bấm vào User Pill */}
+              {/* Floating Popover Menu: Header tối màu + Khung viền đậm tách biệt hoàn toàn khỏi nền trắng của Sidebar */}
               {isUserMenuOpen && (
                 <>
                   {/* Invisible Backdrop để click ra ngoài tự đóng */}
@@ -658,136 +662,154 @@ export const FashionStoreHome: React.FC = () => {
                     onClick={() => setIsUserMenuOpen(false)}
                   />
 
-                  <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 animate-in slide-in-from-bottom-2 duration-150 space-y-1">
-                    {/* Header thông tin trong popover */}
-                    <div className="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                  <div className="absolute bottom-full left-0 right-0 mb-2.5 bg-slate-100 rounded-2xl border-2 border-slate-700 shadow-[0_12px_32px_-4px_rgba(15,23,42,0.3)] z-50 animate-in slide-in-from-bottom-2 duration-150 overflow-hidden">
+                    {/* Header màu tối (Slate-900) để không bao giờ bị trùng màu với thanh chức năng trắng phía sau */}
+                    <div className="px-3.5 py-2.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
                       <div className="min-w-0">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        <span className="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider block">
                           {t('ecommerce.sidebar.menuTitle', 'Tài Khoản Cá Nhân')}
                         </span>
-                        <span className="text-xs font-mono font-bold text-slate-800 truncate block">
+                        <span className="text-xs font-mono font-bold text-white truncate block">
                           {currentUser?.email}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
                       >
-                        <X size={14} />
+                        <X size={13} />
                       </button>
                     </div>
 
-                    {/* 1. Hồ Sơ Cá Nhân & Chỉnh Sửa Thông Tin */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        setProfileModalTab('profile');
-                        setIsProfileModalOpen(true);
-                      }}
-                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-slate-50 text-xs font-bold text-slate-800 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-slate-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        <UserIcon size={14} className="text-blue-600" />
-                        <span>{t('ecommerce.sidebar.menuProfile', 'Hồ sơ cá nhân & Chỉnh sửa')}</span>
-                      </div>
-                      <ChevronRight size={13} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
-
-                    {/* 2. Đơn Hàng Của Tôi */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        setProfileModalTab('orders');
-                        setIsProfileModalOpen(true);
-                      }}
-                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-blue-50/70 text-xs font-bold text-slate-800 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-blue-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Package size={14} className="text-blue-600" />
-                        <span>{t('ecommerce.sidebar.menuOrders', 'Đơn hàng của tôi')}</span>
-                      </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                        {userOrders.length}
-                      </span>
-                    </button>
-
-                    {/* 3. Hồ Sơ Số Đo Vóc Dáng 3D */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        setProfileModalTab('measurements');
-                        setIsProfileModalOpen(true);
-                      }}
-                      className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-purple-50/70 text-xs font-bold text-slate-800 flex items-center justify-between transition-colors cursor-pointer group border border-transparent hover:border-purple-200"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Ruler size={14} className="text-purple-600" />
-                        <span>{t('ecommerce.sidebar.menuMeasurements', 'Số đo vóc dáng 3D')}</span>
-                      </div>
-                      <ChevronRight size={13} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
-
-                    {/* 4. Đăng Ký Mở Gian Hàng May Đo B2B */}
-                    {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
-                      <a
-                        href="/tailor"
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-900 flex items-center justify-between transition-colors cursor-pointer border border-emerald-200"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Store size={14} className="text-emerald-600" />
-                          <span>{t('ecommerce.sidebar.menuTailorChannel', 'Vào Kênh Nhà May (/tailor)')}</span>
-                        </div>
-                        <ChevronRight size={13} className="text-emerald-600" />
-                      </a>
-                    ) : currentStore?.status === 'PENDING' ? (
+                    {/* Danh sách nút bấm: Mỗi mục là 1 thẻ có nền trắng và khung viền riêng rõ ràng */}
+                    <div className="p-2 space-y-1.5">
+                      {/* 1. Hồ Sơ Cá Nhân & Chỉnh Sửa Thông Tin */}
                       <button
                         type="button"
                         onClick={() => {
                           setIsUserMenuOpen(false);
-                          openStatusModal();
-                        }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 flex items-center justify-between transition-colors cursor-pointer border border-amber-200"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Clock size={14} className="text-amber-600 animate-pulse" />
-                          <span>{t('ecommerce.sidebar.menuPendingApproval', 'Hồ sơ chờ Admin duyệt')}</span>
-                        </div>
-                        <ChevronRight size={13} className="text-amber-500" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsUserMenuOpen(false);
-                          setProfileModalTab('merchant');
+                          setProfileModalTab('profile');
                           setIsProfileModalOpen(true);
                         }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-between transition-colors cursor-pointer shadow-xs border border-amber-600"
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-white hover:bg-blue-50 text-xs font-bold text-slate-800 hover:text-blue-900 flex items-center justify-between transition-all cursor-pointer group border border-slate-300 hover:border-blue-400 shadow-2xs"
                       >
                         <div className="flex items-center gap-2">
-                          <Store size={14} />
-                          <span>{t('ecommerce.sidebar.menuRegisterStore', 'Đăng ký mở gian hàng')}</span>
+                          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
+                            <UserIcon size={13} />
+                          </div>
+                          <span>{t('ecommerce.sidebar.menuProfile', 'Hồ sơ cá nhân & Chỉnh sửa')}</span>
                         </div>
-                        <ChevronRight size={13} />
+                        <ChevronRight size={13} className="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
                       </button>
-                    )}
 
-                    {/* 5. Đăng Xuất Tài Khoản */}
-                    <div className="border-t border-slate-100 pt-1">
+                      {/* 2. Đơn Hàng Của Tôi */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          setProfileModalTab('orders');
+                          setIsProfileModalOpen(true);
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-white hover:bg-blue-50 text-xs font-bold text-slate-800 hover:text-blue-900 flex items-center justify-between transition-all cursor-pointer group border border-slate-300 hover:border-blue-400 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
+                            <Package size={13} />
+                          </div>
+                          <span>{t('ecommerce.sidebar.menuOrders', 'Đơn hàng của tôi')}</span>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-blue-600 text-white shadow-2xs">
+                          {userOrders.length}
+                        </span>
+                      </button>
+
+                      {/* 3. Hồ Sơ Số Đo Vóc Dáng 3D */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          setProfileModalTab('measurements');
+                          setIsProfileModalOpen(true);
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-white hover:bg-purple-50 text-xs font-bold text-slate-800 hover:text-purple-900 flex items-center justify-between transition-all cursor-pointer group border border-slate-300 hover:border-purple-400 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center shrink-0">
+                            <Ruler size={13} />
+                          </div>
+                          <span>{t('ecommerce.sidebar.menuMeasurements', 'Số đo vóc dáng 3D')}</span>
+                        </div>
+                        <ChevronRight size={13} className="text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+                      </button>
+
+                      {/* 4. Đăng Ký Mở Gian Hàng May Đo B2B */}
+                      {userRole === 'store' || currentStore?.status === 'APPROVED' ? (
+                        <a
+                          href="/tailor"
+                          className="w-full px-2.5 py-2 rounded-xl text-left bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white flex items-center justify-between transition-colors cursor-pointer border border-emerald-700 shadow-xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+                              <Store size={13} />
+                            </div>
+                            <span>{t('ecommerce.sidebar.menuTailorChannel', 'Vào Kênh Nhà May (/tailor)')}</span>
+                          </div>
+                          <ChevronRight size={13} className="text-white" />
+                        </a>
+                      ) : currentStore?.status === 'PENDING' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            openStatusModal();
+                          }}
+                          className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-950 flex items-center justify-between transition-colors cursor-pointer border border-amber-300 shadow-2xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center shrink-0">
+                              <Clock size={13} className="animate-pulse" />
+                            </div>
+                            <span>{t('ecommerce.sidebar.menuPendingApproval', 'Hồ sơ chờ Admin duyệt')}</span>
+                          </div>
+                          <ChevronRight size={13} className="text-amber-600" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            setProfileModalTab('merchant');
+                            setIsProfileModalOpen(true);
+                          }}
+                          className="w-full px-2.5 py-2 rounded-xl text-left bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-between transition-colors cursor-pointer shadow-xs border border-amber-600"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+                              <Store size={13} />
+                            </div>
+                            <span>{t('ecommerce.sidebar.menuRegisterStore', 'Đăng ký mở gian hàng')}</span>
+                          </div>
+                          <ChevronRight size={13} />
+                        </button>
+                      )}
+
+                      {/* 5. Đăng Xuất Tài Khoản */}
                       <button
                         type="button"
                         onClick={() => {
                           setIsUserMenuOpen(false);
                           signOut();
                         }}
-                        className="w-full px-2.5 py-2 rounded-xl text-left hover:bg-rose-50 text-xs font-bold text-rose-600 flex items-center gap-2 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                        className="w-full px-2.5 py-2 rounded-xl text-left bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 flex items-center justify-between transition-colors cursor-pointer border border-rose-200 hover:border-rose-300 shadow-2xs"
                       >
-                        <LogOut size={14} />
-                        <span>{t('ecommerce.sidebar.menuSignOut', 'Đăng xuất tài khoản')}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-white text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
+                            <LogOut size={13} />
+                          </div>
+                          <span>{t('ecommerce.sidebar.menuSignOut', 'Đăng xuất tài khoản')}</span>
+                        </div>
+                        <ChevronRight size={13} className="text-rose-400" />
                       </button>
                     </div>
                   </div>
