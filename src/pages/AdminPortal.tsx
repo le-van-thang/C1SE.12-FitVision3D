@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Shield,
   Search,
@@ -18,7 +17,6 @@ import {
   Lock,
   Unlock,
   ShieldCheck,
-  ExternalLink,
   Activity,
   UserCheck,
   Layers,
@@ -307,15 +305,6 @@ export const AdminPortal: React.FC = () => {
                 <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-cyan-400' : ''} />
                 <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
               </button>
-
-              {/* Customer View Link */}
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#0F1E24] hover:bg-[#152B34] border border-slate-700 hover:border-cyan-500/40 text-slate-300 hover:text-[#4FD1C5] text-xs font-medium transition"
-              >
-                <ExternalLink size={13} />
-                <span>Xem phòng đo 3D (Khách)</span>
-              </Link>
 
               {/* Logged in admin pill */}
               <div className="px-3 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-xs text-slate-300">

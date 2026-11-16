@@ -31,9 +31,36 @@ const RequireStore: React.FC<{ children: React.ReactElement }> = ({ children }) 
 const RequireAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthenticated, userRole } = useAuth();
   if (!isAuthenticated || userRole !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
   return children;
+};
+
+/** Strict Admin home entry: Admins operate exclusively inside the Admin Portal */
+const HomeRoute: React.FC = () => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (isAuthenticated && userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+  return <FashionStoreHome />;
+};
+
+/** Customer / Store / Guest Dashboard: strictly redirect Admin back to Admin Portal */
+const DashboardRoute: React.FC = () => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (isAuthenticated && userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Dashboard />;
+};
+
+/** Fallback route aligned with authenticated role */
+const RoleFallbackRoute: React.FC = () => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (isAuthenticated && userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
 };
 
 export const App: React.FC = () => (
@@ -42,13 +69,13 @@ export const App: React.FC = () => (
       <AuthProvider>
         <OrderProvider>
           <Routes>
-            <Route path="/" element={<FashionStoreHome />} />
+            <Route path="/" element={<HomeRoute />} />
             <Route path="/legacy-landing" element={<Landing />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<DashboardRoute />} />
             <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
             <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
             <Route path="/admin" element={<RequireAdmin><AdminPortal /></RequireAdmin>} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<RoleFallbackRoute />} />
           </Routes>
         </OrderProvider>
       </AuthProvider>

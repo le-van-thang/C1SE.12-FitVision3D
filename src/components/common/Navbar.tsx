@@ -46,9 +46,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
   return (
     <>
       <header className="h-16 px-4 sm:px-8 border-b-2 border-slate-200 bg-white shadow-xs sticky top-0 z-40 flex items-center justify-between no-print select-none" id="app-navbar">
-        {/* Left: Brand Logo (Đồng bộ với sàn thương mại thời trang) */}
+        {/* Left: Brand Logo (Admin stays inside /admin; others go to storefront) */}
         <div className="flex items-center gap-3">
-          <a href="/" className="flex items-center gap-2.5" id="brand-link">
+          <Link to={isAdmin ? '/admin' : '/'} className="flex items-center gap-2.5" id="brand-link">
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
               <Scissors size={18} strokeWidth={2} />
             </div>
@@ -57,41 +57,44 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
                 FitVision <span className="text-blue-600">3D</span>
               </span>
               <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mt-0.5">
-                Atelier & May Đo 3D
+                {isAdmin ? 'Admin Platform Control' : 'Atelier & May Đo 3D'}
               </span>
             </div>
-          </a>
+          </Link>
         </div>
 
         {/* Center: Dynamic Role-Based Navigation Links (Phân luồng nghiêm ngặt) */}
         <nav className="hidden md:flex items-center gap-2" aria-label="Main navigation">
-          {/* Link Sàn Thời Trang */}
-          <Link
-            to="/"
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
-              pathname === '/'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-blue-50 text-blue-900 border border-blue-200 hover:bg-blue-100'
-            }`}
-            id="nav-store"
-          >
-            <ShoppingBag size={15} strokeWidth={2} />
-            <span>{t('ecommerce.nav.store', 'Sàn Thời Trang')}</span>
-          </Link>
+          {/* Customer / Guest / Store Tabs (Hidden for pure System Admin) */}
+          {!isAdmin && (
+            <>
+              <Link
+                to="/"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                  pathname === '/'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-blue-50 text-blue-900 border border-blue-200 hover:bg-blue-100'
+                }`}
+                id="nav-store"
+              >
+                <ShoppingBag size={15} strokeWidth={2} />
+                <span>{t('ecommerce.nav.store', 'Sàn Thời Trang')}</span>
+              </Link>
 
-          {/* Link Phòng Đo Nhân Trắc Học 3D */}
-          <Link
-            to="/dashboard"
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
-              pathname === '/dashboard'
-                ? 'bg-slate-900 text-white shadow-xs border-2 border-slate-900'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-            id="nav-dashboard"
-          >
-            <ScanLine size={15} strokeWidth={2} />
-            <span>{t('app.nav.dashboard', 'Phòng Đo 3D')}</span>
-          </Link>
+              <Link
+                to="/dashboard"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                  pathname === '/dashboard'
+                    ? 'bg-slate-900 text-white shadow-xs border-2 border-slate-900'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+                id="nav-dashboard"
+              >
+                <ScanLine size={15} strokeWidth={2} />
+                <span>{t('app.nav.dashboard', 'Phòng Đo 3D')}</span>
+              </Link>
+            </>
+          )}
 
           {/* Chỉ hiển thị cho đối tác Nhà May đã được duyệt */}
           {isAuthenticated && isStore && (
