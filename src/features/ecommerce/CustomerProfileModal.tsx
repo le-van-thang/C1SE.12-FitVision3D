@@ -170,11 +170,11 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
         onClick={onClose}
       />
 
-      {/* Dialog Box - Bright Modern Atelier Styling */}
-      <div className="relative w-full max-w-xl bg-[#FDFCF9] rounded-3xl shadow-2xl border border-stone-200 overflow-hidden z-10 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+      {/* Dialog Box - Crisp Light Layered Atelier Styling */}
+      <div className="relative w-full max-w-xl bg-slate-50 rounded-3xl shadow-2xl border-[1.5px] border-slate-300 overflow-hidden z-10 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
         
-        {/* Bright Luxury Editorial Profile Hero */}
-        <div className="p-5 sm:p-6 bg-gradient-to-br from-[#FFFDF9] via-[#FAF3E6] to-[#F1E6D2] border-b border-amber-200/70 text-[#14171C] flex-shrink-0">
+        {/* Cool Airy Sky-Pearl Profile Hero (Distinct from white body & gold membership) */}
+        <div className="p-5 sm:p-6 bg-gradient-to-br from-[#F4F8FE] via-[#EAF1FC] to-[#DFEAFA] border-b-[1.5px] border-slate-300/80 text-slate-900 flex-shrink-0">
           <input
             ref={fileInputRef}
             type="file"
@@ -185,12 +185,12 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
 
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3.5 min-w-0">
-              {/* Interactive Avatar with Champagne Gold Frame */}
+              {/* Interactive Avatar with Crisp Framed Border */}
               <div className="relative group shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-                  className="w-15 h-15 sm:w-17 sm:h-17 rounded-2xl bg-gradient-to-br from-[#1C2029] to-[#2E3440] text-[#F5EBD8] flex items-center justify-center font-black text-2xl shadow-md border-2 border-[#D4AF37]/75 overflow-hidden cursor-pointer relative transition-transform group-hover:scale-105 active:scale-95"
+                  className="w-15 h-15 sm:w-17 sm:h-17 rounded-2xl bg-[#14171C] text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-white ring-2 ring-blue-300/70 overflow-hidden cursor-pointer relative transition-transform group-hover:scale-105 active:scale-95"
                   title={isEn ? 'Update profile photo' : 'Cập nhật ảnh đại diện'}
                 >
                   {currentUser.avatar_url ? (
@@ -211,7 +211,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-                  className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-stone-300 flex items-center justify-center text-[#14171C] shadow-sm cursor-pointer hover:bg-amber-50 transition-colors"
+                  className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border-[1.5px] border-slate-300 flex items-center justify-center text-slate-900 shadow-sm cursor-pointer hover:bg-blue-50 transition-colors"
                   title={isEn ? 'Change portrait photo' : 'Cập nhật ảnh đại diện'}
                 >
                   <Camera size={11} />
@@ -220,30 +220,30 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
 
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-[#14171C] leading-tight truncate">
+                  <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 leading-tight truncate">
                     {currentUser.full_name || t('ecommerce.sidebar.customerDefault', 'Khách Hàng')}
                   </h3>
                   <button
                     type="button"
                     onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/85 hover:bg-white border border-stone-300/80 text-[10.5px] font-bold text-stone-700 hover:text-[#14171C] shadow-2xs cursor-pointer transition-all"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white hover:bg-slate-50 border-[1.5px] border-slate-300 text-[10.5px] font-bold text-slate-800 shadow-2xs cursor-pointer transition-all"
                   >
                     <Camera size={10} />
                     <span>{isEn ? 'Update photo' : 'Cập nhật ảnh'}</span>
                   </button>
                 </div>
 
-                <p className="text-xs text-stone-600 font-mono font-semibold mt-0.5 truncate">
+                <p className="text-xs text-slate-700 font-mono font-semibold mt-0.5 truncate">
                   {currentUser.email}
                 </p>
 
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border-[1.5px] ${
                     isApprovedStore
-                      ? 'bg-amber-100 text-amber-950 border-amber-300'
+                      ? 'bg-amber-100 text-amber-950 border-amber-400'
                       : isPendingStore
-                      ? 'bg-amber-50 text-amber-800 border-amber-300'
-                      : 'bg-white/90 text-stone-800 border-stone-300/80'
+                      ? 'bg-amber-50 text-amber-900 border-amber-300'
+                      : 'bg-white text-slate-800 border-slate-300'
                   }`}>
                     {isApprovedStore
                       ? t('ecommerce.profileModal.roleStore', '✂️ Đối Tác Nhà May B2B')
@@ -255,7 +255,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveTab('membership')}
-                    className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border cursor-pointer transition-transform hover:scale-[1.03] ${membership.currentTier.badgeBg} ${membership.currentTier.badgeText}`}
+                    className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border-[1.5px] cursor-pointer transition-transform hover:scale-[1.03] ${membership.currentTier.badgeBg} ${membership.currentTier.badgeText}`}
                   >
                     <Crown size={10} className="text-amber-600" />
                     <span>{isEn ? membership.currentTier.nameEn : membership.currentTier.nameVi}</span>
@@ -267,7 +267,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/80 hover:bg-white text-stone-600 hover:text-[#14171C] flex items-center justify-center cursor-pointer transition-colors border border-stone-300/80 shadow-2xs shrink-0"
+              className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 flex items-center justify-center cursor-pointer transition-colors border-[1.5px] border-slate-300 shadow-2xs shrink-0"
               title={t('ecommerce.profileModal.close', 'Đóng')}
             >
               <X size={17} />
@@ -328,15 +328,15 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           )}
         </div>
 
-        {/* Bright Atelier Tab Selector */}
-        <div className="flex border-b border-stone-200 bg-[#F4F0E8] p-2 gap-1.5 flex-shrink-0 overflow-x-auto scrollbar-none">
+        {/* Crisp Tab Selector */}
+        <div className="flex border-b-[1.5px] border-slate-200 bg-white p-2 gap-1.5 flex-shrink-0 overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border-[1.5px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'profile'
-                ? 'border-[#14171C] bg-[#14171C] text-white shadow-2xs'
-                : 'border-stone-200/80 bg-white text-stone-700 hover:bg-stone-50'
+                ? 'border-[#14171C] bg-[#14171C] text-white shadow-xs'
+                : 'border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 hover:border-slate-400'
             }`}
           >
             <User size={13} />
@@ -346,10 +346,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('membership')}
-            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border-[1.5px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'membership'
-                ? 'border-amber-700 bg-gradient-to-r from-amber-700 to-amber-600 text-white shadow-2xs'
-                : 'border-amber-200/80 bg-amber-50/70 text-amber-900 hover:bg-amber-50'
+                ? 'border-amber-700 bg-amber-600 text-white shadow-xs'
+                : 'border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100/80'
             }`}
           >
             <Crown size={13} />
@@ -359,10 +359,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('measurements')}
-            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border-[1.5px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'measurements'
-                ? 'border-[#14171C] bg-[#14171C] text-white shadow-2xs'
-                : 'border-stone-200/80 bg-white text-stone-700 hover:bg-stone-50'
+                ? 'border-[#14171C] bg-[#14171C] text-white shadow-xs'
+                : 'border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 hover:border-slate-400'
             }`}
           >
             <Ruler size={13} />
@@ -372,10 +372,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('orders')}
-            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border-[1.5px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'orders'
-                ? 'border-[#14171C] bg-[#14171C] text-white shadow-2xs'
-                : 'border-stone-200/80 bg-white text-stone-700 hover:bg-stone-50'
+                ? 'border-[#14171C] bg-[#14171C] text-white shadow-xs'
+                : 'border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 hover:border-slate-400'
             }`}
           >
             <ShoppingBag size={13} />
@@ -385,10 +385,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('merchant')}
-            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex-1 py-2 px-2.5 text-xs font-bold rounded-xl border-[1.5px] flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'merchant'
-                ? 'border-amber-600 bg-amber-600 text-white shadow-2xs'
-                : 'border-stone-200/80 bg-white text-stone-700 hover:bg-stone-50'
+                ? 'border-emerald-700 bg-emerald-700 text-white shadow-xs'
+                : 'border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 hover:border-slate-400'
             }`}
           >
             <Store size={13} />
@@ -397,7 +397,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
         </div>
 
         {/* Tab Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/70">
           
           {/* TAB 1: THÔNG TIN CÁ NHÂN & CHỈNH SỬA PROFILE ĐẦY ĐỦ */}
           {activeTab === 'profile' && (
@@ -658,14 +658,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-stone-200 flex items-center justify-between">
+              <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 flex items-center justify-between shadow-2xs">
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={18} className="text-emerald-700" />
-                  <span className="text-xs text-stone-900 font-bold">
+                  <span className="text-xs text-slate-900 font-bold">
                     {t('ecommerce.profileModal.securityTitle', 'Bảo Mật Dữ Liệu Nhân Trắc Học')}
                   </span>
                 </div>
-                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-white border border-stone-200 text-stone-800 font-bold">
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-300 text-slate-800 font-bold">
                   ISO 8559-1
                 </span>
               </div>
@@ -687,38 +687,38 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           {activeTab === 'measurements' && (
             <div className="space-y-3.5">
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="p-3.5 rounded-2xl bg-white border border-stone-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-sky-500" />
                     {t('ecommerce.sidebar.height', 'CHIỀU CAO')}
                   </span>
-                  <span className="text-xl font-black font-mono text-[#14171C] block mt-1">{userBody.height_cm} cm</span>
+                  <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.height_cm} cm</span>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-white border border-stone-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-violet-500" />
                     {t('ecommerce.sidebar.weight', 'CÂN NẶNG')}
                   </span>
-                  <span className="text-xl font-black font-mono text-[#14171C] block mt-1">{userBody.weight_kg} kg</span>
+                  <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.weight_kg} kg</span>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-white border border-stone-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
                     {t('ecommerce.sidebar.chest', 'VÒNG NGỰC')}
                   </span>
-                  <span className="text-xl font-black font-mono text-[#14171C] block mt-1">{userBody.chest_cm} cm</span>
+                  <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.chest_cm} cm</span>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-white border border-stone-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
                     {t('ecommerce.sidebar.waist', 'VÒNG EO')}
                   </span>
-                  <span className="text-xl font-black font-mono text-[#14171C] block mt-1">{userBody.waist_cm} cm</span>
+                  <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.waist_cm} cm</span>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-stone-200 space-y-2">
-                <span className="text-[11px] font-bold text-stone-800 block">
+              <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 space-y-2 shadow-2xs">
+                <span className="text-[11px] font-extrabold text-slate-900 block">
                   {t('ecommerce.profileModal.easePref', 'Độ Cử Động May Đo Yêu Thích (Ease Allowance)')}
                 </span>
                 <div className="flex gap-2">
@@ -731,10 +731,10 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                       key={opt.id}
                       type="button"
                       onClick={() => setEasePref(opt.id)}
-                      className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold text-center border transition-all cursor-pointer ${
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold text-center border-[1.5px] transition-all cursor-pointer ${
                         easePref === opt.id
                           ? 'bg-[#14171C] text-white border-[#14171C] shadow-2xs'
-                          : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
+                          : 'bg-slate-50 border-slate-300 text-slate-800 hover:bg-slate-100'
                       }`}
                     >
                       {opt.label}
@@ -750,14 +750,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     onClose();
                     onOpenBiometrics();
                   }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-[#14171C] hover:bg-stone-800 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer border-0"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-[#14171C] hover:bg-slate-800 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer border-0"
                 >
                   <Ruler size={14} />
                   <span>{t('ecommerce.profileModal.updateMeasurements', 'Cập Nhật Số Đo')}</span>
                 </button>
                 <a
                   href="/dashboard"
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-white hover:bg-stone-50 text-stone-900 border border-stone-300 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-900 border-[1.5px] border-slate-300 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer text-center"
                 >
                   <Camera size={14} />
                   <span>{t('ecommerce.profileModal.rescan3D', 'Quét 3D Lại')}</span>

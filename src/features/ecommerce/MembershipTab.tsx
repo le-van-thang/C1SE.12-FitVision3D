@@ -38,11 +38,11 @@ export const MEMBERSHIP_TIERS: MembershipTierDef[] = [
     nameEn: 'Atelier Member',
     minSpend: 0,
     discountPct: 0,
-    badgeBg: 'bg-stone-100 border-stone-300',
-    badgeText: 'text-stone-800',
-    cardGradient: 'from-[#FFFDF8] via-[#F7EFE1] to-[#EADBC2]',
-    cardBorder: 'border-amber-300/70',
-    cardText: 'text-[#1E1A14]',
+    badgeBg: 'bg-amber-50 border-amber-300',
+    badgeText: 'text-amber-950',
+    cardGradient: 'from-[#FFF9EC] via-[#F9EDD3] to-[#F0DEC0]',
+    cardBorder: 'border-amber-400/80',
+    cardText: 'text-slate-900',
     accentBar: 'bg-amber-600',
     perksVi: [
       'Tích 1 FitPoint cho mỗi 10.000₫ chi tiêu may đo',
@@ -366,7 +366,7 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
 
       {/* 1. Digital Atelier Membership Card */}
       <div
-        className={`relative overflow-hidden rounded-2xl p-4 sm:p-5 bg-gradient-to-br ${summary.currentTier.cardGradient} border ${summary.currentTier.cardBorder} ${summary.currentTier.cardText} shadow-sm`}
+        className={`relative overflow-hidden rounded-2xl p-4 sm:p-5 bg-gradient-to-br ${summary.currentTier.cardGradient} border-[1.5px] ${summary.currentTier.cardBorder} ${summary.currentTier.cardText} shadow-sm`}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -456,17 +456,17 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
       </div>
 
       {/* 2. Redeemable Member Vouchers */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 space-y-3 shadow-2xs">
+      <div className="bg-white rounded-2xl border-[1.5px] border-slate-300/85 p-4 space-y-3 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 flex items-center justify-center">
               <Gift size={15} />
             </div>
             <div>
-              <h5 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
+              <h5 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
                 {isEn ? 'Member Privileges & Vouchers' : 'Kho Mã Ưu Đãi Hội Viên'}
               </h5>
-              <p className="text-[10.5px] text-stone-500">
+              <p className="text-[10.5px] text-slate-600 font-medium">
                 {isEn ? 'Unlock with FitPoints and apply right at Checkout' : 'Đổi bằng FitPoints và dán trực tiếp khi Thanh toán'}
               </p>
             </div>
@@ -482,18 +482,18 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
             return (
               <div
                 key={offer.code}
-                className={`p-3 rounded-xl border transition-all flex flex-col justify-between gap-2.5 ${
+                className={`p-3 rounded-xl border-[1.5px] transition-all flex flex-col justify-between gap-2.5 ${
                   isUnlocked
-                    ? 'bg-emerald-50/40 border-emerald-200'
-                    : 'bg-stone-50/60 border-stone-200'
+                    ? 'bg-emerald-50/60 border-emerald-400/80'
+                    : 'bg-slate-50 border-slate-300/85'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between gap-1.5">
-                    <span className="font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white border border-stone-200 text-stone-900">
+                    <span className="font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white border border-slate-300 text-slate-900">
                       {offer.code}
                     </span>
-                    <span className="text-[10px] font-extrabold text-amber-700">
+                    <span className="text-[10px] font-extrabold text-amber-800">
                       {isUnlocked
                         ? isEn
                           ? 'Unlocked'
@@ -501,10 +501,10 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
                         : `${offer.costPts} FitPoints`}
                     </span>
                   </div>
-                  <p className="text-xs font-extrabold text-stone-900 mt-1.5 leading-snug">
+                  <p className="text-xs font-extrabold text-slate-900 mt-1.5 leading-snug">
                     {isEn ? offer.titleEn : offer.titleVi}
                   </p>
-                  <p className="text-[10.5px] text-stone-500 mt-0.5 leading-snug">
+                  <p className="text-[10.5px] text-slate-600 font-medium mt-0.5 leading-snug">
                     {isEn ? offer.descEn : offer.descVi}
                   </p>
                 </div>
@@ -554,12 +554,12 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
       </div>
 
       {/* 3. Interactive 4-Tier Perks Breakdown */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 space-y-3 shadow-2xs">
+      <div className="bg-white rounded-2xl border-[1.5px] border-slate-300/85 p-4 space-y-3 shadow-2xs">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-stone-900">
+          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-900">
             {isEn ? 'Atelier Membership Tiers' : 'Đặc Quyền Theo Hạng Hội Viên'}
           </span>
-          <span className="text-[10.5px] font-mono font-bold text-stone-500">
+          <span className="text-[10.5px] font-mono font-bold text-slate-600">
             {previewTier.minSpend === 0
               ? isEn
                 ? 'From 0₫'
@@ -577,10 +577,10 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
                 key={tier.id}
                 type="button"
                 onClick={() => setPreviewTierId(tier.id)}
-                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer truncate ${
+                className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border-[1.5px] transition-all cursor-pointer truncate ${
                   isSelected
                     ? 'bg-[#14171C] text-white border-[#14171C] shadow-2xs'
-                    : 'bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-300'
                 }`}
               >
                 {isEn ? tier.nameEn.split(' ')[0] : tier.nameVi.replace('Hội Viên ', '')}
@@ -590,7 +590,7 @@ export const MembershipTab: React.FC<MembershipTabProps> = ({
           })}
         </div>
 
-        <ul className="space-y-1.5 text-xs text-stone-700 m-0 p-0 list-none">
+        <ul className="space-y-1.5 text-xs text-slate-800 m-0 p-0 list-none">
           {(isEn ? previewTier.perksEn : previewTier.perksVi).map((perk, idx) => (
             <li key={idx} className="flex items-start gap-2">
               <span className="w-4 h-4 rounded-full bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
