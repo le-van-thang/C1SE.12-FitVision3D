@@ -1,6 +1,19 @@
-import React from 'react';
-import { X, CheckCircle2, Sparkles, AlertCircle, Ruler, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  X,
+  CheckCircle2,
+  Sparkles,
+  ChevronRight,
+  ChevronDown,
+  Star,
+  Copy,
+  Check,
+  ShieldCheck,
+  RotateCcw,
+  Plus,
+} from 'lucide-react';
 import type { FashionProduct, UserBodyProfile, FitMatchResult, ProductVariant } from './types';
+import { MOCK_PRODUCTS } from './mockProducts';
 import { useI18n } from '@/i18n';
 
 interface FitAnalysisDrawerProps {
@@ -12,6 +25,8 @@ interface FitAnalysisDrawerProps {
   fitResult: FitMatchResult | null;
   onSelectSize: (variant: ProductVariant) => void;
   onAddToCart: () => void;
+  onAddSuggestedToCart?: (product: FashionProduct, variant?: ProductVariant) => void;
+  onOpenVirtualStudio?: () => void;
 }
 
 export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
@@ -23,8 +38,20 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   fitResult,
   onSelectSize,
   onAddToCart,
+  onAddSuggestedToCart,
+  onOpenVirtualStudio,
 }) => {
   const { t, locale } = useI18n();
+  const [activeImage, setActiveImage] = useState<string>('');
+  const [copiedVoucher, setCopiedVoucher] = useState<string | null>(null);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  useEffect(() => {
+    if (product) {
+      setActiveImage(product.image_url);
+      setOpenFaqIndex(0);
+    }
+  }, [product?.id]);
 
   if (!isOpen || !product || !selectedVariant || !fitResult) return null;
 
@@ -35,101 +62,233 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   const verdictLabel = isEn && fitResult.verdict_label_en ? fitResult.verdict_label_en : fitResult.verdict_label_vi;
   const advisorAdvice = isEn && fitResult.advisor_advice_en ? fitResult.advisor_advice_en : fitResult.advisor_advice_vi;
 
+  const galleryImages = [
+    product.image_url,
+    ...(product.secondary_image_url ? [product.secondary_image_url] : []),
+  ];
+
+  // Pick 2 complementary items for Mix & Match cross-sell
+  const complementaryProducts = MOCK_PRODUCTS.filter((p) => {
+    if (p.id === product.id) return false;
+    if (product.category === 'pants') return ['shirt', 'polo', 'tailored'].includes(p.category);
+    if (['shirt', 'polo', 'tailored'].includes(product.category)) return p.category === 'pants' || p.category === 'tailored';
+    return true;
+  }).slice(0, 2);
+
+  const handleCopyVoucher = (code: string) => {
+    navigator.clipboard?.writeText(code).catch(() => undefined);
+    setCopiedVoucher(code);
+    setTimeout(() => setCopiedVoucher(null), 1800);
+  };
+
+  const faqItems = [
+    {
+      q: isEn ? 'How does ISO 8559 3D Ease Allowance work?' : 'Độ cử động may đo 3D (Ease Allowance) hoạt động thế nào?',
+      a: isEn
+        ? 'Instead of raw tight body measurements, FitVision computes the difference between garment dimensions and your body contour (+3cm to +6cm) so the fabric drapes cleanly and moves naturally.'
+        : 'Hệ thống so sánh từng thông số rập áo (ngực, vai, eo) với kích thước cơ thể bạn để giữ độ chùng lý tưởng (+3cm đến +6cm), đảm bảo vừa phom nhưng vẫn thoải mái cử động.',
+    },
+    {
+      q: isEn ? 'Free 14-day size exchange guarantee?' : 'Chính sách đổi trả & chỉnh sửa size trong 14 ngày?',
+      a: isEn
+        ? 'Every item purchased using an AI Fit recommendation includes complimentary courier exchange or local tailor adjustment within 14 days.'
+        : 'Mọi sản phẩm chọn theo size AI gợi ý đều được miễn phí đổi size tận nhà hoặc hỗ trợ chỉnh sửa số đo trong vòng 14 ngày.',
+    },
+    {
+      q: isEn ? 'Fabric care instructions' : 'Hướng dẫn bảo quản chất liệu cao cấp',
+      a: isEn
+        ? `Material: ${product.fabric_material_en || product.fabric_material}. Wash cold on gentle cycle, steam iron on low, and dry in shade.`
+        : `Chất liệu: ${product.fabric_material}. Giặt nước lạnh chế độ nhẹ, không sấy nhiệt cao và là hơi ở nhiệt độ vừa phải để giữ bền sợi vải.`,
+    },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-black/55 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-white border-l border-stone-200 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-300">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+        <div className="w-screen max-w-xl bg-white border-l border-slate-200 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-300">
           
-          {/* Header */}
-          <div className="p-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
+          {/* Editorial Dark Header */}
+          <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-[#14171C] text-white">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
                 <Sparkles size={16} />
               </div>
               <div>
-                <h3 className="font-semibold text-stone-900 text-base">
+                <h3 className="font-bold text-white text-sm sm:text-base">
                   {t('ecommerce.drawer.fitTitle', 'Đối Chiếu Độ Vừa Vặn 3D')}
                 </h3>
-                <p className="text-xs text-stone-500">
+                <p className="text-[11px] text-slate-300">
                   {t('ecommerce.drawer.fitSubtitle', 'Chuẩn nhân trắc học may mặc ISO 8559-1')}
                 </p>
               </div>
             </div>
             <button
+              type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-stone-200/60 flex items-center justify-center text-stone-500 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+              aria-label="Close product fit drawer"
             >
-              <X size={18} />
+              <X size={17} />
             </button>
           </div>
 
-          {/* Body Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Scrollable Body Content */}
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 bg-[#FAFAFB]">
             
-            {/* Product Summary */}
-            <div className="flex gap-3.5 p-3 rounded-xl bg-stone-50 border border-stone-100">
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="w-16 h-20 object-cover rounded-lg border border-stone-200 flex-shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
-                  {product.brand_name}
-                </span>
-                <h4 className="text-sm font-medium text-stone-900 line-clamp-1">
-                  {isEn && product.name_en ? product.name_en : product.name}
-                </h4>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  {isEn && product.fabric_material_en ? product.fabric_material_en : product.fabric_material}
-                </p>
-                <p className="text-sm font-semibold text-stone-900 mt-1">
-                  {product.price.toLocaleString('vi-VN')} ₫
-                </p>
+            {/* 1. Product Gallery & Editorial Header (PDP Style) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
+              <div className="flex gap-4">
+                {/* Thumbnail strip + Primary photo */}
+                <div className="flex gap-2 flex-shrink-0">
+                  {galleryImages.length > 1 && (
+                    <div className="flex flex-col gap-2">
+                      {galleryImages.map((imgUrl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setActiveImage(imgUrl)}
+                          className={`w-11 h-14 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
+                            activeImage === imgUrl ? 'border-blue-600' : 'border-slate-200 opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <img
+                    src={activeImage || product.image_url}
+                    alt={product.name}
+                    className="w-24 sm:w-28 h-32 sm:h-36 object-cover object-top rounded-xl border border-slate-200 flex-shrink-0"
+                  />
+                </div>
+
+                {/* Title, Rating, Price & Freeship */}
+                <div className="min-w-0 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                        {product.brand_name}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700">
+                        <Star size={11} className="fill-amber-400 text-amber-400" />
+                        <span>{product.rating.toFixed(1)}</span>
+                        <span className="text-slate-400 font-normal">({product.reviews_count})</span>
+                      </span>
+                    </div>
+
+                    <h4 className="font-display text-base sm:text-lg font-bold text-slate-950 leading-snug mt-0.5">
+                      {isEn && product.name_en ? product.name_en : product.name}
+                    </h4>
+
+                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
+                      {isEn && product.fabric_material_en ? product.fabric_material_en : product.fabric_material}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    <span className="font-black text-base text-rose-600">
+                      {(product.sale_price || product.price).toLocaleString('vi-VN')} ₫
+                    </span>
+                    {product.sale_price && (
+                      <span className="text-xs text-slate-400 line-through">
+                        {product.price.toLocaleString('vi-VN')} ₫
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Freeship
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <p className="text-xs text-slate-600 leading-relaxed mt-3 pt-3 border-t border-slate-100">
+                {isEn && product.description_en ? product.description_en : product.description}
+              </p>
+
+              {/* Copyable Voucher Chips */}
+              <div className="flex items-center justify-between gap-2 flex-wrap mt-3 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">
+                    {isEn ? 'Vouchers:' : 'Mã ưu đãi:'}
+                  </span>
+                  {['FITVISION50', 'TAILOR100'].map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => handleCopyVoucher(code)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#F5EBD8]/70 hover:bg-[#F5EBD8] border border-dashed border-[#C8963E] text-[10px] font-mono font-bold text-slate-900 cursor-pointer transition-colors"
+                    >
+                      <span>{code}</span>
+                      {copiedVoucher === code ? <Check size={11} className="text-emerald-600" /> : <Copy size={10} className="text-slate-500" />}
+                    </button>
+                  ))}
+                </div>
+
+                {onOpenVirtualStudio && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenVirtualStudio();
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    <Sparkles size={11} />
+                    <span>{isEn ? 'Try in 3D' : 'Thử đồ 3D'}</span>
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Match Score Card */}
-            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20">
-              <div className="flex items-center justify-between mb-2">
+            {/* 2. Match Score Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white border border-emerald-500/25 shadow-2xs">
+              <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-emerald-600" />
-                  <span className="font-semibold text-emerald-800 text-sm">
+                  <span className="font-bold text-emerald-900 text-sm">
                     {verdictLabel}
                   </span>
                 </div>
-                <span className="font-mono text-xl font-bold text-emerald-700">
+                <span className="font-mono text-xl font-black text-emerald-700">
                   {fitResult.match_percentage}%
                 </span>
               </div>
-              <p className="text-xs text-stone-700 leading-relaxed">
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
                 {advisorAdvice}
               </p>
             </div>
 
-            {/* Size Selector in Drawer */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-2">
-                {t('ecommerce.drawer.selectSize', 'Chọn kích cỡ đối chiếu:')}
-              </label>
+            {/* 3. Size Selector */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  {t('ecommerce.drawer.selectSize', 'Chọn kích cỡ đối chiếu:')}
+                </label>
+                <span className="text-[11px] font-semibold text-slate-500">
+                  {selectedVariant.color_name.split('(')[0].trim()}
+                </span>
+              </div>
               <div className="grid grid-cols-4 gap-2">
                 {product.variants.map((v) => {
-                  const isSelected = v.size_label === selectedVariant.size_label;
+                  const isSelected = v.id === selectedVariant.id || v.size_label === selectedVariant.size_label;
                   const isRecommended = v.size_label === fitResult.recommended_size;
                   return (
                     <button
                       key={v.id}
+                      type="button"
                       onClick={() => onSelectSize(v)}
-                      className={`relative py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 ease-out transform active:scale-95 cursor-pointer ${
+                      className={`relative py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25 scale-[1.02]'
-                          : 'bg-white text-stone-700 border-stone-200 hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700 hover:shadow-2xs'
+                          ? 'bg-[#14171C] text-white border-[#14171C] shadow-sm'
+                          : 'bg-white text-slate-800 border-slate-200 hover:border-blue-400 hover:text-blue-700'
                       }`}
                     >
                       {v.size_label}
@@ -144,54 +303,52 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
               </div>
             </div>
 
-            {/* Detailed Delta Metrics Breakdown */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-600 flex items-center justify-between">
+            {/* 4. Detailed Delta Metrics Breakdown */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2.5">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                 <span>{t('ecommerce.drawer.metricsTitle', 'So Sánh Chi Tiết Chỉ Số (cm)')}</span>
-                <span className="text-[10px] text-stone-400 font-normal">
+                <span className="text-[10px] text-slate-400 font-normal">
                   {t('ecommerce.drawer.metricsSub', 'Cơ thể vs Áo thực tế')}
                 </span>
               </h4>
 
               {!isPants && (
                 <>
-                  {/* Chest */}
-                  <div className="p-3 rounded-lg border border-stone-100 bg-stone-50/60 flex items-center justify-between text-xs">
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/80 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-medium text-stone-900 block">
+                      <span className="font-bold text-slate-900 block">
                         {t('ecommerce.drawer.chest', 'Vòng ngực (Bust/Chest)')}
                       </span>
-                      <span className="text-[11px] text-stone-500">
-                        {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-stone-800">{userBody.chest_cm}cm</b> ➔ {t('ecommerce.drawer.garmentLabel', 'Áo:')}{' '}
-                        <b className="font-mono text-stone-800">{spec.chest_cm}cm</b>
+                      <span className="text-[11px] text-slate-500">
+                        {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-slate-800">{userBody.chest_cm}cm</b> ➔ {t('ecommerce.drawer.garmentLabel', 'Áo:')}{' '}
+                        <b className="font-mono text-slate-800">{spec.chest_cm}cm</b>
                       </span>
                     </div>
                     <div className="text-right">
                       <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800">
-                        +{spec.chest_cm - userBody.chest_cm} cm
+                        {spec.chest_cm - userBody.chest_cm >= 0 ? '+' : ''}{spec.chest_cm - userBody.chest_cm} cm
                       </span>
-                      <span className="block text-[10px] text-stone-400 mt-0.5">
+                      <span className="block text-[10px] text-slate-400 mt-0.5">
                         {t('ecommerce.drawer.easeSmooth', 'Độ cử động êm')}
                       </span>
                     </div>
                   </div>
 
-                  {/* Shoulder */}
-                  <div className="p-3 rounded-lg border border-stone-100 bg-stone-50/60 flex items-center justify-between text-xs">
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/80 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-medium text-stone-900 block">
+                      <span className="font-bold text-slate-900 block">
                         {t('ecommerce.drawer.shoulder', 'Rộng vai (Shoulder)')}
                       </span>
-                      <span className="text-[11px] text-stone-500">
-                        {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-stone-800">{userBody.shoulder_cm}cm</b> ➔ {t('ecommerce.drawer.garmentLabel', 'Áo:')}{' '}
-                        <b className="font-mono text-stone-800">{spec.shoulder_cm}cm</b>
+                      <span className="text-[11px] text-slate-500">
+                        {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-slate-800">{userBody.shoulder_cm}cm</b> ➔ {t('ecommerce.drawer.garmentLabel', 'Áo:')}{' '}
+                        <b className="font-mono text-slate-800">{spec.shoulder_cm}cm</b>
                       </span>
                     </div>
                     <div className="text-right">
                       <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-blue-100 text-blue-800">
-                        +{(spec.shoulder_cm - userBody.shoulder_cm).toFixed(1)} cm
+                        {spec.shoulder_cm - userBody.shoulder_cm >= 0 ? '+' : ''}{(spec.shoulder_cm - userBody.shoulder_cm).toFixed(1)} cm
                       </span>
-                      <span className="block text-[10px] text-stone-400 mt-0.5">
+                      <span className="block text-[10px] text-slate-400 mt-0.5">
                         {t('ecommerce.drawer.shoulderFit', 'Vừa khít cầu vai')}
                       </span>
                     </div>
@@ -199,71 +356,141 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 </>
               )}
 
-              {/* Waist */}
-              <div className="p-3 rounded-lg border border-stone-100 bg-stone-50/60 flex items-center justify-between text-xs">
+              <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/80 flex items-center justify-between text-xs">
                 <div>
-                  <span className="font-medium text-stone-900 block">
+                  <span className="font-bold text-slate-900 block">
                     {t('ecommerce.drawer.waist', 'Vòng eo (Waist)')}
                   </span>
-                  <span className="text-[11px] text-stone-500">
-                    {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-stone-800">{userBody.waist_cm}cm</b> ➔ {t('ecommerce.drawer.pantWaistLabel', 'Phom:')}{' '}
-                    <b className="font-mono text-stone-800">{spec.waist_cm}cm</b>
+                  <span className="text-[11px] text-slate-500">
+                    {t('ecommerce.drawer.bodyLabel', 'Cơ thể:')} <b className="font-mono text-slate-800">{userBody.waist_cm}cm</b> ➔ {t('ecommerce.drawer.pantWaistLabel', 'Phom:')}{' '}
+                    <b className="font-mono text-slate-800">{spec.waist_cm}cm</b>
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800">
-                    +{spec.waist_cm - userBody.waist_cm} cm
+                    {spec.waist_cm - userBody.waist_cm >= 0 ? '+' : ''}{spec.waist_cm - userBody.waist_cm} cm
                   </span>
-                  <span className="block text-[10px] text-stone-400 mt-0.5">
+                  <span className="block text-[10px] text-slate-400 mt-0.5">
                     {t('ecommerce.drawer.waistComfort', 'Thoải mái khi ngồi')}
                   </span>
                 </div>
               </div>
 
-              {/* Garment Length */}
-              <div className="p-3 rounded-lg border border-stone-100 bg-stone-50/60 flex items-center justify-between text-xs">
+              <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/80 flex items-center justify-between text-xs">
                 <div>
-                  <span className="font-medium text-stone-900 block">
+                  <span className="font-bold text-slate-900 block">
                     {t('ecommerce.drawer.length', 'Chiều dài trang phục')}
                   </span>
-                  <span className="text-[11px] text-stone-500">
+                  <span className="text-[11px] text-slate-500">
                     {t('ecommerce.drawer.lengthSub', 'Chuẩn may đo thiết kế')}
                   </span>
                 </div>
-                <span className="font-mono font-bold text-stone-800 text-xs">
+                <span className="font-mono font-bold text-slate-800 text-xs">
                   {spec.length_cm} cm
                 </span>
               </div>
             </div>
 
-            {/* Zero Return Guarantee Badge */}
-            <div className="p-3 rounded-lg bg-amber-50/80 border border-amber-200/80 flex items-start gap-2 text-xs text-amber-900">
-              <Ruler size={16} className="text-amber-700 flex-shrink-0 mt-0.5" />
-              <span>
-                {t('ecommerce.drawer.guarantee', 'Cam kết FitVision 3D: Dữ liệu đã hiệu chuẩn theo thước đo Ramanujan ISO 8559-1. Đảm bảo vừa vặn trên 97% hoặc miễn phí đổi size tận nhà.')}
-              </span>
+            {/* 5. Mix & Match Cross-Sell Suggestions (Torano-style Cross-Sell) */}
+            {onAddSuggestedToCart && complementaryProducts.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                    {isEn ? 'Complete the 3D Look' : 'Mua Kèm Phối Bộ Chuẩn Phom'}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                    {isEn ? 'Combo Savings' : 'Phối đồ gợi ý'}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {complementaryProducts.map((comp) => (
+                    <div
+                      key={comp.id}
+                      className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={comp.image_url}
+                          alt={comp.name}
+                          className="w-11 h-14 object-cover rounded-lg border border-slate-200 flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <h5 className="text-xs font-bold text-slate-900 truncate">
+                            {isEn && comp.name_en ? comp.name_en : comp.name}
+                          </h5>
+                          <p className="text-[11px] font-bold text-rose-600 mt-0.5">
+                            {(comp.sale_price || comp.price).toLocaleString('vi-VN')} ₫
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onAddSuggestedToCart(comp, comp.variants[1] || comp.variants[0])}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#14171C] hover:bg-blue-600 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer flex-shrink-0 transition-colors"
+                      >
+                        <Plus size={12} />
+                        <span>{isEn ? 'Add' : 'Thêm'}</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 6. FAQ Accordion */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
+              {faqItems.map((faq, idx) => {
+                const isOpenItem = openFaqIndex === idx;
+                return (
+                  <div key={idx}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIndex(isOpenItem ? null : idx)}
+                      className="w-full px-4 py-3 text-left flex items-center justify-between gap-2 text-xs font-bold text-slate-900 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <span>{faq.q}</span>
+                      <ChevronDown
+                        size={14}
+                        className={`text-slate-400 transition-transform flex-shrink-0 ${isOpenItem ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    {isOpenItem && (
+                      <div className="px-4 pb-3 text-[11px] text-slate-600 leading-relaxed">
+                        {faq.a}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
           </div>
 
-          {/* Footer Actions */}
-          <div className="p-6 border-t border-stone-200 bg-white space-y-2">
+          {/* Footer Actions + Compact Trust Strip */}
+          <div className="p-5 border-t border-slate-200 bg-white space-y-2.5">
             <button
+              type="button"
               onClick={() => {
                 onAddToCart();
                 onClose();
               }}
-              style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
-              className="relative overflow-hidden group w-full py-3.5 px-4 rounded-xl hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm shadow-md shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 flex items-center justify-center gap-2 transition-all duration-200 ease-out transform hover:-translate-y-0.5 cursor-pointer before:absolute before:inset-0 before:-translate-x-full hover:before:translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-700"
+              className="w-full py-3.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <span>
                 {t('ecommerce.drawer.addToCartSize', 'Thêm Size {size} Vào Giỏ Hàng').replace('{size}', selectedVariant.size_label)}
               </span>
-              <ChevronRight size={16} className="text-white group-hover:translate-x-1 transition-transform duration-200" />
+              <ChevronRight size={16} />
             </button>
-            <p className="text-[11px] text-center text-stone-400">
-              {t('ecommerce.drawer.backedBy', 'Được bảo chứng bởi thuật toán AI Sizing Engine v2.5')}
-            </p>
+            <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500">
+              <span className="flex items-center gap-1">
+                <ShieldCheck size={13} className="text-emerald-600" />
+                <span>{isEn ? 'ISO 8559 Calibrated' : 'Chuẩn ISO 8559-1'}</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <RotateCcw size={12} className="text-blue-600" />
+                <span>{isEn ? '14-Day Free Fit Swap' : 'Đổi size 14 ngày miễn phí'}</span>
+              </span>
+            </div>
           </div>
 
         </div>

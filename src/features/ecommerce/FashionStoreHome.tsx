@@ -29,6 +29,11 @@ import {
   Clock,
   ChevronUp,
   ChevronDown,
+  Copy,
+  Check,
+  Truck,
+  RotateCcw,
+  Tag,
 } from 'lucide-react';
 import { MOCK_PRODUCTS, INITIAL_USER_BODY } from './mockProducts';
 import { calculateProductFit } from './fitCalculator';
@@ -203,20 +208,38 @@ export const FashionStoreHome: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterByMyFitOnly, setFilterByMyFitOnly] = useState<boolean>(false);
 
-  // Advanced Filter States (Shopee-style smart filtering)
+  // Advanced Filter States
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [priceRange, setPriceRange] = useState<string>('all'); // 'all' | 'under-600' | '600-1000' | 'above-1000'
   const [fabricFilter, setFabricFilter] = useState<string>('all'); // 'all' | 'cotton' | 'silk' | 'wool' | 'linen'
+  const [sizeFilter, setSizeFilter] = useState<string>('all'); // 'all' | 'XS' | 'S' | 'M' | 'L' | 'XL'
+  const [colorFilter, setColorFilter] = useState<string>('all'); // 'all' | color_hex
   const [sortBy, setSortBy] = useState<string>('default'); // 'default' | 'fit-desc' | 'price-asc' | 'price-desc'
+  const [activeMegaMenu, setActiveMegaMenu] = useState<string | null>(null);
+  const [copiedVoucherCode, setCopiedVoucherCode] = useState<string | null>(null);
+
+  const availableColorFilters = useMemo(() => {
+    const map = new Map<string, string>();
+    MOCK_PRODUCTS.forEach((p) => {
+      p.variants.forEach((v) => {
+        if (!map.has(v.color_hex)) {
+          map.set(v.color_hex, v.color_name.split('(')[0].trim());
+        }
+      });
+    });
+    return Array.from(map.entries()).map(([hex, name]) => ({ hex, name }));
+  }, []);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filterByMyFitOnly) count++;
     if (priceRange !== 'all') count++;
     if (fabricFilter !== 'all') count++;
+    if (sizeFilter !== 'all') count++;
+    if (colorFilter !== 'all') count++;
     if (sortBy !== 'default') count++;
     return count;
-  }, [filterByMyFitOnly, priceRange, fabricFilter, sortBy]);
+  }, [filterByMyFitOnly, priceRange, fabricFilter, sizeFilter, colorFilter, sortBy]);
 
   const handleResetAllFilters = () => {
     setActiveCategory('all');
@@ -224,7 +247,15 @@ export const FashionStoreHome: React.FC = () => {
     setFilterByMyFitOnly(false);
     setPriceRange('all');
     setFabricFilter('all');
+    setSizeFilter('all');
+    setColorFilter('all');
     setSortBy('default');
+  };
+
+  const handleCopyVoucher = (code: string) => {
+    navigator.clipboard?.writeText(code).catch(() => undefined);
+    setCopiedVoucherCode(code);
+    setTimeout(() => setCopiedVoucherCode(null), 2000);
   };
 
   // Cart
@@ -327,7 +358,11 @@ export const FashionStoreHome: React.FC = () => {
       else if (fabricFilter === 'wool') matchFabric = fabricText.includes('wool') || fabricText.includes('len');
       else if (fabricFilter === 'linen') matchFabric = fabricText.includes('linen') || fabricText.includes('lanh');
 
-      return matchCat && matchSearch && matchFit && matchPrice && matchFabric;
+      // Size & Color filter
+      const matchSize = sizeFilter === 'all' || item.variants.some((v) => v.size_label === sizeFilter);
+      const matchColor = colorFilter === 'all' || item.variants.some((v) => v.color_hex === colorFilter);
+
+      return matchCat && matchSearch && matchFit && matchPrice && matchFabric && matchSize && matchColor;
     });
 
     // Sorting
@@ -340,7 +375,7 @@ export const FashionStoreHome: React.FC = () => {
     }
 
     return list;
-  }, [productsWithFit, activeCategory, searchQuery, filterByMyFitOnly, priceRange, fabricFilter, sortBy, locale]);
+  }, [productsWithFit, activeCategory, searchQuery, filterByMyFitOnly, priceRange, fabricFilter, sizeFilter, colorFilter, sortBy, locale]);
 
   // Category counts for vertical sidebar and horizontal tabs
   const categoryCounts = useMemo(() => {
@@ -381,6 +416,53 @@ export const FashionStoreHome: React.FC = () => {
       ];
     });
 
+    setIsCartOpen(true);
+  };
+
+  const handleChangeCartVariant = (cartItemId: string, newVariantId: string) => {
+    setCartItems((prev) =>
+      prev.map((ci) => {
+        if (ci.id !== cartItemId) return ci;
+        const nextVariant = ci.product.variants.find((v) => v.id === newVariantId);
+        if (!nextVariant) return ci;
+        const fit = calculateProductFit(userBody, ci.product);
+        return {
+          ...ci,
+          variant: nextVariant,
+          fit_score: fit.match_percentage,
+          is_ai_recommended: nextVariant.size_label === fit.recommended_size,
+        };
+      })
+    );
+  };
+
+  const handleAddComboToCart = (productIds: string[]) => {
+    const toAdd = MOCK_PRODUCTS.filter((p) => productIds.includes(p.id));
+    if (toAdd.length === 0) return;
+
+    setCartItems((prev) => {
+      let next = [...prev];
+      toAdd.forEach((product) => {
+        const fit = calculateProductFit(userBody, product);
+        const recVariant = product.variants.find((v) => v.size_label === fit.recommended_size) || product.variants[0];
+        const existingIdx = next.findIndex(
+          (ci) => ci.product.id === product.id && ci.variant.id === recVariant.id
+        );
+        if (existingIdx >= 0) {
+          next[existingIdx] = { ...next[existingIdx], quantity: next[existingIdx].quantity + 1 };
+        } else {
+          next.push({
+            id: `cart-${Date.now()}-${product.id}-${Math.random().toString(36).substr(2, 4)}`,
+            product,
+            variant: recVariant,
+            quantity: 1,
+            fit_score: fit.match_percentage,
+            is_ai_recommended: recVariant.size_label === fit.recommended_size,
+          });
+        }
+      });
+      return next;
+    });
     setIsCartOpen(true);
   };
 
@@ -734,33 +816,39 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         </header>
 
-        {/* ── BAND 3: CRISP WHITE CATEGORY NAVIGATION BAR ── */}
-        <nav className="bg-white border-b border-slate-200 hidden lg:block">
+        {/* ── BAND 3: CRISP WHITE CATEGORY NAVIGATION BAR WITH HOVER MEGA-MENU ── */}
+        <nav
+          className="bg-white border-b border-slate-200 hidden lg:block relative z-30"
+          onMouseLeave={() => setActiveMegaMenu(null)}
+        >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-11 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-6 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-6">
               {[
-                { id: 'all', label: t('ecommerce.categories.all', 'SẢN PHẨM MỚI & TẤT CẢ') },
-                { id: 'shirt', label: t('ecommerce.categories.shirt', 'ÁO SƠ MI MAY ĐO') },
-                { id: 'polo', label: t('ecommerce.categories.polo', 'ÁO POLO CAO CẤP') },
-                { id: 'pants', label: t('ecommerce.categories.pants', 'QUẦN TÂY & CHINO') },
-                { id: 'dress', label: t('ecommerce.categories.dress', 'ĐẦM LỤA TỰ NHIÊN') },
-                { id: 'tailored', label: t('ecommerce.categories.tailored', 'MAY ĐO BESPOKE') },
+                { id: 'all', label: t('ecommerce.categories.all', 'SẢN PHẨM MỚI & TẤT CẢ'), megaKey: null },
+                { id: 'shirt', label: t('ecommerce.categories.shirt', 'ÁO SƠ MI MAY ĐO'), megaKey: 'tops' },
+                { id: 'polo', label: t('ecommerce.categories.polo', 'ÁO POLO CAO CẤP'), megaKey: 'tops' },
+                { id: 'pants', label: t('ecommerce.categories.pants', 'QUẦN TÂY & CHINO'), megaKey: 'bottoms' },
+                { id: 'dress', label: t('ecommerce.categories.dress', 'ĐẦM LỤA TỰ NHIÊN'), megaKey: 'bottoms' },
+                { id: 'tailored', label: t('ecommerce.categories.tailored', 'MAY ĐO BESPOKE'), megaKey: 'tops' },
               ].map((cat) => {
                 const isActive = activeCategory === cat.id;
                 return (
                   <button
                     key={cat.id}
                     type="button"
+                    onMouseEnter={() => setActiveMegaMenu(cat.megaKey)}
                     onClick={() => {
                       setActiveCategory(cat.id);
+                      setActiveMegaMenu(null);
                       const el = document.getElementById('catalog');
                       if (el) el.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className={`relative h-11 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors cursor-pointer flex items-center ${
+                    className={`relative h-11 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1 ${
                       isActive ? 'text-blue-600' : 'text-slate-700 hover:text-slate-950'
                     }`}
                   >
                     <span>{cat.label}</span>
+                    {cat.megaKey && <ChevronDown size={12} className="opacity-60" />}
                     {isActive && (
                       <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
                     )}
@@ -798,6 +886,86 @@ export const FashionStoreHome: React.FC = () => {
               )}
             </button>
           </div>
+
+          {/* Floating Image-Card Mega-Menu Panel (Torano-Inspired Visual Taxonomy) */}
+          {activeMegaMenu && (
+            <div className="absolute left-0 right-0 top-11 bg-white border-b border-slate-200 shadow-xl z-40 animate-in fade-in duration-150">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                    {activeMegaMenu === 'tops'
+                      ? (locale === 'en' ? 'Tops, Shirts, Polos & Bespoke Blazers' : 'Áo Sơ Mi · Polo · Blazer May Đo ISO 8559')
+                      : (locale === 'en' ? 'Italian Trousers, Chinos & Mulberry Silk Dresses' : 'Quần Tây · Chino Ý & Đầm Lụa Mulberry')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory('all');
+                      setActiveMegaMenu(null);
+                    }}
+                    className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                  >
+                    {locale === 'en' ? 'View full collection »' : 'Xem tất cả sản phẩm »'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4">
+                  {(activeMegaMenu === 'tops'
+                    ? [
+                        { id: 'shirt', fabric: 'cotton', labelVi: 'Áo Sơ Mi Oxford Ai Cập', labelEn: 'Egyptian Cotton Shirts', img: MOCK_PRODUCTS[0].image_url, count: categoryCounts.shirt },
+                        { id: 'polo', fabric: 'silk', labelVi: 'Áo Polo Lụa Piqué', labelEn: 'Silk Blend Polos', img: MOCK_PRODUCTS[1].image_url, count: categoryCounts.polo },
+                        { id: 'tailored', fabric: 'linen', labelVi: 'Blazer Linen Pháp', labelEn: 'French Linen Blazers', img: MOCK_PRODUCTS[4].image_url, count: categoryCounts.tailored },
+                        { id: 'all', fabric: 'all', labelVi: 'Thử Đồ Ảo 3D Studio', labelEn: '3D Virtual Fitting Room', img: MOCK_PRODUCTS[0].secondary_image_url || MOCK_PRODUCTS[0].image_url, isStudio: true, count: categoryCounts.all },
+                      ]
+                    : [
+                        { id: 'pants', fabric: 'wool', labelVi: 'Quần Tây Xếp Ly Ý', labelEn: 'Italian Wool Trousers', img: MOCK_PRODUCTS[2].image_url, count: 1 },
+                        { id: 'pants', fabric: 'cotton', labelVi: 'Quần Chino Co Giãn 4D', labelEn: 'Stretch Cotton Chinos', img: MOCK_PRODUCTS[5].image_url, count: 1 },
+                        { id: 'dress', fabric: 'silk', labelVi: 'Đầm Lụa Satin Bias-Cut', labelEn: 'Mulberry Silk Dresses', img: MOCK_PRODUCTS[3].image_url, count: categoryCounts.dress },
+                        { id: 'all', fabric: 'all', labelVi: 'Xem Toàn Bộ Phối Đồ', labelEn: 'Browse Mix & Match', img: MOCK_PRODUCTS[2].image_url, isLookbook: true, count: categoryCounts.all },
+                      ]
+                  ).map((tile, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setActiveMegaMenu(null);
+                        if ('isStudio' in tile && tile.isStudio) {
+                          handleOpenVirtualStudio();
+                          return;
+                        }
+                        if ('isLookbook' in tile && tile.isLookbook) {
+                          setActiveCategory('all');
+                          setFabricFilter('all');
+                          const lb = document.getElementById('lookbook-combo');
+                          if (lb) lb.scrollIntoView({ behavior: 'smooth' });
+                          return;
+                        }
+                        setActiveCategory(tile.id);
+                        setFabricFilter(tile.fabric);
+                        const el = document.getElementById('catalog');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="group text-left rounded-xl border border-slate-200 hover:border-blue-400 bg-slate-50/60 hover:bg-white p-2.5 flex items-center gap-3 transition-all cursor-pointer"
+                    >
+                      <img
+                        src={tile.img}
+                        alt=""
+                        className="w-14 h-18 object-cover rounded-lg border border-slate-200 flex-shrink-0 group-hover:scale-105 transition-transform"
+                      />
+                      <div className="min-w-0">
+                        <span className="text-xs font-extrabold text-slate-900 group-hover:text-blue-600 block line-clamp-2">
+                          {locale === 'en' ? tile.labelEn : tile.labelVi}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-slate-500 mt-1 block">
+                          {tile.count} {locale === 'en' ? 'items' : 'mẫu chuẩn phom'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* ── BAND 4: WIDE EDITORIAL FASHION-TECH HERO BANNER ── */}
@@ -966,6 +1134,87 @@ export const FashionStoreHome: React.FC = () => {
             </div>
           </div>
         </section>
+
+      {/* ── BAND 4B: EXCLUSIVE BESPOKE VOUCHER STRIP (CHAMPAGNE CREAM #F5EBD8) ── */}
+      <section className="bg-[#F5EBD8]/75 border-b border-amber-200/80 py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3.5">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-[#14171C] text-amber-300 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                <Tag size={10} />
+                <span>{locale === 'en' ? 'Website Exclusive' : 'Ưu Đãi Độc Quyền Web'}</span>
+              </span>
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">
+                {locale === 'en' ? 'Bespoke Tailoring & ISO 8559 Privileges' : 'Đặc Quyền May Đo & Quét Dáng 3D'}
+              </h3>
+            </div>
+            <span className="text-[11px] font-medium text-slate-600">
+              {locale === 'en' ? 'Click any voucher code to copy instantly' : 'Chạm vào mã để sao chép nhanh khi thanh toán'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              {
+                code: 'FITVISION50',
+                titleVi: 'Giảm 50.000₫ cho mọi đơn từ 600K',
+                titleEn: '50,000₫ off orders from 600K',
+                subVi: 'Áp dụng khi chọn size theo gợi ý AI ISO 8559',
+                subEn: 'Applies with ISO 8559 AI size match',
+              },
+              {
+                code: 'TAILOR100',
+                titleVi: 'Giảm 100.000₫ Bộ May Đo Bespoke',
+                titleEn: '100,000₫ off Bespoke Sets',
+                subVi: 'Dành riêng cho Blazer Linen & Đầm Lụa Mulberry',
+                subEn: 'Valid for Linen Blazer & Mulberry Silk',
+              },
+              {
+                code: 'FREESHIP3D',
+                titleVi: 'Freeship Hỏa Tốc + Đổi Size 14 Ngày',
+                titleEn: 'Free Express + 14-Day Fit Swap',
+                subVi: 'Miễn phí chỉnh sửa phom dáng tận nhà toàn quốc',
+                subEn: 'Complimentary nationwide door-to-door adjustment',
+              },
+            ].map((v) => {
+              const isCopied = copiedVoucherCode === v.code;
+              return (
+                <div
+                  key={v.code}
+                  onClick={() => handleCopyVoucher(v.code)}
+                  className="bg-white rounded-xl border border-amber-200/90 hover:border-[#C8963E] p-3 flex items-center justify-between gap-3 shadow-2xs transition-all cursor-pointer group"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs font-black text-slate-950 tracking-wider">
+                        {v.code}
+                      </span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-900 truncate mt-0.5">
+                      {locale === 'en' ? v.titleEn : v.titleVi}
+                    </p>
+                    <p className="text-[10px] text-slate-500 truncate">
+                      {locale === 'en' ? v.subEn : v.subVi}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 flex-shrink-0 transition-colors cursor-pointer ${
+                      isCopied
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-[#14171C] text-white group-hover:bg-blue-600'
+                    }`}
+                  >
+                    {isCopied ? <Check size={11} /> : <Copy size={11} />}
+                    <span>{isCopied ? (locale === 'en' ? 'Copied' : 'Đã chép') : (locale === 'en' ? 'Copy' : 'Sao chép')}</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       {/* ── BAND 5: 2-COLUMN EDITORIAL CATALOG SECTION ── */}
       <main id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14 flex-1 w-full">
@@ -1240,6 +1489,49 @@ export const FashionStoreHome: React.FC = () => {
                     ))}
                   </div>
                 </div>
+                <div>
+                  <p className="font-bold text-slate-800 mb-1.5">{locale === 'en' ? 'Size' : 'Kích Cỡ'}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['all', 'XS', 'S', 'M', 'L', 'XL'].map((sz) => (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => setSizeFilter(sz)}
+                        className={`px-2.5 py-1.5 rounded-lg font-mono font-bold border cursor-pointer ${
+                          sizeFilter === sz ? 'bg-[#14171C] text-white border-[#14171C]' : 'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {sz === 'all' ? (locale === 'en' ? 'All' : 'Tất cả') : sz}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800 mb-1.5">{locale === 'en' ? 'Color' : 'Màu Sắc'}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setColorFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer ${
+                        colorFilter === 'all' ? 'bg-[#14171C] text-white border-[#14171C]' : 'bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {locale === 'en' ? 'All' : 'Tất cả'}
+                    </button>
+                    {availableColorFilters.map((col) => (
+                      <button
+                        key={col.hex}
+                        type="button"
+                        onClick={() => setColorFilter(col.hex)}
+                        className={`w-6 h-6 rounded-full border cursor-pointer transition-transform ${
+                          colorFilter === col.hex ? 'ring-2 ring-blue-600 ring-offset-2 scale-110 border-slate-400' : 'border-slate-300'
+                        }`}
+                        style={{ backgroundColor: col.hex }}
+                        title={col.name}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1420,7 +1712,81 @@ export const FashionStoreHome: React.FC = () => {
                 </div>
               </div>
 
-              {/* Filter Group C: Price Range */}
+              {/* Filter Group C: Size Chips */}
+              <div className="pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2.5">
+                  <h4 className="text-xs font-extrabold text-slate-900">
+                    {locale === 'en' ? 'Size' : 'Kích Cỡ'}
+                  </h4>
+                  {sizeFilter !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setSizeFilter('all')}
+                      className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      {locale === 'en' ? 'Clear' : 'Bỏ chọn'}
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {['XS', 'S', 'M', 'L', 'XL'].map((sz) => {
+                    const isSelected = sizeFilter === sz;
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => setSizeFilter(isSelected ? 'all' : sz)}
+                        className={`py-1.5 rounded-lg text-[11px] font-mono font-bold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#14171C] text-white border-[#14171C] shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-400'
+                        }`}
+                      >
+                        {sz}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Filter Group D: Color Swatches */}
+              <div className="pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2.5">
+                  <h4 className="text-xs font-extrabold text-slate-900">
+                    {locale === 'en' ? 'Color' : 'Màu Sắc'}
+                  </h4>
+                  {colorFilter !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setColorFilter('all')}
+                      className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      {locale === 'en' ? 'All' : 'Tất cả'}
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {availableColorFilters.map((col) => {
+                    const isSelected = colorFilter === col.hex;
+                    return (
+                      <button
+                        key={col.hex}
+                        type="button"
+                        onClick={() => setColorFilter(isSelected ? 'all' : col.hex)}
+                        className={`w-6 h-6 rounded-full border cursor-pointer transition-all ${
+                          isSelected
+                            ? 'ring-2 ring-blue-600 ring-offset-2 scale-110 border-slate-500'
+                            : 'border-slate-300 hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: col.hex }}
+                        title={col.name}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Filter Group E: Price Range */}
               <div className="pt-4 border-t border-slate-100">
                 <h4 className="text-xs font-extrabold text-slate-900 mb-2.5">
                   {t('ecommerce.catalog.priceRange', 'Khoảng Giá')}
@@ -1542,7 +1908,7 @@ export const FashionStoreHome: React.FC = () => {
                       key={product.id}
                       className="group bg-white rounded-2xl border border-slate-200/90 hover:border-slate-300 overflow-hidden shadow-2xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
                     >
-                      {/* Top: Product Media + Hover Quick-Size Strip */}
+                      {/* Top: Product Media (Dual-Image Hover Crossfade) + Quick-Size Strip */}
                       <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
                         <img
                           src={product.image_url}
@@ -1551,6 +1917,15 @@ export const FashionStoreHome: React.FC = () => {
                           className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105 cursor-pointer"
                           loading="lazy"
                         />
+                        {product.secondary_image_url && (
+                          <img
+                            src={product.secondary_image_url}
+                            alt=""
+                            onClick={() => handleOpenAnalysis(product)}
+                            className="absolute inset-0 w-full h-full object-cover object-top opacity-0 group-hover:opacity-100 transition-opacity duration-500 cursor-pointer"
+                            loading="lazy"
+                          />
+                        )}
 
                         {/* Brand Tag Top Left */}
                         <div className="absolute top-2.5 left-2.5 pointer-events-none">
@@ -1725,6 +2100,112 @@ export const FashionStoreHome: React.FC = () => {
                 })}
               </div>
             )}
+            {/* ── MIX & MATCH 3D COMBO LOOKBOOK SECTION ── */}
+            <section id="lookbook-combo" className="pt-8 mt-4 border-t border-slate-200 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
+                    {locale === 'en' ? '3D Coordinated Looks' : 'Phối Đồ Chuẩn Phom 3D'}
+                  </span>
+                  <h3 className="font-display text-xl sm:text-2xl font-bold text-[#14171C] mt-0.5">
+                    {locale === 'en' ? 'Mix & Match Bundles — Better Together' : 'Combo Phối Đồ May Đo — Mua Cả Bộ Tiết Kiệm Hơn'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenVirtualStudio}
+                  className="self-start sm:self-auto text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>{locale === 'en' ? 'Preview in 3D Fitting Room »' : 'Thử phối đồ trong Phòng 3D »'}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {[
+                  {
+                    id: 'combo-milan',
+                    titleVi: 'Set Công Sở Milan Chuẩn Phom Ý',
+                    titleEn: 'Milan Office Bespoke Set',
+                    subVi: 'Sơ Mi Oxford Ai Cập + Quần Tây Xếp Ly Đôi Úc',
+                    subEn: 'Egyptian Oxford Shirt + Australian Wool Trousers',
+                    productIds: ['prod-01', 'prod-03'],
+                    savings: 175000,
+                    imgLeft: MOCK_PRODUCTS[0].image_url,
+                    imgRight: MOCK_PRODUCTS[2].image_url,
+                  },
+                  {
+                    id: 'combo-riviera',
+                    titleVi: 'Set Smart-Casual Linen Cuối Tuần',
+                    titleEn: 'Riviera Smart-Casual Linen Set',
+                    subVi: 'Blazer Linen Pháp + Quần Chino Co Giãn 4 Chiều',
+                    subEn: 'French Linen Blazer + 4-Way Stretch Chinos',
+                    productIds: ['prod-05', 'prod-06'],
+                    savings: 200000,
+                    imgLeft: MOCK_PRODUCTS[4].image_url,
+                    imgRight: MOCK_PRODUCTS[5].image_url,
+                  },
+                ].map((combo) => {
+                  const bundleProducts = MOCK_PRODUCTS.filter((p) => combo.productIds.includes(p.id));
+                  const totalBundlePrice = bundleProducts.reduce((sum, p) => sum + (p.sale_price || p.price), 0);
+                  return (
+                    <div
+                      key={combo.id}
+                      className="rounded-2xl bg-[#F4F5F7] border border-slate-200 p-4 flex flex-col sm:flex-row gap-4 items-stretch"
+                    >
+                      <div className="grid grid-cols-2 gap-2 sm:w-44 flex-shrink-0">
+                        <img
+                          src={combo.imgLeft}
+                          alt=""
+                          className="w-full h-36 sm:h-40 object-cover object-top rounded-xl border border-white shadow-xs"
+                          loading="lazy"
+                        />
+                        <img
+                          src={combo.imgRight}
+                          alt=""
+                          className="w-full h-36 sm:h-40 object-cover object-top rounded-xl border border-white shadow-xs"
+                          loading="lazy"
+                        />
+                      </div>
+
+                      <div className="flex-1 flex flex-col justify-between space-y-3">
+                        <div>
+                          <span className="inline-block px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-bold">
+                            {locale === 'en'
+                              ? `Save ${combo.savings.toLocaleString('vi-VN')}₫`
+                              : `Tiết kiệm ${combo.savings.toLocaleString('vi-VN')}₫`}
+                          </span>
+                          <h4 className="font-display text-base font-bold text-slate-950 mt-1.5">
+                            {locale === 'en' ? combo.titleEn : combo.titleVi}
+                          </h4>
+                          <p className="text-xs text-slate-600 mt-0.5">
+                            {locale === 'en' ? combo.subEn : combo.subVi}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/80">
+                          <div>
+                            <span className="text-[10px] text-slate-500 block">
+                              {locale === 'en' ? 'Bundle Total' : 'Trọn bộ 2 món'}
+                            </span>
+                            <span className="font-black text-sm text-slate-950">
+                              {totalBundlePrice.toLocaleString('vi-VN')} ₫
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleAddComboToCart(combo.productIds)}
+                            className="px-3.5 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <ShoppingBag size={13} />
+                            <span>{locale === 'en' ? 'Add Full Look' : 'Mua Trọn Bộ'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           </div>
         </div>
       </main>
@@ -1776,6 +2257,69 @@ export const FashionStoreHome: React.FC = () => {
               <p className="text-xs text-slate-600 leading-relaxed">
                 {t('ecommerce.tech.f3Desc', 'Áo quần không bao giờ may bằng khít với da thịt. FitVision 3D tính toán chính xác độ chùng vải (ease: +3cm đến +6cm) để đảm bảo bạn mặc đẹp nhưng vẫn cử động thoải mái khi làm việc.')}
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── BAND 6B: 4-COLUMN COMMITMENT BAR (WARM CHAMPAGNE #F5EBD8) ── */}
+      <section className="bg-[#F5EBD8] border-t border-amber-200/80 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-amber-200 flex items-center justify-center text-[#14171C] flex-shrink-0 shadow-2xs">
+                <Truck size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-950">
+                  {locale === 'en' ? 'Express Freeship' : 'Freeship Toàn Quốc'}
+                </h4>
+                <p className="text-[11px] text-slate-700">
+                  {locale === 'en' ? 'Orders from 1,000,000₫ & ISO VIP' : 'Giao hỏa tốc nội thành từ 1.000.000₫'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-amber-200 flex items-center justify-center text-[#14171C] flex-shrink-0 shadow-2xs">
+                <RotateCcw size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-950">
+                  {locale === 'en' ? '14-Day Fit Adjustment' : 'Đổi Sửa Size 14 Ngày'}
+                </h4>
+                <p className="text-[11px] text-slate-700">
+                  {locale === 'en' ? 'Complimentary size swap guaranteed' : 'Miễn phí đổi size tận nhà 100%'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-amber-200 flex items-center justify-center text-[#14171C] flex-shrink-0 shadow-2xs">
+                <ShieldCheck size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-950">
+                  {locale === 'en' ? 'RAM Zero-Retention' : 'Bảo Mật Ảnh RAM 100%'}
+                </h4>
+                <p className="text-[11px] text-slate-700">
+                  {locale === 'en' ? 'Zero photo storage on servers' : 'Không lưu trữ ảnh chụp vóc dáng'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-amber-200 flex items-center justify-center text-[#14171C] flex-shrink-0 shadow-2xs">
+                <Ruler size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-950">
+                  {locale === 'en' ? 'ISO 8559-1 Standard' : 'Chuẩn Nhân Trắc ISO 8559'}
+                </h4>
+                <p className="text-[11px] text-slate-700">
+                  {locale === 'en' ? '13-point precision body mapping' : 'Hiệu chuẩn Ease Allowance từng cm'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1922,7 +2466,7 @@ export const FashionStoreHome: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setIsBiometricModalOpen(true)}
+          onClick={handleOpenBiometrics}
           className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center bg-transparent border-0 cursor-pointer"
         >
           <Ruler size={18} />
@@ -1995,6 +2539,8 @@ export const FashionStoreHome: React.FC = () => {
             handleAddToCart(analysisProduct, analysisVariant);
           }
         }}
+        onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant)}
+        onOpenVirtualStudio={handleOpenVirtualStudio}
       />
 
       <SmartCartDrawer
@@ -2013,6 +2559,8 @@ export const FashionStoreHome: React.FC = () => {
             })
           );
         }}
+        onChangeVariant={handleChangeCartVariant}
+        onClearCart={() => setCartItems([])}
         onCheckout={() => {
           setIsCartOpen(false);
           setIsCheckoutModalOpen(true);
