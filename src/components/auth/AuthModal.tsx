@@ -17,7 +17,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
-import { SpinTurntableShowcase } from './SpinTurntableShowcase';
+import { FitVisionAuthShowcase } from './FitVisionAuthShowcase';
 
 export const AuthModal: React.FC = () => {
   const {
@@ -355,8 +355,8 @@ export const AuthModal: React.FC = () => {
 
   return (
     <div className="zf-auth-fullscreen animate-fade-in">
-      {/* ── CỘT TRÁI: SPIN PRODUCT 360° TURNTABLE STAGE + FITVISION 3D METRICS ── */}
-      <SpinTurntableShowcase />
+      {/* ── CỘT TRÁI: FITVISION 3D INTERACTIVE SHOWCASE (ĐÚNG MÀU & ANIMATION DỰ ÁN) ── */}
+      <FitVisionAuthShowcase />
 
       {/* ── CỘT PHẢI: EDITORIAL LIGHT FORM PANE (COBALT & CHAMPAGNE HARMONY) ── */}
       <div ref={formPaneRef} className="zf-auth-form-pane">
@@ -426,8 +426,8 @@ export const AuthModal: React.FC = () => {
                   onClick={openSignIn}
                   className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     authModalTab === 'signin'
-                      ? 'bg-white text-blue-700 shadow-xs border border-blue-200/70'
-                      : 'text-slate-500 hover:text-slate-900 bg-transparent border border-transparent'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-950 bg-transparent'
                   }`}
                 >
                   {t('app.auth.tabSignin', 'Đăng nhập')}
@@ -437,8 +437,8 @@ export const AuthModal: React.FC = () => {
                   onClick={openRegister}
                   className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     authModalTab === 'register'
-                      ? 'bg-white text-blue-700 shadow-xs border border-blue-200/70'
-                      : 'text-slate-500 hover:text-slate-900 bg-transparent border border-transparent'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-950 bg-transparent'
                   }`}
                 >
                   {t('app.auth.tabRegister', 'Tạo tài khoản')}

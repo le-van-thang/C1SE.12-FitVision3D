@@ -577,7 +577,7 @@
 }
 
 
-/* ── Full-Screen Auth View (Editorial Atelier + Spin Product 360 Stage) ── */
+/* ── Full-Screen Auth View (FitVision 3D Vibrant Storefront Sync) ── */
 .zf-auth-fullscreen {
   position: fixed !important;
   inset: 0 !important;
@@ -587,27 +587,31 @@
   z-index: 9999 !important;
   display: grid !important;
   grid-template-columns: 1fr !important;
-  background: #F4F5F7 !important;
+  background: #F7F7F5 !important;
   color: #14171C !important;
   overflow: hidden !important;
 }
 
 @media (min-width: 1024px) {
   .zf-auth-fullscreen {
-    grid-template-columns: minmax(500px, 50%) 1fr !important;
+    grid-template-columns: minmax(480px, 48%) 1fr !important;
   }
 }
 
 .zf-auth-showcase-pane {
   display: none !important;
-  background: #E2E4E8 !important;
-  border-right: 1px solid #CBD5E1 !important;
-  padding: 22px 28px !important;
+  background:
+    radial-gradient(circle at 18% 15%, rgba(37, 99, 235, 0.24) 0%, transparent 48%),
+    radial-gradient(circle at 85% 82%, rgba(200, 150, 62, 0.16) 0%, transparent 45%),
+    linear-gradient(155deg, #14171C 0%, #19212E 52%, #0F141C 100%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding: 24px 30px !important;
   flex-direction: column !important;
   justify-content: space-between !important;
   position: relative !important;
   height: 100dvh !important;
   overflow: hidden !important;
+  color: #FFFFFF !important;
 }
 
 @media (min-width: 1024px) {
@@ -618,9 +622,9 @@
 
 .zf-auth-form-pane {
   background:
-    radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.08) 0%, transparent 45%),
-    radial-gradient(circle at 15% 88%, rgba(200, 150, 62, 0.14) 0%, transparent 48%),
-    linear-gradient(160deg, #F8FAFC 0%, #F5F2EB 55%, #EFF3FA 100%) !important;
+    radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.11) 0%, transparent 45%),
+    radial-gradient(circle at 12% 88%, rgba(245, 235, 216, 0.85) 0%, transparent 50%),
+    linear-gradient(160deg, #F8FAFC 0%, #F7F5EF 55%, #EFF4FF 100%) !important;
   height: 100dvh !important;
   display: flex !important;
   flex-direction: column !important;
@@ -628,119 +632,89 @@
   overflow-y: auto !important;
 }
 
-/* ── Auth Blueprint Grid & Spin-Product Architectural Effects ── */
+/* ── Auth Blueprint Grid, Floating Orbs & Live 3D Scan Laser ── */
 .zf-auth-grid {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
   background-image:
-    linear-gradient(rgba(20, 23, 28, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20, 23, 28, 0.035) 1px, transparent 1px);
+    linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
   background-size: 40px 40px;
-  -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 30%, transparent 80%);
-  mask-image: radial-gradient(circle at 50% 45%, #000 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(circle at 50% 45%, #000 25%, transparent 78%);
 }
 
 .zf-auth-orb {
   position: absolute;
-  right: -120px;
-  bottom: -120px;
-  width: 360px;
-  height: 360px;
+  right: -100px;
+  bottom: -100px;
+  width: 340px;
+  height: 340px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
-  filter: blur(14px);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.28) 0%, transparent 70%);
+  filter: blur(18px);
   pointer-events: none;
   z-index: 1;
-  animation: zfAuthFloat 9s ease-in-out infinite;
+  animation: zfAuthFloat 8s ease-in-out infinite;
 }
 
 .zf-auth-scan {
-  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 72px;
+  pointer-events: none;
+  z-index: 15;
+  background: linear-gradient(180deg, transparent, rgba(56, 189, 248, 0.22), transparent);
+  border-bottom: 1.5px solid rgba(56, 189, 248, 0.65);
+  box-shadow: 0 4px 18px rgba(56, 189, 248, 0.35);
+  animation: zfAuthScan 4.2s ease-in-out infinite;
 }
 
-/* Spin-Product Notched Card Shape (Architectural Ticket Cutout) */
-.fv-notched-card {
-  clip-path: polygon(
-    0 0,
-    92px 0,
-    100px 6px,
-    100% 6px,
-    100% calc(100% - 6px),
-    calc(100% - 110px) calc(100% - 6px),
-    calc(100% - 118px) 100%,
-    6px 100%,
-    6px calc(100% - 22px),
-    0 calc(100% - 28px)
-  );
+@keyframes zfAuthScan {
+  0% { top: -80px; opacity: 0.2; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { top: 100%; opacity: 0.2; }
 }
-
-/* Spin-Product Corner Brackets Frame */
-.fv-bracket-active {
-  background:
-    linear-gradient(#14171C, #14171C) 0 0 / 7px 1.5px no-repeat,
-    linear-gradient(#14171C, #14171C) 0 0 / 1.5px 7px no-repeat,
-    linear-gradient(#14171C, #14171C) 100% 0 / 7px 1.5px no-repeat,
-    linear-gradient(#14171C, #14171C) 100% 0 / 1.5px 7px no-repeat,
-    linear-gradient(#14171C, #14171C) 0 100% / 7px 1.5px no-repeat,
-    linear-gradient(#14171C, #14171C) 0 100% / 1.5px 7px no-repeat,
-    linear-gradient(#14171C, #14171C) 100% 100% / 7px 1.5px no-repeat,
-    linear-gradient(#14171C, #14171C) 100% 100% / 1.5px 7px no-repeat;
-}
-
-/* Spin-Product SVG Connector Line Draw-In */
-@keyframes fvLineDraw {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.fv-connector-path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  animation: fvLineDraw 0.7s cubic-bezier(0.65, 0, 0.25, 1) forwards;
-}
-
-@keyframes zfAuthFloat { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px,-24px); } }
+@keyframes zfAuthFloat { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-28px,-20px); } }
 @keyframes zfAuthRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 
 .zf-auth-card {
   position: relative;
   max-width: 450px !important;
-  padding: 32px 30px;
+  padding: 30px 30px;
   background: rgba(255, 255, 255, 0.96) !important;
-  border: 1px solid rgba(203, 213, 225, 0.85) !important;
+  border: 1px solid rgba(203, 213, 225, 0.9) !important;
   border-radius: 22px;
-  box-shadow: 0 24px 55px -20px rgba(30, 41, 59, 0.16), 0 6px 16px -4px rgba(37, 99, 235, 0.08) !important;
-  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 55px -20px rgba(30, 41, 59, 0.18), 0 8px 20px -4px rgba(37, 99, 235, 0.1) !important;
+  backdrop-filter: blur(14px);
   animation: zfAuthRise 0.4s ease both;
 }
 .zf-auth-card::before {
   content: '';
   position: absolute;
-  left: 32px;
-  right: 32px;
+  left: 30px;
+  right: 30px;
   top: 0;
-  height: 3.5px;
+  height: 4px;
   border-radius: 0 0 4px 4px;
-  background: linear-gradient(90deg, #2563EB, #C8963E, #4F46E5);
+  background: linear-gradient(90deg, #2563EB, #C8963E, #10B981);
 }
 @media (max-width: 520px) { .zf-auth-card { padding: 24px 18px; } }
 
 .zf-auth-badge {
-  width: 50px;
-  height: 50px;
+  width: 52px;
+  height: 52px;
   margin: 0 auto 12px;
   display: grid;
   place-items: center;
-  border-radius: 15px;
+  border-radius: 16px;
   color: #FFFFFF;
   background: linear-gradient(135deg, #2563EB 0%, #4F46E5 100%);
-  box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.42);
+  box-shadow: 0 10px 26px -6px rgba(37, 99, 235, 0.48);
 }
 
 .zf-auth-form-pane input:not([type=checkbox]) {
@@ -748,18 +722,20 @@
 }
 .zf-auth-form-pane input:not([type=checkbox]):focus {
   border-color: #2563EB !important;
-  box-shadow: 0 0 0 1000px #FFFFFF inset, 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+  box-shadow: 0 0 0 1000px #FFFFFF inset, 0 0 0 3px rgba(37, 99, 235, 0.16) !important;
 }
 .zf-auth-form-pane button[type=submit] {
-  background: linear-gradient(135deg, #2563EB 0%, #4338CA 100%) !important;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 60%, #4F46E5 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.42) !important;
+  box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.45) !important;
   transition: transform 0.18s, filter 0.18s, box-shadow 0.18s !important;
 }
 .zf-auth-form-pane button[type=submit]:hover {
-  filter: brightness(1.07);
+  filter: brightness(1.06);
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px -6px rgba(37, 99, 235, 0.5) !important;
+  box-shadow: 0 14px 28px -6px rgba(37, 99, 235, 0.55) !important;
 }
 .zf-auth-form-pane button[type=submit]:active { transform: translateY(0); }
 
