@@ -158,7 +158,9 @@ export const FitVisionAuthShowcase: React.FC = () => {
             <span className="text-[10px] font-bold text-white block">
               {isEn ? 'Fit Match' : 'Độ Vừa AI'}
             </span>
-            <span className="text-[10px] font-mono text-[#F5EBD8]">ISO 8559-1</span>
+            <span className="text-[10px] font-mono text-[#F5EBD8]">
+              {isEn ? 'AI Tailored' : 'Chuẩn May Đo'}
+            </span>
           </div>
         </div>
       </div>

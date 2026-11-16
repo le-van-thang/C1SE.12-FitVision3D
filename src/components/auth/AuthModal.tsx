@@ -10,9 +10,7 @@ import {
   EyeOff,
   ShieldCheck,
   ArrowLeft,
-  KeyRound,
   CheckCircle2,
-  Sparkles,
   Scissors,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -151,6 +149,16 @@ export const AuthModal: React.FC = () => {
 
     return rawMsg || t('app.authErrors.DEFAULT_ERROR');
   };
+
+  // Lock background page scroll while full-screen auth portal is open
+  useEffect(() => {
+    if (!isAuthModalOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isAuthModalOpen]);
 
   if (!isAuthModalOpen) return null;
 
@@ -406,21 +414,10 @@ export const AuthModal: React.FC = () => {
       <div className="zf-auth-body">
         <FitVisionAuthShowcase />
 
-        <div ref={formPaneRef} className="zf-auth-form-pane px-6 sm:px-10 py-8">
+        <div ref={formPaneRef} className="zf-auth-form-pane px-6 sm:px-10 py-5 sm:py-6">
           <div className="zf-auth-sheet">
             {/* Editorial Header */}
-            <div className="mb-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F5EBD8] border border-[#E5D3B3] text-[#14171C] text-[11px] font-bold mb-3">
-                {authModalTab === 'forgot' ? (
-                  <KeyRound size={13} className="text-blue-600" />
-                ) : authModalTab === 'verify' ? (
-                  <ShieldCheck size={13} className="text-emerald-700" />
-                ) : (
-                  <Lock size={13} className="text-blue-600" />
-                )}
-                <span>ISO 8559-1 · FitVision Atelier</span>
-              </div>
-
+            <div className="mb-4">
               <h1 className="font-sans text-2xl sm:text-[26px] font-extrabold text-[#14171C] tracking-tight m-0 leading-snug">
                 {authModalTab === 'signin'
                   ? t('app.auth.signinTitle', 'Đăng nhập FitVision 3D')
@@ -432,9 +429,9 @@ export const AuthModal: React.FC = () => {
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-0">
                 {authModalTab === 'signin'
-                  ? t('app.auth.signinDesc', 'Truy cập hồ sơ số đo nhân trắc học & phòng thử đồ 3D')
+                  ? t('app.auth.signinDesc', 'Truy cập hồ sơ số đo vóc dáng 3D & phòng thử đồ ảo')
                   : authModalTab === 'register'
-                  ? t('app.auth.registerDesc', 'Tạo tài khoản khách hàng để lưu số đo chuẩn ISO 8559')
+                  ? t('app.auth.registerDesc', 'Tạo tài khoản để lưu số đo vóc dáng 3D cá nhân')
                   : authModalTab === 'forgot'
                   ? t('app.auth.forgotDesc', 'Khôi phục mật khẩu tài khoản của bạn qua mã xác nhận OTP')
                   : t('app.auth.verifyDesc', 'Nhập mã OTP 6 số để hoàn tất kích hoạt tài khoản')}
@@ -443,7 +440,7 @@ export const AuthModal: React.FC = () => {
 
             {/* Clean Segmented Tab Switcher (Obsidian #14171C Active Tab) */}
             {(authModalTab === 'signin' || authModalTab === 'register') && (
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-stone-200/70 border border-stone-300/60 rounded-xl mb-5">
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-stone-200/70 border border-stone-300/60 rounded-xl mb-4">
                 <button
                   type="button"
                   onClick={openSignIn}
@@ -979,19 +976,6 @@ export const AuthModal: React.FC = () => {
                 </div>
               </form>
             )}
-
-            {/* Editorial Trust Footer inside Auth Card */}
-            <div className="mt-5 px-3 py-2 rounded-xl bg-[#F5EBD8]/65 border border-[#E5D3B3]/80 flex items-center justify-center gap-4 text-[11px] font-semibold text-slate-800">
-              <span className="flex items-center gap-1.5">
-                <Sparkles size={12} className="text-blue-600" />
-                <span>ISO 8559-1</span>
-              </span>
-              <span className="text-amber-700/50">•</span>
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck size={12} className="text-emerald-700" />
-                <span>{isEn ? 'RAM Zero-Retention' : 'Bảo mật RAM 100%'}</span>
-              </span>
-            </div>
           </div>
         </div>
       </div>
