@@ -209,6 +209,7 @@ export const ShopPortal: React.FC = () => {
   const [newGender, setNewGender] = useState<'male' | 'female' | 'unisex'>('male');
   const [newPrice, setNewPrice] = useState('');
   const [newSalePrice, setNewSalePrice] = useState('');
+  const [discountMode, setDiscountMode] = useState<'discount_amount' | 'final_price'>('discount_amount');
   const [newFabric, setNewFabric] = useState('100% Cotton Cao Cấp');
   const [newStretch, setNewStretch] = useState('Co giãn nhẹ (2-3%)');
   const [colorVariants, setColorVariants] = useState<{ colorName: string; colorHex: string; imageUrl: string }[]>([
@@ -478,7 +479,13 @@ export const ShopPortal: React.FC = () => {
     const nextErrors: { name?: string; price?: string; salePrice?: string } = {};
     const trimmedName = newName.trim();
     const numericPrice = Number(newPrice);
-    const numericSale = newSalePrice.trim() ? Number(newSalePrice) : null;
+    const rawPromo = newSalePrice.trim() ? Number(newSalePrice) : null;
+    const resolvedSalePrice =
+      rawPromo === null
+        ? null
+        : discountMode === 'discount_amount'
+          ? numericPrice - rawPromo
+          : rawPromo;
 
     if (trimmedName.length < 3) {
       nextErrors.name = 'Vui lòng nhập tên sản phẩm tối thiểu 3 ký tự.';
@@ -486,8 +493,19 @@ export const ShopPortal: React.FC = () => {
     if (!newPrice.trim() || !Number.isFinite(numericPrice) || numericPrice < 1000) {
       nextErrors.price = 'Vui lòng nhập giá gốc hợp lệ (tối thiểu 1.000₫).';
     }
-    if (numericSale !== null && (!Number.isFinite(numericSale) || numericSale < 1000 || (Number.isFinite(numericPrice) && numericSale >= numericPrice))) {
-      nextErrors.salePrice = 'Giá khuyến mãi phải từ 1.000₫ và thấp hơn giá gốc.';
+    if (rawPromo !== null) {
+      if (!Number.isFinite(rawPromo) || rawPromo <= 0) {
+        nextErrors.salePrice = 'Số tiền nhập phải lớn hơn 0.';
+      } else if (
+        resolvedSalePrice === null ||
+        resolvedSalePrice < 1000 ||
+        (Number.isFinite(numericPrice) && resolvedSalePrice >= numericPrice)
+      ) {
+        nextErrors.salePrice =
+          discountMode === 'discount_amount'
+            ? 'Số tiền giảm phải nhỏ hơn giá gốc và giá sau giảm tối thiểu 1.000₫.'
+            : 'Giá sau giảm phải từ 1.000₫ và thấp hơn giá gốc.';
+      }
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -540,7 +558,7 @@ export const ShopPortal: React.FC = () => {
       category: newCategory,
       genderTarget: newGender,
       price: numericPrice,
-      salePrice: numericSale,
+      salePrice: resolvedSalePrice,
       fabricMaterial: newFabric.trim() || 'Cotton Cao Cấp',
       stretchType: newStretch,
       imageUrl: cleanColors[0].imageUrl,
@@ -1107,12 +1125,40 @@ export const ShopPortal: React.FC = () => {
                           )}
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Giá Khuyến Mãi (VNĐ)</label>
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <label className="text-[11px] font-bold text-slate-800">
+                              {discountMode === 'discount_amount' ? 'Tiền Giảm Giá (VNĐ)' : 'Giá Sau Giảm (VNĐ)'}
+                            </label>
+                            <div className="inline-flex rounded-lg bg-slate-200 p-0.5 text-[9px] font-bold">
+                              <button
+                                type="button"
+                                onClick={() => setDiscountMode('discount_amount')}
+                                className={`px-1.5 py-0.5 rounded-md cursor-pointer ${
+                                  discountMode === 'discount_amount' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-600'
+                                }`}
+                              >
+                                Giảm đi (₫)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDiscountMode('final_price')}
+                                className={`px-1.5 py-0.5 rounded-md cursor-pointer ${
+                                  discountMode === 'final_price' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-600'
+                                }`}
+                              >
+                                Giá bán cuối
+                              </button>
+                            </div>
+                          </div>
                           <input
                             ref={salePriceInputRef}
                             type="number"
                             min={1000}
-                            placeholder="VD: 450000 (Không bắt buộc)"
+                            placeholder={
+                              discountMode === 'discount_amount'
+                                ? 'VD: 5000 (trừ 5k vào giá gốc)'
+                                : 'VD: 45000 (giá bán cuối)'
+                            }
                             value={newSalePrice}
                             onChange={(e) => {
                               setNewSalePrice(e.target.value);
@@ -1124,6 +1170,24 @@ export const ShopPortal: React.FC = () => {
                                 : 'border-slate-400 focus:border-slate-950 focus:ring-slate-900/10'
                             }`}
                           />
+                          {Number(newPrice) >= 1000 && Number(newSalePrice) > 0 && (() => {
+                            const orig = Number(newPrice);
+                            const promoVal = Number(newSalePrice);
+                            const finalVnd = discountMode === 'discount_amount' ? orig - promoVal : promoVal;
+                            const discountVnd = orig - finalVnd;
+                            const pct = Math.round((discountVnd / orig) * 100);
+                            if (finalVnd >= 1000 && finalVnd < orig) {
+                              return (
+                                <p className="text-[11px] mt-1 font-medium text-emerald-700">
+                                  Hiển thị trang chủ:{' '}
+                                  <span className="line-through text-slate-400 font-mono">{orig.toLocaleString('vi-VN')}₫</span>{' '}
+                                  ➔ <b className="font-mono text-rose-600">{finalVnd.toLocaleString('vi-VN')}₫</b>{' '}
+                                  <span className="text-[10px]">(-{pct}% • giảm {discountVnd.toLocaleString('vi-VN')}₫)</span>
+                                </p>
+                              );
+                            }
+                            return null;
+                          })()}
                           {fieldErrors.salePrice && (
                             <p className="text-[11px] font-bold text-rose-600 mt-1">{fieldErrors.salePrice}</p>
                           )}
