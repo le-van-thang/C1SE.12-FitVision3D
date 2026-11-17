@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Cpu,
   RotateCcw,
-  Sparkles,
   Lock,
 } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
@@ -275,11 +274,11 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 3-Column Studio Grid (Bố cục 3 cột hiện đại, card nền trắng viền nét) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* 3-Column Studio Grid (3 cột bằng nhau 1/3 - 1/3 - 1/3 & cao đều nhau) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* COLUMN 1: Photo Upload & Biometrics Studio */}
-          <section className={`lg:col-span-3 xl:col-span-3 lg:sticky lg:top-20 min-w-0 ${tab === "capture" ? "tab-active" : ""}`} aria-label="Photo Studio">
-            <div className="rounded-3xl border-2 border-slate-300 bg-white p-4 sm:p-5 shadow-sm space-y-4 hover:border-slate-400 transition-all">
+          <section className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "capture" ? "tab-active" : ""}`} aria-label="Photo Studio">
+            <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-4 hover:border-slate-400 transition-all flex flex-col">
               <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100">
                 <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
                   {t("app.dash.uploadTitle", "TẢI ẢNH CHỤP TỪ ĐIỆN THOẠI")}
@@ -300,8 +299,8 @@ export const Dashboard: React.FC = () => {
           </section>
 
           {/* COLUMN 2: 3D Humanoid Wireframe Topology Viewport */}
-          <section className={`lg:col-span-4 xl:col-span-4 lg:sticky lg:top-20 min-w-0 ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
-            <div className="rounded-3xl border-2 border-slate-300 bg-white p-4 sm:p-5 shadow-sm space-y-3 hover:border-slate-400 transition-all relative">
+          <section className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
+            <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-3 hover:border-slate-400 transition-all relative flex flex-col">
               <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100">
                 <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
                   {t("app.dash.meshTitle", "MÔ HÌNH 3D VÓC DÁNG")}
@@ -316,7 +315,7 @@ export const Dashboard: React.FC = () => {
                 </span>
               </div>
 
-              <div className="rounded-2xl overflow-hidden border-2 border-slate-900 bg-slate-950 shadow-inner">
+              <div className="flex-1 rounded-2xl overflow-hidden border-2 border-slate-900 bg-slate-950 shadow-inner">
                 <MannequinViewer
                   meshParams={mesh}
                   measurement={locked ? null : measurement}
@@ -329,13 +328,13 @@ export const Dashboard: React.FC = () => {
             </div>
           </section>
 
-          {/* COLUMN 3: ISO 8559 Measurements & Quan's Garment Recommendation */}
+          {/* COLUMN 3: ISO 8559 Measurements (Compact 1-column list + Quick Actions) */}
           <section
-            className={`lg:col-span-5 xl:col-span-5 min-w-0 space-y-4 ${tab === "metrics" ? "tab-active" : ""}`}
+            className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "metrics" ? "tab-active" : ""}`}
             aria-label="Measurements and recommendations"
           >
             {locked ? (
-              <div className="rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-4">
+              <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-4 flex flex-col justify-between">
                 {/* Locked state for guests: no measurements, no size recommendation */}
                 <div
                   role="button"
@@ -386,54 +385,17 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <>
-                {/* ISO 8559 Anthropometric Table */}
-                <div className="rounded-3xl border-2 border-slate-300 bg-white p-4 sm:p-5 shadow-sm hover:border-slate-400 transition-all">
-                  <MeasurementsPanel
-                    measurement={measurement}
-                    biometric={biometric}
-                    activeMetric={activeMetric}
-                    onSelectMetric={setActiveMetric}
-                    isLiveBackend={isLiveBackend}
-                  />
-                </div>
-
-                {/* Quan's AI Garment Recommendation Card */}
-                {garmentRec ? (
-                  <AiGarmentCard
-                    data={garmentRec}
-                    executionTime={executionTime}
-                    isLiveBackend={isLiveBackend}
-                    measurements={
-                      measurement
-                        ? {
-                            chieu_cao_cm: biometric?.stature_cm || 172,
-                            vong_nguc_cm: measurement.chest_circ_cm,
-                            vong_eo_cm: measurement.waist_circ_cm,
-                            vong_mong_cm: measurement.hip_circ_cm,
-                            rong_vai_cm: measurement.shoulder_breadth_cm,
-                            dai_chan_inseam_cm: measurement.inseam_cm,
-                            can_nang_kg: biometric?.weight_kg || 70,
-                          }
-                        : undefined
-                    }
-                    gender={
-                      biometric?.gender === "female"
-                        ? "female"
-                        : biometric?.gender === "male"
-                        ? "male"
-                        : "neutral"
-                    }
-                  />
-                ) : (
-                  <div className="p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 text-center text-slate-500 text-xs">
-                    <Sparkles size={20} className="text-blue-500 mx-auto mb-2" />
-                    <span>{t("app.dash.emptyRec", "Chưa có đề xuất size may đo. Hãy chụp hoặc nạp ảnh để tính toán.")}</span>
-                  </div>
-                )}
+              <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm hover:border-slate-400 transition-all flex flex-col justify-between gap-3">
+                <MeasurementsPanel
+                  measurement={measurement}
+                  biometric={biometric}
+                  activeMetric={activeMetric}
+                  onSelectMetric={setActiveMetric}
+                  isLiveBackend={isLiveBackend}
+                />
 
                 {/* Quick Actions */}
-                <div className="flex gap-2.5 pt-2">
+                <div className="flex gap-2.5 pt-2.5 border-t-2 border-slate-100">
                   <button
                     id="btn-export-dossier"
                     type="button"
@@ -453,10 +415,41 @@ export const Dashboard: React.FC = () => {
                     <span>{t("app.dash.featSize", "Bảng size")}</span>
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </section>
         </div>
+
+        {/* ROW 2: Full-width Horizontal AI Size Advisor Card (when scanned) */}
+        {!locked && garmentRec && (
+          <div className="mt-5">
+            <AiGarmentCard
+              data={garmentRec}
+              executionTime={executionTime}
+              isLiveBackend={isLiveBackend}
+              measurements={
+                measurement
+                  ? {
+                      chieu_cao_cm: biometric?.stature_cm || 172,
+                      vong_nguc_cm: measurement.chest_circ_cm,
+                      vong_eo_cm: measurement.waist_circ_cm,
+                      vong_mong_cm: measurement.hip_circ_cm,
+                      rong_vai_cm: measurement.shoulder_breadth_cm,
+                      dai_chan_inseam_cm: measurement.inseam_cm,
+                      can_nang_kg: biometric?.weight_kg || 70,
+                    }
+                  : undefined
+              }
+              gender={
+                biometric?.gender === "female"
+                  ? "female"
+                  : biometric?.gender === "male"
+                  ? "male"
+                  : "neutral"
+              }
+            />
+          </div>
+        )}
       </main>
 
       <LoginRequiredDialog

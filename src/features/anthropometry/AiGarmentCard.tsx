@@ -350,8 +350,10 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
         </div>
       </div>
 
-      {/* Recommended Garment Sizes Grid */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Horizontal Balanced Content Grid: Top/Bottom Sizes (left) + Fit/Ease (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+        {/* Recommended Garment Sizes Grid */}
+        <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Topwear (Áo) */}
         <div className="bg-sky-50/90 border-2 border-sky-200 rounded-2xl p-3 flex flex-col justify-between shadow-2xs">
           <div>
@@ -410,49 +412,53 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
             )}
           </div>
         </div>
-      </div>
-
-      {/* Body Shape Classification */}
-      <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-3 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
-          <Sparkles size={16} />
         </div>
-        <div>
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            {t("meas.bodyFit", "Phân loại vóc dáng")}
-          </span>
-          <strong className="text-xs sm:text-sm font-black text-slate-900">
-            {localizedBodyShape(bodyShape, locale)}
-          </strong>
-        </div>
-      </div>
 
-      {/* Ease Allowance Recommendations */}
-      <div className="space-y-2">
-        <span className="text-[11px] font-black uppercase text-slate-700 tracking-wider flex items-center gap-1.5">
-          <Scissors size={13} className="text-blue-600" />
-          <span>{t("meas.easeAllowance", "Độ cử động may đo (Ease Allowance)")}</span>
-        </span>
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
-            <span className="text-[10px] text-slate-500 font-bold block">{t("meas.slimChest", "Ngực ôm")}</span>
-            <strong className="text-xs font-black text-blue-700 font-mono">
-              {easeAllowance.slim_fit_chest_cm} <small className="text-[10px]">cm</small>
-            </strong>
+        {/* Body Shape & Ease Allowance Column */}
+        <div className="lg:col-span-5 flex flex-col justify-between gap-3">
+          {/* Body Shape Classification */}
+          <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <Sparkles size={16} />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                {t("meas.bodyFit", "Phân loại vóc dáng")}
+              </span>
+              <strong className="text-xs sm:text-sm font-black text-slate-900">
+                {localizedBodyShape(bodyShape, locale)}
+              </strong>
+            </div>
           </div>
 
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
-            <span className="text-[10px] text-slate-500 font-bold block">{t("meas.regularChest", "Ngực vừa")}</span>
-            <strong className="text-xs font-black text-blue-700 font-mono">
-              {easeAllowance.regular_fit_chest_cm} <small className="text-[10px]">cm</small>
-            </strong>
-          </div>
+          {/* Ease Allowance Recommendations */}
+          <div className="space-y-2 flex-1 flex flex-col justify-end">
+            <span className="text-[11px] font-black uppercase text-slate-700 tracking-wider flex items-center gap-1.5">
+              <Scissors size={13} className="text-blue-600" />
+              <span>{t("meas.easeAllowance", "Độ cử động may đo (Ease Allowance)")}</span>
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
+                <span className="text-[10px] text-slate-500 font-bold block">{t("meas.slimChest", "Ngực ôm")}</span>
+                <strong className="text-xs font-black text-blue-700 font-mono">
+                  {easeAllowance.slim_fit_chest_cm} <small className="text-[10px]">cm</small>
+                </strong>
+              </div>
 
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
-            <span className="text-[10px] text-slate-500 font-bold block">{t("meas.trouserWaist", "Cạp quần")}</span>
-            <strong className="text-xs font-black text-emerald-700 font-mono">
-              {easeAllowance.trouser_waist_ease_cm} <small className="text-[10px]">cm</small>
-            </strong>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
+                <span className="text-[10px] text-slate-500 font-bold block">{t("meas.regularChest", "Ngực vừa")}</span>
+                <strong className="text-xs font-black text-blue-700 font-mono">
+                  {easeAllowance.regular_fit_chest_cm} <small className="text-[10px]">cm</small>
+                </strong>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
+                <span className="text-[10px] text-slate-500 font-bold block">{t("meas.trouserWaist", "Cạp quần")}</span>
+                <strong className="text-xs font-black text-emerald-700 font-mono">
+                  {easeAllowance.trouser_waist_ease_cm} <small className="text-[10px]">cm</small>
+                </strong>
+              </div>
+            </div>
           </div>
         </div>
       </div>
