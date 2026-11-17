@@ -9,6 +9,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { TailorStudio } from "./pages/TailorStudio";
 import { SizeChartManager } from "./pages/SizeChartManager";
 import { AdminPortal } from "./pages/AdminPortal";
+import { ShopPortal } from "./pages/ShopPortal";
 import { GlobalToastHost } from "./components/common/GlobalToastHost";
 import "./index.css";
 
@@ -74,6 +75,7 @@ export const App: React.FC = () => (
             <Route path="/" element={<HomeRoute />} />
             <Route path="/legacy-landing" element={<Landing />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />
             <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
             <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
             <Route path="/admin" element={<RequireAdmin><AdminPortal /></RequireAdmin>} />

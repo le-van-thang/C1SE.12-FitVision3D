@@ -45,7 +45,7 @@ const ORDER_STATUS_META: Record<OrderStatus, { label: string; badgeCls: string; 
     barCls: 'bg-sky-500',
   },
   tailoring: {
-    label: 'Đang may đo',
+    label: 'Đang chuẩn bị hàng',
     badgeCls: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     barCls: 'bg-indigo-500',
   },
@@ -423,7 +423,7 @@ export const AdminOrdersSection: React.FC<OrdersProps> = ({
                           >
                             <option value="pending">Chờ duyệt</option>
                             <option value="confirmed">Đã xác nhận</option>
-                            <option value="tailoring">Đang may đo</option>
+                            <option value="tailoring">Đang chuẩn bị hàng</option>
                             <option value="shipping">Đang giao hàng</option>
                             <option value="completed">Hoàn thành</option>
                             <option value="cancelled">Hủy đơn</option>

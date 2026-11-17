@@ -28,6 +28,14 @@ export const adminController = {
     sendSuccess(res, store, 200);
   },
 
+  async toggleStoreMall(req: Request, res: Response) {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const isMall = Boolean(req.body?.isMall);
+    const adminUserId = (req.user?.sub || 'system');
+    const store = await adminService.toggleShopMall(id, isMall, adminUserId);
+    sendSuccess(res, store, 200);
+  },
+
   async getUsers(req: Request, res: Response) {
     const users = await adminService.getAllUsers();
     sendSuccess(res, users);

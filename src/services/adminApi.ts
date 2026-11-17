@@ -25,6 +25,7 @@ export interface AdminStoreItem {
   tax_code?: string;
   business_license_no?: string;
   is_verified: boolean;
+  is_mall?: boolean;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejection_reason?: string | null;
   approved_at?: string | null;
@@ -144,6 +145,16 @@ export const adminApi = {
     return await adminRequest<AdminStoreItem>(`/stores/${storeId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
+    });
+  },
+
+  /**
+   * Cấp / Thu hồi huy hiệu FitVision Mall chính hãng cho Shop
+   */
+  async toggleStoreMall(storeId: string, isMall: boolean): Promise<AdminApiResponse<AdminStoreItem>> {
+    return await adminRequest<AdminStoreItem>(`/stores/${storeId}/mall`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isMall }),
     });
   },
 

@@ -28,6 +28,8 @@ export interface ProductVariant {
 export interface FashionProduct {
   id: string;
   brand_name: string;
+  shop_id?: string | null;
+  is_mall?: boolean;
   name: string;
   name_en?: string;
   slug: string;

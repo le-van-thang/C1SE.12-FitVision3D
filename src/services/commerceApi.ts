@@ -72,6 +72,31 @@ export interface DbVoucher {
 
 export interface DbProduct extends FashionProduct {
   is_hidden?: boolean;
+  shop_id?: string | null;
+  is_mall?: boolean;
+}
+
+export interface DbProductReview {
+  id: number;
+  product_id: string;
+  user_id: string;
+  user_name: string;
+  rating: number;
+  comment: string;
+  is_verified_purchase: boolean;
+  shop_reply?: string | null;
+  created_at: string;
+}
+
+export interface DbShopProfile {
+  id: string;
+  owner_id: string;
+  shop_name: string;
+  phone_number: string;
+  shop_address: string;
+  status: string;
+  is_verified: boolean;
+  is_mall: boolean;
 }
 
 export interface DbMembershipLog {
@@ -196,5 +221,65 @@ export const commerceApi = {
       '/membership/redeem',
       { method: 'POST', body: JSON.stringify({ code }) }
     );
+  },
+
+  getShopDashboard() {
+    return commerceRequest<{
+      shop: DbShopProfile | null;
+      products: DbProduct[];
+      orders: Order[];
+    }>('/shop/dashboard');
+  },
+
+  createShopProduct(payload: {
+    name: string;
+    category: 'shirt' | 'polo' | 'pants' | 'dress' | 'tailored';
+    genderTarget: 'male' | 'female' | 'unisex';
+    price: number;
+    salePrice?: number | null;
+    fabricMaterial: string;
+    stretchType: string;
+    imageUrl: string;
+    description: string;
+    colorName?: string;
+    colorHex?: string;
+    stockMap?: { S: number; M: number; L: number; XL: number };
+  }) {
+    return commerceRequest<DbProduct>('/shop/products', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateShopProduct(id: string, patch: { isHidden?: boolean; salePrice?: number | null }) {
+    return commerceRequest<DbProduct>(`/shop/products/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteShopProduct(id: string) {
+    return commerceRequest<{ deleted: boolean; id: string }>(
+      `/shop/products/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+  },
+
+  getProductReviews(productId: string) {
+    return commerceRequest<DbProductReview[]>(`/products/${encodeURIComponent(productId)}/reviews`);
+  },
+
+  createProductReview(productId: string, payload: { rating: number; comment: string; userName?: string }) {
+    return commerceRequest<{ review: DbProductReview; rating: number; reviews_count: number }>(
+      `/products/${encodeURIComponent(productId)}/reviews`,
+      { method: 'POST', body: JSON.stringify(payload) }
+    );
+  },
+
+  replyProductReview(reviewId: number, reply: string) {
+    return commerceRequest<DbProductReview>(`/reviews/${reviewId}/reply`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reply }),
+    });
   },
 };

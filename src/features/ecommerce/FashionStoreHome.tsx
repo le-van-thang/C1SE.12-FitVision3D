@@ -213,6 +213,7 @@ export const FashionStoreHome: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterByMyFitOnly, setFilterByMyFitOnly] = useState<boolean>(false);
+  const [mallOnly, setMallOnly] = useState<boolean>(false);
 
   // Advanced Filter States
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
@@ -259,18 +260,20 @@ export const FashionStoreHome: React.FC = () => {
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filterByMyFitOnly) count++;
+    if (mallOnly) count++;
     if (priceRange !== 'all') count++;
     if (fabricFilter !== 'all') count++;
     if (sizeFilter !== 'all') count++;
     if (colorFilter !== 'all') count++;
     if (sortBy !== 'default') count++;
     return count;
-  }, [filterByMyFitOnly, priceRange, fabricFilter, sizeFilter, colorFilter, sortBy]);
+  }, [filterByMyFitOnly, mallOnly, priceRange, fabricFilter, sizeFilter, colorFilter, sortBy]);
 
   const handleResetAllFilters = () => {
     setActiveCategory('all');
     setSearchQuery('');
     setFilterByMyFitOnly(false);
+    setMallOnly(false);
     setPriceRange('all');
     setFabricFilter('all');
     setSizeFilter('all');
@@ -396,11 +399,12 @@ export const FashionStoreHome: React.FC = () => {
       else if (fabricFilter === 'wool') matchFabric = fabricText.includes('wool') || fabricText.includes('len');
       else if (fabricFilter === 'linen') matchFabric = fabricText.includes('linen') || fabricText.includes('lanh');
 
-      // Size & Color filter
+      // Size, Color & Mall filter
       const matchSize = sizeFilter === 'all' || item.variants.some((v) => v.size_label === sizeFilter);
       const matchColor = colorFilter === 'all' || item.variants.some((v) => v.color_hex === colorFilter);
+      const matchMall = !mallOnly || Boolean(item.is_mall);
 
-      return matchCat && matchSearch && matchFit && matchPrice && matchFabric && matchSize && matchColor;
+      return matchCat && matchSearch && matchFit && matchPrice && matchFabric && matchSize && matchColor && matchMall;
     });
 
     // Sorting
@@ -413,7 +417,7 @@ export const FashionStoreHome: React.FC = () => {
     }
 
     return list;
-  }, [productsWithFit, activeCategory, searchQuery, filterByMyFitOnly, priceRange, fabricFilter, sizeFilter, colorFilter, sortBy, locale]);
+  }, [productsWithFit, activeCategory, searchQuery, filterByMyFitOnly, mallOnly, priceRange, fabricFilter, sizeFilter, colorFilter, sortBy, locale]);
 
   // Category counts for vertical sidebar and horizontal tabs
   const categoryCounts = useMemo(() => {
@@ -804,12 +808,12 @@ export const FashionStoreHome: React.FC = () => {
                             </div>
                           ) : userRole === 'store' || currentStore?.status === 'APPROVED' ? (
                             <a
-                              href="/tailor"
+                              href="/shop"
                               className="w-full px-3 py-2 rounded-xl text-left bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white flex items-center justify-between cursor-pointer"
                             >
                               <div className="flex items-center gap-2">
                                 <Store size={14} />
-                                <span>{t('ecommerce.sidebar.menuTailorChannel', 'Vào Kênh Nhà May (/tailor)')}</span>
+                                <span>{locale === 'en' ? 'Seller Center (/shop)' : 'Vào Kênh Người Bán (/shop)'}</span>
                               </div>
                               <ChevronRight size={13} />
                             </a>
@@ -1432,7 +1436,7 @@ export const FashionStoreHome: React.FC = () => {
           </div>
         )}
 
-        {/* ── TAILOR / MERCHANT STORE BAR (When in Store Role) ── */}
+        {/* ── STORE OWNER BANNER (When in Store Role) ── */}
         {userRole === 'store' && (
           <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50/60 to-white border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1442,30 +1446,32 @@ export const FashionStoreHome: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h4 className="text-xs sm:text-sm font-bold text-slate-950">
-                    {t('ecommerce.storeBanner.title', 'Chế Độ Chủ Shop & Nhà May May Đo B2B')}
+                    {locale === 'en' ? 'Seller Center & Brand Management' : 'Kênh Quản Lý Shop & Bán Hàng TMĐT'}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-bold text-[10px]">
-                    Atelier Active
+                    Shop Active
                   </span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-slate-700 mt-0.5">
-                  {t('ecommerce.storeBanner.desc', 'Quản lý rập mẫu áo sơ mi, blazer và thông số Ease Allowance cho từng size rập.')}
+                  {locale === 'en'
+                    ? 'Post new products, manage inventory/pricing, handle customer orders & configure 3D size specs.'
+                    : 'Đăng bán sản phẩm mới, quản lý giá & tồn kho, xử lý đơn đặt hàng và cài đặt bảng size AI 3D.'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
               <a
-                href="/size-charts"
-                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                href="/shop"
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Plus size={14} />
-                <span>{t('ecommerce.storeBanner.addPattern', 'Thêm Mẫu Rập May')}</span>
+                <span>{locale === 'en' ? 'Seller Center' : 'Quản Lý Shop & Đăng SP'}</span>
               </a>
               <a
-                href="/tailor"
+                href="/size-charts"
                 className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
               >
-                <span>{t('ecommerce.storeBanner.studio', 'Studio Quản Trị')}</span>
+                <span>{locale === 'en' ? 'Size Specs' : 'Bảng Size 3D'}</span>
                 <ChevronRight size={14} />
               </a>
             </div>
@@ -1823,6 +1829,26 @@ export const FashionStoreHome: React.FC = () => {
                 </div>
               </div>
 
+              {/* FitVision Mall Official Toggle */}
+              <div className="pt-3 border-t border-slate-100">
+                <label className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-rose-50/80 border border-rose-200 text-xs cursor-pointer select-none">
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase">
+                      MALL
+                    </span>
+                    <span className="font-bold text-rose-900">
+                      {locale === 'en' ? 'Mall Official Only' : 'Chỉ xem Chính hãng'}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={mallOnly}
+                    onChange={(e) => setMallOnly(e.target.checked)}
+                    className="accent-rose-600 cursor-pointer"
+                  />
+                </label>
+              </div>
+
               {/* Filter Group B: Fabric Material */}
               <div className="pt-4 border-t border-slate-100">
                 <h4 className="text-xs font-extrabold text-slate-900 mb-2.5">
@@ -2070,8 +2096,13 @@ export const FashionStoreHome: React.FC = () => {
                           />
                         )}
 
-                        {/* Brand Tag Top Left */}
-                        <div className="absolute top-2.5 left-2.5 pointer-events-none">
+                        {/* Brand & Official Mall Tag Top Left */}
+                        <div className="absolute top-2.5 left-2.5 pointer-events-none flex items-center gap-1 flex-wrap">
+                          {product.is_mall && (
+                            <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                              MALL
+                            </span>
+                          )}
                           <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-slate-900 shadow-2xs border border-slate-200/80">
                             {product.brand_name}
                           </span>
@@ -2140,6 +2171,16 @@ export const FashionStoreHome: React.FC = () => {
                           >
                             {getProductName(product)}
                           </h4>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAnalysis(product)}
+                            className="inline-flex items-center gap-1 text-[11px] text-slate-600 hover:text-blue-600 bg-transparent border-0 p-0 cursor-pointer"
+                          >
+                            <Star size={11} className="fill-amber-400 text-amber-400" />
+                            <span className="font-bold text-slate-800">{(product.rating || 5).toFixed(1)}</span>
+                            <span className="text-slate-400">({product.reviews_count || 0} đánh giá)</span>
+                          </button>
 
                           {/* Price + Color Swatch Dots Row */}
                           <div className="flex items-center justify-between gap-2 pt-0.5">

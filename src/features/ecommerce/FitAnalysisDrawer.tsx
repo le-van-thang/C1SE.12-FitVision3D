@@ -11,10 +11,16 @@ import {
   ShieldCheck,
   RotateCcw,
   Plus,
+  MessageSquare,
+  Send,
+  BadgeCheck,
 } from 'lucide-react';
 import type { FashionProduct, UserBodyProfile, FitMatchResult, ProductVariant } from './types';
 import { MOCK_PRODUCTS } from './mockProducts';
 import { useI18n } from '@/i18n';
+import { useAuth } from '@/context/AuthContext';
+import { commerceApi, type DbProductReview } from '@/services/commerceApi';
+import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
 interface FitAnalysisDrawerProps {
   isOpen: boolean;
@@ -42,16 +48,90 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   onOpenVirtualStudio,
 }) => {
   const { t, locale } = useI18n();
+  const { isAuthenticated, currentUser, userRole, openSignIn } = useAuth();
   const [activeImage, setActiveImage] = useState<string>('');
   const [copiedVoucher, setCopiedVoucher] = useState<string | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [reviews, setReviews] = useState<DbProductReview[]>([]);
+  const [liveRating, setLiveRating] = useState<number | null>(null);
+  const [liveReviewsCount, setLiveReviewsCount] = useState<number | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [replyingId, setReplyingId] = useState<number | null>(null);
+  const [replyDraft, setReplyDraft] = useState<string>('');
 
   useEffect(() => {
     if (product) {
       setActiveImage(product.image_url);
       setOpenFaqIndex(0);
+      setLiveRating(product.rating);
+      setLiveReviewsCount(product.reviews_count);
+      setReviewComment('');
+      setReviewRating(5);
+      commerceApi.getProductReviews(product.id).then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          setReviews(res.data);
+        }
+      });
     }
   }, [product?.id]);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!product) return;
+    if (!isAuthenticated) {
+      openSignIn();
+      return;
+    }
+    if (reviewComment.trim().length < 3) {
+      showGlobalToast({
+        type: 'warning',
+        title: 'Bình luận quá ngắn',
+        message: 'Vui lòng nhập tối thiểu 3 ký tự nhận xét.',
+      });
+      return;
+    }
+    setIsSubmittingReview(true);
+    const res = await commerceApi.createProductReview(product.id, {
+      rating: reviewRating,
+      comment: reviewComment.trim(),
+      userName: currentUser?.full_name || currentUser?.email || 'Khách hàng',
+    });
+    setIsSubmittingReview(false);
+    if (res.success && res.data) {
+      setReviews((prev) => [res.data!.review, ...prev]);
+      setLiveRating(res.data.rating);
+      setLiveReviewsCount(res.data.reviews_count);
+      setReviewComment('');
+      showGlobalToast({
+        type: 'success',
+        title: 'Cảm ơn bạn đã đánh giá!',
+        message: 'Đánh giá sao & bình luận đã được lưu vào PostgreSQL.',
+      });
+    } else {
+      showGlobalToast({
+        type: 'error',
+        title: 'Không thể gửi đánh giá',
+        message: res.error?.message || 'Vui lòng thử lại.',
+      });
+    }
+  };
+
+  const handleSendShopReply = async (reviewId: number) => {
+    if (replyDraft.trim().length < 2) return;
+    const res = await commerceApi.replyProductReview(reviewId, replyDraft.trim());
+    if (res.success && res.data) {
+      setReviews((prev) => prev.map((r) => (r.id === reviewId ? res.data! : r)));
+      setReplyingId(null);
+      setReplyDraft('');
+      showGlobalToast({
+        type: 'success',
+        title: 'Đã phản hồi khách hàng!',
+        message: 'Phản hồi của Shop đã được lưu công khai.',
+      });
+    }
+  };
 
   if (!isOpen || !product || !selectedVariant || !fitResult) return null;
 
@@ -173,13 +253,21 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 <div className="min-w-0 flex-1 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
-                        {product.brand_name}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {product.is_mall && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider">
+                            <BadgeCheck size={10} />
+                            <span>MALL</span>
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                          {product.brand_name}
+                        </span>
+                      </div>
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700">
                         <Star size={11} className="fill-amber-400 text-amber-400" />
-                        <span>{product.rating.toFixed(1)}</span>
-                        <span className="text-slate-400 font-normal">({product.reviews_count})</span>
+                        <span>{(liveRating ?? product.rating).toFixed(1)}</span>
+                        <span className="text-slate-400 font-normal">({liveReviewsCount ?? product.reviews_count})</span>
                       </span>
                     </div>
 
@@ -462,6 +550,152 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   </div>
                 );
               })}
+            </div>
+
+            {/* 7. Customer Star Ratings & Product Comments (PostgreSQL) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3.5">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={15} className="text-blue-600" />
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                    {isEn ? 'Customer Reviews & Comments' : 'Đánh Giá & Bình Luận Sản Phẩm'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-xs font-bold text-slate-800">
+                  <Star size={12} className="fill-amber-400 text-amber-400" />
+                  <span>{(liveRating ?? product.rating).toFixed(1)}</span>
+                  <span className="text-[11px] text-slate-400 font-normal">
+                    ({reviews.length} {isEn ? 'comments' : 'bình luận'})
+                  </span>
+                </div>
+              </div>
+
+              {/* Submit Review Form */}
+              <form onSubmit={handleSubmitReview} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-slate-700">
+                    {isEn ? 'Your Rating:' : 'Chọn số sao đánh giá:'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className="p-0.5 bg-transparent border-0 cursor-pointer"
+                        aria-label={`${star} sao`}
+                      >
+                        <Star
+                          size={15}
+                          className={star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder={
+                      isAuthenticated
+                        ? isEn
+                          ? 'Write your comment about fabric, fit & size...'
+                          : 'Chia sẻ cảm nhận về chất vải, phom dáng & độ vừa...'
+                        : isEn
+                        ? 'Sign in to write a review...'
+                        : 'Đăng nhập để viết đánh giá & bình luận...'
+                    }
+                    className="flex-1 h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview}
+                    className="px-3.5 h-9 rounded-lg bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition disabled:opacity-50"
+                  >
+                    <Send size={12} />
+                    <span>{isAuthenticated ? (isEn ? 'Post' : 'Gửi') : (isEn ? 'Sign In' : 'Đăng nhập')}</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* Review List */}
+              <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                {reviews.length === 0 ? (
+                  <p className="text-[11px] text-slate-500 text-center py-3">
+                    {isEn ? 'No reviews yet. Be the first to review!' : 'Chưa có bình luận nào. Hãy là người đầu tiên đánh giá sản phẩm này!'}
+                  </p>
+                ) : (
+                  reviews.map((rev) => (
+                    <div key={rev.id} className="p-3 rounded-xl bg-[#F7F7F5] border border-slate-200/70 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-slate-900">{rev.user_name}</span>
+                          {rev.is_verified_purchase && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9.5px] font-bold">
+                              <CheckCircle2 size={10} />
+                              <span>{isEn ? 'Verified Purchase' : 'Đã mua hàng'}</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              size={10}
+                              className={s <= rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-700 leading-relaxed">{rev.comment}</p>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span>{new Date(rev.created_at).toLocaleDateString('vi-VN')}</span>
+                        {(userRole === 'store' || userRole === 'admin') && !rev.shop_reply && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyingId(rev.id);
+                              setReplyDraft('');
+                            }}
+                            className="text-blue-600 font-bold hover:underline cursor-pointer bg-transparent border-0"
+                          >
+                            Phản hồi của Shop
+                          </button>
+                        )}
+                      </div>
+
+                      {rev.shop_reply && (
+                        <div className="mt-1.5 p-2 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-700">
+                          <span className="font-bold text-blue-700">Phản hồi của Shop: </span>
+                          <span>{rev.shop_reply}</span>
+                        </div>
+                      )}
+
+                      {replyingId === rev.id && (
+                        <div className="flex gap-1.5 pt-1">
+                          <input
+                            type="text"
+                            value={replyDraft}
+                            onChange={(e) => setReplyDraft(e.target.value)}
+                            placeholder="Nhập phản hồi tới khách hàng..."
+                            className="flex-1 h-7 px-2 rounded bg-white border border-slate-300 text-[11px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSendShopReply(rev.id)}
+                            className="px-2.5 h-7 rounded bg-blue-600 text-white text-[11px] font-bold cursor-pointer"
+                          >
+                            Gửi
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
           </div>

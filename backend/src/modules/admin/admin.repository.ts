@@ -14,6 +14,7 @@ export interface AdminShopEntity {
   logo_url?: string;
   description?: string;
   is_verified: boolean;
+  is_mall?: boolean;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejection_reason?: string | null;
   approved_at?: Date | null;
@@ -110,6 +111,7 @@ export const adminRepository = {
         s.logo_url,
         s.description,
         s.is_verified,
+        COALESCE(s.is_mall, FALSE) as is_mall,
         COALESCE(s.status, CASE WHEN s.is_verified THEN 'APPROVED' ELSE 'PENDING' END) as status,
         s.rejection_reason,
         s.approved_at,
@@ -174,6 +176,28 @@ export const adminRepository = {
 
     if (shopRows.length === 0) return null;
     return shopRows[0];
+  },
+
+  /**
+   * Cấp / thu hồi huy hiệu FitVision Mall chính hãng cho Shop và đồng bộ sản phẩm
+   */
+  async setShopMall(shopId: string, isMall: boolean): Promise<AdminShopEntity | null> {
+    const shopRows = await query<AdminShopEntity>(
+      `UPDATE shops
+       SET is_mall = $2, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [shopId, isMall]
+    );
+    if (shopRows.length === 0) return null;
+    const shop = shopRows[0];
+    await query(
+      `UPDATE products
+       SET is_mall = $2, updated_at = NOW()
+       WHERE shop_id = $1 OR LOWER(brand_name) = LOWER($3)`,
+      [shop.id, isMall, shop.shop_name]
+    ).catch(() => undefined);
+    return shop;
   },
 
   /**

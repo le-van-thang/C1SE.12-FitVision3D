@@ -388,7 +388,77 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
           description TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_mall BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS shop_id UUID;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS is_mall BOOLEAN NOT NULL DEFAULT FALSE;
+
+        CREATE TABLE IF NOT EXISTS product_reviews (
+          id SERIAL PRIMARY KEY,
+          product_id VARCHAR(50) NOT NULL,
+          user_id VARCHAR(120) NOT NULL,
+          user_name VARCHAR(255) NOT NULL,
+          rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+          comment TEXT NOT NULL,
+          is_verified_purchase BOOLEAN NOT NULL DEFAULT FALSE,
+          shop_reply TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
       `);
+
+      await query(`
+        UPDATE products SET is_mall = TRUE
+        WHERE id IN ('prod-01', 'prod-03', 'prod-04', 'prod-05') AND is_mall = FALSE;
+      `).catch(() => undefined);
+
+      const reviewCountRes = await query<{ count: string }>('SELECT COUNT(*) as count FROM product_reviews');
+      if (parseInt(reviewCountRes[0]?.count || '0', 10) === 0) {
+        const seedReviews = [
+          {
+            product_id: 'prod-01',
+            user_id: 'usr-101',
+            user_name: 'Lê Văn Thắng',
+            rating: 5,
+            comment: 'Vải Cotton Giza đứng phom rất đẹp, mặc đi làm cả ngày ít nhăn. Chọn size M theo gợi ý AI 3D chuẩn vừa vai luôn.',
+            is_verified_purchase: true,
+            shop_reply: 'Cảm ơn anh Thắng đã tin tưởng Sartoria Milan Mall! Rất vui vì gợi ý AI giúp anh chọn vừa size M ngay lần đầu.',
+          },
+          {
+            product_id: 'prod-03',
+            user_id: 'usr-102',
+            user_name: 'TS. Lê Minh Thái',
+            rating: 5,
+            comment: 'Chất len Úc rủ phom, phần cạp quần rất thoải mái khi ngồi lâu.',
+            is_verified_purchase: true,
+            shop_reply: null,
+          },
+          {
+            product_id: 'prod-02',
+            user_id: 'usr-101',
+            user_name: 'Minh Khôi',
+            rating: 5,
+            comment: 'Áo Polo mát, cổ áo dệt đứng form không bị nhão sau khi giặt.',
+            is_verified_purchase: false,
+            shop_reply: 'Nordic Thread cảm ơn bạn đã đánh giá 5 sao!',
+          },
+          {
+            product_id: 'prod-05',
+            user_id: 'usr-101',
+            user_name: 'Hoàng Nam',
+            rating: 5,
+            comment: 'Blazer Linen nhẹ, mặc mùa hè cực thoáng mà vẫn lịch sự.',
+            is_verified_purchase: true,
+            shop_reply: null,
+          },
+        ];
+        for (const r of seedReviews) {
+          await query(
+            `INSERT INTO product_reviews (product_id, user_id, user_name, rating, comment, is_verified_purchase, shop_reply)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [r.product_id, r.user_id, r.user_name, r.rating, r.comment, r.is_verified_purchase, r.shop_reply]
+          );
+        }
+      }
 
       // Seed default platform settings
       await query(

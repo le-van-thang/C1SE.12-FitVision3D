@@ -105,3 +105,22 @@ CREATE TABLE IF NOT EXISTS membership_point_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_membership_logs_user ON membership_point_logs (user_id, created_at DESC);
+
+-- 7. FitVision Mall & Shop Product Ownership + Verified Reviews
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_mall BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS shop_id UUID;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS is_mall BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS product_reviews (
+  id SERIAL PRIMARY KEY,
+  product_id VARCHAR(50) NOT NULL,
+  user_id VARCHAR(120) NOT NULL,
+  user_name VARCHAR(255) NOT NULL,
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT NOT NULL,
+  is_verified_purchase BOOLEAN NOT NULL DEFAULT FALSE,
+  shop_reply TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_reviews_product ON product_reviews (product_id, created_at DESC);

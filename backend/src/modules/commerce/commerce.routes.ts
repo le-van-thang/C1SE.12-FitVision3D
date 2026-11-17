@@ -43,3 +43,14 @@ commerceRouter.post('/admin/vouchers', requireAuth, requireRole('ADMIN'), commer
 commerceRouter.patch('/admin/vouchers/:code', requireAuth, requireRole('ADMIN'), commerceController.updateVoucher);
 commerceRouter.delete('/admin/vouchers/:code', requireAuth, requireRole('ADMIN'), commerceController.deleteVoucher);
 commerceRouter.patch('/admin/products/:id', requireAuth, requireRole('ADMIN'), commerceController.moderateProduct);
+
+// Shop Owner Seller Center Endpoints (Kênh Người Bán)
+commerceRouter.get('/shop/dashboard', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.getShopDashboard);
+commerceRouter.post('/shop/products', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.createShopProduct);
+commerceRouter.patch('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.updateShopProduct);
+commerceRouter.delete('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.deleteShopProduct);
+
+// Product Reviews & Star Ratings Endpoints
+commerceRouter.get('/products/:id/reviews', commerceController.listProductReviews);
+commerceRouter.post('/products/:id/reviews', requireAuth, commerceController.createProductReview);
+commerceRouter.patch('/reviews/:reviewId/reply', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.replyProductReview);

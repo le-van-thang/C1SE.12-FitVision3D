@@ -134,13 +134,13 @@ export const commerceRepository = {
     await ensureCommerceTablesAndSeed();
     const whereClause = includeHidden ? '' : 'WHERE is_hidden = FALSE';
     return query(
-      `SELECT id, brand_name, name, name_en, slug, category, gender_target,
+      `SELECT id, brand_name, shop_id, COALESCE(is_mall, FALSE) AS is_mall, name, name_en, slug, category, gender_target,
               price, sale_price, rating::float, reviews_count, fabric_material, fabric_material_en,
               stretch_type, image_url, secondary_image_url, description, description_en,
               is_bestseller, is_bespoke, is_hidden, variants, created_at, updated_at
        FROM products
        ${whereClause}
-       ORDER BY id ASC`
+       ORDER BY created_at DESC, id ASC`
     );
   },
 
@@ -388,5 +388,274 @@ export const commerceRepository = {
 
     const updated = await this.getMembershipWallet(userId);
     return { alreadyUnlocked: false, wallet: updated };
+  },
+
+  async getShopDashboard(userId: string) {
+    await ensureCommerceTablesAndSeed();
+    const shopRows = await query(
+      `SELECT id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
+       FROM shops
+       WHERE owner_id = $1
+       LIMIT 1`,
+      [userId]
+    );
+    const shop = shopRows[0] || null;
+    if (!shop) {
+      return { shop: null, products: [], orders: [] };
+    }
+
+    const products = await query(
+      `SELECT id, brand_name, shop_id, COALESCE(is_mall, FALSE) AS is_mall, name, name_en, slug, category, gender_target,
+              price, sale_price, rating::float, reviews_count, fabric_material, fabric_material_en,
+              stretch_type, image_url, secondary_image_url, description, description_en,
+              is_bestseller, is_bespoke, is_hidden, variants, created_at, updated_at
+       FROM products
+       WHERE shop_id = $1 OR LOWER(brand_name) = LOWER($2)
+       ORDER BY created_at DESC`,
+      [shop.id, shop.shop_name]
+    );
+
+    const orders = await query(
+      `SELECT id, customer_id, customer_name, recipient, items,
+              subtotal, shipping_fee, discount_amount, total_amount,
+              payment_method, payment_status, status, store_name,
+              estimated_delivery, created_at, updated_at
+       FROM orders
+       WHERE LOWER(COALESCE(store_name, '')) = LOWER($1)
+          OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements(items) AS el
+            WHERE LOWER(COALESCE(el->'product'->>'brand_name', '')) = LOWER($1)
+               OR el->'product'->>'shop_id' = $2
+          )
+       ORDER BY created_at DESC`,
+      [shop.shop_name, String(shop.id)]
+    );
+
+    return { shop, products, orders };
+  },
+
+  async createShopProduct(userId: string, payload: any) {
+    await ensureCommerceTablesAndSeed();
+    const shopRows = await query(
+      `SELECT id, shop_name, COALESCE(is_mall, FALSE) AS is_mall, status
+       FROM shops WHERE owner_id = $1 LIMIT 1`,
+      [userId]
+    );
+    const shop = shopRows[0];
+    if (!shop) {
+      throw new Error('Tài khoản chưa có hồ sơ Shop được kích hoạt.');
+    }
+
+    const name = String(payload.name || '').trim();
+    const price = Number(payload.price);
+    const salePrice = payload.salePrice ? Number(payload.salePrice) : null;
+    if (name.length < 3) throw new Error('Tên sản phẩm phải có tối thiểu 3 ký tự.');
+    if (!Number.isFinite(price) || price < 50_000) throw new Error('Giá bán phải tối thiểu 50.000₫.');
+
+    const category = ['shirt', 'polo', 'pants', 'dress', 'tailored'].includes(payload.category)
+      ? payload.category
+      : 'shirt';
+    const genderTarget = ['male', 'female', 'unisex'].includes(payload.genderTarget)
+      ? payload.genderTarget
+      : 'unisex';
+    const isPants = category === 'pants';
+    const stockMap = payload.stockMap || { S: 15, M: 25, L: 25, XL: 15 };
+    const colorName = String(payload.colorName || 'Đen Obsidian (Classic Black)').trim();
+    const colorHex = String(payload.colorHex || '#1E293B').trim();
+    const id = `prod-${Date.now()}`;
+    const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
+
+    const variants = [
+      {
+        id: `${id}-s`,
+        size_label: 'S',
+        color_name: colorName,
+        color_hex: colorHex,
+        sku: `${id.toUpperCase()}-S`,
+        stock: Number(stockMap.S) || 15,
+        spec: isPants
+          ? { chest_cm: 0, waist_cm: 76, hip_cm: 94, shoulder_cm: 0, length_cm: 96, ease_min_cm: 1, ease_max_cm: 4 }
+          : { chest_cm: 96, waist_cm: 82, shoulder_cm: 42, length_cm: 70, ease_min_cm: 3, ease_max_cm: 7 },
+      },
+      {
+        id: `${id}-m`,
+        size_label: 'M',
+        color_name: colorName,
+        color_hex: colorHex,
+        sku: `${id.toUpperCase()}-M`,
+        stock: Number(stockMap.M) || 25,
+        spec: isPants
+          ? { chest_cm: 0, waist_cm: 80, hip_cm: 98, shoulder_cm: 0, length_cm: 98, ease_min_cm: 2, ease_max_cm: 4.5 }
+          : { chest_cm: 100, waist_cm: 86, shoulder_cm: 43.5, length_cm: 72, ease_min_cm: 4, ease_max_cm: 8 },
+      },
+      {
+        id: `${id}-l`,
+        size_label: 'L',
+        color_name: colorName,
+        color_hex: colorHex,
+        sku: `${id.toUpperCase()}-L`,
+        stock: Number(stockMap.L) || 25,
+        spec: isPants
+          ? { chest_cm: 0, waist_cm: 84, hip_cm: 102, shoulder_cm: 0, length_cm: 100, ease_min_cm: 2, ease_max_cm: 5 }
+          : { chest_cm: 104, waist_cm: 90, shoulder_cm: 45, length_cm: 74, ease_min_cm: 4, ease_max_cm: 8 },
+      },
+      {
+        id: `${id}-xl`,
+        size_label: 'XL',
+        color_name: colorName,
+        color_hex: colorHex,
+        sku: `${id.toUpperCase()}-XL`,
+        stock: Number(stockMap.XL) || 15,
+        spec: isPants
+          ? { chest_cm: 0, waist_cm: 88, hip_cm: 106, shoulder_cm: 0, length_cm: 102, ease_min_cm: 2, ease_max_cm: 5 }
+          : { chest_cm: 108, waist_cm: 94, shoulder_cm: 46.5, length_cm: 76, ease_min_cm: 5, ease_max_cm: 9 },
+      },
+    ];
+
+    const imageUrl =
+      String(payload.imageUrl || '').trim() ||
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80';
+
+    const rows = await query(
+      `INSERT INTO products (
+         id, brand_name, shop_id, is_mall, name, name_en, slug, category, gender_target,
+         price, sale_price, rating, reviews_count, fabric_material, fabric_material_en,
+         stretch_type, image_url, description, description_en, is_bestseller, is_bespoke, is_hidden, variants
+       ) VALUES (
+         $1, $2, $3, $4, $5, $5, $6, $7, $8,
+         $9, $10, 5.0, 0, $11, $11,
+         $12, $13, $14, $14, TRUE, FALSE, FALSE, $15::jsonb
+       ) RETURNING *, rating::float`,
+      [
+        id,
+        shop.shop_name,
+        shop.id,
+        Boolean(shop.is_mall),
+        name,
+        slug,
+        category,
+        genderTarget,
+        price,
+        salePrice && salePrice > 0 && salePrice < price ? salePrice : null,
+        String(payload.fabricMaterial || '100% Cotton cao cấp thoáng mát').trim(),
+        String(payload.stretchType || 'Co giãn nhẹ (2-3%)'),
+        imageUrl,
+        String(payload.description || 'Thiết kế thời trang chuẩn phom dáng, hỗ trợ chọn size chính xác bằng AI quét vóc dáng 3D FitVision.').trim(),
+        JSON.stringify(variants),
+      ]
+    );
+    return rows[0];
+  },
+
+  async updateShopProduct(userId: string, isAdmin: boolean, productId: string, patch: any) {
+    await ensureCommerceTablesAndSeed();
+    const shopRows = await query('SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
+    const shop = shopRows[0];
+    if (!shop && !isAdmin) return null;
+
+    const ownerFilter = isAdmin ? 'TRUE' : '(shop_id = $5 OR LOWER(brand_name) = LOWER($6))';
+    const hasSale = patch.salePrice !== undefined;
+    const params: any[] = [
+      productId,
+      typeof patch.isHidden === 'boolean' ? patch.isHidden : null,
+      hasSale,
+      hasSale ? (patch.salePrice ? Number(patch.salePrice) : null) : null,
+    ];
+    if (!isAdmin) {
+      params.push(shop.id, shop.shop_name);
+    }
+
+    const rows = await query(
+      `UPDATE products SET
+         is_hidden = COALESCE($2, is_hidden),
+         sale_price = CASE WHEN $3 THEN $4::integer ELSE sale_price END,
+         updated_at = NOW()
+       WHERE id = $1 AND ${ownerFilter}
+       RETURNING *, rating::float`,
+      params
+    );
+    return rows[0] || null;
+  },
+
+  async deleteShopProduct(userId: string, isAdmin: boolean, productId: string) {
+    await ensureCommerceTablesAndSeed();
+    const shopRows = await query('SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
+    const shop = shopRows[0];
+    if (!shop && !isAdmin) return false;
+
+    const ownerFilter = isAdmin ? 'TRUE' : '(shop_id = $2 OR LOWER(brand_name) = LOWER($3))';
+    const params: any[] = isAdmin ? [productId] : [productId, shop.id, shop.shop_name];
+    const rows = await query(`DELETE FROM products WHERE id = $1 AND ${ownerFilter} RETURNING id`, params);
+    return rows.length > 0;
+  },
+
+  async listProductReviews(productId: string) {
+    await ensureCommerceTablesAndSeed();
+    return query(
+      `SELECT id, product_id, user_id, user_name, rating, comment, is_verified_purchase, shop_reply, created_at
+       FROM product_reviews
+       WHERE product_id = $1
+       ORDER BY created_at DESC`,
+      [productId]
+    );
+  },
+
+  async createProductReview(input: {
+    productId: string;
+    userId: string;
+    userName: string;
+    rating: number;
+    comment: string;
+  }) {
+    await ensureCommerceTablesAndSeed();
+    const purchased = await query<{ cnt: string }>(
+      `SELECT COUNT(*)::text AS cnt
+       FROM orders
+       WHERE customer_id = $1 AND status <> 'cancelled'
+         AND EXISTS (
+           SELECT 1 FROM jsonb_array_elements(items) AS el
+           WHERE el->'product'->>'id' = $2
+         )`,
+      [input.userId, input.productId]
+    );
+    const isVerifiedPurchase = parseInt(purchased[0]?.cnt || '0', 10) > 0;
+
+    const inserted = await query(
+      `INSERT INTO product_reviews (product_id, user_id, user_name, rating, comment, is_verified_purchase)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [input.productId, input.userId, input.userName, input.rating, input.comment, isVerifiedPurchase]
+    );
+
+    const stats = await query<{ avg_rating: string; total_cnt: string }>(
+      `SELECT COALESCE(ROUND(AVG(rating)::numeric, 2), 5.0)::text AS avg_rating,
+              COUNT(*)::text AS total_cnt
+       FROM product_reviews
+       WHERE product_id = $1`,
+      [input.productId]
+    );
+
+    const newRating = parseFloat(stats[0]?.avg_rating || '5.0');
+    const newCount = parseInt(stats[0]?.total_cnt || '1', 10);
+
+    await query(
+      `UPDATE products SET rating = $2, reviews_count = $3, updated_at = NOW() WHERE id = $1`,
+      [input.productId, newRating, newCount]
+    );
+
+    return {
+      review: inserted[0],
+      rating: newRating,
+      reviews_count: newCount,
+    };
+  },
+
+  async replyProductReview(reviewId: number, shopReply: string) {
+    await ensureCommerceTablesAndSeed();
+    const rows = await query(
+      `UPDATE product_reviews SET shop_reply = $2 WHERE id = $1 RETURNING *`,
+      [reviewId, shopReply]
+    );
+    return rows[0] || null;
   },
 };

@@ -167,13 +167,37 @@ export const AdminPortal: React.FC = () => {
     try {
       const res = await adminApi.approveStore(store.id);
       if (res.success) {
-        showToast('success', `Đã phê duyệt thành công nhà may "${store.shop_name}".`);
+        showToast('success', `Đã phê duyệt thành công Shop "${store.shop_name}".`);
         fetchLiveData(true);
       } else {
         showToast('error', res.error?.message || 'Lỗi khi phê duyệt hồ sơ.');
       }
     } catch {
       showToast('error', 'Lỗi hệ thống khi gửi yêu cầu duyệt.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Handle Toggle Official Mall Badge
+  const handleToggleMall = async (store: AdminStoreItem) => {
+    setActionLoadingId(store.id);
+    try {
+      const nextMall = !store.is_mall;
+      const res = await adminApi.toggleStoreMall(store.id, nextMall);
+      if (res.success) {
+        showToast(
+          'success',
+          nextMall
+            ? `Đã cấp chứng nhận FitVision Mall Chính Hãng cho "${store.shop_name}".`
+            : `Đã gỡ huy hiệu FitVision Mall khỏi "${store.shop_name}".`
+        );
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Không thể cập nhật trạng thái Mall.');
+      }
+    } catch {
+      showToast('error', 'Lỗi hệ thống khi cập nhật FitVision Mall.');
     } finally {
       setActionLoadingId(null);
     }
@@ -886,8 +910,20 @@ export const AdminPortal: React.FC = () => {
                               )}
 
                               {isApproved && (
-                                <div className="text-[11px] text-emerald-700 font-mono font-semibold whitespace-nowrap">
-                                  ● Shop Owner Active
+                                <div className="inline-flex items-center gap-2 justify-end">
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleToggleMall(store)}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer disabled:opacity-50 whitespace-nowrap ${
+                                      store.is_mall
+                                        ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
+                                        : 'bg-white text-slate-700 border-slate-300 hover:border-rose-400 hover:text-rose-700'
+                                    }`}
+                                    title="Cấp hoặc gỡ chứng nhận Mall chính hãng"
+                                  >
+                                    <span>{store.is_mall ? '✓ FitVision Mall' : '+ Cấp Mall'}</span>
+                                  </button>
                                 </div>
                               )}
 
