@@ -126,9 +126,16 @@ function normalizeAndDeformFemaleGeometry(
   sWaist: number,
   sHips: number
 ): void {
-  // Bake Z-Up -> Y-Up rotation (-90 deg X) directly into geometry vertices
-  geo.rotateX(-Math.PI / 2);
   geo.computeBoundingBox();
+  if (geo.boundingBox) {
+    const preSize = new THREE.Vector3();
+    geo.boundingBox.getSize(preSize);
+    // Only rotate if raw geometry is still lying along Z axis
+    if (preSize.z > preSize.y * 1.15) {
+      geo.rotateX(-Math.PI / 2);
+      geo.computeBoundingBox();
+    }
+  }
 
   const box = geo.boundingBox;
   if (!box) return;
@@ -318,14 +325,25 @@ export function loadRealHumanModel(
           rimColor: '#38bdf8',
         });
 
+        model.updateMatrixWorld(true);
         model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh;
             mesh.geometry = mesh.geometry.clone();
+            // Bake GLB parent node transform (e.g. Sketchfab_model Z-Up -> Y-Up) once into vertices
+            mesh.geometry.applyMatrix4(mesh.matrixWorld);
             normalizeAndDeformFemaleGeometry(mesh.geometry, sChest, sWaist, sHips);
             mesh.material = femaleMat;
             mesh.frustumCulled = false;
           }
+        });
+
+        // Reset node transforms after baking matrixWorld so model isn't rotated twice
+        model.traverse((node) => {
+          node.position.set(0, 0, 0);
+          node.rotation.set(0, 0, 0);
+          node.scale.set(1, 1, 1);
+          node.updateMatrix();
         });
 
         root.add(model);
