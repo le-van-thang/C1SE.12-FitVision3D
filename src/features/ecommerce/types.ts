@@ -44,6 +44,7 @@ export interface FashionProduct {
   stretch_type: 'Không co giãn' | 'Co giãn nhẹ (2-3%)' | 'Co giãn tốt (4-way)';
   image_url: string;
   secondary_image_url?: string;
+  video_url?: string | null;
   description: string;
   description_en?: string;
   variants: ProductVariant[];

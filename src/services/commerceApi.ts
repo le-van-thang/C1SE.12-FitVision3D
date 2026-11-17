@@ -74,6 +74,7 @@ export interface DbProduct extends FashionProduct {
   is_hidden?: boolean;
   shop_id?: string | null;
   is_mall?: boolean;
+  video_url?: string | null;
 }
 
 export interface DbProductReview {
@@ -86,6 +87,10 @@ export interface DbProductReview {
   is_verified_purchase: boolean;
   shop_reply?: string | null;
   created_at: string;
+}
+
+export interface DbShopReview extends DbProductReview {
+  product_name?: string;
 }
 
 export interface DbShopProfile {
@@ -228,7 +233,15 @@ export const commerceApi = {
       shop: DbShopProfile | null;
       products: DbProduct[];
       orders: Order[];
+      reviews?: DbShopReview[];
     }>('/shop/dashboard');
+  },
+
+  updateShopProfile(payload: { shopName: string; phoneNumber: string; shopAddress: string }) {
+    return commerceRequest<DbShopProfile>('/shop/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
   },
 
   createShopProduct(payload: {
@@ -240,6 +253,7 @@ export const commerceApi = {
     fabricMaterial: string;
     stretchType: string;
     imageUrl: string;
+    videoUrl?: string;
     description: string;
     colorName?: string;
     colorHex?: string;

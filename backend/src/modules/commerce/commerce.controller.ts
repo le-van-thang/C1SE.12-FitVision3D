@@ -229,6 +229,22 @@ export const commerceController = {
     }
   },
 
+  async updateShopProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập tài khoản Shop.');
+      }
+      const updated = await commerceRepository.updateShopProfile(userId, req.body || {});
+      sendSuccess(res, updated);
+    } catch (err: any) {
+      if (err?.message) {
+        return next(new AppError(400, ErrorCode.VALIDATION_FAILED, err.message));
+      }
+      next(err);
+    }
+  },
+
   async createShopProduct(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.sub;

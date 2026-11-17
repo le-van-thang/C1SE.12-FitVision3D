@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Send,
   BadgeCheck,
+  Video,
 } from 'lucide-react';
 import type { FashionProduct, UserBodyProfile, FitMatchResult, ProductVariant } from './types';
 import { MOCK_PRODUCTS } from './mockProducts';
@@ -50,6 +51,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   const { t, locale } = useI18n();
   const { isAuthenticated, currentUser, userRole, openSignIn } = useAuth();
   const [activeImage, setActiveImage] = useState<string>('');
+  const [isShowingVideo, setIsShowingVideo] = useState(false);
   const [copiedVoucher, setCopiedVoucher] = useState<string | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [reviews, setReviews] = useState<DbProductReview[]>([]);
@@ -64,6 +66,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   useEffect(() => {
     if (product) {
       setActiveImage(product.image_url);
+      setIsShowingVideo(false);
       setOpenFaqIndex(0);
       setLiveRating(product.rating);
       setLiveReviewsCount(product.reviews_count);
@@ -221,32 +224,80 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
           {/* Scrollable Body Content */}
           <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 bg-[#FAFAFB]">
             
-            {/* 1. Product Gallery & Editorial Header (PDP Style) */}
+            {/* 1. Product Gallery, Video & Editorial Header (PDP Style) */}
             <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
               <div className="flex gap-4">
-                {/* Thumbnail strip + Primary photo */}
+                {/* Thumbnail strip + Primary photo / Video preview */}
                 <div className="flex gap-2 flex-shrink-0">
-                  {galleryImages.length > 1 && (
+                  {(galleryImages.length > 1 || Boolean(product.video_url)) && (
                     <div className="flex flex-col gap-2">
                       {galleryImages.map((imgUrl, idx) => (
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => setActiveImage(imgUrl)}
+                          onClick={() => {
+                            setIsShowingVideo(false);
+                            setActiveImage(imgUrl);
+                          }}
                           className={`w-11 h-14 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
-                            activeImage === imgUrl ? 'border-blue-600' : 'border-slate-200 opacity-70 hover:opacity-100'
+                            !isShowingVideo && activeImage === imgUrl
+                              ? 'border-blue-600'
+                              : 'border-slate-200 opacity-70 hover:opacity-100'
                           }`}
                         >
                           <img src={imgUrl} alt="" className="w-full h-full object-cover" />
                         </button>
                       ))}
+                      {product.video_url && (
+                        <button
+                          type="button"
+                          onClick={() => setIsShowingVideo(true)}
+                          className={`w-11 h-14 rounded-lg border-2 cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 text-[9px] font-bold ${
+                            isShowingVideo
+                              ? 'border-blue-600 bg-blue-600 text-white'
+                              : 'border-slate-200 bg-slate-900 text-white opacity-85 hover:opacity-100'
+                          }`}
+                          title="Xem video giới thiệu sản phẩm"
+                        >
+                          <Video size={14} />
+                          <span>Video</span>
+                        </button>
+                      )}
                     </div>
                   )}
-                  <img
-                    src={activeImage || product.image_url}
-                    alt={product.name}
-                    className="w-24 sm:w-28 h-32 sm:h-36 object-cover object-top rounded-xl border border-slate-200 flex-shrink-0"
-                  />
+                  {isShowingVideo && product.video_url ? (
+                    (() => {
+                      const ytMatch = product.video_url.match(
+                        /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([A-Za-z0-9_-]{6,})/
+                      );
+                      if (ytMatch?.[1]) {
+                        return (
+                          <iframe
+                            src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`}
+                            title={product.name}
+                            allow="autoplay; encrypted-media"
+                            allowFullScreen
+                            className="w-36 sm:w-44 h-36 sm:h-40 rounded-xl border border-slate-200 bg-black flex-shrink-0"
+                          />
+                        );
+                      }
+                      return (
+                        <video
+                          src={product.video_url}
+                          controls
+                          autoPlay
+                          playsInline
+                          className="w-36 sm:w-44 h-36 sm:h-40 object-cover rounded-xl border border-slate-200 bg-black flex-shrink-0"
+                        />
+                      );
+                    })()
+                  ) : (
+                    <img
+                      src={activeImage || product.image_url}
+                      alt={product.name}
+                      className="w-24 sm:w-28 h-32 sm:h-36 object-cover object-top rounded-xl border border-slate-200 flex-shrink-0"
+                    />
+                  )}
                 </div>
 
                 {/* Title, Rating, Price & Freeship */}
@@ -470,7 +521,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                     {t('ecommerce.drawer.length', 'Chiều dài trang phục')}
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    {t('ecommerce.drawer.lengthSub', 'Chuẩn may đo thiết kế')}
+                    {t('ecommerce.drawer.lengthSub', 'Thông số sản phẩm chuẩn')}
                   </span>
                 </div>
                 <span className="font-mono font-bold text-slate-800 text-xs">

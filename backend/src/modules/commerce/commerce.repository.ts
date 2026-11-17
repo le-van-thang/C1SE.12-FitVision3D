@@ -17,6 +17,27 @@ function computeTierFromSpend(totalSpend: number): MembershipTierId {
   return 'member';
 }
 
+const SHOP_PRODUCT_WINDOW_MS = 60_000;
+const SHOP_MAX_POSTS_PER_WINDOW = 3;
+const SHOP_MAX_PRODUCTS_QUOTA = 50;
+const shopPostTimestamps = new Map<string, number[]>();
+
+export function assertShopAntiSpam(userId: string): void {
+  const now = Date.now();
+  const prev = (shopPostTimestamps.get(userId) || []).filter(
+    (ts) => now - ts < SHOP_PRODUCT_WINDOW_MS
+  );
+  if (prev.length >= SHOP_MAX_POSTS_PER_WINDOW) {
+    const oldest = prev[0];
+    const waitSec = Math.max(1, Math.ceil((SHOP_PRODUCT_WINDOW_MS - (now - oldest)) / 1000));
+    throw new Error(
+      `Chống spam: Bạn chỉ được đăng tối đa ${SHOP_MAX_POSTS_PER_WINDOW} sản phẩm / media mỗi phút. Vui lòng chờ ${waitSec} giây.`
+    );
+  }
+  prev.push(now);
+  shopPostTimestamps.set(userId, prev);
+}
+
 export const commerceRepository = {
   async getSettings() {
     await ensureCommerceTablesAndSeed();
@@ -136,7 +157,7 @@ export const commerceRepository = {
     return query(
       `SELECT id, brand_name, shop_id, COALESCE(is_mall, FALSE) AS is_mall, name, name_en, slug, category, gender_target,
               price, sale_price, rating::float, reviews_count, fabric_material, fabric_material_en,
-              stretch_type, image_url, secondary_image_url, description, description_en,
+              stretch_type, image_url, secondary_image_url, video_url, description, description_en,
               is_bestseller, is_bespoke, is_hidden, variants, created_at, updated_at
        FROM products
        ${whereClause}
@@ -390,7 +411,7 @@ export const commerceRepository = {
     return { alreadyUnlocked: false, wallet: updated };
   },
 
-  async getShopDashboard(userId: string) {
+  async ensureShopForUser(userId: string) {
     await ensureCommerceTablesAndSeed();
     const shopRows = await query(
       `SELECT id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
@@ -399,15 +420,83 @@ export const commerceRepository = {
        LIMIT 1`,
       [userId]
     );
-    const shop = shopRows[0] || null;
+    if (shopRows.length > 0) return shopRows[0];
+
+    // If Admin directly promoted a user to SHOP_OWNER without them submitting an application,
+    // auto-provision an active shop row in PostgreSQL so /shop works immediately.
+    const userRows = await query<{ id: string; full_name: string; email: string; phone: string | null; role: string }>(
+      `SELECT id, full_name, email, phone, role FROM users WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
+    const u = userRows[0];
+    if (!u || (u.role !== 'SHOP_OWNER' && u.role !== 'ADMIN')) {
+      return null;
+    }
+
+    const baseName = (u.full_name || u.email.split('@')[0] || 'FitVision').trim();
+    const shopName = `${baseName} Fashion`;
+    const slug = `shop-${userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10)}`;
+    const phone = (u.phone || `09${String(Date.now()).slice(-8)}`).slice(0, 15);
+
+    const created = await query(
+      `INSERT INTO shops (
+         owner_id, shop_name, brand_slug, phone_number, shop_address,
+         contact_email, status, is_verified, approved_at, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, 'Việt Nam', $5, 'APPROVED', TRUE, NOW(), NOW(), NOW())
+       ON CONFLICT (owner_id) DO NOTHING
+       RETURNING id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall`,
+      [userId, shopName, slug, phone, u.email]
+    );
+    if (created.length > 0) return created[0];
+
+    const retry = await query(
+      `SELECT id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
+       FROM shops WHERE owner_id = $1 LIMIT 1`,
+      [userId]
+    );
+    return retry[0] || null;
+  },
+
+  async updateShopProfile(
+    userId: string,
+    payload: { shopName?: string; phoneNumber?: string; shopAddress?: string }
+  ) {
+    const shop = await this.ensureShopForUser(userId);
     if (!shop) {
-      return { shop: null, products: [], orders: [] };
+      throw new Error('Không tìm thấy hồ sơ Shop.');
+    }
+    const cleanName = String(payload.shopName || shop.shop_name).trim();
+    const cleanPhone = String(payload.phoneNumber || shop.phone_number).trim().slice(0, 15);
+    const cleanAddr = String(payload.shopAddress || shop.shop_address).trim().slice(0, 255);
+    if (cleanName.length < 2) throw new Error('Tên Shop phải có tối thiểu 2 ký tự.');
+    if (cleanPhone.length < 8) throw new Error('Số điện thoại Shop không hợp lệ.');
+
+    const updated = await query(
+      `UPDATE shops
+       SET shop_name = $2, phone_number = $3, shop_address = $4, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall`,
+      [shop.id, cleanName, cleanPhone, cleanAddr]
+    );
+    if (cleanName !== shop.shop_name) {
+      await query(
+        `UPDATE products SET brand_name = $2, updated_at = NOW() WHERE shop_id = $1`,
+        [shop.id, cleanName]
+      ).catch(() => undefined);
+    }
+    return updated[0];
+  },
+
+  async getShopDashboard(userId: string) {
+    const shop = await this.ensureShopForUser(userId);
+    if (!shop) {
+      return { shop: null, products: [], orders: [], reviews: [] };
     }
 
     const products = await query(
       `SELECT id, brand_name, shop_id, COALESCE(is_mall, FALSE) AS is_mall, name, name_en, slug, category, gender_target,
               price, sale_price, rating::float, reviews_count, fabric_material, fabric_material_en,
-              stretch_type, image_url, secondary_image_url, description, description_en,
+              stretch_type, image_url, secondary_image_url, video_url, description, description_en,
               is_bestseller, is_bespoke, is_hidden, variants, created_at, updated_at
        FROM products
        WHERE shop_id = $1 OR LOWER(brand_name) = LOWER($2)
@@ -431,19 +520,35 @@ export const commerceRepository = {
       [shop.shop_name, String(shop.id)]
     );
 
-    return { shop, products, orders };
+    const reviews = await query(
+      `SELECT r.id, r.product_id, r.user_id, r.user_name, r.rating, r.comment,
+              r.is_verified_purchase, r.shop_reply, r.created_at, p.name AS product_name
+       FROM product_reviews r
+       INNER JOIN products p ON p.id = r.product_id
+       WHERE p.shop_id = $1 OR LOWER(p.brand_name) = LOWER($2)
+       ORDER BY r.created_at DESC
+       LIMIT 30`,
+      [shop.id, shop.shop_name]
+    );
+
+    return { shop, products, orders, reviews };
   },
 
   async createShopProduct(userId: string, payload: any) {
-    await ensureCommerceTablesAndSeed();
-    const shopRows = await query(
-      `SELECT id, shop_name, COALESCE(is_mall, FALSE) AS is_mall, status
-       FROM shops WHERE owner_id = $1 LIMIT 1`,
-      [userId]
-    );
-    const shop = shopRows[0];
+    const shop = await this.ensureShopForUser(userId);
     if (!shop) {
-      throw new Error('Tài khoản chưa có hồ sơ Shop được kích hoạt.');
+      throw new Error('Tài khoản chưa có quyền Chủ Shop hợp lệ.');
+    }
+
+    // Anti-Spam Rate Limiter & Shop Quota Enforcement
+    assertShopAntiSpam(userId);
+
+    const quotaRows = await query<{ cnt: string }>(
+      'SELECT COUNT(*)::text AS cnt FROM products WHERE shop_id = $1',
+      [shop.id]
+    );
+    if (parseInt(quotaRows[0]?.cnt || '0', 10) >= SHOP_MAX_PRODUCTS_QUOTA) {
+      throw new Error(`Hạn mức tối đa mỗi Shop là ${SHOP_MAX_PRODUCTS_QUOTA} sản phẩm để đảm bảo chất lượng sàn.`);
     }
 
     const name = String(payload.name || '').trim();
@@ -451,6 +556,22 @@ export const commerceRepository = {
     const salePrice = payload.salePrice ? Number(payload.salePrice) : null;
     if (name.length < 3) throw new Error('Tên sản phẩm phải có tối thiểu 3 ký tự.');
     if (!Number.isFinite(price) || price < 50_000) throw new Error('Giá bán phải tối thiểu 50.000₫.');
+
+    const rawImg = String(payload.imageUrl || '').trim();
+    if (rawImg.startsWith('data:image/') && rawImg.length > 4_200_000) {
+      throw new Error('Ảnh tải lên quá nặng (> 3MB). Vui lòng nén ảnh hoặc dùng link URL.');
+    }
+    const rawVideo = String(payload.videoUrl || '').trim();
+    if (rawVideo) {
+      if (rawVideo.startsWith('data:video/') && rawVideo.length > 22_000_000) {
+        throw new Error('Video tải lên vượt quá giới hạn 15MB để bảo vệ máy chủ. Hãy dùng link MP4/YouTube hoặc video ngắn hơn.');
+      }
+      const isHttpVideo = rawVideo.startsWith('http://') || rawVideo.startsWith('https://');
+      const isBase64Video = rawVideo.startsWith('data:video/');
+      if (!isHttpVideo && !isBase64Video) {
+        throw new Error('Định dạng video không hợp lệ (chỉ hỗ trợ link HTTP/HTTPS hoặc file MP4/WebM).');
+      }
+    }
 
     const category = ['shirt', 'polo', 'pants', 'dress', 'tailored'].includes(payload.category)
       ? payload.category
@@ -513,18 +634,18 @@ export const commerceRepository = {
     ];
 
     const imageUrl =
-      String(payload.imageUrl || '').trim() ||
+      rawImg ||
       'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80';
 
     const rows = await query(
       `INSERT INTO products (
          id, brand_name, shop_id, is_mall, name, name_en, slug, category, gender_target,
          price, sale_price, rating, reviews_count, fabric_material, fabric_material_en,
-         stretch_type, image_url, description, description_en, is_bestseller, is_bespoke, is_hidden, variants
+         stretch_type, image_url, video_url, description, description_en, is_bestseller, is_bespoke, is_hidden, variants
        ) VALUES (
          $1, $2, $3, $4, $5, $5, $6, $7, $8,
          $9, $10, 5.0, 0, $11, $11,
-         $12, $13, $14, $14, TRUE, FALSE, FALSE, $15::jsonb
+         $12, $13, $14, $15, $15, TRUE, FALSE, FALSE, $16::jsonb
        ) RETURNING *, rating::float`,
       [
         id,
@@ -540,6 +661,7 @@ export const commerceRepository = {
         String(payload.fabricMaterial || '100% Cotton cao cấp thoáng mát').trim(),
         String(payload.stretchType || 'Co giãn nhẹ (2-3%)'),
         imageUrl,
+        rawVideo || null,
         String(payload.description || 'Thiết kế thời trang chuẩn phom dáng, hỗ trợ chọn size chính xác bằng AI quét vóc dáng 3D FitVision.').trim(),
         JSON.stringify(variants),
       ]

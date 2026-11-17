@@ -1462,16 +1462,10 @@ export const FashionStoreHome: React.FC = () => {
             <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
               <a
                 href="/shop"
-                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Plus size={14} />
-                <span>{locale === 'en' ? 'Seller Center' : 'Quản Lý Shop & Đăng SP'}</span>
-              </a>
-              <a
-                href="/size-charts"
-                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
-              >
-                <span>{locale === 'en' ? 'Size Specs' : 'Bảng Size 3D'}</span>
+                <span>{locale === 'en' ? 'Open Seller Center' : 'Mở Kênh Quản Lý Shop'}</span>
                 <ChevronRight size={14} />
               </a>
             </div>
@@ -2106,6 +2100,11 @@ export const FashionStoreHome: React.FC = () => {
                           <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-slate-900 shadow-2xs border border-slate-200/80">
                             {product.brand_name}
                           </span>
+                          {product.video_url && (
+                            <span className="px-1.5 py-0.5 rounded bg-black/80 text-white text-[9px] font-bold shadow-2xs">
+                              ▶ Video
+                            </span>
+                          )}
                         </div>
 
                         {/* Fit Score Top Right (Authenticated + Biometrics only; ISO 8559 badge for guests) */}
