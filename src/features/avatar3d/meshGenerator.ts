@@ -183,6 +183,103 @@ function normalizeAndDeformFemaleGeometry(
   geo.computeBoundingSphere();
 }
 
+function buildConformalFemaleRings(
+  geometries: THREE.BufferGeometry[],
+  activeZone: string
+): THREE.Mesh[] {
+  const bands = [
+    { key: 'chest', y: 0.42, halfHeight: 0.032, maxAbsX: 0.25 },
+    { key: 'waist', y: 0.26, halfHeight: 0.028, maxAbsX: 0.22 },
+    { key: 'hips', y: 0.02, halfHeight: 0.032, maxAbsX: 0.26 },
+  ];
+  const SECTORS = 64;
+  const CLEARANCE_M = 0.011;
+
+  return bands.map((band) => {
+    const isActive = activeZone === band.key;
+    const ptsXZ: { x: number; z: number }[] = [];
+
+    for (const geo of geometries) {
+      const pos = geo.attributes.position as THREE.BufferAttribute | undefined;
+      if (!pos) continue;
+      for (let i = 0; i < pos.count; i++) {
+        const y = pos.getY(i);
+        const x = pos.getX(i);
+        if (Math.abs(y - band.y) <= band.halfHeight && Math.abs(x) <= band.maxAbsX) {
+          ptsXZ.push({ x, z: pos.getZ(i) });
+        }
+      }
+    }
+
+    let pts: THREE.Vector3[] = [];
+    if (ptsXZ.length >= 16) {
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      for (const p of ptsXZ) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.z < minZ) minZ = p.z;
+        if (p.z > maxZ) maxZ = p.z;
+      }
+      const cx = (minX + maxX) / 2;
+      const cz = (minZ + maxZ) / 2;
+
+      const sectorMax = new Array<number>(SECTORS).fill(0);
+      for (const p of ptsXZ) {
+        const dx = p.x - cx;
+        const dz = p.z - cz;
+        const r = Math.hypot(dx, dz);
+        let angle = Math.atan2(dz, dx);
+        if (angle < 0) angle += Math.PI * 2;
+        const idx = Math.min(SECTORS - 1, Math.floor((angle / (Math.PI * 2)) * SECTORS));
+        if (r > sectorMax[idx]) sectorMax[idx] = r;
+      }
+
+      // Fill any empty angular sector using nearest populated neighbors
+      const filled = [...sectorMax];
+      for (let i = 0; i < SECTORS; i++) {
+        if (filled[i] > 0) continue;
+        for (let step = 1; step < SECTORS / 2; step++) {
+          const prev = sectorMax[(i - step + SECTORS) % SECTORS];
+          const next = sectorMax[(i + step) % SECTORS];
+          if (prev > 0 || next > 0) {
+            filled[i] = prev > 0 && next > 0 ? (prev + next) / 2 : prev || next;
+            break;
+          }
+        }
+      }
+
+      // Smooth while preserving strict >= max outer surface clearance so ring never clips inside torso
+      const smoothed = filled.map((_, i) => {
+        const prev = filled[(i - 1 + SECTORS) % SECTORS];
+        const curr = filled[i];
+        const next = filled[(i + 1) % SECTORS];
+        return Math.max(curr, prev * 0.22 + curr * 0.56 + next * 0.22) + CLEARANCE_M;
+      });
+
+      pts = smoothed.map((r, i) => {
+        const theta = ((i + 0.5) / SECTORS) * Math.PI * 2;
+        return new THREE.Vector3(cx + Math.cos(theta) * r, band.y, cz + Math.sin(theta) * r);
+      });
+    } else {
+      for (let i = 0; i < SECTORS; i++) {
+        const theta = (i / SECTORS) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(theta) * 0.16, band.y, Math.sin(theta) * 0.12));
+      }
+    }
+
+    const curve = new THREE.CatmullRomCurve3(pts, true);
+    const tubeGeo = new THREE.TubeGeometry(curve, 64, isActive ? 0.0085 : 0.0032, 12, true);
+    const tubeMat = new THREE.MeshBasicMaterial({
+      color: isActive ? 0xa3e635 : 0x38bdf8,
+      transparent: true,
+      opacity: isActive ? 0.98 : 0.45,
+    });
+    const ringMesh = new THREE.Mesh(tubeGeo, tubeMat);
+    ringMesh.name = `ring_${band.key}`;
+    return ringMesh;
+  });
+}
+
 function buildMeasurementRings(
   isFemale: boolean,
   sChest: number,
@@ -327,6 +424,7 @@ export function loadRealHumanModel(
           rimColor: '#38bdf8',
         });
 
+        const deformedGeometries: THREE.BufferGeometry[] = [];
         model.updateMatrixWorld(true);
         model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -335,6 +433,7 @@ export function loadRealHumanModel(
             // Bake GLB parent node transform (e.g. Sketchfab_model Z-Up -> Y-Up) once into vertices
             mesh.geometry.applyMatrix4(mesh.matrixWorld);
             normalizeAndDeformFemaleGeometry(mesh.geometry, sChest, sWaist, sHips);
+            deformedGeometries.push(mesh.geometry);
             mesh.material = femaleMat;
             mesh.frustumCulled = false;
           }
@@ -349,7 +448,7 @@ export function loadRealHumanModel(
         });
 
         root.add(model);
-        buildMeasurementRings(true, sChest, sWaist, sHips, activeZone).forEach((r) => root.add(r));
+        buildConformalFemaleRings(deformedGeometries, activeZone).forEach((r) => root.add(r));
         onLoaded(root);
         return;
       }
