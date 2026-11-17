@@ -94,6 +94,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
                 <span>{t('app.nav.dashboard', 'Phòng Đo 3D')}</span>
               </Link>
 
+              <Link
+                to="/?openStudio=1"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-blue-200 bg-blue-500/15 hover:bg-blue-500/25 hover:text-white border border-blue-400/30 transition-all"
+                id="nav-virtual-studio"
+              >
+                <Sparkles size={15} strokeWidth={2} className="text-blue-300" />
+                <span>{t('ecommerce.sidebar.virtualTryOn', 'Phòng Thử Đồ 3D')}</span>
+              </Link>
+
               {isAuthenticated && (
                 <Link
                   to="/size-charts"

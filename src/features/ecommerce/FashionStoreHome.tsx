@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ShoppingBag,
   Sparkles,
@@ -176,6 +176,9 @@ const HERO_PRODUCT_SLIDES: HeroProductSlide[] = [
 ];
 
 export const FashionStoreHome: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [studioInitialMode, setStudioInitialMode] = useState<'avatar3d' | 'photo' | 'lookbook'>('avatar3d');
   const { isAuthenticated, userRole, currentUser, currentStore, signOut, openSignIn, openOnboarding, openStatusModal } = useAuth();
   const { getUserOrders } = useOrders();
   const { t, locale } = useI18n();
@@ -212,6 +215,16 @@ export const FashionStoreHome: React.FC = () => {
       window.removeEventListener('storage', syncFromStorage);
     };
   }, [isAuthenticated, currentUser]);
+
+  // Open Virtual Fitting Room directly when returning from 3D Scan / Dashboard / Navbar
+  useEffect(() => {
+    if (searchParams.get('openStudio') === '1') {
+      const modeParam = searchParams.get('studioMode');
+      setStudioInitialMode(modeParam === 'photo' ? 'photo' : 'avatar3d');
+      setIsVellStudioOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -343,6 +356,7 @@ export const FashionStoreHome: React.FC = () => {
   };
 
   const handleOpenVirtualStudio = () => {
+    setStudioInitialMode('avatar3d');
     setIsVellStudioOpen(true);
   };
 
@@ -2971,7 +2985,8 @@ export const FashionStoreHome: React.FC = () => {
         currentBody={userBody}
         onSaveBody={handleSaveBody}
         onNavigateToCameraScan={() => {
-          window.location.href = '/dashboard';
+          setIsBiometricModalOpen(false);
+          navigate('/dashboard');
         }}
       />
 
@@ -2987,6 +3002,7 @@ export const FashionStoreHome: React.FC = () => {
         userBody={userBody}
         isAuthenticated={isAuthenticated}
         hasBodyProfile={hasBodyProfile}
+        initialStageMode={studioInitialMode}
         onOpenSignIn={openSignIn}
         onOpenBiometrics={handleOpenBiometrics}
         onAddToCart={(fakeProduct, size) => {

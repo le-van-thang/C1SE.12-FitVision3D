@@ -5,7 +5,7 @@
 // Col 3: ISO 8559 Anthropometric Table & Quan's AI Garment Card
 // ============================================================
 import React, { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FileText,
   Table2,
@@ -16,6 +16,8 @@ import {
   Cpu,
   RotateCcw,
   Lock,
+  Sparkles,
+  ArrowLeft,
 } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
 import { LoginRequiredDialog } from "../components/common/LoginRequiredDialog";
@@ -55,6 +57,8 @@ const loadInitialBiometric = (): { height?: number; weight?: number; gender: "ma
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const cameFromStudio = searchParams.get("from") === "studio";
   const { isAuthenticated, currentUser, userRole, openSignIn } = useAuth();
   const { t } = useI18n();
   // Guests may scan + view the 3D model only. Measurements / size charts stay locked and are never stored.
@@ -316,6 +320,17 @@ export const Dashboard: React.FC = () => {
               <span>{isLiveBackend ? t("dashx.live", "Mô hình AI Trực Tiếp") : t("dashx.engine", "Công thức giải tích: ISO 8559")}</span>
             </span>
 
+            {cameFromStudio && (
+              <button
+                type="button"
+                onClick={() => navigate("/?openStudio=1&studioMode=photo")}
+                className="inline-flex items-center gap-1.5 text-xs font-black px-3.5 py-1.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white shadow-sm transition-all cursor-pointer"
+              >
+                <ArrowLeft size={13} strokeWidth={2.4} />
+                <span>{t("app.dash.backToStudio", "Quay lại Phòng Thử Đồ 3D")}</span>
+              </button>
+            )}
+
             {measurement && (
               <button
                 type="button"
@@ -510,16 +525,32 @@ export const Dashboard: React.FC = () => {
               <div className="text-xs font-bold text-[#14171C]">
                 {t(
                   "app.dash.syncedToStore",
-                  "Số đo 3D của bạn đã được lưu & đồng bộ sang Sàn Thời Trang để gợi ý trang phục hợp dáng."
+                  "Số đo 3D của bạn đã được lưu & đồng bộ sang Sàn Thời Trang và Phòng Thử Đồ 3D."
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => navigate("/")}
-                className="px-4 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-black transition-colors cursor-pointer whitespace-nowrap self-start sm:self-auto"
-              >
-                {t("app.dash.browseMatches", "Xem đồ hợp dáng trên Sàn →")}
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(cameFromStudio ? "/?openStudio=1&studioMode=photo" : "/?openStudio=1")
+                  }
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
+                >
+                  <Sparkles size={13} />
+                  <span>
+                    {cameFromStudio
+                      ? t("app.dash.returnStudioWithMeasures", "Quay lại Phòng Thử Đồ 3D →")
+                      : t("app.dash.openStudioNow", "Thử đồ 3D với số đo mới →")}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="px-3.5 py-2 rounded-xl bg-[#14171C] hover:bg-slate-800 text-white text-xs font-black transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  {t("app.dash.browseMatches", "Xem đồ hợp dáng trên Sàn →")}
+                </button>
+              </div>
             </div>
           </div>
         )}

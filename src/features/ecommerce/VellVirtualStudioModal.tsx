@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import {
   X,
   Sparkles,
@@ -24,7 +25,12 @@ import {
 import { useI18n } from '@/i18n';
 import { MannequinViewer } from '../avatar3d/MannequinViewer';
 import { processPersonCutout, type CutoutResult } from '@/utils/personSegmentation';
-import { setPendingStudioPhoto } from '@/utils/bodyProfileStorage';
+import {
+  setPendingStudioPhoto,
+  loadFullScanSnapshot,
+  setStudioCutoutCache,
+  getStudioCutoutCache,
+} from '@/utils/bodyProfileStorage';
 import type { FashionProduct, UserBodyProfile } from './types';
 import type { MeshParameter, Measurement } from '@/types/database.types';
 
@@ -34,6 +40,7 @@ export interface VellVirtualStudioModalProps {
   userBody: UserBodyProfile;
   isAuthenticated?: boolean;
   hasBodyProfile?: boolean;
+  initialStageMode?: StageMode;
   onOpenSignIn?: () => void;
   onOpenBiometrics?: () => void;
   initialProduct?: FashionProduct | null;
@@ -212,17 +219,19 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
   userBody,
   isAuthenticated = false,
   hasBodyProfile = false,
+  initialStageMode = 'avatar3d',
   onOpenSignIn,
   onOpenBiometrics,
   onAddToCart,
 }) => {
   const { locale } = useI18n();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [activeLookIndex, setActiveLookIndex] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<StudioTab>('outfits');
-  const [stageMode, setStageMode] = useState<StageMode>('avatar3d');
+  const [stageMode, setStageMode] = useState<StageMode>(initialStageMode);
   const [selectedSizeOverride, setSelectedSizeOverride] = useState<GarmentSizeKey | null>(null);
   const [isWiping, setIsWiping] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -230,12 +239,29 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
   const [historyPointer, setHistoryPointer] = useState<number>(0);
   const [savedToLibrary, setSavedToLibrary] = useState<boolean>(false);
 
-  // Personal photo cutout state
-  const [userPhotoFile, setUserPhotoFile] = useState<File | null>(null);
-  const [cutoutResult, setCutoutResult] = useState<CutoutResult | null>(null);
+  // Personal photo cutout state (preserved across round-trips to /dashboard scan)
+  const [userPhotoName, setUserPhotoName] = useState<string>(() => getStudioCutoutCache()?.fileName || 'studio-photo.jpg');
+  const [cutoutResult, setCutoutResult] = useState<CutoutResult | null>(() => {
+    const cached = getStudioCutoutCache();
+    return cached
+      ? {
+          cutoutDataUrl: cached.cutoutDataUrl,
+          originalDataUrl: cached.originalDataUrl,
+          foregroundRatio: cached.foregroundRatio,
+          width: cached.width,
+          height: cached.height,
+        }
+      : null;
+  });
   const [enableCutout, setEnableCutout] = useState<boolean>(true);
   const [bgSensitivity, setBgSensitivity] = useState<number>(0.52);
   const [isCuttingOut, setIsCuttingOut] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStageMode(initialStageMode);
+    }
+  }, [isOpen, initialStageMode]);
 
   const currentLook = VELL_LOOKS[activeLookIndex];
 
@@ -254,9 +280,16 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
     [userBody, currentLook, activeSize]
   );
 
-  // Build live 3D MeshParameter & Measurement synced directly to userBody
+  // Load full 11-metric snapshot when available so limbs (bicep, wrist, thigh, calf, ankle) aren't dashes
+  const fullScanSnapshot = useMemo(
+    () => (isOpen && hasBodyProfile ? loadFullScanSnapshot(currentUser?.id) : null),
+    [isOpen, hasBodyProfile, currentUser?.id]
+  );
+
+  // Build live 3D MeshParameter & Measurement synced directly to userBody + full scan
   const studioMeshParams: MeshParameter | null = useMemo(() => {
     if (!hasBodyProfile) return null;
+    if (fullScanSnapshot?.mesh) return fullScanSnapshot.mesh;
     return {
       id: 'studio-live-mesh',
       measurement_id: 'studio-live',
@@ -267,10 +300,21 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
       morph_payload: {},
       created_at: new Date().toISOString(),
     };
-  }, [hasBodyProfile, userBody]);
+  }, [hasBodyProfile, userBody, fullScanSnapshot]);
 
   const studioMeasurement: Measurement | null = useMemo(() => {
     if (!hasBodyProfile) return null;
+    if (fullScanSnapshot?.measurement) {
+      return {
+        ...fullScanSnapshot.measurement,
+        chest_circ_cm: userBody.chest_cm,
+        waist_circ_cm: userBody.waist_cm,
+        hip_circ_cm: userBody.hip_cm,
+        shoulder_breadth_cm: userBody.shoulder_cm,
+        arm_length_cm: userBody.arm_length_cm,
+        inseam_cm: userBody.inseam_cm ?? fullScanSnapshot.measurement.inseam_cm,
+      };
+    }
     return {
       id: 'studio-live-meas',
       user_id: 'current',
@@ -289,7 +333,7 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
       extraction_confidence: 0.95,
       created_at: new Date().toISOString(),
     };
-  }, [hasBodyProfile, userBody]);
+  }, [hasBodyProfile, userBody, fullScanSnapshot]);
 
   const handleSelectLook = (idx: number) => {
     setSelectedSizeOverride(null);
@@ -329,11 +373,12 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
     }
   };
 
-  const runCutoutForFile = async (file: File, sens: number) => {
+  const runCutoutForInput = async (input: File | string, sens: number, name: string) => {
     setIsCuttingOut(true);
     try {
-      const res = await processPersonCutout(file, sens);
+      const res = await processPersonCutout(input, sens);
       setCutoutResult(res);
+      setStudioCutoutCache({ ...res, fileName: name });
     } finally {
       setIsCuttingOut(false);
     }
@@ -342,24 +387,24 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
   const handleUserPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUserPhotoFile(file);
+    setUserPhotoName(file.name);
     setStageMode('photo');
-    await runCutoutForFile(file, bgSensitivity);
+    await runCutoutForInput(file, bgSensitivity, file.name);
   };
 
   const handleSensitivityChange = async (nextSens: number) => {
     setBgSensitivity(nextSens);
-    if (userPhotoFile) {
-      await runCutoutForFile(userPhotoFile, nextSens);
+    if (cutoutResult?.originalDataUrl) {
+      await runCutoutForInput(cutoutResult.originalDataUrl, nextSens, userPhotoName);
     }
   };
 
   const handleSendPhotoTo3DScan = () => {
     if (cutoutResult?.originalDataUrl) {
-      setPendingStudioPhoto(cutoutResult.originalDataUrl, userPhotoFile?.name || 'studio-photo.jpg');
+      setPendingStudioPhoto(cutoutResult.originalDataUrl, userPhotoName);
     }
     onClose();
-    navigate('/dashboard');
+    navigate('/dashboard?from=studio');
   };
 
   const filteredLooks =

@@ -127,6 +127,14 @@ export function clearFullScanSnapshot(userId?: string | null): void {
 }
 
 let pendingStudioPhoto: { dataUrl: string; name: string } | null = null;
+let studioCutoutCache: {
+  cutoutDataUrl: string;
+  originalDataUrl: string;
+  foregroundRatio: number;
+  width: number;
+  height: number;
+  fileName: string;
+} | null = null;
 
 /** Passes a user-uploaded photo transiently from Virtual Studio into Dashboard AI Scan (in-memory only). */
 export function setPendingStudioPhoto(dataUrl: string, name = 'studio-photo.jpg'): void {
@@ -137,4 +145,21 @@ export function consumePendingStudioPhoto(): { dataUrl: string; name: string } |
   const item = pendingStudioPhoto;
   pendingStudioPhoto = null;
   return item;
+}
+
+export function setStudioCutoutCache(
+  val: {
+    cutoutDataUrl: string;
+    originalDataUrl: string;
+    foregroundRatio: number;
+    width: number;
+    height: number;
+    fileName: string;
+  } | null
+): void {
+  studioCutoutCache = val;
+}
+
+export function getStudioCutoutCache() {
+  return studioCutoutCache;
 }

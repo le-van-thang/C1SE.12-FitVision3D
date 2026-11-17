@@ -3,7 +3,8 @@
 // brand_size_charts + garment_categories (name, target_gender)
 // ============================================================
 import React, { useMemo, useState } from "react";
-import { Save, RotateCcw, AlertTriangle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Save, RotateCcw, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
 import { useI18n } from "../i18n";
 import { BRAND_NAMES, GARMENT_CATEGORIES, buildSizeRows, type SizeRow } from "../data/mockData";
@@ -90,7 +91,14 @@ export const SizeChartManager: React.FC = () => {
               {t("sizes.subtitle")}
             </p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs shadow-2xs transition-all"
+            >
+              <ArrowLeft size={14} />
+              <span>{t("app.nav.dashboard", "Phòng Đo 3D")}</span>
+            </Link>
             <button
               id="btn-reset-size-chart"
               type="button"
