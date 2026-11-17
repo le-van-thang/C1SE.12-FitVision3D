@@ -208,7 +208,7 @@ export const ShopPortal: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newCategory, setNewCategory] = useState<'shirt' | 'polo' | 'pants' | 'dress' | 'tailored'>('shirt');
   const [newGender, setNewGender] = useState<'male' | 'female' | 'unisex'>('male');
-  const [newPrice, setNewPrice] = useState('590000');
+  const [newPrice, setNewPrice] = useState('');
   const [newSalePrice, setNewSalePrice] = useState('');
   const [newFabric, setNewFabric] = useState('100% Cotton Cao Cấp');
   const [newStretch, setNewStretch] = useState('Co giãn nhẹ (2-3%)');
@@ -467,15 +467,15 @@ export const ShopPortal: React.FC = () => {
       return;
     }
 
-    // Client-side Anti-Spam Pre-Check (mirrors PostgreSQL/Backend rate limit: max 3 posts / 60s)
+    // Client-side Anti-Spam Pre-Check (mirrors PostgreSQL/Backend rate limit: max 10 posts / 60s)
     const now = Date.now();
     const recent = recentSubmitTimestamps.filter((ts) => now - ts < 60_000);
-    if (recent.length >= 3) {
+    if (recent.length >= 10) {
       const waitSec = Math.ceil((60_000 - (now - recent[0])) / 1000);
       showGlobalToast({
         type: 'warning',
         title: 'Kích hoạt Chống Spam',
-        message: `Bạn vừa đăng liên tiếp 3 sản phẩm/phút. Vui lòng đợi ${waitSec} giây để bảo vệ server.`,
+        message: `Bạn vừa đăng liên tiếp 10 sản phẩm/phút. Vui lòng đợi ${waitSec} giây để bảo vệ server.`,
       });
       return;
     }
@@ -521,6 +521,8 @@ export const ShopPortal: React.FC = () => {
       setRecentSubmitTimestamps([...recent, Date.now()]);
       setShowAddForm(false);
       setNewName('');
+      setNewPrice('');
+      setNewSalePrice('');
       setNewDescription('');
       setNewVideoUrl('');
       setNewVideoFileName('');
@@ -912,7 +914,7 @@ export const ShopPortal: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1 mb-1.5">
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
                           <Store size={12} /> Tên Thương Hiệu / Shop *
                         </label>
                         <input
@@ -920,29 +922,29 @@ export const ShopPortal: React.FC = () => {
                           value={profileName}
                           onChange={(e) => setProfileName(e.target.value)}
                           placeholder="VD: Torano Studio"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold outline-none focus:border-slate-900"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1 mb-1.5">
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
                           <Phone size={12} /> Hotline CSKH Shop
                         </label>
                         <input
                           value={profilePhone}
                           onChange={(e) => setProfilePhone(e.target.value)}
                           placeholder="VD: 0901 234 567"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold outline-none focus:border-slate-900"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1 mb-1.5">
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
                           <MapPin size={12} /> Địa Chỉ Kho / Cửa Hàng
                         </label>
                         <input
                           value={profileAddress}
                           onChange={(e) => setProfileAddress(e.target.value)}
                           placeholder="VD: Quận 1, TP. Hồ Chí Minh"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold outline-none focus:border-slate-900"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                         />
                       </div>
                     </div>
@@ -981,12 +983,12 @@ export const ShopPortal: React.FC = () => {
                   </div>
 
                   {/* Anti-Spam Protection Notice */}
-                  <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                  <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex items-start gap-3">
                     <ShieldAlert size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
                     <div className="text-xs text-amber-950 space-y-1">
                       <p className="font-bold">Hệ Thống Chống Spam &amp; Bảo Vệ Tài Nguyên Server Đang Bật</p>
-                      <p className="text-[11px] text-amber-900/90">
-                        • Tốc độ đăng bài: tối đa <b>3 sản phẩm / 60 giây</b> &amp; hạn mức <b>50 sản phẩm / Shop</b>.{' '}
+                      <p className="text-[11px] text-amber-900">
+                        • Tốc độ đăng bài: tối đa <b>10 sản phẩm / 60 giây</b> &amp; hạn mức <b>50 sản phẩm / Shop</b>.{' '}
                         • Ảnh tải lên: tối đa <b>2MB</b> (JPG/PNG/WEBP).{' '}
                         • Video tải trực tiếp: tối đa <b>12MB</b> (MP4/WebM) hoặc dán link CDN / YouTube không giới hạn dung lượng.
                       </p>
@@ -996,32 +998,32 @@ export const ShopPortal: React.FC = () => {
                   {showAddForm && (
                     <form
                       onSubmit={handleCreateProduct}
-                      className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5 shadow-xs"
+                      className="bg-white rounded-3xl border-2 border-slate-300 p-6 space-y-5 shadow-md"
                     >
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                         <h3 className="text-sm font-black text-slate-950">Đăng Bán Sản Phẩm Mới Lên Sàn</h3>
-                        <span className="text-[11px] font-semibold text-slate-400">
-                          Thương hiệu gắn tự động: <b className="text-slate-900">{shop?.shop_name}</b>
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          Thương hiệu gắn tự động: <b className="text-slate-950">{shop?.shop_name}</b>
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="md:col-span-2">
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Tên Sản Phẩm *</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Tên Sản Phẩm *</label>
                           <input
                             required
                             value={newName}
                             onChange={(e) => setNewName(e.target.value)}
                             placeholder="VD: Áo Sơ Mi Bamboo Dáng Regular Fit"
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-slate-900"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-medium text-slate-950 placeholder:text-slate-400 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           />
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Danh Mục</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Danh Mục</label>
                           <select
                             value={newCategory}
                             onChange={(e) => setNewCategory(e.target.value as typeof newCategory)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs outline-none bg-white"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-medium text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           >
                             <option value="shirt">Áo Sơ Mi</option>
                             <option value="polo">Áo Polo &amp; Thun</option>
@@ -1034,11 +1036,11 @@ export const ShopPortal: React.FC = () => {
 
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Giới Tính</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Giới Tính</label>
                           <select
                             value={newGender}
                             onChange={(e) => setNewGender(e.target.value as typeof newGender)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs outline-none bg-white"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-medium text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           >
                             <option value="male">Nam</option>
                             <option value="female">Nữ</option>
@@ -1046,33 +1048,34 @@ export const ShopPortal: React.FC = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Giá Gốc (VNĐ) *</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Giá Gốc (VNĐ) *</label>
                           <input
                             required
                             type="number"
                             min={10000}
+                            placeholder="VD: 590000"
                             value={newPrice}
                             onChange={(e) => setNewPrice(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono outline-none"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-mono font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           />
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Giá Khuyến Mãi (VNĐ)</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Giá Khuyến Mãi (VNĐ)</label>
                           <input
                             type="number"
                             min={10000}
-                            placeholder="Không bắt buộc"
+                            placeholder="VD: 450000 (Không bắt buộc)"
                             value={newSalePrice}
                             onChange={(e) => setNewSalePrice(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono outline-none"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-mono font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           />
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Độ Co Giãn</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Độ Co Giãn</label>
                           <select
                             value={newStretch}
                             onChange={(e) => setNewStretch(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs outline-none bg-white"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-medium text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           >
                             <option value="Không co giãn">Không co giãn</option>
                             <option value="Co giãn nhẹ (2-3%)">Co giãn nhẹ (2-3%)</option>
@@ -1083,17 +1086,18 @@ export const ShopPortal: React.FC = () => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Chất Liệu Vải</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Chất Liệu Vải</label>
                           <input
                             value={newFabric}
                             onChange={(e) => setNewFabric(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs outline-none"
+                            placeholder="VD: 100% Cotton Bamboo"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-medium text-slate-950 placeholder:text-slate-400 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           />
                         </div>
 
                         {/* All Garment Sizes Selection (XS -> XXL) */}
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">
                             Kích Cỡ Mở Bán (Chọn nhiều size) *
                           </label>
                           <div className="flex flex-wrap gap-1.5">
@@ -1107,7 +1111,7 @@ export const ShopPortal: React.FC = () => {
                                   className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold border cursor-pointer transition-all ${
                                     active
                                       ? 'bg-[#14171C] text-white border-[#14171C] shadow-2xs'
-                                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                                      : 'bg-white text-slate-600 border-slate-400 hover:border-slate-900'
                                   }`}
                                 >
                                   {sz}
@@ -1117,8 +1121,8 @@ export const ShopPortal: React.FC = () => {
                           </div>
                           <div className="flex flex-wrap gap-2 mt-2">
                             {selectedSizes.map((sz) => (
-                              <label key={sz} className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
-                                <span className="font-bold text-slate-700">{sz}:</span>
+                              <label key={sz} className="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-300">
+                                <span className="font-bold text-slate-800">{sz}:</span>
                                 <input
                                   type="number"
                                   min={1}
@@ -1130,7 +1134,7 @@ export const ShopPortal: React.FC = () => {
                                       [sz]: Math.max(1, Number(e.target.value) || 1),
                                     }))
                                   }
-                                  className="w-11 bg-transparent font-mono text-slate-900 outline-none"
+                                  className="w-11 bg-transparent font-mono font-semibold text-slate-950 outline-none"
                                 />
                               </label>
                             ))}
@@ -1138,16 +1142,16 @@ export const ShopPortal: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Multi-Color Variants + Per-Color Image Upload & Instant Thumbnail Preview */}
-                      <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200 space-y-3">
+                      {/* Multi-Color Variants + Per-Color Image Upload & Instant Clickable Thumbnail Preview */}
+                      <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-300 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5">
+                            <label className="text-[11px] font-bold text-slate-950 flex items-center gap-1.5">
                               <Palette size={14} className="text-blue-600" />
                               Màu Sắc &amp; Ảnh Theo Từng Màu ({colorVariants.length}/6 màu)
                             </label>
-                            <p className="text-[10px] text-slate-500 mt-0.5">
-                              Chọn màu từ bảng màu sẽ tự động cập nhật tên màu tiếng Việt. Tải riêng ảnh cho từng màu để khách bấm xem đổi màu trực tiếp.
+                            <p className="text-[10px] text-slate-600 mt-0.5">
+                              Chọn màu từ bảng màu sẽ tự đồng bộ tên màu. Bấm trực tiếp vào <b>ảnh mẫu</b> hoặc nút <b>Ảnh</b> để tải ảnh cho từng màu.
                             </p>
                           </div>
                           {colorVariants.length < 6 && (
@@ -1163,7 +1167,7 @@ export const ShopPortal: React.FC = () => {
                                   },
                                 ])
                               }
-                              className="px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                              className="px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
                             >
                               <Plus size={12} /> Thêm màu khác
                             </button>
@@ -1174,21 +1178,33 @@ export const ShopPortal: React.FC = () => {
                           {colorVariants.map((cv, idx) => (
                             <div
                               key={idx}
-                              className="bg-white rounded-2xl border border-slate-200 p-3 flex gap-3 items-start shadow-2xs"
+                              className="bg-white rounded-2xl border border-slate-300 p-3 flex gap-3 items-start shadow-xs"
                             >
-                              {/* Instant Thumbnail Preview */}
-                              <div className="relative flex-shrink-0">
+                              {/* Clickable Instant Thumbnail Preview */}
+                              <label
+                                className="relative flex-shrink-0 cursor-pointer group"
+                                title="Bấm vào ảnh này để chọn ảnh sản phẩm từ máy"
+                              >
                                 <img
                                   src={cv.imageUrl || DEFAULT_SAMPLE_IMG}
                                   alt={cv.colorName}
-                                  className="w-20 h-24 rounded-xl object-cover border border-slate-200 bg-slate-100"
+                                  className="w-20 h-24 rounded-xl object-cover border-2 border-slate-300 group-hover:border-blue-600 bg-slate-100 transition-colors"
                                 />
+                                <span className="absolute inset-x-1 bottom-1 py-0.5 rounded-md bg-black/70 text-white text-[9px] font-bold text-center opacity-85 group-hover:opacity-100 transition-opacity">
+                                  Đổi ảnh
+                                </span>
                                 {idx === 0 && (
-                                  <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded bg-[#14171C] text-white text-[9px] font-bold">
+                                  <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded bg-[#14171C] text-white text-[9px] font-bold shadow-xs">
                                     Ảnh chính
                                   </span>
                                 )}
-                              </div>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleVariantImageUpload(idx, e)}
+                                  className="hidden"
+                                />
+                              </label>
 
                               <div className="flex-1 min-w-0 space-y-2">
                                 <div className="flex items-center gap-2">
@@ -1204,7 +1220,7 @@ export const ShopPortal: React.FC = () => {
                                         )
                                       );
                                     }}
-                                    className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer flex-shrink-0"
+                                    className="w-8 h-8 rounded-lg border border-slate-400 cursor-pointer flex-shrink-0"
                                     title="Bấm để chọn màu — Tự nhận diện tên màu"
                                   />
                                   <input
@@ -1216,7 +1232,7 @@ export const ShopPortal: React.FC = () => {
                                       );
                                     }}
                                     placeholder="Tên màu (VD: Xanh Navy)"
-                                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold outline-none focus:border-slate-900"
+                                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-400 bg-white text-xs font-bold text-slate-950 outline-none focus:border-slate-950"
                                   />
                                   {colorVariants.length > 1 && (
                                     <button
@@ -1224,7 +1240,7 @@ export const ShopPortal: React.FC = () => {
                                       onClick={() =>
                                         setColorVariants((prev) => prev.filter((_, i) => i !== idx))
                                       }
-                                      className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer"
+                                      className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer"
                                       title="Xóa màu này"
                                     >
                                       <Trash2 size={13} />
@@ -1233,7 +1249,7 @@ export const ShopPortal: React.FC = () => {
                                 </div>
 
                                 {/* Quick color swatches */}
-                                <div className="flex items-center gap-1 flex-wrap">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                   {FASHION_COLOR_PALETTE.slice(0, 7).map((preset) => (
                                     <button
                                       key={preset.hex}
@@ -1245,7 +1261,7 @@ export const ShopPortal: React.FC = () => {
                                           )
                                         )
                                       }
-                                      className="w-4 h-4 rounded-full border border-slate-300 cursor-pointer hover:scale-110 transition-transform"
+                                      className="w-4 h-4 rounded-full border border-slate-400 cursor-pointer hover:scale-110 transition-transform"
                                       style={{ backgroundColor: preset.hex }}
                                       title={preset.name}
                                     />
@@ -1254,17 +1270,17 @@ export const ShopPortal: React.FC = () => {
 
                                 <div className="flex gap-1.5">
                                   <input
-                                    value={cv.imageUrl.startsWith('data:image') ? '✓ Đã chọn ảnh từ máy (xem ở khung trái)' : cv.imageUrl}
+                                    value={cv.imageUrl.startsWith('data:image') ? '✓ Đã chọn ảnh từ máy (bấm ảnh trái để đổi)' : cv.imageUrl}
                                     onChange={(e) => {
                                       const val = e.target.value;
                                       setColorVariants((prev) =>
                                         prev.map((item, i) => (i === idx ? { ...item, imageUrl: val } : item))
                                       );
                                     }}
-                                    placeholder="Link ảnh URL..."
-                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] outline-none"
+                                    placeholder="Dán link ảnh URL..."
+                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-slate-400 bg-white text-[11px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-950"
                                   />
-                                  <label className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer flex-shrink-0">
+                                  <label className="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-900 border border-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer flex-shrink-0">
                                     <Upload size={12} /> Ảnh
                                     <input
                                       type="file"
@@ -1281,9 +1297,9 @@ export const ShopPortal: React.FC = () => {
                       </div>
 
                       {/* Video URL or Local MP4/WebM Upload + Live Preview */}
-                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+                      <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-300 space-y-2.5">
                         <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                          <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5">
                             <Video size={14} className="text-blue-600" />
                             Video Giới Thiệu / Thử Đồ Thực Tế (Tùy chọn • MP4 / WebM / YouTube)
                           </label>
@@ -1308,7 +1324,7 @@ export const ShopPortal: React.FC = () => {
                               setNewVideoFileName('');
                             }}
                             placeholder="Dán link video (.mp4 / YouTube) hoặc bấm nút Upload MP4 bên phải (tối đa 12MB)..."
-                            className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs outline-none focus:border-slate-900"
+                            className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs text-slate-950 placeholder:text-slate-400 outline-none focus:border-slate-950"
                           />
                           <label className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer flex-shrink-0">
                             <Upload size={13} /> Chọn File Video (&le;12MB)
@@ -1325,21 +1341,21 @@ export const ShopPortal: React.FC = () => {
                             src={newVideoUrl}
                             controls
                             playsInline
-                            className="w-56 h-36 rounded-xl border border-slate-200 bg-black object-cover mt-2"
+                            className="w-56 h-36 rounded-xl border border-slate-300 bg-black object-cover mt-2"
                           />
                         )}
                       </div>
 
                       <div>
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                          <label className="text-[11px] font-bold text-slate-700">
+                          <label className="text-[11px] font-bold text-slate-800">
                             Mô Tả Chi Tiết Sản Phẩm
                           </label>
                           <button
                             type="button"
                             disabled={isGeneratingDesc}
                             onClick={() => void handleSuggestDescription()}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold cursor-pointer transition-colors disabled:opacity-60"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-300 text-[11px] font-bold cursor-pointer transition-colors disabled:opacity-60"
                           >
                             <Wand2 size={12} />
                             {isGeneratingDesc ? 'AI đang phân tích ảnh...' : '✨ AI Gợi Ý Mô Tả Từ Ảnh & Thông Số'}
@@ -1350,7 +1366,7 @@ export const ShopPortal: React.FC = () => {
                           value={newDescription}
                           onChange={(e) => setNewDescription(e.target.value)}
                           placeholder="Bấm nút 'AI Gợi Ý Mô Tả Từ Ảnh' bên trên để tự động viết mô tả chuẩn SEO sàn TMĐT hoặc tự gõ tại đây..."
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs outline-none leading-relaxed focus:border-slate-900"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs text-slate-950 placeholder:text-slate-400 outline-none leading-relaxed focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                         />
                       </div>
 

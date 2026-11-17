@@ -18,7 +18,7 @@ function computeTierFromSpend(totalSpend: number): MembershipTierId {
 }
 
 const SHOP_PRODUCT_WINDOW_MS = 60_000;
-const SHOP_MAX_POSTS_PER_WINDOW = 3;
+const SHOP_MAX_POSTS_PER_WINDOW = 10;
 const SHOP_MAX_PRODUCTS_QUOTA = 50;
 const shopPostTimestamps = new Map<string, number[]>();
 
@@ -540,17 +540,6 @@ export const commerceRepository = {
       throw new Error('Tài khoản chưa có quyền Chủ Shop hợp lệ.');
     }
 
-    // Anti-Spam Rate Limiter & Shop Quota Enforcement
-    assertShopAntiSpam(userId);
-
-    const quotaRows = await query<{ cnt: string }>(
-      'SELECT COUNT(*)::text AS cnt FROM products WHERE shop_id = $1',
-      [shop.id]
-    );
-    if (parseInt(quotaRows[0]?.cnt || '0', 10) >= SHOP_MAX_PRODUCTS_QUOTA) {
-      throw new Error(`Hạn mức tối đa mỗi Shop là ${SHOP_MAX_PRODUCTS_QUOTA} sản phẩm để đảm bảo chất lượng sàn.`);
-    }
-
     const name = String(payload.name || '').trim();
     const price = Number(payload.price);
     const salePrice = payload.salePrice ? Number(payload.salePrice) : null;
@@ -571,6 +560,17 @@ export const commerceRepository = {
       if (!isHttpVideo && !isBase64Video) {
         throw new Error('Định dạng video không hợp lệ (chỉ hỗ trợ link HTTP/HTTPS hoặc file MP4/WebM).');
       }
+    }
+
+    // Anti-Spam Rate Limiter & Shop Quota Enforcement (only count valid submissions)
+    assertShopAntiSpam(userId);
+
+    const quotaRows = await query<{ cnt: string }>(
+      'SELECT COUNT(*)::text AS cnt FROM products WHERE shop_id = $1',
+      [shop.id]
+    );
+    if (parseInt(quotaRows[0]?.cnt || '0', 10) >= SHOP_MAX_PRODUCTS_QUOTA) {
+      throw new Error(`Hạn mức tối đa mỗi Shop là ${SHOP_MAX_PRODUCTS_QUOTA} sản phẩm để đảm bảo chất lượng sàn.`);
     }
 
     const category = ['shirt', 'polo', 'pants', 'dress', 'tailored'].includes(payload.category)
