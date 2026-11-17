@@ -747,10 +747,10 @@
     "hipScale": "Hệ số tỉ lệ hông",
     "contactless": "Trao đổi hồ sơ không chạm",
     "gender": {
-      "male": "nam",
-      "female": "nữ",
-      "unisex": "phi giới tính",
-      "other": "khác"
+      "male": "Nam",
+      "female": "Nữ",
+      "unisex": "Unisex (Chung)",
+      "other": "Khác"
     },
     "title": "Xưởng May Đo 3D",
     "copy": "Chép",
@@ -784,9 +784,9 @@
     "garmentType": "Loại trang phục",
     "easeAllowance": "Độ rộng thoải mái của trang phục (+cm)",
     "gender": {
-      "male": "nam",
-      "female": "nữ",
-      "unisex": "phi giới tính"
+      "male": "Nam",
+      "female": "Nữ",
+      "unisex": "Unisex (Chung)"
     },
     "col": {
       "size": "Kích cỡ",

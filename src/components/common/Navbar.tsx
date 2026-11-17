@@ -45,16 +45,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
 
   return (
     <>
-      <header className="h-16 px-4 sm:px-8 border-b-2 border-slate-200 bg-white shadow-xs sticky top-0 z-40 flex items-center justify-between no-print select-none" id="app-navbar">
+      <header className="h-16 px-4 sm:px-8 border-b border-white/10 bg-[#14171C] text-white shadow-sm sticky top-0 z-40 flex items-center justify-between no-print select-none" id="app-navbar">
         {/* Left: Brand Logo (Admin stays inside /admin; others go to storefront) */}
         <div className="flex items-center gap-3">
           <Link to={isAdmin ? '/admin' : '/'} className="flex items-center gap-2.5" id="brand-link">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
-              <Scissors size={18} strokeWidth={2} />
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm">
+              <Scissors size={18} strokeWidth={2.2} />
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-base tracking-tight text-slate-900 leading-none">
-                FitVision <span className="text-blue-600">3D</span>
+              <span className="font-black text-base tracking-tight text-white leading-none uppercase">
+                FITVISION <span className="text-blue-400">3D</span>
               </span>
               <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 mt-0.5">
                 {isAdmin ? 'Admin Platform Control' : 'Atelier & May Đo 3D'}
@@ -63,17 +63,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
           </Link>
         </div>
 
-        {/* Center: Dynamic Role-Based Navigation Links (Phân luồng nghiêm ngặt) */}
+        {/* Center: Dynamic Role-Based Navigation Links */}
         <nav className="hidden md:flex items-center gap-2" aria-label="Main navigation">
           {/* Customer / Guest / Store Tabs (Hidden for pure System Admin) */}
           {!isAdmin && (
             <>
               <Link
                 to="/"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                   pathname === '/'
                     ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-blue-50 text-blue-900 border border-blue-200 hover:bg-blue-100'
+                    : 'bg-white/10 text-slate-100 border border-white/15 hover:bg-white/15 hover:text-white'
                 }`}
                 id="nav-store"
               >
@@ -85,45 +85,46 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
                 to="/dashboard"
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
                   pathname === '/dashboard'
-                    ? 'bg-slate-900 text-white shadow-xs border-2 border-slate-900'
-                    : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-[#F5EBD8] text-[#14171C] border border-[#E5D3B3] shadow-xs'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10 border border-transparent'
                 }`}
                 id="nav-dashboard"
               >
                 <ScanLine size={15} strokeWidth={2} />
                 <span>{t('app.nav.dashboard', 'Phòng Đo 3D')}</span>
               </Link>
+
+              {isAuthenticated && (
+                <Link
+                  to="/size-charts"
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                    pathname === '/size-charts'
+                      ? 'bg-[#F5EBD8] text-[#14171C] border border-[#E5D3B3] shadow-xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10 border border-transparent'
+                  }`}
+                  id="nav-size-charts"
+                >
+                  <Table2 size={15} strokeWidth={2} />
+                  <span>{t('app.nav.sizeCharts', 'Bảng Kích Cỡ')}</span>
+                </Link>
+              )}
             </>
           )}
 
           {/* Chỉ hiển thị cho đối tác Nhà May đã được duyệt */}
           {isAuthenticated && isStore && (
-            <>
-              <Link
-                to="/tailor"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
-                  pathname === '/tailor'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200'
-                }`}
-                id="nav-tailor"
-              >
-                <Scissors size={15} strokeWidth={2} />
-                <span>{t('app.nav.tailor', 'Studio Nhà May')}</span>
-              </Link>
-              <Link
-                to="/size-charts"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
-                  pathname === '/size-charts'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200'
-                }`}
-                id="nav-size-charts"
-              >
-                <Table2 size={15} strokeWidth={2} />
-                <span>{t('app.nav.sizeCharts', 'Bảng Kích Cỡ')}</span>
-              </Link>
-            </>
+            <Link
+              to="/tailor"
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                pathname === '/tailor'
+                  ? 'bg-amber-400 text-[#14171C] shadow-xs'
+                  : 'text-amber-200 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-300/30'
+              }`}
+              id="nav-tailor"
+            >
+              <Scissors size={15} strokeWidth={2} />
+              <span>{t('app.nav.tailor', 'Studio Nhà May')}</span>
+            </Link>
           )}
 
           {/* Chỉ hiển thị cho Admin */}
@@ -133,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
                 pathname === '/admin'
                   ? 'bg-purple-600 text-white shadow-xs'
-                  : 'bg-purple-50 text-purple-900 border-2 border-purple-300 hover:bg-purple-100'
+                  : 'bg-purple-500/20 text-purple-200 border border-purple-400/30 hover:bg-purple-500/30'
               }`}
               id="nav-admin"
             >
@@ -149,7 +150,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
         </nav>
 
         {/* Right: Quick Demo Data Loader, Language Switcher & Auth */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {/* Nút nạp dữ liệu mẫu */}
           {onDemoMode && (
             <button
@@ -157,25 +158,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
               type="button"
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                 isDemoMode
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-purple-50 hover:bg-purple-100 text-purple-950 border-2 border-purple-200 shadow-2xs'
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : 'bg-white/10 hover:bg-white/15 text-amber-200 border border-amber-300/30 shadow-2xs'
               }`}
               onClick={onDemoMode}
             >
-              <Sparkles size={14} className={isDemoMode ? 'text-white' : 'text-purple-600'} />
+              <Sparkles size={14} className={isDemoMode ? 'text-white' : 'text-amber-300'} />
               <span>{isDemoMode ? t('app.nav.demoLoaded', 'Đã nạp mẫu') : t('app.nav.loadDemo', 'Tải dữ liệu mẫu')}</span>
             </button>
           )}
 
-          <LanguageSwitcher compact variant="light" />
+          <LanguageSwitcher compact variant="dark" />
 
           {isAuthenticated ? (
-            <UserProfileDropdown />
+            <UserProfileDropdown variant="dark" />
           ) : (
             <button
               type="button"
               onClick={openSignIn}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs shadow-sm transition-all cursor-pointer"
               id="nav-signin-btn"
             >
               <LogIn size={15} strokeWidth={2.4} />

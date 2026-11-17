@@ -232,7 +232,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] text-slate-900 font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
       <Navbar onDemoMode={handleLoadDemo} isDemoMode={demo} />
 
       <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8" id="dashboard-main">
@@ -411,7 +411,7 @@ export const Dashboard: React.FC = () => {
                   <button
                     id="btn-size-charts"
                     type="button"
-                    className={`${canOpenTailor ? "" : "flex-1 "}py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 active:scale-95 text-slate-800 border-2 border-slate-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer`}
+                    className={`${canOpenTailor ? "" : "flex-1 "}py-2.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer`}
                     onClick={() => navigate("/size-charts")}
                   >
                     <Table2 size={15} strokeWidth={2} />
