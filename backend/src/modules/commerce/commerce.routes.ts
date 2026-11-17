@@ -47,6 +47,7 @@ commerceRouter.patch('/admin/products/:id', requireAuth, requireRole('ADMIN'), c
 // Shop Owner Seller Center Endpoints (Kênh Người Bán)
 commerceRouter.get('/shop/dashboard', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.getShopDashboard);
 commerceRouter.patch('/shop/profile', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.updateShopProfile);
+commerceRouter.post('/shop/suggest-description', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.suggestProductDescription);
 commerceRouter.post('/shop/products', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.createShopProduct);
 commerceRouter.patch('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.updateShopProduct);
 commerceRouter.delete('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.deleteShopProduct);

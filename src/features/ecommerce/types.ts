@@ -20,6 +20,7 @@ export interface ProductVariant {
   color_name: string;
   color_name_en?: string;
   color_hex: string;
+  image_url?: string;
   sku: string;
   stock: number;
   spec: GarmentMeasurementSpec;

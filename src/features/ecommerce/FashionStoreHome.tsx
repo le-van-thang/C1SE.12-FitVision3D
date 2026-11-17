@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ShoppingBag,
   Sparkles,
@@ -224,6 +225,7 @@ export const FashionStoreHome: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>('default'); // 'default' | 'fit-desc' | 'price-asc' | 'price-desc'
   const [activeMegaMenu, setActiveMegaMenu] = useState<string | null>(null);
   const [copiedVoucherCode, setCopiedVoucherCode] = useState<string | null>(null);
+  const [previewColorMap, setPreviewColorMap] = useState<Record<string, { colorHex: string; imageUrl?: string }>>({});
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig>(() => loadPlatformConfig());
   const [dbProducts, setDbProducts] = useState<FashionProduct[]>(() => MOCK_PRODUCTS);
 
@@ -509,17 +511,16 @@ export const FashionStoreHome: React.FC = () => {
   };
 
   const handleOpenAnalysis = (product: FashionProduct) => {
-    if (!isAuthenticated) {
-      openSignIn();
-      return;
-    }
-    if (!hasBodyProfile) {
-      setIsBiometricModalOpen(true);
-      return;
-    }
     const fit = calculateProductFit(userBody, product);
+    const activePreview = previewColorMap[product.id];
     const variant =
-      product.variants.find((v) => v.size_label === fit.recommended_size) || product.variants[0];
+      (activePreview &&
+        (product.variants.find(
+          (v) => v.color_hex === activePreview.colorHex && v.size_label === fit.recommended_size
+        ) ||
+          product.variants.find((v) => v.color_hex === activePreview.colorHex))) ||
+      product.variants.find((v) => v.size_label === fit.recommended_size) ||
+      product.variants[0];
     setAnalysisProduct(product);
     setAnalysisVariant(variant);
     setIsAnalysisOpen(true);
@@ -1460,14 +1461,14 @@ export const FashionStoreHome: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-              <a
-                href="/shop"
+              <Link
+                to="/shop"
                 className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Plus size={14} />
                 <span>{locale === 'en' ? 'Open Seller Center' : 'Mở Kênh Quản Lý Shop'}</span>
                 <ChevronRight size={14} />
-              </a>
+              </Link>
             </div>
           </div>
         )}
@@ -2071,16 +2072,16 @@ export const FashionStoreHome: React.FC = () => {
                       key={product.id}
                       className="group bg-white rounded-2xl border border-slate-200/90 hover:border-slate-300 overflow-hidden shadow-2xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
                     >
-                      {/* Top: Product Media (Dual-Image Hover Crossfade) + Quick-Size Strip */}
+                      {/* Top: Product Media (Dual-Image Hover Crossfade / Color Preview) + Quick-Size Strip */}
                       <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
                         <img
-                          src={product.image_url}
+                          src={previewColorMap[product.id]?.imageUrl || product.image_url}
                           alt={getProductName(product)}
                           onClick={() => handleOpenAnalysis(product)}
                           className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105 cursor-pointer"
                           loading="lazy"
                         />
-                        {product.secondary_image_url && (
+                        {!previewColorMap[product.id]?.imageUrl && product.secondary_image_url && (
                           <img
                             src={product.secondary_image_url}
                             alt=""
@@ -2138,15 +2139,24 @@ export const FashionStoreHome: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <div className="grid grid-cols-4 gap-1">
-                            {sizeVariants.slice(0, 4).map((variant) => {
+                          <div className="flex flex-wrap gap-1">
+                            {sizeVariants.slice(0, 6).map((variant) => {
                               const isRec = isAuthenticated && hasBodyProfile && variant.size_label === fit.recommended_size;
                               return (
                                 <button
                                   key={variant.id}
                                   type="button"
-                                  onClick={() => handleAddToCart(product, variant)}
-                                  className={`py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer active:scale-95 ${
+                                  onClick={() => {
+                                    const activeColor = previewColorMap[product.id]?.colorHex;
+                                    const matchedVariant =
+                                      (activeColor &&
+                                        product.variants.find(
+                                          (v) => v.color_hex === activeColor && v.size_label === variant.size_label
+                                        )) ||
+                                      variant;
+                                    handleAddToCart(product, matchedVariant);
+                                  }}
+                                  className={`flex-1 min-w-[34px] py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer active:scale-95 ${
                                     isRec
                                       ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xs'
                                       : 'bg-slate-100 text-slate-900 hover:bg-[#14171C] hover:text-white'
@@ -2201,14 +2211,30 @@ export const FashionStoreHome: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-1 flex-shrink-0" title={getProductFabric(product)}>
-                              {colorSwatches.slice(0, 4).map((sw) => (
-                                <span
-                                  key={sw.id}
-                                  className="w-3 h-3 rounded-full border border-slate-300 shadow-2xs"
-                                  style={{ backgroundColor: sw.color_hex }}
-                                  title={sw.color_name}
-                                />
-                              ))}
+                              {colorSwatches.slice(0, 6).map((sw) => {
+                                const isActiveSwatch = previewColorMap[product.id]?.colorHex === sw.color_hex;
+                                return (
+                                  <button
+                                    key={sw.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPreviewColorMap((prev) => ({
+                                        ...prev,
+                                        [product.id]: {
+                                          colorHex: sw.color_hex,
+                                          imageUrl: sw.image_url || product.image_url,
+                                        },
+                                      }));
+                                    }}
+                                    className={`w-3.5 h-3.5 rounded-full border shadow-2xs cursor-pointer transition-transform hover:scale-125 ${
+                                      isActiveSwatch ? 'ring-2 ring-blue-600 ring-offset-1 border-white' : 'border-slate-300'
+                                    }`}
+                                    style={{ backgroundColor: sw.color_hex }}
+                                    title={sw.color_name}
+                                  />
+                                );
+                              })}
                             </div>
                           </div>
                         </div>

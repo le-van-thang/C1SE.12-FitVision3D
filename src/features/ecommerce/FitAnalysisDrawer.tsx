@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   X,
   CheckCircle2,
@@ -15,6 +16,8 @@ import {
   Send,
   BadgeCheck,
   Video,
+  Camera,
+  Ruler,
 } from 'lucide-react';
 import type { FashionProduct, UserBodyProfile, FitMatchResult, ProductVariant } from './types';
 import { MOCK_PRODUCTS } from './mockProducts';
@@ -145,10 +148,34 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   const verdictLabel = isEn && fitResult.verdict_label_en ? fitResult.verdict_label_en : fitResult.verdict_label_vi;
   const advisorAdvice = isEn && fitResult.advisor_advice_en ? fitResult.advisor_advice_en : fitResult.advisor_advice_vi;
 
-  const galleryImages = [
-    product.image_url,
-    ...(product.secondary_image_url ? [product.secondary_image_url] : []),
-  ];
+  const galleryImages = Array.from(
+    new Set([
+      product.image_url,
+      ...(product.secondary_image_url ? [product.secondary_image_url] : []),
+      ...product.variants.map((v) => v.image_url).filter((u): u is string => Boolean(u)),
+    ])
+  );
+
+  // Deduplicated Colors & Sizes for active color
+  const colorOptions = product.variants.filter(
+    (v, idx, arr) => arr.findIndex((x) => x.color_hex === v.color_hex && x.color_name === v.color_name) === idx
+  );
+  const sizesForActiveColor = product.variants
+    .filter((v) => v.color_hex === selectedVariant.color_hex && v.color_name === selectedVariant.color_name)
+    .filter((v, idx, arr) => arr.findIndex((x) => x.size_label === v.size_label) === idx);
+  const sizeOptions =
+    sizesForActiveColor.length > 0
+      ? sizesForActiveColor
+      : product.variants.filter((v, idx, arr) => arr.findIndex((x) => x.size_label === v.size_label) === idx);
+
+  const SIZE_BODY_GUIDE: Record<string, { height: string; weight: string }> = {
+    XS: { height: '1m55 - 1m63', weight: '45 - 53 kg' },
+    S: { height: '1m62 - 1m69', weight: '53 - 60 kg' },
+    M: { height: '1m68 - 1m75', weight: '60 - 68 kg' },
+    L: { height: '1m74 - 1m80', weight: '68 - 76 kg' },
+    XL: { height: '1m78 - 1m85', weight: '76 - 85 kg' },
+    XXL: { height: '1m82 - 1m90', weight: '85 - 95 kg' },
+  };
 
   // Pick 2 complementary items for Mix & Match cross-sell
   const complementaryProducts = MOCK_PRODUCTS.filter((p) => {
@@ -405,40 +432,117 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
               </p>
             </div>
 
-            {/* 3. Size Selector */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  {t('ecommerce.drawer.selectSize', 'Chọn kích cỡ đối chiếu:')}
-                </label>
-                <span className="text-[11px] font-semibold text-slate-500">
-                  {selectedVariant.color_name.split('(')[0].trim()}
-                </span>
+            {/* 3. Multi-Color Selector + Size Selector + AI 3D Scan CTA */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3.5">
+              {/* Color Picker */}
+              {colorOptions.length > 0 && (
+                <div className="space-y-2 pb-3 border-b border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      {isEn ? 'Select Color:' : 'Màu sắc sản phẩm:'}
+                    </label>
+                    <span className="text-xs font-bold text-slate-900">
+                      {selectedVariant.color_name}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {colorOptions.map((c) => {
+                      const isActiveColor =
+                        c.color_hex === selectedVariant.color_hex && c.color_name === selectedVariant.color_name;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            const match =
+                              product.variants.find(
+                                (v) =>
+                                  v.color_hex === c.color_hex &&
+                                  v.color_name === c.color_name &&
+                                  v.size_label === selectedVariant.size_label
+                              ) || c;
+                            onSelectSize(match);
+                            if (match.image_url) {
+                              setIsShowingVideo(false);
+                              setActiveImage(match.image_url);
+                            }
+                          }}
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                            isActiveColor
+                              ? 'border-[#14171C] bg-slate-900 text-white shadow-2xs'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
+                          }`}
+                        >
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-white/60 shadow-2xs flex-shrink-0"
+                            style={{ backgroundColor: c.color_hex }}
+                          />
+                          <span>{c.color_name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Size Picker */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    {t('ecommerce.drawer.selectSize', 'Chọn kích cỡ (Size):')}
+                  </label>
+                  <span className="text-[11px] font-semibold text-emerald-700">
+                    Còn {selectedVariant.stock} sản phẩm
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {sizeOptions.map((v) => {
+                    const isSelected = v.size_label === selectedVariant.size_label;
+                    const isRecommended = v.size_label === fitResult.recommended_size;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => onSelectSize(v)}
+                        className={`relative py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#14171C] text-white border-[#14171C] shadow-sm'
+                            : 'bg-white text-slate-800 border-slate-200 hover:border-blue-400 hover:text-blue-700'
+                        }`}
+                      >
+                        {v.size_label}
+                        {isRecommended && (
+                          <span className="absolute -top-2 -right-1 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-extrabold rounded-full shadow-2xs">
+                            AI
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                {product.variants.map((v) => {
-                  const isSelected = v.id === selectedVariant.id || v.size_label === selectedVariant.size_label;
-                  const isRecommended = v.size_label === fitResult.recommended_size;
-                  return (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => onSelectSize(v)}
-                      className={`relative py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#14171C] text-white border-[#14171C] shadow-sm'
-                          : 'bg-white text-slate-800 border-slate-200 hover:border-blue-400 hover:text-blue-700'
-                      }`}
-                    >
-                      {v.size_label}
-                      {isRecommended && (
-                        <span className="absolute -top-2 -right-1 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-extrabold rounded-full shadow-2xs">
-                          AI
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+
+              {/* 1-Photo 3D Model AI Scan CTA Banner */}
+              <div className="mt-2 p-3.5 rounded-2xl bg-gradient-to-r from-[#14171C] via-slate-900 to-blue-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-300">
+                    <Sparkles size={12} />
+                    <span>Model AI 3D Đo Vóc Dáng Thông Minh</span>
+                  </div>
+                  <p className="text-xs font-bold leading-snug">
+                    Phân vân chọn size? Chỉ cần 1 bức ảnh — Biết ngay 13 số đo cơ thể!
+                  </p>
+                  <p className="text-[10px] text-slate-300 leading-relaxed">
+                    Hệ thống AI 3D tự dựng mô hình vóc dáng trong 30 giây &amp; chỉ ra đúng size mặc đẹp nhất ngay lần đầu.
+                  </p>
+                </div>
+                <Link
+                  to="/dashboard"
+                  onClick={onClose}
+                  className="px-3.5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-[11px] font-black flex items-center justify-center gap-1.5 flex-shrink-0 transition-colors"
+                >
+                  <Camera size={14} /> Quét 1 Ảnh Chọn Size
+                </Link>
               </div>
             </div>
 
@@ -528,6 +632,57 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   {spec.length_cm} cm
                 </span>
               </div>
+            </div>
+
+            {/* 4.5 Bảng Gợi Ý Kích Thước & Giới Thiệu Chọn Size */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <Ruler size={14} className="text-blue-600" />
+                  <span>{isEn ? 'Size Guide & Body Recommendation' : 'Bảng Gợi Ý Kích Thước Theo Vóc Dáng'}</span>
+                </h4>
+                <span className="text-[10px] text-slate-400">Chuẩn ISO 8559</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[11px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 font-bold">
+                      <th className="py-1.5 px-2">Size</th>
+                      <th className="py-1.5 px-2">Chiều cao</th>
+                      <th className="py-1.5 px-2">Cân nặng</th>
+                      {!isPants && <th className="py-1.5 px-2">Ngực / Vai</th>}
+                      <th className="py-1.5 px-2">Eo (cm)</th>
+                      <th className="py-1.5 px-2">Dài</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sizeOptions.map((sv) => {
+                      const guide = SIZE_BODY_GUIDE[sv.size_label] || { height: '1m65 - 1m78', weight: '55 - 75 kg' };
+                      const isRec = sv.size_label === fitResult.recommended_size;
+                      return (
+                        <tr key={sv.id} className={isRec ? 'bg-emerald-50/70 font-bold text-emerald-950' : 'text-slate-700'}>
+                          <td className="py-1.5 px-2 font-mono font-black">
+                            {sv.size_label}
+                            {isRec ? ' ★' : ''}
+                          </td>
+                          <td className="py-1.5 px-2">{guide.height}</td>
+                          <td className="py-1.5 px-2">{guide.weight}</td>
+                          {!isPants && (
+                            <td className="py-1.5 px-2 font-mono">
+                              {sv.spec.chest_cm} / {sv.spec.shoulder_cm}
+                            </td>
+                          )}
+                          <td className="py-1.5 px-2 font-mono">{sv.spec.waist_cm}</td>
+                          <td className="py-1.5 px-2 font-mono">{sv.spec.length_cm}cm</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Gợi ý: Nếu thích mặc ôm vừa vặn chọn đúng size bảng trên; thích form rộng thoải mái hoặc bụng bia nhẹ nên tăng 1 size hoặc bấm <b>Quét 1 Ảnh Chọn Size</b> ở trên để AI tính chính xác.
+              </p>
             </div>
 
             {/* 5. Mix & Match Cross-Sell Suggestions (Torano-style Cross-Sell) */}

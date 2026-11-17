@@ -257,9 +257,28 @@ export const commerceApi = {
     description: string;
     colorName?: string;
     colorHex?: string;
-    stockMap?: { S: number; M: number; L: number; XL: number };
+    colorVariants?: { colorName: string; colorHex: string; imageUrl?: string }[];
+    sizes?: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[];
+    stockMap?: Record<string, number>;
   }) {
     return commerceRequest<DbProduct>('/shop/products', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  suggestShopProductDescription(payload: {
+    name: string;
+    category: string;
+    genderTarget: string;
+    fabricMaterial: string;
+    stretchType: string;
+    colors: string[];
+    sizes: string[];
+    hasVideo?: boolean;
+    visualTone?: { dominantColor?: string; brightness?: string };
+  }) {
+    return commerceRequest<{ description: string }>('/shop/suggest-description', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

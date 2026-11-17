@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Store,
   Package,
@@ -25,9 +26,13 @@ import {
   Sparkles,
   Phone,
   MapPin,
+  Palette,
+  Wand2,
+  KeyRound,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
+import { AuthModal } from '@/components/auth/AuthModal';
 import {
   commerceApi,
   type DbProduct,
@@ -36,6 +41,102 @@ import {
 } from '@/services/commerceApi';
 import type { Order } from '@/features/ecommerce/types';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
+
+const FASHION_COLOR_PALETTE: { name: string; hex: string }[] = [
+  { name: 'Đen Tuyền', hex: '#14171C' },
+  { name: 'Trắng Tinh', hex: '#FFFFFF' },
+  { name: 'Trắng Kem', hex: '#F3F4F6' },
+  { name: 'Be Sữa', hex: '#E6D5B8' },
+  { name: 'Vàng Kem', hex: '#FDE68A' },
+  { name: 'Vàng Mù Tạt', hex: '#D97706' },
+  { name: 'Cam Đất', hex: '#EA580C' },
+  { name: 'Đỏ Tươi', hex: '#DC2626' },
+  { name: 'Đỏ Đô', hex: '#881337' },
+  { name: 'Hồng Phấn', hex: '#F9A8D4' },
+  { name: 'Hồng Sen', hex: '#DB2777' },
+  { name: 'Tím Lavender', hex: '#A78BFA' },
+  { name: 'Tím Than', hex: '#4C1D95' },
+  { name: 'Xanh Navy', hex: '#1E3A8A' },
+  { name: 'Xanh Dương', hex: '#2563EB' },
+  { name: 'Xanh Da Trời', hex: '#60A5FA' },
+  { name: 'Xanh Ngọc', hex: '#0D9488' },
+  { name: 'Xanh Lá', hex: '#16A34A' },
+  { name: 'Xanh Rêu', hex: '#3F6212' },
+  { name: 'Xám Nhạt', hex: '#CBD5E1' },
+  { name: 'Xám Khói', hex: '#64748B' },
+  { name: 'Nâu Bò', hex: '#92400E' },
+  { name: 'Nâu Cà Phê', hex: '#451A03' },
+];
+
+const ALL_GARMENT_SIZES: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
+const DEFAULT_SAMPLE_IMG =
+  'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=900&q=80';
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '');
+  if (clean.length !== 6) return [30, 41, 59];
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return [Number.isFinite(r) ? r : 30, Number.isFinite(g) ? g : 41, Number.isFinite(b) ? b : 59];
+}
+
+function detectNearestColorName(hex: string): string {
+  const [r1, g1, b1] = hexToRgb(hex);
+  let best = FASHION_COLOR_PALETTE[0].name;
+  let bestDist = Infinity;
+  for (const item of FASHION_COLOR_PALETTE) {
+    const [r2, g2, b2] = hexToRgb(item.hex);
+    const dist = (r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = item.name;
+    }
+  }
+  return best;
+}
+
+async function analyzeImageVisualTone(src: string): Promise<{ dominantColor?: string; brightness: 'light' | 'medium' | 'dark' }> {
+  if (!src) return { brightness: 'medium' };
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 48;
+        canvas.height = 48;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve({ brightness: 'medium' });
+        ctx.drawImage(img, 0, 0, 48, 48);
+        const data = ctx.getImageData(12, 12, 24, 24).data;
+        let rSum = 0;
+        let gSum = 0;
+        let bSum = 0;
+        const pixels = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+          rSum += data[i];
+          gSum += data[i + 1];
+          bSum += data[i + 2];
+        }
+        const r = Math.round(rSum / pixels);
+        const g = Math.round(gSum / pixels);
+        const b = Math.round(bSum / pixels);
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        resolve({
+          dominantColor: detectNearestColorName(hex),
+          brightness: lum > 175 ? 'light' : lum < 85 ? 'dark' : 'medium',
+        });
+      } catch {
+        resolve({ brightness: 'medium' });
+      }
+    };
+    img.onerror = () => resolve({ brightness: 'medium' });
+    img.src = src;
+  });
+}
 
 type ShopTab = 'OVERVIEW' | 'PRODUCTS' | 'ORDERS' | 'SIZE_CHART';
 
@@ -87,7 +188,7 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
 export const ShopPortal: React.FC = () => {
-  const { currentUser, isAuthenticated, userRole, openSignIn, signOut } = useAuth();
+  const { currentUser, isAuthenticated, userRole, isAuthModalOpen, openSignIn, signOut } = useAuth();
   const { locale, setLocale } = useI18n();
   const [activeTab, setActiveTab] = useState<ShopTab>('OVERVIEW');
   const [shop, setShop] = useState<DbShopProfile | null>(null);
@@ -103,7 +204,7 @@ export const ShopPortal: React.FC = () => {
   const [profileAddress, setProfileAddress] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  // Product creation form + anti-spam guard
+  // Product creation form + Multi-Color & Size Variants + Anti-Spam guard
   const [newName, setNewName] = useState('');
   const [newCategory, setNewCategory] = useState<'shirt' | 'polo' | 'pants' | 'dress' | 'tailored'>('shirt');
   const [newGender, setNewGender] = useState<'male' | 'female' | 'unisex'>('male');
@@ -111,15 +212,24 @@ export const ShopPortal: React.FC = () => {
   const [newSalePrice, setNewSalePrice] = useState('');
   const [newFabric, setNewFabric] = useState('100% Cotton Cao Cấp');
   const [newStretch, setNewStretch] = useState('Co giãn nhẹ (2-3%)');
-  const [newImageUrl, setNewImageUrl] = useState(
-    'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=900&q=80'
-  );
+  const [colorVariants, setColorVariants] = useState<{ colorName: string; colorHex: string; imageUrl: string }[]>([
+    { colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: DEFAULT_SAMPLE_IMG },
+  ]);
+  const [selectedSizes, setSelectedSizes] = useState<('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[]>(['S', 'M', 'L', 'XL']);
+  const [sizeStockMap, setSizeStockMap] = useState<Record<string, number>>({
+    XS: 10,
+    S: 20,
+    M: 30,
+    L: 30,
+    XL: 20,
+    XXL: 10,
+  });
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoFileName, setNewVideoFileName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newColorName, setNewColorName] = useState('Trắng Kem');
-  const [newColorHex, setNewColorHex] = useState('#F3F4F6');
   const [isCreating, setIsCreating] = useState(false);
+  const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
+  const [authNeedsRelogin, setAuthNeedsRelogin] = useState(false);
   const [recentSubmitTimestamps, setRecentSubmitTimestamps] = useState<number[]>([]);
 
   // Order & Review interactions
@@ -147,6 +257,7 @@ export const ShopPortal: React.FC = () => {
     setIsLoading(true);
     const res = await commerceApi.getShopDashboard();
     if (res.success && res.data) {
+      setAuthNeedsRelogin(false);
       setShop(res.data.shop);
       setProducts(res.data.products || []);
       setOrders(res.data.orders || []);
@@ -156,6 +267,8 @@ export const ShopPortal: React.FC = () => {
         setProfilePhone(res.data.shop.phone_number || '');
         setProfileAddress(res.data.shop.shop_address || '');
       }
+    } else if (res.error?.code === 'AUTH_UNAUTHORIZED') {
+      setAuthNeedsRelogin(true);
     }
     setIsLoading(false);
   }, [isAuthenticated, userRole]);
@@ -163,6 +276,12 @@ export const ShopPortal: React.FC = () => {
   useEffect(() => {
     void loadShopData();
   }, [loadShopData]);
+
+  useEffect(() => {
+    if (!isAuthModalOpen && authNeedsRelogin) {
+      void loadShopData();
+    }
+  }, [isAuthModalOpen, authNeedsRelogin, loadShopData]);
 
   const totalRevenue = useMemo(
     () => orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total_amount || 0), 0),
@@ -208,7 +327,7 @@ export const ShopPortal: React.FC = () => {
     }
   };
 
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVariantImageUpload = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -230,15 +349,76 @@ export const ShopPortal: React.FC = () => {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        setNewImageUrl(reader.result);
+        const resultDataUrl = reader.result;
+        setColorVariants((prev) =>
+          prev.map((item, i) => (i === idx ? { ...item, imageUrl: resultDataUrl } : item))
+        );
         showGlobalToast({
           type: 'success',
-          title: 'Đã tải ảnh sản phẩm',
-          message: `${file.name} (${(file.size / 1024).toFixed(0)} KB) sẵn sàng đăng bán.`,
+          title: 'Đã tải ảnh cho màu áo/quần',
+          message: `${file.name} (${(file.size / 1024).toFixed(0)} KB) — Xem trước ngay bên dưới.`,
         });
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleToggleSizeOption = (sz: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL') => {
+    setSelectedSizes((prev) => {
+      if (prev.includes(sz)) {
+        if (prev.length === 1) {
+          showGlobalToast({
+            type: 'warning',
+            title: 'Cần tối thiểu 1 size',
+            message: 'Sản phẩm phải mở bán ít nhất 1 kích cỡ.',
+          });
+          return prev;
+        }
+        return prev.filter((s) => s !== sz);
+      }
+      return [...prev, sz].sort((a, b) => ALL_GARMENT_SIZES.indexOf(a) - ALL_GARMENT_SIZES.indexOf(b));
+    });
+  };
+
+  const handleSuggestDescription = async () => {
+    setIsGeneratingDesc(true);
+    const primaryImg = colorVariants[0]?.imageUrl || DEFAULT_SAMPLE_IMG;
+    const tone = await analyzeImageVisualTone(primaryImg);
+
+    const res = await commerceApi.suggestShopProductDescription({
+      name: newName.trim() || 'Sản phẩm thời trang thiết kế',
+      category: newCategory,
+      genderTarget: newGender,
+      fabricMaterial: newFabric,
+      stretchType: newStretch,
+      colors: colorVariants.map((c) => c.colorName.trim()).filter(Boolean),
+      sizes: selectedSizes,
+      hasVideo: Boolean(newVideoUrl.trim()),
+      visualTone: tone,
+    });
+    setIsGeneratingDesc(false);
+
+    if (res.success && res.data?.description) {
+      setNewDescription(res.data.description);
+      showGlobalToast({
+        type: 'success',
+        title: 'AI đã gợi ý mô tả sản phẩm!',
+        message: tone.dominantColor
+          ? `Nhận diện sắc ảnh ${tone.dominantColor} & ${colorVariants.length} phiên bản màu.`
+          : 'Đã tự động soạn mô tả chuẩn sàn TMĐT từ thông số sản phẩm.',
+      });
+    } else {
+      // Offline graceful fallback
+      const colorsStr = colorVariants.map((c) => c.colorName).join(', ');
+      setNewDescription(
+        `${newName.trim() || 'Mẫu trang phục cao cấp'} — chất liệu ${newFabric}, ${newStretch.toLowerCase()}, đứng phom sang trọng.\n• Phiên bản màu sắc: ${colorsStr}.\n• Kích cỡ sẵn có: ${selectedSizes.join(' / ')} — Hỗ trợ Quét AI 3D FitVision chỉ với 1 bức ảnh để gợi ý size chuẩn vóc dáng.`
+      );
+      showGlobalToast({
+        type: 'info',
+        title: 'Đã tạo mô tả gợi ý nhanh!',
+        message: 'Bạn có thể chỉnh sửa thêm trước khi đăng bán.',
+      });
+    }
   };
 
   const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -278,6 +458,14 @@ export const ShopPortal: React.FC = () => {
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newPrice) return;
+    if (Number(newPrice) < 50_000) {
+      showGlobalToast({
+        type: 'warning',
+        title: 'Giá gốc tối thiểu 50.000₫',
+        message: 'Vui lòng nhập giá bán từ 50.000₫ trở lên theo quy chuẩn sàn.',
+      });
+      return;
+    }
 
     // Client-side Anti-Spam Pre-Check (mirrors PostgreSQL/Backend rate limit: max 3 posts / 60s)
     const now = Date.now();
@@ -301,6 +489,12 @@ export const ShopPortal: React.FC = () => {
       return;
     }
 
+    const cleanColors = colorVariants.map((c) => ({
+      colorName: c.colorName.trim() || detectNearestColorName(c.colorHex),
+      colorHex: c.colorHex,
+      imageUrl: c.imageUrl.trim() || DEFAULT_SAMPLE_IMG,
+    }));
+
     setIsCreating(true);
     const res = await commerceApi.createShopProduct({
       name: newName.trim(),
@@ -310,11 +504,16 @@ export const ShopPortal: React.FC = () => {
       salePrice: newSalePrice ? Number(newSalePrice) : null,
       fabricMaterial: newFabric.trim() || 'Cotton Cao Cấp',
       stretchType: newStretch,
-      imageUrl: newImageUrl.trim(),
+      imageUrl: cleanColors[0].imageUrl,
       videoUrl: newVideoUrl.trim() || undefined,
-      description: newDescription.trim() || `Thiết kế độc quyền từ ${shop?.shop_name || 'Shop'}.`,
-      colorName: newColorName,
-      colorHex: newColorHex,
+      description:
+        newDescription.trim() ||
+        `Thiết kế độc quyền từ ${shop?.shop_name || 'Shop'} — Đủ màu (${cleanColors.map((c) => c.colorName).join(', ')}), hỗ trợ chọn size AI 3D FitVision.`,
+      colorName: cleanColors[0].colorName,
+      colorHex: cleanColors[0].colorHex,
+      colorVariants: cleanColors,
+      sizes: selectedSizes,
+      stockMap: sizeStockMap,
     });
     setIsCreating(false);
 
@@ -325,17 +524,22 @@ export const ShopPortal: React.FC = () => {
       setNewDescription('');
       setNewVideoUrl('');
       setNewVideoFileName('');
+      setColorVariants([{ colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: DEFAULT_SAMPLE_IMG }]);
+      setSelectedSizes(['S', 'M', 'L', 'XL']);
       showGlobalToast({
         type: 'success',
         title: 'Đã đăng bán sản phẩm mới!',
-        message: `"${res.data.name}" đã hiển thị công khai trên sàn FitVision.`,
+        message: `"${res.data.name}" (${cleanColors.length} màu, ${selectedSizes.length} size) đã hiển thị trên sàn FitVision.`,
       });
       void loadShopData();
     } else {
+      if (res.error?.code === 'AUTH_UNAUTHORIZED') {
+        setAuthNeedsRelogin(true);
+      }
       showGlobalToast({
         type: 'error',
         title: 'Không thể đăng sản phẩm',
-        message: res.error?.message || 'Vui lòng kiểm tra lại dữ liệu hoặc hạn mức chống spam.',
+        message: res.error?.message || 'Vui lòng kiểm tra lại dữ liệu hoặc đăng nhập lại.',
       });
     }
   };
@@ -531,12 +735,12 @@ export const ShopPortal: React.FC = () => {
               >
                 <Ruler size={15} /> Bảng Size Chuẩn 3D
               </button>
-              <a
-                href="/"
+              <Link
+                to="/"
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/70 hover:bg-blue-100 transition-colors"
               >
                 <ArrowLeft size={15} /> Về Trang Chủ Sàn
-              </a>
+              </Link>
             </div>
           </nav>
         </div>
@@ -563,15 +767,19 @@ export const ShopPortal: React.FC = () => {
             <span className="text-xs font-bold text-slate-950">
               {shop?.shop_name ? `Gian Hàng ${shop.shop_name}` : 'Kênh Người Bán FitVision'}
             </span>
-            {shop?.is_mall ? (
+            {authNeedsRelogin ? (
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">
+                Phiên xác thực hết hạn
+              </span>
+            ) : shop?.is_mall ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold">
                 <BadgeCheck size={12} /> FitVision Mall Chính Hãng
               </span>
-            ) : (
+            ) : shop ? (
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
                 Gian hàng đã kích hoạt
               </span>
-            )}
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -605,6 +813,29 @@ export const ShopPortal: React.FC = () => {
         </header>
 
         <main className="p-6 space-y-6 max-w-6xl w-full mx-auto">
+          {authNeedsRelogin && (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <KeyRound size={18} className="text-rose-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-black text-rose-950">
+                    Phiên xác thực Access Token đã hết hạn hoặc bị mất khi chuyển trang
+                  </p>
+                  <p className="text-[11px] text-rose-800 mt-0.5">
+                    Bấm nút bên cạnh để đăng nhập lại nhanh tài khoản <b>{currentUser?.email}</b> trước khi đăng sản phẩm.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={openSignIn}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer flex-shrink-0"
+              >
+                Đăng nhập lại ngay
+              </button>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-sm text-slate-500">
               Đang tải dữ liệu gian hàng từ PostgreSQL...
@@ -850,7 +1081,7 @@ export const ShopPortal: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="text-[11px] font-bold text-slate-700 block mb-1">Chất Liệu Vải</label>
                           <input
@@ -859,42 +1090,197 @@ export const ShopPortal: React.FC = () => {
                             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs outline-none"
                           />
                         </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Màu Sắc</label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="color"
-                              value={newColorHex}
-                              onChange={(e) => setNewColorHex(e.target.value)}
-                              className="w-10 h-9 rounded-lg border border-slate-200 cursor-pointer"
-                            />
-                            <input
-                              value={newColorName}
-                              onChange={(e) => setNewColorName(e.target.value)}
-                              className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none"
-                            />
-                          </div>
-                        </div>
+
+                        {/* All Garment Sizes Selection (XS -> XXL) */}
                         <div>
                           <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                            Ảnh Sản Phẩm (Link URL hoặc Tải lên &le; 2MB) *
+                            Kích Cỡ Mở Bán (Chọn nhiều size) *
                           </label>
-                          <div className="flex gap-2">
-                            <input
-                              required
-                              value={newImageUrl.startsWith('data:image') ? '[Đã tải file ảnh từ máy]' : newImageUrl}
-                              onChange={(e) => setNewImageUrl(e.target.value)}
-                              className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none"
-                            />
-                            <label className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer flex-shrink-0">
-                              <Upload size={13} /> Ảnh
-                              <input type="file" accept="image/*" onChange={handleImageFileUpload} className="hidden" />
-                            </label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {ALL_GARMENT_SIZES.map((sz) => {
+                              const active = selectedSizes.includes(sz);
+                              return (
+                                <button
+                                  key={sz}
+                                  type="button"
+                                  onClick={() => handleToggleSizeOption(sz)}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold border cursor-pointer transition-all ${
+                                    active
+                                      ? 'bg-[#14171C] text-white border-[#14171C] shadow-2xs'
+                                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                                  }`}
+                                >
+                                  {sz}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {selectedSizes.map((sz) => (
+                              <label key={sz} className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
+                                <span className="font-bold text-slate-700">{sz}:</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={999}
+                                  value={sizeStockMap[sz] ?? 20}
+                                  onChange={(e) =>
+                                    setSizeStockMap((prev) => ({
+                                      ...prev,
+                                      [sz]: Math.max(1, Number(e.target.value) || 1),
+                                    }))
+                                  }
+                                  className="w-11 bg-transparent font-mono text-slate-900 outline-none"
+                                />
+                              </label>
+                            ))}
                           </div>
                         </div>
                       </div>
 
-                      {/* Video URL or Local MP4/WebM Upload */}
+                      {/* Multi-Color Variants + Per-Color Image Upload & Instant Thumbnail Preview */}
+                      <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5">
+                              <Palette size={14} className="text-blue-600" />
+                              Màu Sắc &amp; Ảnh Theo Từng Màu ({colorVariants.length}/6 màu)
+                            </label>
+                            <p className="text-[10px] text-slate-500 mt-0.5">
+                              Chọn màu từ bảng màu sẽ tự động cập nhật tên màu tiếng Việt. Tải riêng ảnh cho từng màu để khách bấm xem đổi màu trực tiếp.
+                            </p>
+                          </div>
+                          {colorVariants.length < 6 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setColorVariants((prev) => [
+                                  ...prev,
+                                  {
+                                    colorName: FASHION_COLOR_PALETTE[(prev.length * 3) % FASHION_COLOR_PALETTE.length].name,
+                                    colorHex: FASHION_COLOR_PALETTE[(prev.length * 3) % FASHION_COLOR_PALETTE.length].hex,
+                                    imageUrl: prev[0]?.imageUrl || DEFAULT_SAMPLE_IMG,
+                                  },
+                                ])
+                              }
+                              className="px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus size={12} /> Thêm màu khác
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          {colorVariants.map((cv, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white rounded-2xl border border-slate-200 p-3 flex gap-3 items-start shadow-2xs"
+                            >
+                              {/* Instant Thumbnail Preview */}
+                              <div className="relative flex-shrink-0">
+                                <img
+                                  src={cv.imageUrl || DEFAULT_SAMPLE_IMG}
+                                  alt={cv.colorName}
+                                  className="w-20 h-24 rounded-xl object-cover border border-slate-200 bg-slate-100"
+                                />
+                                {idx === 0 && (
+                                  <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded bg-[#14171C] text-white text-[9px] font-bold">
+                                    Ảnh chính
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex-1 min-w-0 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={cv.colorHex}
+                                    onChange={(e) => {
+                                      const nextHex = e.target.value;
+                                      const autoName = detectNearestColorName(nextHex);
+                                      setColorVariants((prev) =>
+                                        prev.map((item, i) =>
+                                          i === idx ? { ...item, colorHex: nextHex, colorName: autoName } : item
+                                        )
+                                      );
+                                    }}
+                                    className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer flex-shrink-0"
+                                    title="Bấm để chọn màu — Tự nhận diện tên màu"
+                                  />
+                                  <input
+                                    value={cv.colorName}
+                                    onChange={(e) => {
+                                      const nextName = e.target.value;
+                                      setColorVariants((prev) =>
+                                        prev.map((item, i) => (i === idx ? { ...item, colorName: nextName } : item))
+                                      );
+                                    }}
+                                    placeholder="Tên màu (VD: Xanh Navy)"
+                                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold outline-none focus:border-slate-900"
+                                  />
+                                  {colorVariants.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setColorVariants((prev) => prev.filter((_, i) => i !== idx))
+                                      }
+                                      className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer"
+                                      title="Xóa màu này"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Quick color swatches */}
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {FASHION_COLOR_PALETTE.slice(0, 7).map((preset) => (
+                                    <button
+                                      key={preset.hex}
+                                      type="button"
+                                      onClick={() =>
+                                        setColorVariants((prev) =>
+                                          prev.map((item, i) =>
+                                            i === idx ? { ...item, colorHex: preset.hex, colorName: preset.name } : item
+                                          )
+                                        )
+                                      }
+                                      className="w-4 h-4 rounded-full border border-slate-300 cursor-pointer hover:scale-110 transition-transform"
+                                      style={{ backgroundColor: preset.hex }}
+                                      title={preset.name}
+                                    />
+                                  ))}
+                                </div>
+
+                                <div className="flex gap-1.5">
+                                  <input
+                                    value={cv.imageUrl.startsWith('data:image') ? '✓ Đã chọn ảnh từ máy (xem ở khung trái)' : cv.imageUrl}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setColorVariants((prev) =>
+                                        prev.map((item, i) => (i === idx ? { ...item, imageUrl: val } : item))
+                                      );
+                                    }}
+                                    placeholder="Link ảnh URL..."
+                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] outline-none"
+                                  />
+                                  <label className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer flex-shrink-0">
+                                    <Upload size={12} /> Ảnh
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handleVariantImageUpload(idx, e)}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Video URL or Local MP4/WebM Upload + Live Preview */}
                       <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
                         <div className="flex items-center justify-between">
                           <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
@@ -916,7 +1302,7 @@ export const ShopPortal: React.FC = () => {
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2">
                           <input
-                            value={newVideoUrl.startsWith('data:video') ? `Video tải lên: ${newVideoFileName}` : newVideoUrl}
+                            value={newVideoUrl.startsWith('data:video') ? `✓ Video tải lên: ${newVideoFileName}` : newVideoUrl}
                             onChange={(e) => {
                               setNewVideoUrl(e.target.value);
                               setNewVideoFileName('');
@@ -934,16 +1320,37 @@ export const ShopPortal: React.FC = () => {
                             />
                           </label>
                         </div>
+                        {newVideoUrl && !newVideoUrl.includes('youtube.com') && !newVideoUrl.includes('youtu.be') && (
+                          <video
+                            src={newVideoUrl}
+                            controls
+                            playsInline
+                            className="w-56 h-36 rounded-xl border border-slate-200 bg-black object-cover mt-2"
+                          />
+                        )}
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Mô Tả Chi Tiết</label>
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                          <label className="text-[11px] font-bold text-slate-700">
+                            Mô Tả Chi Tiết Sản Phẩm
+                          </label>
+                          <button
+                            type="button"
+                            disabled={isGeneratingDesc}
+                            onClick={() => void handleSuggestDescription()}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold cursor-pointer transition-colors disabled:opacity-60"
+                          >
+                            <Wand2 size={12} />
+                            {isGeneratingDesc ? 'AI đang phân tích ảnh...' : '✨ AI Gợi Ý Mô Tả Từ Ảnh & Thông Số'}
+                          </button>
+                        </div>
                         <textarea
-                          rows={2}
+                          rows={4}
                           value={newDescription}
                           onChange={(e) => setNewDescription(e.target.value)}
-                          placeholder="Chất liệu thoáng mát, giữ phom đẹp..."
-                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs outline-none"
+                          placeholder="Bấm nút 'AI Gợi Ý Mô Tả Từ Ảnh' bên trên để tự động viết mô tả chuẩn SEO sàn TMĐT hoặc tự gõ tại đây..."
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs outline-none leading-relaxed focus:border-slate-900"
                         />
                       </div>
 
@@ -1331,6 +1738,7 @@ export const ShopPortal: React.FC = () => {
           )}
         </main>
       </div>
+      <AuthModal />
     </div>
   );
 };

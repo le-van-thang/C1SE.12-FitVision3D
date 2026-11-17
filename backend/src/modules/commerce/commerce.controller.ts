@@ -245,6 +245,15 @@ export const commerceController = {
     }
   },
 
+  async suggestProductDescription(req: Request, res: Response, next: NextFunction) {
+    try {
+      const suggestion = commerceRepository.suggestProductDescription(req.body || {});
+      sendSuccess(res, { description: suggestion });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async createShopProduct(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.sub;

@@ -580,72 +580,85 @@ export const commerceRepository = {
       ? payload.genderTarget
       : 'unisex';
     const isPants = category === 'pants';
-    const stockMap = payload.stockMap || { S: 15, M: 25, L: 25, XL: 15 };
-    const colorName = String(payload.colorName || 'Đen Obsidian (Classic Black)').trim();
-    const colorHex = String(payload.colorHex || '#1E293B').trim();
+    const stockMap: Record<string, number> = payload.stockMap || {};
+
+    const defaultTopSpecs: Record<string, any> = {
+      XS: { chest_cm: 92, waist_cm: 78, shoulder_cm: 40.5, length_cm: 68, ease_min_cm: 3, ease_max_cm: 6 },
+      S: { chest_cm: 96, waist_cm: 82, shoulder_cm: 42, length_cm: 70, ease_min_cm: 3, ease_max_cm: 7 },
+      M: { chest_cm: 100, waist_cm: 86, shoulder_cm: 43.5, length_cm: 72, ease_min_cm: 4, ease_max_cm: 8 },
+      L: { chest_cm: 104, waist_cm: 90, shoulder_cm: 45, length_cm: 74, ease_min_cm: 4, ease_max_cm: 8 },
+      XL: { chest_cm: 108, waist_cm: 94, shoulder_cm: 46.5, length_cm: 76, ease_min_cm: 5, ease_max_cm: 9 },
+      XXL: { chest_cm: 114, waist_cm: 100, shoulder_cm: 48.5, length_cm: 78, ease_min_cm: 5, ease_max_cm: 10 },
+    };
+    const defaultPantSpecs: Record<string, any> = {
+      XS: { chest_cm: 0, waist_cm: 72, hip_cm: 90, shoulder_cm: 0, length_cm: 94, ease_min_cm: 1, ease_max_cm: 4 },
+      S: { chest_cm: 0, waist_cm: 76, hip_cm: 94, shoulder_cm: 0, length_cm: 96, ease_min_cm: 1, ease_max_cm: 4 },
+      M: { chest_cm: 0, waist_cm: 80, hip_cm: 98, shoulder_cm: 0, length_cm: 98, ease_min_cm: 2, ease_max_cm: 4.5 },
+      L: { chest_cm: 0, waist_cm: 84, hip_cm: 102, shoulder_cm: 0, length_cm: 100, ease_min_cm: 2, ease_max_cm: 5 },
+      XL: { chest_cm: 0, waist_cm: 88, hip_cm: 106, shoulder_cm: 0, length_cm: 102, ease_min_cm: 2, ease_max_cm: 5 },
+      XXL: { chest_cm: 0, waist_cm: 94, hip_cm: 112, shoulder_cm: 0, length_cm: 104, ease_min_cm: 2, ease_max_cm: 5 },
+    };
+
+    const allowedSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    const requestedSizes: string[] = Array.isArray(payload.sizes) && payload.sizes.length > 0
+      ? payload.sizes.filter((s: string) => allowedSizes.includes(s))
+      : ['S', 'M', 'L', 'XL'];
+    const selectedSizes = requestedSizes.length > 0 ? requestedSizes : ['S', 'M', 'L', 'XL'];
+
+    const fallbackImg =
+      rawImg ||
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80';
+
+    const rawColors: { colorName: string; colorHex: string; imageUrl?: string }[] =
+      Array.isArray(payload.colorVariants) && payload.colorVariants.length > 0
+        ? payload.colorVariants.slice(0, 6).map((c: any) => ({
+            colorName: String(c?.colorName || 'Màu Tiêu Chuẩn').trim(),
+            colorHex: String(c?.colorHex || '#1E293B').trim(),
+            imageUrl: String(c?.imageUrl || fallbackImg).trim(),
+          }))
+        : [
+            {
+              colorName: String(payload.colorName || 'Đen Obsidian').trim(),
+              colorHex: String(payload.colorHex || '#1E293B').trim(),
+              imageUrl: fallbackImg,
+            },
+          ];
+
+    for (const c of rawColors) {
+      if (c.imageUrl && c.imageUrl.startsWith('data:image/') && c.imageUrl.length > 4_200_000) {
+        throw new Error(`Ảnh của màu "${c.colorName}" quá nặng (> 3MB). Vui lòng nén ảnh hoặc dùng link URL.`);
+      }
+    }
+
     const id = `prod-${Date.now()}`;
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
 
-    const variants = [
-      {
-        id: `${id}-s`,
-        size_label: 'S',
-        color_name: colorName,
-        color_hex: colorHex,
-        sku: `${id.toUpperCase()}-S`,
-        stock: Number(stockMap.S) || 15,
-        spec: isPants
-          ? { chest_cm: 0, waist_cm: 76, hip_cm: 94, shoulder_cm: 0, length_cm: 96, ease_min_cm: 1, ease_max_cm: 4 }
-          : { chest_cm: 96, waist_cm: 82, shoulder_cm: 42, length_cm: 70, ease_min_cm: 3, ease_max_cm: 7 },
-      },
-      {
-        id: `${id}-m`,
-        size_label: 'M',
-        color_name: colorName,
-        color_hex: colorHex,
-        sku: `${id.toUpperCase()}-M`,
-        stock: Number(stockMap.M) || 25,
-        spec: isPants
-          ? { chest_cm: 0, waist_cm: 80, hip_cm: 98, shoulder_cm: 0, length_cm: 98, ease_min_cm: 2, ease_max_cm: 4.5 }
-          : { chest_cm: 100, waist_cm: 86, shoulder_cm: 43.5, length_cm: 72, ease_min_cm: 4, ease_max_cm: 8 },
-      },
-      {
-        id: `${id}-l`,
-        size_label: 'L',
-        color_name: colorName,
-        color_hex: colorHex,
-        sku: `${id.toUpperCase()}-L`,
-        stock: Number(stockMap.L) || 25,
-        spec: isPants
-          ? { chest_cm: 0, waist_cm: 84, hip_cm: 102, shoulder_cm: 0, length_cm: 100, ease_min_cm: 2, ease_max_cm: 5 }
-          : { chest_cm: 104, waist_cm: 90, shoulder_cm: 45, length_cm: 74, ease_min_cm: 4, ease_max_cm: 8 },
-      },
-      {
-        id: `${id}-xl`,
-        size_label: 'XL',
-        color_name: colorName,
-        color_hex: colorHex,
-        sku: `${id.toUpperCase()}-XL`,
-        stock: Number(stockMap.XL) || 15,
-        spec: isPants
-          ? { chest_cm: 0, waist_cm: 88, hip_cm: 106, shoulder_cm: 0, length_cm: 102, ease_min_cm: 2, ease_max_cm: 5 }
-          : { chest_cm: 108, waist_cm: 94, shoulder_cm: 46.5, length_cm: 76, ease_min_cm: 5, ease_max_cm: 9 },
-      },
-    ];
+    const variants = rawColors.flatMap((c, colorIdx) =>
+      selectedSizes.map((sz) => ({
+        id: `${id}-c${colorIdx}-${sz.toLowerCase()}`,
+        size_label: sz,
+        color_name: c.colorName,
+        color_hex: c.colorHex,
+        image_url: c.imageUrl || fallbackImg,
+        sku: `${id.toUpperCase()}-C${colorIdx + 1}-${sz}`,
+        stock: Number(stockMap[sz]) || 20,
+        spec: isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz],
+      }))
+    );
 
-    const imageUrl =
-      rawImg ||
-      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80';
+    const imageUrl = rawColors[0]?.imageUrl || fallbackImg;
+    const secondaryImageUrl =
+      rawColors[1]?.imageUrl && rawColors[1].imageUrl !== imageUrl ? rawColors[1].imageUrl : null;
 
     const rows = await query(
       `INSERT INTO products (
          id, brand_name, shop_id, is_mall, name, name_en, slug, category, gender_target,
          price, sale_price, rating, reviews_count, fabric_material, fabric_material_en,
-         stretch_type, image_url, video_url, description, description_en, is_bestseller, is_bespoke, is_hidden, variants
+         stretch_type, image_url, secondary_image_url, video_url, description, description_en, is_bestseller, is_bespoke, is_hidden, variants
        ) VALUES (
          $1, $2, $3, $4, $5, $5, $6, $7, $8,
          $9, $10, 5.0, 0, $11, $11,
-         $12, $13, $14, $15, $15, TRUE, FALSE, FALSE, $16::jsonb
+         $12, $13, $14, $15, $16, $16, TRUE, FALSE, FALSE, $17::jsonb
        ) RETURNING *, rating::float`,
       [
         id,
@@ -661,12 +674,50 @@ export const commerceRepository = {
         String(payload.fabricMaterial || '100% Cotton cao cấp thoáng mát').trim(),
         String(payload.stretchType || 'Co giãn nhẹ (2-3%)'),
         imageUrl,
+        secondaryImageUrl,
         rawVideo || null,
         String(payload.description || 'Thiết kế thời trang chuẩn phom dáng, hỗ trợ chọn size chính xác bằng AI quét vóc dáng 3D FitVision.').trim(),
         JSON.stringify(variants),
       ]
     );
     return rows[0];
+  },
+
+  suggestProductDescription(payload: any): string {
+    const name = String(payload.name || 'Sản phẩm thời trang mới').trim();
+    const catMap: Record<string, string> = {
+      shirt: 'áo sơ mi thanh lịch, đứng phom vai và thoáng khí suốt ngày dài',
+      polo: 'áo polo/thun cổ bẻ trẻ trung, năng động phù hợp cả đi làm và dạo phố',
+      pants: 'quần phom chuẩn hiện đại, tôn dáng đôi chân và thoải mái vận động',
+      dress: 'thiết kế đầm tôn đường nét cơ thể nhẹ nhàng, thanh thoát',
+      tailored: 'áo khoác/blazer cắt rập sắc sảo, sang trọng chuẩn công sở & sự kiện',
+    };
+    const genderMap: Record<string, string> = {
+      male: 'nam giới',
+      female: 'nữ giới',
+      unisex: 'cả nam và nữ (Unisex)',
+    };
+    const catDesc = catMap[payload.category] || 'trang phục thiết kế chuẩn phom hiện đại';
+    const genderDesc = genderMap[payload.genderTarget] || 'mọi vóc dáng';
+    const material = String(payload.fabricMaterial || 'Cotton cao cấp').trim();
+    const stretch = String(payload.stretchType || 'Co giãn nhẹ (2-3%)').trim();
+    const colors: string[] = Array.isArray(payload.colors) && payload.colors.length > 0
+      ? payload.colors.filter(Boolean)
+      : ['Màu tiêu chuẩn'];
+    const sizes: string[] = Array.isArray(payload.sizes) && payload.sizes.length > 0
+      ? payload.sizes
+      : ['S', 'M', 'L', 'XL'];
+    const toneHint = payload.visualTone?.dominantColor
+      ? ` Sắc độ chủ đạo ${payload.visualTone.dominantColor}${payload.visualTone?.brightness === 'light' ? ' tươi sáng, dễ phối đồ' : payload.visualTone?.brightness === 'dark' ? ' trầm sang trọng, che khuyết điểm tốt' : ' hài hòa hiện đại'}.`
+      : '';
+    const videoLine = payload.hasVideo ? ' Có video quay cận chất vải & lên phom thực tế tại gian hàng.' : '';
+
+    return [
+      `${name} — mẫu ${catDesc}, thiết kế dành riêng cho ${genderDesc}.${toneHint}`,
+      `• Chất liệu: ${material} kết hợp đặc tính ${stretch.toLowerCase()}, bề mặt vải mềm mịn, ít nhăn và giữ phom bền đẹp sau nhiều lần giặt.`,
+      `• Bảng màu đa dạng (${colors.length} phiên bản): ${colors.join(', ')}.${videoLine}`,
+      `• Đủ kích cỡ: ${sizes.join(' / ')} — Hỗ trợ công nghệ Quét AI 3D FitVision chỉ với 1 bức ảnh để chọn đúng size vừa vặn nhất theo chiều cao, cân nặng & 13 số đo cơ thể của bạn.`,
+    ].join('\n');
   },
 
   async updateShopProduct(userId: string, isAdmin: boolean, productId: string, patch: any) {

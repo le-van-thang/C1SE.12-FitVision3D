@@ -5,10 +5,31 @@
 
 const API_BASE_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api/v1/auth';
 
-let inMemoryAccessToken: string | null = null;
+const ACCESS_TOKEN_STORAGE_KEY = 'fv3d_access_token_v1';
+
+let inMemoryAccessToken: string | null = (() => {
+  try {
+    return typeof window !== 'undefined' ? window.sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) : null;
+  } catch {
+    return null;
+  }
+})();
+
+let refreshInFlight: Promise<ApiResponse<{ accessToken: string; expiresIn: number }>> | null = null;
 
 export function setAccessToken(token: string | null) {
   inMemoryAccessToken = token;
+  try {
+    if (typeof window !== 'undefined') {
+      if (token) {
+        window.sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+      } else {
+        window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+      }
+    }
+  } catch {
+    // Ignore storage quota errors
+  }
 }
 
 export function getAccessToken(): string | null {
@@ -141,15 +162,25 @@ export const authApi = {
     });
   },
 
-  // 5. Silent Refresh Token
+  // 5. Silent Refresh Token (Deduplicated singleton to avoid rotation race conditions)
   async refreshToken() {
-    const res = await request<{ accessToken: string; expiresIn: number }>('/refresh-token', {
-      method: 'POST',
-    });
-    if (res.success && res.data?.accessToken) {
-      setAccessToken(res.data.accessToken);
+    if (refreshInFlight) {
+      return refreshInFlight;
     }
-    return res;
+    refreshInFlight = (async () => {
+      try {
+        const res = await request<{ accessToken: string; expiresIn: number }>('/refresh-token', {
+          method: 'POST',
+        });
+        if (res.success && res.data?.accessToken) {
+          setAccessToken(res.data.accessToken);
+        }
+        return res;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+    return refreshInFlight;
   },
 
   // 6. Đăng xuất
