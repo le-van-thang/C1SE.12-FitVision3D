@@ -1454,14 +1454,13 @@ export const FashionStoreHome: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-              <button
-                type="button"
-                onClick={openOnboarding}
+              <a
+                href="/size-charts"
                 className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Plus size={14} />
                 <span>{t('ecommerce.storeBanner.addPattern', 'Thêm Mẫu Rập May')}</span>
-              </button>
+              </a>
               <a
                 href="/tailor"
                 className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
