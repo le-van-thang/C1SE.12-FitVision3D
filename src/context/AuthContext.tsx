@@ -360,7 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           message: `Chào mừng ${profile.full_name} quay lại FitVision 3D.`,
         });
         if (profile.role === 'admin') {
-          navigate('/admin');
+          navigate('/admin', { replace: true });
         }
         return { success: true };
       }

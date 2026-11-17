@@ -528,6 +528,10 @@ export const FashionStoreHome: React.FC = () => {
 
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
+  if (isAuthenticated && userRole === 'admin') {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
 

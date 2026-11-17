@@ -29,14 +29,8 @@ const RequireStore: React.FC<{ children: React.ReactElement }> = ({ children }) 
   return children;
 };
 
-/** Admin Portal strictly isolated to System Admin */
-const RequireAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  const { isAuthenticated, userRole } = useAuth();
-  if (!isAuthenticated || userRole !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-  return children;
-};
+/** Admin Portal handles its own dedicated Admin Login Gate without bouncing to shopping home */
+const AdminRoute: React.FC = () => <AdminPortal />;
 
 /** Strict Admin home entry: Admins operate exclusively inside the Admin Portal */
 const HomeRoute: React.FC = () => {
@@ -78,7 +72,7 @@ export const App: React.FC = () => (
             <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />
             <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
             <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
-            <Route path="/admin" element={<RequireAdmin><AdminPortal /></RequireAdmin>} />
+            <Route path="/admin" element={<AdminRoute />} />
             <Route path="*" element={<RoleFallbackRoute />} />
           </Routes>
         </OrderProvider>
