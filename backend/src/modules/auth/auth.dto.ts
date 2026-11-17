@@ -77,6 +77,7 @@ export const LoginDto = z.object({
     .email('Email không đúng định dạng.')
     .toLowerCase(),
   password: z.string({ required_error: 'Vui lòng nhập mật khẩu.' }).min(1, 'Mật khẩu không được để trống.'),
+  adminOtp: z.string().trim().optional(),
   rememberMe: z.boolean().optional().default(false),
   turnstileToken: z.string().optional(),
 });
@@ -148,6 +149,7 @@ export type ResetPasswordDtoType = z.infer<typeof ResetPasswordDto>;
 // 8. DTO Đăng Nhập Google (Google OAuth)
 export const GoogleAuthDto = z.object({
   credential: z.string().optional(),
+  accessToken: z.string().optional(),
   email: z.string().email().optional(),
   fullName: z.string().optional(),
   googleId: z.string().optional(),

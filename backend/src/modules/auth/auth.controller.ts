@@ -74,6 +74,11 @@ export const authController = {
       const validatedData = LoginDto.parse(req.body);
       const result = await authService.login(validatedData);
 
+      if ('requiresAdmin2fa' in result && result.requiresAdmin2fa) {
+        sendSuccess(res, result, 200);
+        return;
+      }
+
       // Thiết lập Cookie HttpOnly bảo mật cho Refresh Token
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,

@@ -67,13 +67,18 @@ export interface AuthContextType {
   closeStatusModal: () => void;
 
   // Auth Operations
-  signIn: (email: string, password?: string, website_trap?: string) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
+  signIn: (
+    email: string,
+    password?: string,
+    website_trap?: string,
+    adminOtp?: string
+  ) => Promise<{ success: boolean; error?: string; errorCode?: string; requiresAdmin2fa?: boolean; message?: string }>;
   register: (payload: RegisterPayload) => Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }>;
   signOut: () => Promise<void>;
   verifyEmail: (email: string, otp: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string; devOtp?: string }>;
   resetPassword: (payload: { email: string; otp: string; newPassword: string; confirmPassword?: string }) => Promise<{ success: boolean; error?: string; message?: string }>;
-  signInWithGoogle: (data: { email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogle: (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
 
   // Profile Management
   updateUserProfile: (data: { full_name?: string; avatar_url?: string } & UserProfileDetails) => Promise<{ success: boolean; error?: string }>;
@@ -307,9 +312,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsStatusModalOpen(false);
   }, []);
 
-  // 1. Sign In (Live Backend Call)
+  // 1. Sign In (Live Backend Call + Admin 2FA OTP Support)
   const signIn = useCallback(
-    async (emailInput: string, passwordInput = '', website_trap = '') => {
+    async (emailInput: string, passwordInput = '', website_trap = '', adminOtp?: string) => {
       if (checkHoneypot(website_trap)) {
         return { success: false, errorCode: 'BOT_DETECTED', error: 'Phát hiện hoạt động bot đáng ngờ (Honeypot Triggered).' };
       }
@@ -324,7 +329,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const email = emailInput.trim();
-      const res = await authApi.login(email, passwordInput);
+      const res = await authApi.login(email, passwordInput, true, adminOtp);
+
+      if (res.success && res.data?.requiresAdmin2fa) {
+        showGlobalToast({
+          type: 'info',
+          title: 'Yêu cầu xác thực 2 lớp Admin',
+          message: res.data.message || 'Vui lòng nhập mã OTP 6 số vừa gửi về Gmail quản trị.',
+        });
+        return {
+          success: false,
+          requiresAdmin2fa: true,
+          errorCode: 'ADMIN_2FA_REQUIRED',
+          message: res.data.message,
+        };
+      }
 
       if (res.success && res.data?.user) {
         const profile = mapBackendUserToProfile(res.data.user);
@@ -522,9 +541,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   );
 
-  // 6. Sign In With Google (Thực tế với dữ liệu từ Google OAuth)
+  // 6. Sign In With Google (Thực tế với xác thực token Google tại backend + khóa tài khoản ADMIN)
   const signInWithGoogle = useCallback(
-    async (data: { email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => {
+    async (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => {
       const res = await authApi.googleLogin(data);
       if (res.success && res.data?.user) {
         const prof = mapBackendUserToProfile(res.data.user);
@@ -547,6 +566,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return {
         success: false,
+        errorCode: res.error?.code,
         error: res.error?.message || 'Đăng nhập bằng Google thất bại.',
       };
     },

@@ -131,12 +131,15 @@ export const authApi = {
     });
   },
 
-  // 3. Đăng nhập
-  async login(email: string, password: string, rememberMe = true) {
+  // 3. Đăng nhập (hỗ trợ bước 2FA OTP cho Quản trị viên)
+  async login(email: string, password: string, rememberMe = true, adminOtp?: string) {
     const res = await request<{
-      accessToken: string;
-      expiresIn: number;
-      user: {
+      requiresAdmin2fa?: boolean;
+      email?: string;
+      message?: string;
+      accessToken?: string;
+      expiresIn?: number;
+      user?: {
         id: string;
         email: string;
         fullName: string;
@@ -145,7 +148,7 @@ export const authApi = {
       };
     }>('/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password, rememberMe }),
+      body: JSON.stringify({ email, password, rememberMe, ...(adminOtp ? { adminOtp } : {}) }),
     });
 
     if (res.success && res.data?.accessToken) {
@@ -224,7 +227,7 @@ export const authApi = {
   },
 
   // 10. Đăng nhập với Google
-  async googleLogin(data: { email?: string; fullName?: string; credential?: string; googleId?: string; avatarUrl?: string }) {
+  async googleLogin(data: { accessToken?: string; email?: string; fullName?: string; credential?: string; googleId?: string; avatarUrl?: string }) {
     const res = await request<{
       accessToken: string;
       expiresIn: number;
