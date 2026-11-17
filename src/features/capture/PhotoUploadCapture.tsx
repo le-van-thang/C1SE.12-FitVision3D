@@ -201,18 +201,35 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               alt="Front A-Pose Preview"
               className="max-h-full max-w-full object-contain"
             />
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent p-3 flex justify-between items-center text-white">
-              <span className="text-xs font-mono font-bold truncate max-w-[200px]">
+            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent p-3 flex justify-between items-center gap-2 text-white">
+              <span className="text-xs font-mono font-bold truncate max-w-[140px]">
                 {frontImage.name}
               </span>
-              <button
-                type="button"
-                onClick={() => setFrontImage(null)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
-              >
-                <Trash2 size={12} />
-                <span>{t("cap.deletePhoto", "Xóa ảnh")}</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => frontInputRef.current?.click()}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                >
+                  <Camera size={12} />
+                  <span>{t("cap.changePhoto", "Chụp / Đổi ảnh")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFrontImage(null)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                >
+                  <Trash2 size={12} />
+                  <span>{t("cap.deletePhoto", "Xóa")}</span>
+                </button>
+              </div>
+              <input
+                ref={frontInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleFrontFile(e.target.files[0])}
+              />
             </div>
             <div className="absolute top-2 left-2 bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm">
               <CheckCircle2 size={12} />

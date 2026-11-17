@@ -27,6 +27,19 @@ export type MetricKey =
 
 export type MannequinViewZone = "full_body" | "chest" | "waist" | "hips";
 
+export interface GarmentOverlay3D {
+  visible: boolean;
+  category: "top" | "bottom" | "full";
+  sizeLabel: string;
+  chestCm: number;
+  waistCm: number;
+  hipCm: number;
+  bodyChestCm: number;
+  bodyWaistCm: number;
+  bodyHipCm: number;
+  colorHex?: string;
+}
+
 export interface MannequinViewerProps {
   meshParams: MeshParameter | null;
   measurement: (Pick<
@@ -52,6 +65,7 @@ export interface MannequinViewerProps {
   hideZonePill?: boolean;
   hideDragHint?: boolean;
   externalZone?: MannequinViewZone;
+  garmentOverlay?: GarmentOverlay3D | null;
 }
 
 type ViewZone = MannequinViewZone;
@@ -168,6 +182,214 @@ const CALLOUTS: CalloutDef[] = [
   { key: "ankle_circ_cm", label: "ankle", side: "right", get3DPoint: (lm) => lm.ankle },
 ];
 
+function buildLoftedEllipticalMesh(
+  profileRings: { y: number; rx: number; rz: number; cx?: number; cz?: number }[],
+  mat: THREE.Material,
+  segs = 36
+): THREE.Mesh {
+  const positions: number[] = [];
+  const indices: number[] = [];
+
+  for (let r = 0; r < profileRings.length; r++) {
+    const ring = profileRings[r];
+    const cx = ring.cx ?? 0;
+    const cz = ring.cz ?? 0;
+    for (let s = 0; s <= segs; s++) {
+      const theta = (s / segs) * Math.PI * 2;
+      positions.push(
+        cx + Math.cos(theta) * ring.rx,
+        ring.y,
+        cz + Math.sin(theta) * ring.rz
+      );
+    }
+  }
+
+  const stride = segs + 1;
+  for (let r = 0; r < profileRings.length - 1; r++) {
+    for (let s = 0; s < segs; s++) {
+      const a = r * stride + s;
+      const b = a + stride;
+      const c = a + 1;
+      const d = b + 1;
+      indices.push(a, b, c, c, b, d);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, mat);
+}
+
+function fitColorForDelta(deltaCm: number): number {
+  if (deltaCm < 1.5) return 0xfb7185; // Tight / snug alert (rose)
+  if (deltaCm > 8.5) return 0x38bdf8; // Relaxed / loose (sky)
+  return 0x34d399; // Ideal tailoring ease (emerald)
+}
+
+function disposeGroup(group: THREE.Object3D): void {
+  group.traverse((obj) => {
+    const m = obj as THREE.Mesh;
+    if (m.geometry) m.geometry.dispose();
+    if (m.material) {
+      if (Array.isArray(m.material)) m.material.forEach((mm) => mm.dispose());
+      else m.material.dispose();
+    }
+  });
+}
+
+function rebuildGarmentOverlayGroup(
+  root: THREE.Group,
+  overlay: GarmentOverlay3D | null | undefined,
+  isFemale: boolean
+): void {
+  const existing = root.getObjectByName("garment_3d_shell");
+  if (existing) {
+    root.remove(existing);
+    disposeGroup(existing);
+  }
+  if (!overlay || !overlay.visible) return;
+
+  const shellGroup = new THREE.Group();
+  shellGroup.name = "garment_3d_shell";
+
+  const gChest = Math.max(0.75, Math.min(1.5, overlay.chestCm / 88));
+  const gWaist = Math.max(0.7, Math.min(1.5, overlay.waistCm / 80));
+  const gHips = Math.max(0.75, Math.min(1.5, overlay.hipCm / 94));
+  const easePad = 0.006;
+
+  const baseColor = new THREE.Color(overlay.colorHex || "#3B82F6");
+  const fabricMat = new THREE.MeshBasicMaterial({
+    color: baseColor,
+    transparent: true,
+    opacity: 0.34,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: baseColor.clone().lerp(new THREE.Color("#FFFFFF"), 0.45),
+    wireframe: true,
+    transparent: true,
+    opacity: 0.22,
+    depthWrite: false,
+  });
+
+  const zChest = isFemale ? -0.036 : 0.02;
+  const zWaist = isFemale ? -0.016 : 0.035;
+  const zHips = isFemale ? -0.052 : 0.038;
+
+  const addLoftedPiece = (rings: { y: number; rx: number; rz: number; cx?: number; cz?: number }[]) => {
+    shellGroup.add(buildLoftedEllipticalMesh(rings, fabricMat));
+    shellGroup.add(buildLoftedEllipticalMesh(rings, wireMat));
+  };
+
+  if (overlay.category === "top" || overlay.category === "full") {
+    const chestRx = 0.148 * gChest + easePad;
+    const chestRz = (isFemale ? 0.120 : 0.114) * gChest + easePad;
+    const waistRx = (isFemale ? 0.122 : 0.120) * gWaist + easePad;
+    const waistRz = (isFemale ? 0.088 : 0.092) * gWaist + easePad;
+    const hemRx = (isFemale ? 0.165 : 0.144) * Math.max(gWaist, gHips * 0.96) + easePad;
+    const hemRz = (isFemale ? 0.105 : 0.094) * Math.max(gWaist, gHips * 0.96) + easePad;
+
+    const topProfile = [
+      { y: 0.54, rx: 0.11 * gChest, rz: 0.078 * gChest, cz: zChest },
+      { y: 0.49, rx: chestRx * 1.03, rz: chestRz * 0.96, cz: zChest },
+      { y: 0.42, rx: chestRx, rz: chestRz, cz: zChest },
+      { y: 0.26, rx: waistRx, rz: waistRz, cz: zWaist },
+      { y: overlay.category === "full" ? 0.06 : 0.10, rx: hemRx, rz: hemRz, cz: zHips },
+    ];
+    addLoftedPiece(topProfile);
+
+    // Sleeves aligned to Female T-Pose vs Male A-Pose
+    const sleeveR = 0.056 * Math.sqrt(gChest);
+    [-1, 1].forEach((dir) => {
+      const sleeveGeo = new THREE.CylinderGeometry(sleeveR * 0.88, sleeveR * 1.02, 0.24, 24, 1, true);
+      const sleeveMesh = new THREE.Mesh(sleeveGeo, fabricMat);
+      const sleeveWire = new THREE.Mesh(sleeveGeo, wireMat);
+      if (isFemale) {
+        sleeveMesh.rotation.z = dir * (Math.PI / 2);
+        sleeveMesh.position.set(dir * (0.27 * gChest), 0.54, 0.0);
+      } else {
+        sleeveMesh.rotation.z = dir * -0.96;
+        sleeveMesh.position.set(dir * (0.26 * gChest), 0.42, 0.005);
+      }
+      sleeveWire.rotation.copy(sleeveMesh.rotation);
+      sleeveWire.position.copy(sleeveMesh.position);
+      shellGroup.add(sleeveMesh);
+      shellGroup.add(sleeveWire);
+    });
+  }
+
+  if (overlay.category === "bottom" || overlay.category === "full") {
+    const waistRx = (isFemale ? 0.122 : 0.120) * gWaist + easePad;
+    const waistRz = (isFemale ? 0.088 : 0.092) * gWaist + easePad;
+    const hipRx = (isFemale ? 0.178 : 0.156) * gHips + easePad;
+    const hipRz = (isFemale ? 0.110 : 0.090) * gHips + easePad;
+
+    addLoftedPiece([
+      { y: 0.24, rx: waistRx, rz: waistRz, cz: zWaist },
+      { y: 0.12, rx: (waistRx + hipRx) / 2, rz: (waistRz + hipRz) / 2, cz: (zWaist + zHips) / 2 },
+      { y: 0.02, rx: hipRx, rz: hipRz, cz: zHips },
+      { y: -0.07, rx: hipRx * 0.94, rz: hipRz * 0.94, cz: zHips },
+    ]);
+
+    const legR = 0.078 * Math.sqrt(gHips) + easePad;
+    const legCalfR = 0.058 * Math.sqrt(gHips) + easePad;
+    [-1, 1].forEach((dir) => {
+      const legCenterX = dir * (isFemale ? 0.088 : 0.098) * Math.max(0.92, gHips * 0.95);
+      addLoftedPiece([
+        { y: -0.07, cx: legCenterX, rx: legR, rz: legR * 0.95, cz: zHips * 0.6 },
+        { y: -0.35, cx: legCenterX * 1.04, rx: legR * 0.85, rz: legR * 0.82, cz: 0 },
+        { y: -0.72, cx: legCenterX * 1.08, rx: legCalfR, rz: legCalfR, cz: 0 },
+      ]);
+    });
+  }
+
+  // Highlight fit rings showing exact Ease gap (Emerald = Ideal, Rose = Tight, Sky = Relaxed)
+  const fitRings: { show: boolean; y: number; rx: number; rz: number; cz: number; color: number }[] = [
+    {
+      show: overlay.category !== "bottom",
+      y: 0.42,
+      rx: 0.151 * gChest + easePad,
+      rz: (isFemale ? 0.123 : 0.117) * gChest + easePad,
+      cz: zChest,
+      color: fitColorForDelta(overlay.chestCm - overlay.bodyChestCm),
+    },
+    {
+      show: true,
+      y: isFemale ? 0.26 : 0.25,
+      rx: (isFemale ? 0.125 : 0.123) * gWaist + easePad,
+      rz: (isFemale ? 0.091 : 0.095) * gWaist + easePad,
+      cz: zWaist,
+      color: fitColorForDelta(overlay.waistCm - overlay.bodyWaistCm),
+    },
+    {
+      show: overlay.category !== "top",
+      y: 0.02,
+      rx: (isFemale ? 0.181 : 0.159) * gHips + easePad,
+      rz: (isFemale ? 0.113 : 0.093) * gHips + easePad,
+      cz: zHips,
+      color: fitColorForDelta(overlay.hipCm - overlay.bodyHipCm),
+    },
+  ];
+
+  fitRings.forEach((fr) => {
+    if (!fr.show) return;
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 48; i++) {
+      const th = (i / 48) * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(th) * fr.rx, fr.y, Math.sin(th) * fr.rz + fr.cz));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts, true);
+    const tubeGeo = new THREE.TubeGeometry(curve, 48, 0.0055, 8, true);
+    const tubeMat = new THREE.MeshBasicMaterial({ color: fr.color, transparent: true, opacity: 0.92 });
+    shellGroup.add(new THREE.Mesh(tubeGeo, tubeMat));
+  });
+
+  root.add(shellGroup);
+}
+
 import { useI18n } from "../../i18n";
 
 export const MannequinViewer: React.FC<MannequinViewerProps> = ({
@@ -185,6 +407,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   hideZonePill = false,
   hideDragHint = false,
   externalZone,
+  garmentOverlay = null,
 }) => {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement>(null);
@@ -195,6 +418,9 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   const [internalMetric, setInternalMetric] = useState<MetricKey>("waist_circ_cm");
   const activeMetric = controlledMetric ?? internalMetric;
   const activeMetricRef = useRef<MetricKey>(activeMetric);
+
+  const garmentOverlayRef = useRef<GarmentOverlay3D | null | undefined>(garmentOverlay);
+  garmentOverlayRef.current = garmentOverlay;
 
   const [currentZone, setCurrentZone] = useState<ViewZone>("full_body");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -243,6 +469,14 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     threeRef.current.controls.autoRotate = Boolean(autoRotate);
     threeRef.current.controls.autoRotateSpeed = 1.4;
   }, [autoRotate]);
+
+  // Update 3D garment shell whenever selected outfit / size / fit changes
+  useEffect(() => {
+    const root = threeRef.current?.humanRoot;
+    if (!root) return;
+    const isFemale = Boolean(meshParams?.base_gender_mesh?.includes("female"));
+    rebuildGarmentOverlayGroup(root, garmentOverlay, isFemale);
+  }, [garmentOverlay, meshParams]);
 
   // Update active ring color/opacity when activeMetric changes
   useEffect(() => {
@@ -360,6 +594,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       if (humanGroup.userData?.landmarks) {
         state.landmarks = humanGroup.userData.landmarks as AnatomicalLandmarks;
       }
+      rebuildGarmentOverlayGroup(humanGroup, garmentOverlayRef.current, params.gender === "female");
       setModelLoading(false);
     });
 

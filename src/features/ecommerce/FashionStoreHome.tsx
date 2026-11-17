@@ -314,6 +314,7 @@ export const FashionStoreHome: React.FC = () => {
   const [isAnalysisOpen, setIsAnalysisOpen] = useState<boolean>(false);
   const [isBiometricModalOpen, setIsBiometricModalOpen] = useState<boolean>(false);
   const [isVellStudioOpen, setIsVellStudioOpen] = useState<boolean>(false);
+  const [studioInitialProduct, setStudioInitialProduct] = useState<FashionProduct | null>(null);
   const [isMaisonRunwayOpen, setIsMaisonRunwayOpen] = useState<boolean>(false);
   const [isThermalSlipOpen, setIsThermalSlipOpen] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
@@ -355,8 +356,13 @@ export const FashionStoreHome: React.FC = () => {
     setIsBiometricModalOpen(true);
   };
 
-  const handleOpenVirtualStudio = () => {
+  const handleOpenVirtualStudio = (maybeProduct?: FashionProduct | React.SyntheticEvent) => {
     setStudioInitialMode('avatar3d');
+    if (maybeProduct && typeof maybeProduct === 'object' && 'variants' in maybeProduct) {
+      setStudioInitialProduct(maybeProduct);
+    } else {
+      setStudioInitialProduct(null);
+    }
     setIsVellStudioOpen(true);
   };
 
@@ -2468,7 +2474,7 @@ export const FashionStoreHome: React.FC = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={handleOpenVirtualStudio}
+                              onClick={() => handleOpenVirtualStudio(product)}
                               className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                               title={t('ecommerce.sidebar.virtualTryOn', 'Thử đồ ảo 3D (VELL Studio)')}
                             >
@@ -3003,6 +3009,11 @@ export const FashionStoreHome: React.FC = () => {
         isAuthenticated={isAuthenticated}
         hasBodyProfile={hasBodyProfile}
         initialStageMode={studioInitialMode}
+        products={visibleCatalogProducts}
+        initialProduct={studioInitialProduct}
+        onUpdateGender={(nextGender) => {
+          handleSaveBody({ ...userBody, gender: nextGender });
+        }}
         onOpenSignIn={openSignIn}
         onOpenBiometrics={handleOpenBiometrics}
         onAddToCart={(fakeProduct, size) => {
