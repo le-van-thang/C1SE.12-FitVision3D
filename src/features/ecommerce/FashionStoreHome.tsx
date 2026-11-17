@@ -693,17 +693,17 @@ export const FashionStoreHome: React.FC = () => {
                 </span>
               </button>
 
-              {/* Quét Đo AI 3D (ISO) */}
-              <a
-                href="/dashboard"
-                className="hidden sm:flex flex-col items-center justify-center px-2.5 py-1 rounded-lg hover:bg-white/10 text-stone-200 hover:text-white transition-colors cursor-pointer"
+              {/* Quét Đo AI 3D (ISO) — Nút nổi bật tinh tế để người dùng nhận ra ngay */}
+              <Link
+                to="/dashboard"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-100 hover:text-white transition-all cursor-pointer shadow-xs"
                 title={t('ecommerce.topbar.aiScan', 'Quét Đo AI 3D (ISO)')}
               >
-                <Camera size={17} className="text-emerald-400" />
-                <span className="text-[10px] font-semibold mt-0.5 whitespace-nowrap">
-                  {locale === 'en' ? '3D Scan' : 'Quét AI 3D'}
+                <Camera size={15} className="text-emerald-300 shrink-0" />
+                <span className="text-[11px] font-extrabold whitespace-nowrap tracking-tight">
+                  {locale === 'en' ? '3D AI Scan' : 'Quét AI 3D'}
                 </span>
-              </a>
+              </Link>
 
               {/* Tài Khoản (Popover Dropdown khi đã đăng nhập / Nút Đăng nhập khi chưa) */}
               {isAuthenticated ? (
@@ -993,18 +993,28 @@ export const FashionStoreHome: React.FC = () => {
             <button
               type="button"
               onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
-              className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                isAuthenticated && hasBodyProfile
+                  ? 'bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 shadow-2xs'
+                  : 'bg-blue-50 hover:bg-blue-100 border-2 border-blue-400 text-blue-800 shadow-xs'
+              }`}
             >
-              <span className={`w-2 h-2 rounded-full shrink-0 ${isAuthenticated && hasBodyProfile ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  isAuthenticated && hasBodyProfile
+                    ? 'bg-emerald-500 animate-pulse'
+                    : 'bg-blue-600 animate-pulse'
+                }`}
+              />
               {isAuthenticated && hasBodyProfile ? (
-                <span className="font-mono font-bold text-slate-900">
+                <span className="font-mono font-extrabold text-emerald-950">
                   {userBody.height_cm}cm · {userBody.weight_kg}kg
                 </span>
               ) : (
                 <span>
                   {!isAuthenticated
-                    ? (locale === 'en' ? '3D Profile' : 'Chưa đồng bộ 3D')
-                    : (locale === 'en' ? 'Set 3D Size' : 'Thiết lập số đo 3D')}
+                    ? (locale === 'en' ? 'Sign in · Set 3D Size' : 'Thiết lập số đo 3D')
+                    : (locale === 'en' ? 'Set 3D Measurements' : 'Thiết lập số đo 3D')}
                 </span>
               )}
             </button>

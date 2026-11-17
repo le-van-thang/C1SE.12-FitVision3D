@@ -125,3 +125,16 @@ export function clearFullScanSnapshot(userId?: string | null): void {
     // ignore
   }
 }
+
+let pendingStudioPhoto: { dataUrl: string; name: string } | null = null;
+
+/** Passes a user-uploaded photo transiently from Virtual Studio into Dashboard AI Scan (in-memory only). */
+export function setPendingStudioPhoto(dataUrl: string, name = 'studio-photo.jpg'): void {
+  pendingStudioPhoto = { dataUrl, name };
+}
+
+export function consumePendingStudioPhoto(): { dataUrl: string; name: string } | null {
+  const item = pendingStudioPhoto;
+  pendingStudioPhoto = null;
+  return item;
+}

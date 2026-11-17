@@ -5,6 +5,7 @@
 // ============================================================
 import React, { useState, useRef, useEffect } from "react";
 import { useI18n } from "../../i18n";
+import { consumePendingStudioPhoto } from "../../utils/bodyProfileStorage";
 import {
   UploadCloud,
   CheckCircle2,
@@ -55,6 +56,24 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
   useEffect(() => {
     if (initialWeight) setWeight(String(initialWeight));
   }, [initialWeight]);
+
+  // If user jumped from 3D Fitting Room with a personal photo, load it directly into scan frame
+  useEffect(() => {
+    const pending = consumePendingStudioPhoto();
+    if (!pending?.dataUrl) return;
+    fetch(pending.dataUrl)
+      .then((res) => res.blob())
+      .then((blob) => {
+        setFrontImage({
+          file: blob,
+          url: pending.dataUrl,
+          name: pending.name,
+        });
+      })
+      .catch(() => {
+        // ignore invalid dataUrl
+      });
+  }, []);
 
   const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
