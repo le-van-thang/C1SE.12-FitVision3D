@@ -134,8 +134,40 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
  * and applies smooth Anatomical Gaussian Radial Torso Deformation for chest, waist, and hips
  * while isolating the arms so extremities never warp.
  */
+/**
+ * Samples the exact outermost X vertex on a built measurement ring (`ring_chest`, `ring_waist`, `ring_hips`)
+ * so callout dots always sit locked directly onto the visible 3D ring regardless of body scale.
+ */
+function sampleRingAnchor(
+  rings: THREE.Mesh[],
+  bandKey: 'chest' | 'waist' | 'hips',
+  pick: 'minX' | 'maxX',
+  fallback: THREE.Vector3
+): THREE.Vector3 {
+  const ring = rings.find((r) => r.name === `ring_${bandKey}`);
+  const pos = ring?.geometry?.attributes?.position as THREE.BufferAttribute | undefined;
+  if (!pos || pos.count === 0) return fallback;
+
+  let best: THREE.Vector3 | null = null;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    if (pick === 'minX') {
+      if (!best || x < best.x) best = new THREE.Vector3(x, y, z);
+    } else {
+      if (!best || x > best.x) best = new THREE.Vector3(x, y, z);
+    }
+  }
+  return best ?? fallback;
+}
+
+/**
+ * Extracts exact 3D landmarks from deformed female geometry vertices & rings.
+ */
 function extractFemaleGeometryLandmarks(
   geometries: THREE.BufferGeometry[],
+  rings: THREE.Mesh[],
   sChest: number,
   sWaist: number,
   sHips: number
@@ -172,24 +204,43 @@ function extractFemaleGeometryLandmarks(
     return n > 0 ? new THREE.Vector3(sx / n, sy / n, sz / n) : fallback;
   };
 
+  const hipMaxSpan = Math.max(1, sHips);
+  const chestMaxSpan = Math.max(1, sChest);
+
   return {
-    chest: sampleBox(0.40, 0.44, -0.24, -0.08, 'minX', new THREE.Vector3(-0.145 * sChest, 0.42, 0.0)),
-    waist: sampleBox(0.24, 0.28, -0.20, -0.06, 'minX', new THREE.Vector3(-0.118 * sWaist, 0.26, 0.0)),
-    hips: sampleBox(0.00, 0.04, 0.08, 0.26, 'maxX', new THREE.Vector3(0.172 * sHips, 0.02, -0.04)),
-    shoulders: sampleBox(0.50, 0.56, 0.14, 0.21, 'avg', new THREE.Vector3(0.175 * sChest, 0.53, 0.0)),
+    chest: sampleRingAnchor(
+      rings,
+      'chest',
+      'minX',
+      sampleBox(0.40, 0.44, -0.26 * chestMaxSpan, -0.06, 'minX', new THREE.Vector3(-0.145 * sChest, 0.42, 0.0))
+    ),
+    waist: sampleRingAnchor(
+      rings,
+      'waist',
+      'minX',
+      sampleBox(0.24, 0.28, -0.22 * Math.max(1, sWaist), -0.05, 'minX', new THREE.Vector3(-0.118 * sWaist, 0.26, 0.0))
+    ),
+    hips: sampleRingAnchor(
+      rings,
+      'hips',
+      'maxX',
+      sampleBox(0.00, 0.04, 0.07, 0.28 * hipMaxSpan, 'maxX', new THREE.Vector3(0.172 * sHips, 0.02, -0.04))
+    ),
+    shoulders: sampleBox(0.51, 0.58, 0.14 * Math.min(1, sChest), 0.22 * chestMaxSpan, 'avg', new THREE.Vector3(0.175 * sChest, 0.54, 0.0)),
     bicep: sampleBox(0.49, 0.59, -0.36, -0.26, 'avg', new THREE.Vector3(-0.31, 0.54, -0.05)),
     wrist: sampleBox(0.49, 0.59, -0.62, -0.55, 'avg', new THREE.Vector3(-0.585, 0.537, 0.03)),
     arm_length: sampleBox(0.49, 0.59, 0.49, 0.58, 'avg', new THREE.Vector3(0.535, 0.536, 0.0)),
-    inseam: sampleBox(-0.39, -0.31, -0.14, -0.01, 'maxX', new THREE.Vector3(-0.045, -0.35, -0.04)),
-    thigh: sampleBox(-0.22, -0.14, 0.02, 0.18, 'avg', new THREE.Vector3(0.095, -0.18, -0.038)),
-    calf: sampleBox(-0.55, -0.47, 0.03, 0.16, 'avg', new THREE.Vector3(0.097, -0.51, -0.068)),
-    ankle: sampleBox(-0.77, -0.71, 0.04, 0.13, 'avg', new THREE.Vector3(0.084, -0.74, -0.049)),
+    inseam: sampleBox(-0.39, -0.31, -0.15 * hipMaxSpan, -0.01, 'maxX', new THREE.Vector3(-0.045, -0.35, -0.04)),
+    thigh: sampleBox(-0.22, -0.14, 0.02, 0.19 * hipMaxSpan, 'avg', new THREE.Vector3(0.095 * sHips, -0.18, -0.038)),
+    calf: sampleBox(-0.55, -0.47, 0.03, 0.17 * Math.max(1, Math.sqrt(hipMaxSpan)), 'avg', new THREE.Vector3(0.097, -0.51, -0.068)),
+    ankle: sampleBox(-0.77, -0.71, 0.04, 0.14, 'avg', new THREE.Vector3(0.084, -0.74, -0.049)),
   };
 }
 
 function extractMaleBoneLandmarks(
   root: THREE.Group,
   model: THREE.Object3D,
+  rings: THREE.Mesh[],
   sChest: number,
   sWaist: number,
   sHips: number
@@ -252,17 +303,23 @@ function extractMaleBoneLandmarks(
   const inseamMid = new THREE.Vector3().lerpVectors(thighL, footL, 0.42);
   inseamMid.x += 0.042; // Nudge to medial/inner surface of left leg
 
+  const thighPt = new THREE.Vector3().lerpVectors(thighR, calfR, 0.36);
+  thighPt.x += 0.022 * sHips;
+
+  const calfPt = new THREE.Vector3().lerpVectors(calfR, footR, 0.35);
+  calfPt.x += 0.016 * Math.sqrt(sHips);
+
   return {
-    chest: new THREE.Vector3(-0.145 * sChest, 0.42, 0.02),
-    waist: new THREE.Vector3(-0.118 * sWaist, 0.25, 0.035),
-    hips: new THREE.Vector3(0.152 * sHips, 0.02, 0.038),
-    shoulders: upperR.clone().add(new THREE.Vector3(0.01, 0.015, 0)),
+    chest: sampleRingAnchor(rings, 'chest', 'minX', new THREE.Vector3(-0.145 * sChest, 0.42, 0.02)),
+    waist: sampleRingAnchor(rings, 'waist', 'minX', new THREE.Vector3(-0.118 * sWaist, 0.25, 0.035)),
+    hips: sampleRingAnchor(rings, 'hips', 'maxX', new THREE.Vector3(0.152 * sHips, 0.02, 0.038)),
+    shoulders: upperR.clone().add(new THREE.Vector3(0.015 * sChest, 0.018, 0)),
     bicep: new THREE.Vector3().lerpVectors(upperL, lowerL, 0.48),
     wrist: handL.clone(),
     arm_length: new THREE.Vector3().lerpVectors(lowerR, handR, 0.65),
     inseam: inseamMid,
-    thigh: new THREE.Vector3().lerpVectors(thighR, calfR, 0.36),
-    calf: new THREE.Vector3().lerpVectors(calfR, footR, 0.35),
+    thigh: thighPt,
+    calf: calfPt,
     ankle: footR.clone(),
   };
 }
@@ -595,8 +652,15 @@ export function loadRealHumanModel(
         });
 
         root.add(model);
-        buildConformalFemaleRings(deformedGeometries, activeZone).forEach((r) => root.add(r));
-        root.userData.landmarks = extractFemaleGeometryLandmarks(deformedGeometries, sChest, sWaist, sHips);
+        const femaleRings = buildConformalFemaleRings(deformedGeometries, activeZone);
+        femaleRings.forEach((r) => root.add(r));
+        root.userData.landmarks = extractFemaleGeometryLandmarks(
+          deformedGeometries,
+          femaleRings,
+          sChest,
+          sWaist,
+          sHips
+        );
         onLoaded(root);
         return;
       }
@@ -659,8 +723,9 @@ export function loadRealHumanModel(
       model.position.sub(normalizedCenter);
 
       root.add(model);
-      buildMeasurementRings(false, sChest, sWaist, sHips, activeZone).forEach((r) => root.add(r));
-      root.userData.landmarks = extractMaleBoneLandmarks(root, model, sChest, sWaist, sHips);
+      const maleRings = buildMeasurementRings(false, sChest, sWaist, sHips, activeZone);
+      maleRings.forEach((r) => root.add(r));
+      root.userData.landmarks = extractMaleBoneLandmarks(root, model, maleRings, sChest, sWaist, sHips);
       onLoaded(root);
     },
     undefined,

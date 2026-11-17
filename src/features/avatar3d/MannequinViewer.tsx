@@ -368,6 +368,18 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     const animate = () => {
       state.raf = requestAnimationFrame(animate);
 
+      // Keep renderer & FOV strictly synchronized with live container size during resize/flex stretch
+      const curW = el.clientWidth;
+      const curH = el.clientHeight;
+      if (curW > 0 && curH > 0 && (curW !== w || curH !== h)) {
+        w = curW;
+        h = curH;
+        camera.fov = calcResponsiveFov(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
+
       if (state.isTransitioning) {
         camera.position.lerp(state.targetCamPos, 0.08);
         controls.target.lerp(state.targetControlsTarget, 0.08);
@@ -386,8 +398,9 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
 
       const svg = svgRef.current;
       if (svg && state.humanRoot) {
-        const svgW = svg.clientWidth || w;
-        const svgH = svg.clientHeight || h;
+        const parentRect = el.getBoundingClientRect();
+        const svgW = parentRect.width || svg.clientWidth || w;
+        const svgH = parentRect.height || svg.clientHeight || h;
 
         CALLOUTS.forEach((callout) => {
           const p3 = callout.get3DPoint(state.landmarks);
@@ -403,33 +416,43 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
 
           const linePathEl = svg.querySelector(`#leader-${callout.key}`) as SVGPathElement | null;
           const circleEl = svg.querySelector(`#target-${callout.key}`) as SVGCircleElement | null;
+          const anchorEl = svg.querySelector(`#anchor-${callout.key}`) as SVGCircleElement | null;
 
           if (cardEl && linePathEl && circleEl) {
             const cardRect = cardEl.getBoundingClientRect();
-            const parentRect = el.getBoundingClientRect();
 
             const ax =
               callout.side === "left"
-                ? cardRect.right - parentRect.left + 8
-                : cardRect.left - parentRect.left - 8;
-            const ay = cardRect.top + cardRect.height * 0.55 - parentRect.top;
+                ? cardRect.right - parentRect.left + 4
+                : cardRect.left - parentRect.left - 4;
+            const ay = cardRect.top + cardRect.height * 0.45 - parentRect.top;
+            const elbowX = ax + (callout.side === "left" ? 10 : -10);
 
             if (projVec.z < 1.0) {
-              linePathEl.setAttribute("d", `M ${ax} ${ay} L ${lx} ${ly}`);
+              linePathEl.setAttribute("d", `M ${ax} ${ay} L ${elbowX} ${ay} L ${lx} ${ly}`);
               circleEl.setAttribute("cx", `${lx}`);
               circleEl.setAttribute("cy", `${ly}`);
+              if (anchorEl) {
+                anchorEl.setAttribute("cx", `${ax}`);
+                anchorEl.setAttribute("cy", `${ay}`);
+              }
 
               const isFocus = callout.key === activeMetricRef.current;
               linePathEl.setAttribute(
                 "stroke",
                 isFocus ? "#A3E635" : "rgba(255, 255, 255, 0.35)"
               );
-              linePathEl.setAttribute("stroke-width", "1");
-              circleEl.setAttribute("fill", isFocus ? "#A3E635" : "rgba(255, 255, 255, 0.55)");
-              circleEl.setAttribute("r", isFocus ? "3" : "2");
+              linePathEl.setAttribute("stroke-width", isFocus ? "1.35" : "1");
+              circleEl.setAttribute("fill", isFocus ? "#A3E635" : "rgba(255, 255, 255, 0.65)");
+              circleEl.setAttribute("r", isFocus ? "3.2" : "2.1");
+              if (anchorEl) {
+                anchorEl.setAttribute("fill", isFocus ? "#A3E635" : "rgba(255, 255, 255, 0.45)");
+                anchorEl.setAttribute("r", isFocus ? "2.2" : "1.5");
+              }
             } else {
               linePathEl.setAttribute("d", "");
               circleEl.setAttribute("r", "0");
+              if (anchorEl) anchorEl.setAttribute("r", "0");
             }
           }
         });
@@ -603,6 +626,11 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               strokeWidth="1"
             />
             <circle
+              id={`anchor-${c.key}`}
+              r="1.5"
+              fill="rgba(255, 255, 255, 0.45)"
+            />
+            <circle
               id={`target-${c.key}`}
               r="2"
               fill="rgba(255, 255, 255, 0.45)"
@@ -622,6 +650,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           bottom: "48px",
           display: "flex",
           flexDirection: "column",
+          alignItems: "flex-start",
           justifyContent: "space-around",
           zIndex: 20,
           pointerEvents: "none",
@@ -641,8 +670,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               style={{
                 pointerEvents: "auto",
                 cursor: "pointer",
+                width: "fit-content",
                 display: "inline-flex",
                 flexDirection: "column",
+                alignItems: "flex-start",
                 gap: "2px",
                 background: "transparent",
                 border: "none",
@@ -689,6 +720,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           bottom: "78px",
           display: "flex",
           flexDirection: "column",
+          alignItems: "flex-end",
           justifyContent: "space-around",
           zIndex: 20,
           pointerEvents: "none",
@@ -708,8 +740,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               style={{
                 pointerEvents: "auto",
                 cursor: "pointer",
+                width: "fit-content",
                 display: "inline-flex",
                 flexDirection: "column",
+                alignItems: "flex-end",
                 gap: "2px",
                 textAlign: "right",
                 background: "transparent",
