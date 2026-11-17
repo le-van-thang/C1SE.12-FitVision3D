@@ -651,9 +651,10 @@ export const AuthModal: React.FC = () => {
                 <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-600" />
                 <div className="flex-1">
                   <span className="font-medium leading-relaxed">{errorMessage}</span>
-                  {(errorMessage.includes('chưa được kích hoạt') ||
-                    errorMessage.toLowerCase().includes('activated') ||
-                    errorMessage.includes('OTP')) && (
+                  {!admin2faRequired &&
+                    !errorMessage.includes('Quản trị viên') &&
+                    (errorMessage.includes('chưa được kích hoạt') ||
+                      errorMessage.toLowerCase().includes('activated')) && (
                     <div className="mt-1.5">
                       <button
                         type="button"
