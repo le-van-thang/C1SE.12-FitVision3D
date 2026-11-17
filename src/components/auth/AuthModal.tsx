@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   Scissors,
-  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -53,13 +52,11 @@ export const AuthModal: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Forgot password & Verify & Admin 2FA states
+  // Forgot password & Verify states
   const [forgotStep, setForgotStep] = useState<'request' | 'reset'>('request');
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [admin2faRequired, setAdmin2faRequired] = useState(false);
-  const [adminOtpCode, setAdminOtpCode] = useState('');
 
   // Anti-autofill: keep readOnly until user explicitly focuses or clicks
   const [emailUnlocked, setEmailUnlocked] = useState(false);
@@ -81,8 +78,6 @@ export const AuthModal: React.FC = () => {
     setEmailUnlocked(false);
     setPasswordUnlocked(false);
     setSubmitAttempted(false);
-    setAdmin2faRequired(false);
-    setAdminOtpCode('');
     if (authModalTab === 'signin' || authModalTab === 'register') {
       setForgotStep('request');
       setOtpCode('');
@@ -277,24 +272,9 @@ export const AuthModal: React.FC = () => {
       return;
     }
 
-    if (admin2faRequired && adminOtpCode.trim().length < 6) {
-      setErrorMessage('Vui lòng nhập đủ 6 chữ số mã OTP xác thực 2 lớp Admin.');
-      return;
-    }
-
     setLoading(true);
-    const res = await signIn(email, password, websiteTrap, admin2faRequired ? adminOtpCode.trim() : undefined);
+    const res = await signIn(email, password, websiteTrap);
     setLoading(false);
-
-    if (res.requiresAdmin2fa) {
-      setAdmin2faRequired(true);
-      setAdminOtpCode('');
-      setSuccessMessage(
-        res.message || 'Mã OTP xác thực 2 lớp (Admin 2FA) đã được gửi về Gmail quản trị của bạn.'
-      );
-      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
 
     if (!res.success) {
       if (res.errorCode === 'AUTH_EMAIL_NOT_VERIFIED') {
@@ -691,8 +671,7 @@ export const AuthModal: React.FC = () => {
                 <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-600" />
                 <div className="flex-1">
                   <span className="font-medium leading-relaxed">{errorMessage}</span>
-                  {!admin2faRequired &&
-                    !errorMessage.includes('Quản trị viên') &&
+                  {!errorMessage.includes('Quản trị viên') &&
                     (errorMessage.includes('chưa được kích hoạt') ||
                       errorMessage.toLowerCase().includes('activated')) && (
                     <div className="mt-1.5">
@@ -808,57 +787,20 @@ export const AuthModal: React.FC = () => {
                   )}
                 </div>
 
-                {/* Admin 2FA OTP Input Box (triggered when ADMIN logs in with valid password) */}
-                {admin2faRequired && (
-                  <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-400 space-y-2.5 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-950">
-                        <ShieldCheck size={16} className="text-amber-600" />
-                        Xác Thực Bảo Mật 2 Lớp Admin (2FA)
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAdmin2faRequired(false);
-                          setAdminOtpCode('');
-                        }}
-                        className="text-[11px] font-bold text-slate-600 hover:text-slate-950 cursor-pointer bg-transparent border-0 p-0"
-                      >
-                        Đổi tài khoản
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-amber-900 leading-relaxed">
-                      Nhập mã <b>OTP 6 số</b> vừa được gửi về Gmail <b>{email}</b> để hoàn tất truy cập Cổng Quản Trị.
-                    </p>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={adminOtpCode}
-                      onChange={(e) => setAdminOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="Nhập 6 chữ số OTP..."
-                      className="w-full h-11 px-4 rounded-xl border-2 border-amber-500 bg-white text-center font-mono text-lg font-black tracking-[0.4em] text-[#14171C] outline-none focus:ring-2 focus:ring-amber-500/30"
-                      autoFocus
-                    />
-                  </div>
-                )}
-
                 {/* Remember & Forgot */}
-                {!admin2faRequired && (
-                  <div className="flex items-center justify-between text-xs">
-                    <label className="flex items-center gap-2 text-slate-700 font-medium cursor-pointer select-none">
-                      <input type="checkbox" defaultChecked className="accent-blue-600 cursor-pointer rounded" />
-                      <span>{t('app.auth.rememberMe', 'Ghi nhớ đăng nhập')}</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={openForgotPassword}
-                      className="text-blue-600 hover:text-blue-800 font-bold text-xs bg-transparent border-0 cursor-pointer p-0"
-                    >
-                      {t('app.auth.forgotPassword', 'Quên mật khẩu?')}
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center justify-between text-xs">
+                  <label className="flex items-center gap-2 text-slate-700 font-medium cursor-pointer select-none">
+                    <input type="checkbox" defaultChecked className="accent-blue-600 cursor-pointer rounded" />
+                    <span>{t('app.auth.rememberMe', 'Ghi nhớ đăng nhập')}</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={openForgotPassword}
+                    className="text-blue-600 hover:text-blue-800 font-bold text-xs bg-transparent border-0 cursor-pointer p-0"
+                  >
+                    {t('app.auth.forgotPassword', 'Quên mật khẩu?')}
+                  </button>
+                </div>
 
                 {/* Submit Action */}
                 <button
@@ -866,13 +808,7 @@ export const AuthModal: React.FC = () => {
                   disabled={loading}
                   className="h-12 mt-1 w-full rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-pointer border-0"
                 >
-                  <span>
-                    {loading
-                      ? t('app.auth.loadingSignin', 'Đang xác thực...')
-                      : admin2faRequired
-                        ? 'Xác Nhận OTP & Vào Admin'
-                        : t('app.auth.submitSignin', 'Đăng nhập ngay')}
-                  </span>
+                  <span>{loading ? t('app.auth.loadingSignin', 'Đang xác thực...') : t('app.auth.submitSignin', 'Đăng nhập ngay')}</span>
                   <ArrowRight size={16} />
                 </button>
 

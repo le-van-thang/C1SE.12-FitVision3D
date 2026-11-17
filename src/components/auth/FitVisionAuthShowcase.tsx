@@ -26,16 +26,29 @@ interface AtelierPhase {
   icon: React.ReactNode;
 }
 
-export const FitVisionAuthShowcase: React.FC = () => {
+const MALE_PREVIEW_MESH = {
+  ...DEMO_MESH,
+  base_gender_mesh: 'male_base' as const,
+  scale_chest: 1.05,
+  scale_waist: 0.96,
+  scale_hips: 1.02,
+};
+
+const FEMALE_PREVIEW_MESH = {
+  ...DEMO_MESH,
+  base_gender_mesh: 'female_base' as const,
+  scale_chest: 1.04,
+  scale_waist: 0.94,
+  scale_hips: 1.06,
+};
+
+const FitVisionAuthShowcaseInner: React.FC = () => {
   const { locale } = useI18n();
   const isEn = locale === 'en';
   const [phaseIdx, setPhaseIdx] = useState<number>(0);
   const [previewGender, setPreviewGender] = useState<'male' | 'female'>('male');
 
-  const previewMesh =
-    previewGender === 'female'
-      ? { ...DEMO_MESH, base_gender_mesh: 'female_base' as const, scale_chest: 1.04, scale_waist: 0.94, scale_hips: 1.06 }
-      : { ...DEMO_MESH, base_gender_mesh: 'male_base' as const, scale_chest: 1.05, scale_waist: 0.96, scale_hips: 1.02 };
+  const previewMesh = previewGender === 'female' ? FEMALE_PREVIEW_MESH : MALE_PREVIEW_MESH;
 
   const phases: AtelierPhase[] = [
     {
@@ -259,3 +272,5 @@ export const FitVisionAuthShowcase: React.FC = () => {
     </div>
   );
 };
+
+export const FitVisionAuthShowcase = React.memo(FitVisionAuthShowcaseInner);

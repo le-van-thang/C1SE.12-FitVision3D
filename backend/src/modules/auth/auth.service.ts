@@ -256,31 +256,6 @@ export const authService = {
       );
     }
 
-    // Yêu cầu xác thực 2 lớp (2FA Email OTP) riêng cho tài khoản ADMIN
-    if (user.role === 'ADMIN') {
-      const providedOtp = (dto.adminOtp || '').trim();
-      if (!providedOtp) {
-        const otpCode = crypto.randomInt(100000, 999999).toString();
-        emailService.saveOtp(user.email, otpCode, 'ADMIN_2FA');
-        emailService.sendAdminTwoFactorEmail(user.email, user.full_name, otpCode).catch(console.error);
-        console.log(`🔐 [Admin 2FA] Sent 6-digit OTP to ${user.email}: ${otpCode}`);
-        return {
-          requiresAdmin2fa: true as const,
-          email: user.email,
-          message: `Tài khoản Quản trị viên yêu cầu xác thực 2 lớp. Mã OTP 6 số đã được gửi tới ${user.email}.`,
-        };
-      }
-
-      const validAdminOtp = emailService.verifyOtp(user.email, providedOtp, 'ADMIN_2FA');
-      if (!validAdminOtp) {
-        throw new AppError(
-          401,
-          ErrorCode.AUTH_OTP_INVALID,
-          'Mã OTP xác thực 2 lớp Admin không chính xác hoặc đã hết hạn.'
-        );
-      }
-    }
-
     // Cấp phát JWT Access Token (15 phút)
     const accessToken = generateAccessToken({
       sub: user.id,
@@ -563,7 +538,7 @@ export const authService = {
       throw new AppError(
         403,
         ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
-        'Tài khoản Quản trị viên (Admin) bị khóa đăng nhập qua nút Google để bảo mật hệ thống. Vui lòng nhập Email, Mật khẩu và OTP 2 lớp.'
+        'Tài khoản Quản trị viên (Admin) bị khóa đăng nhập qua nút Google để bảo mật hệ thống. Vui lòng tự nhập Email và Mật khẩu.'
       );
     }
 
