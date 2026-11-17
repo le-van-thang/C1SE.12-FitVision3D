@@ -6,6 +6,7 @@ import {
   loadRealHumanModel,
   createSkinnedZozofitMaterial,
   type HumanBodyParams,
+  type AnatomicalLandmarks,
 } from "./meshGenerator";
 import type { MeshParameter, Measurement } from "../../types/database.types";
 
@@ -125,20 +126,6 @@ function metricToZone(metric: MetricKey): ActiveZoneKey {
   }
 }
 
-interface AnatomicalLandmarks {
-  chest: THREE.Vector3;
-  waist: THREE.Vector3;
-  hips: THREE.Vector3;
-  shoulders: THREE.Vector3;
-  inseam: THREE.Vector3;
-  arm_length: THREE.Vector3;
-  bicep: THREE.Vector3;
-  wrist: THREE.Vector3;
-  thigh: THREE.Vector3;
-  calf: THREE.Vector3;
-  ankle: THREE.Vector3;
-}
-
 function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
   const sChest = params.scale_chest || 1.0;
   const sWaist = params.scale_waist || 1.0;
@@ -146,17 +133,17 @@ function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
   const isFemale = params.gender === "female";
 
   return {
-    chest: new THREE.Vector3((isFemale ? -0.140 : -0.145) * sChest, 0.42, isFemale ? 0.032 : 0.020),
-    waist: new THREE.Vector3((isFemale ? -0.116 : -0.118) * sWaist, isFemale ? 0.26 : 0.25, isFemale ? 0.015 : 0.035),
-    hips: new THREE.Vector3((isFemale ? 0.176 : 0.152) * sHips, 0.02, isFemale ? 0.050 : 0.038),
-    shoulders: new THREE.Vector3(0.195 * sChest, 0.50, 0.0),
-    inseam: new THREE.Vector3(-0.085 * sHips, -0.35, 0.0),
-    arm_length: new THREE.Vector3(isFemale ? 0.45 : 0.34 * sChest, isFemale ? 0.48 : 0.28, 0.0),
-    bicep: new THREE.Vector3((isFemale ? -0.34 : -0.25) * sChest, isFemale ? 0.49 : 0.36, 0.0),
-    wrist: new THREE.Vector3((isFemale ? -0.62 : -0.38) * sChest, isFemale ? 0.48 : 0.08, 0.015),
-    thigh: new THREE.Vector3(0.105 * sHips, -0.18, 0.015),
-    calf: new THREE.Vector3(0.095 * sHips, -0.48, -0.01),
-    ankle: new THREE.Vector3(0.085 * sHips, -0.74, 0.0),
+    chest: new THREE.Vector3((isFemale ? -0.145 : -0.145) * sChest, 0.42, isFemale ? 0.0 : 0.020),
+    waist: new THREE.Vector3((isFemale ? -0.118 : -0.118) * sWaist, isFemale ? 0.26 : 0.25, isFemale ? 0.0 : 0.035),
+    hips: new THREE.Vector3((isFemale ? 0.172 : 0.152) * sHips, 0.02, isFemale ? -0.04 : 0.038),
+    shoulders: new THREE.Vector3(0.18 * sChest, isFemale ? 0.53 : 0.50, 0.0),
+    inseam: new THREE.Vector3(-0.065 * sHips, -0.35, isFemale ? -0.04 : 0.0),
+    arm_length: new THREE.Vector3(isFemale ? 0.535 : 0.54, isFemale ? 0.536 : 0.27, 0.0),
+    bicep: new THREE.Vector3(isFemale ? -0.31 : -0.30, isFemale ? 0.54 : 0.42, 0.0),
+    wrist: new THREE.Vector3(isFemale ? -0.585 : -0.62, isFemale ? 0.537 : 0.22, 0.02),
+    thigh: new THREE.Vector3(0.105 * sHips, -0.18, isFemale ? -0.038 : 0.015),
+    calf: new THREE.Vector3(0.10 * sHips, -0.50, isFemale ? -0.068 : -0.01),
+    ankle: new THREE.Vector3(isFemale ? 0.084 : 0.125, isFemale ? -0.74 : -0.76, isFemale ? -0.049 : 0.0),
   };
 }
 
@@ -362,6 +349,9 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       if (disposed) return;
       scene.add(humanGroup);
       state.humanRoot = humanGroup;
+      if (humanGroup.userData?.landmarks) {
+        state.landmarks = humanGroup.userData.landmarks as AnatomicalLandmarks;
+      }
       setModelLoading(false);
     });
 
