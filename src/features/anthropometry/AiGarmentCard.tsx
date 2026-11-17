@@ -244,10 +244,26 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
       .replace(/\{asia\}/g, asia);
   }, [bottomwear, data.bottomwear_trouser_size, t]);
 
-  const hasHipAlert = Boolean(bottomwear?.has_hip_alert || bottomwear?.notes);
+  const hasHipAlert = Boolean(bottomwear?.has_hip_alert);
+
+  const bottomwearNotesText = useMemo(() => {
+    if (!bottomwear) return "";
+    if (bottomwear.fit_notes_key === "heightInseamUpgrade" && bottomwear.fit_notes_params) {
+      return t("meas.heightInseamUpgrade", "Tăng lên cỡ {size} phù hợp cao {height}cm & dài chân {inseam}cm")
+        .replace("{size}", String(bottomwear.fit_notes_params.size ?? bottomwear.asia))
+        .replace("{height}", String(bottomwear.fit_notes_params.height ?? 170))
+        .replace("{inseam}", String(bottomwear.fit_notes_params.inseam ?? 78));
+    }
+    if (bottomwear.fit_notes_key === "basedOnWaist" && bottomwear.fit_notes_params) {
+      return t("meas.basedOnWaist", "Dựa trên eo {waist}cm (cạp quần ~{effectiveWaist}cm)")
+        .replace("{waist}", String(bottomwear.fit_notes_params.waist ?? ""))
+        .replace("{effectiveWaist}", String(bottomwear.fit_notes_params.effectiveWaist ?? ""));
+    }
+    return "";
+  }, [bottomwear, t]);
 
   return (
-    <section className="bg-white border-2 border-slate-300 rounded-3xl p-5 shadow-sm space-y-4 text-slate-900">
+    <section className="bg-white border-2 border-slate-300 rounded-3xl p-4 sm:p-5 shadow-sm hover:border-slate-400 transition-all space-y-3.5 text-slate-900">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100 flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
@@ -368,25 +384,31 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
         <div className="bg-emerald-50/90 border-2 border-emerald-200 rounded-2xl p-3 flex flex-col justify-between shadow-2xs">
           <div>
             <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider block mb-1">
-              {t("meas.bottomwear", "QUẦN TÂY / CHINO")}
+              {t("meas.bottomwear", "QUẦN (THÂN DƯỚI)")}
             </span>
-            <div className="text-base sm:text-lg font-black text-emerald-950 font-mono tracking-tight my-1">
+            <div className="text-lg sm:text-xl font-black text-emerald-950 font-mono tracking-tight my-1 whitespace-nowrap">
               {trouserTagText}
             </div>
             <span className="text-[10px] font-bold text-emerald-700 block">
-              {bottomwear?.sub_label ||
-                t("meas.bottomwearInches", "Eo W{w} x Dài L{i}")
-                  .replace("{w}", String(data.waist_inches))
-                  .replace("{i}", String(data.inseam_inches))}
+              {t("meas.bottomwearInches", "Số {w}W x Dài {i}L • Âu / Kaki / Jeans")
+                .replace("{w}", String(bottomwear?.waist_inches ?? data.waist_inches))
+                .replace("{i}", String(bottomwear?.inseam_inches ?? data.inseam_inches))}
             </span>
           </div>
 
-          {hasHipAlert && (
-            <div className="mt-2 p-1.5 rounded-lg bg-amber-100 border border-amber-300 flex items-center gap-1.5 text-amber-900 text-[10px] font-bold">
-              <AlertCircle size={12} className="text-amber-700 flex-shrink-0" />
-              <span>{t("meas.hipAlert", "Lưu ý vòng hông")}</span>
-            </div>
-          )}
+          <div className="mt-2 pt-2 border-t border-emerald-200/80 space-y-1.5">
+            {bottomwearNotesText && (
+              <span className="text-[10px] text-slate-500 italic block">
+                {bottomwearNotesText}
+              </span>
+            )}
+            {hasHipAlert && (
+              <div className="p-1.5 rounded-lg bg-amber-100 border border-amber-300 flex items-center gap-1.5 text-amber-900 text-[10px] font-bold">
+                <AlertCircle size={12} className="text-amber-700 flex-shrink-0" />
+                <span>{t("meas.hipAlert", "Lưu ý vòng hông")}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -415,21 +437,21 @@ export const AiGarmentCard: React.FC<AiGarmentCardProps> = ({
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
             <span className="text-[10px] text-slate-500 font-bold block">{t("meas.slimChest", "Ngực ôm")}</span>
             <strong className="text-xs font-black text-blue-700 font-mono">
-              +{easeAllowance.slim_fit_chest_cm} <small className="text-[10px]">cm</small>
+              {easeAllowance.slim_fit_chest_cm} <small className="text-[10px]">cm</small>
             </strong>
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
             <span className="text-[10px] text-slate-500 font-bold block">{t("meas.regularChest", "Ngực vừa")}</span>
             <strong className="text-xs font-black text-blue-700 font-mono">
-              +{easeAllowance.regular_fit_chest_cm} <small className="text-[10px]">cm</small>
+              {easeAllowance.regular_fit_chest_cm} <small className="text-[10px]">cm</small>
             </strong>
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center shadow-2xs">
             <span className="text-[10px] text-slate-500 font-bold block">{t("meas.trouserWaist", "Cạp quần")}</span>
             <strong className="text-xs font-black text-emerald-700 font-mono">
-              +{easeAllowance.trouser_waist_ease_cm} <small className="text-[10px]">cm</small>
+              {easeAllowance.trouser_waist_ease_cm} <small className="text-[10px]">cm</small>
             </strong>
           </div>
         </div>

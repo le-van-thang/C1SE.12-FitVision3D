@@ -41,18 +41,19 @@ export const MetricRow: React.FC<{
   return (
     <div
       onClick={onClick}
-      className={`flex items-center justify-between p-2.5 rounded-xl transition-all mb-1.5 cursor-pointer ${
+      title={sublabel ? `${label} — ${sublabel}` : label}
+      className={`flex items-center justify-between px-2.5 py-2 rounded-xl transition-all cursor-pointer ${
         isActive
           ? 'bg-emerald-50 border-2 border-emerald-400 shadow-xs text-emerald-950'
-          : 'bg-slate-50 hover:bg-blue-50/70 border-2 border-slate-200 hover:border-blue-300 text-slate-900'
+          : 'bg-slate-50 hover:bg-blue-50/70 border border-slate-200 hover:border-blue-300 text-slate-900'
       }`}
     >
       <div className="flex flex-col min-w-0 pr-2">
-        <span className={`text-xs sm:text-sm font-bold truncate ${isActive ? 'text-emerald-950 font-black' : 'text-slate-800'}`}>
+        <span className={`text-xs font-bold truncate ${isActive ? 'text-emerald-950 font-black' : 'text-slate-800'}`}>
           {label}
         </span>
         {sublabel ? (
-          <span className={`text-[10px] mt-0.5 truncate ${isActive ? 'text-emerald-700 font-medium' : 'text-slate-500'}`}>
+          <span className={`text-[10px] leading-tight truncate ${isActive ? 'text-emerald-700 font-medium' : 'text-slate-500'}`}>
             {sublabel}
           </span>
         ) : null}
@@ -60,12 +61,12 @@ export const MetricRow: React.FC<{
 
       <div className="flex-shrink-0 text-right">
         {value == null ? (
-          <span className="font-mono text-slate-400 text-sm font-bold">—</span>
+          <span className="font-mono text-slate-400 text-xs font-bold">—</span>
         ) : (
-          <span className={`font-mono text-sm sm:text-base font-black ${isActive ? 'text-emerald-700' : 'text-blue-700'}`}>
+          <span className={`font-mono text-xs sm:text-sm font-black ${isActive ? 'text-emerald-700' : 'text-blue-700'}`}>
             {shown.toFixed(1)}
             {unit && (
-              <em className="not-italic text-[11px] font-bold text-slate-500 ml-1">
+              <em className="not-italic text-[10px] font-bold text-slate-500 ml-0.5">
                 {unit}
               </em>
             )}
@@ -116,7 +117,31 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
         )}
       </div>
 
-      <div className="space-y-1">
+      {/* Biometric Summary Strip */}
+      <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-center">
+          <span className="text-[10px] font-bold text-slate-500 block truncate">{t("meas.stature", "Chiều cao")}</span>
+          <strong className="font-mono text-xs sm:text-sm font-black text-blue-700">
+            {biometric?.stature_cm != null ? `${biometric.stature_cm.toFixed(1)} ` : "—"}
+            {biometric?.stature_cm != null && <small className="text-[10px] font-bold text-slate-500">cm</small>}
+          </strong>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-center">
+          <span className="text-[10px] font-bold text-slate-500 block truncate">{t("meas.weight", "Cân nặng")}</span>
+          <strong className="font-mono text-xs sm:text-sm font-black text-blue-700">
+            {biometric?.weight_kg != null ? `${biometric.weight_kg.toFixed(1)} ` : "—"}
+            {biometric?.weight_kg != null && <small className="text-[10px] font-bold text-slate-500">kg</small>}
+          </strong>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-center">
+          <span className="text-[10px] font-bold text-slate-500 block truncate">{t("meas.bmi", "Chỉ số BMI")}</span>
+          <strong className="font-mono text-xs sm:text-sm font-black text-blue-700">
+            {biometric?.calculated_bmi != null ? biometric.calculated_bmi.toFixed(1) : "—"}
+          </strong>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
         <MetricRow
           label={t("meas.chest", "Vòng ngực")}
           sublabel={t("meas.chestSub", "Đo ngang đỉnh ngực chuẩn") || undefined}
@@ -207,24 +232,17 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           isActive={activeMetric === "ankle_circ_cm"}
           onClick={() => onSelectMetric?.("ankle_circ_cm")}
         />
-        <MetricRow
-          label={t("meas.inseam", "Dài chân (Inseam)")}
-          sublabel={t("meas.inseamSub", "Từ đáy quần xuống gấu quần") || undefined}
-          field="inseam_cm"
-          value={measurement?.inseam_cm}
-          unit="cm"
-          isActive={activeMetric === "inseam_cm"}
-          onClick={() => onSelectMetric?.("inseam_cm")}
-        />
-      </div>
-
-      <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-wider mt-4 mb-2 block pt-2 border-t-2 border-slate-100">
-        {t("meas.bioTitle", "CHỈ SỐ THỂ TRẠNG")}
-      </h3>
-      <div className="space-y-1">
-        <MetricRow label={t("meas.stature", "Chiều cao")} field="stature_cm" value={biometric?.stature_cm} unit="cm" />
-        <MetricRow label={t("meas.weight", "Cân nặng")} field="weight_kg" value={biometric?.weight_kg} unit="kg" />
-        <MetricRow label={t("meas.bmi", "Chỉ số BMI")} field="calculated_bmi" value={biometric?.calculated_bmi} unit="" />
+        <div className="sm:col-span-2">
+          <MetricRow
+            label={t("meas.inseam", "Dài chân (Inseam)")}
+            sublabel={t("meas.inseamSub", "Từ đáy quần xuống gấu quần") || undefined}
+            field="inseam_cm"
+            value={measurement?.inseam_cm}
+            unit="cm"
+            isActive={activeMetric === "inseam_cm"}
+            onClick={() => onSelectMetric?.("inseam_cm")}
+          />
+        </div>
       </div>
     </section>
   );

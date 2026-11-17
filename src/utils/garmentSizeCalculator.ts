@@ -37,9 +37,11 @@ export interface GarmentSizeOutput {
     uk: string;
     waist_inches: number;
     inseam_inches: number;
-    tag: string;                // "Cỡ 28 (28W x 30L) ≈ Size S"
-    sub_label: string;          // "US/UK: 28W x 30L"
+    tag: string;                // "Cỡ M (Số 29)"
+    sub_label: string;          // "29W x 30L • Âu / Kaki / Jeans"
     notes?: string;
+    fit_notes_key?: "heightInseamUpgrade" | "basedOnWaist";
+    fit_notes_params?: Record<string, any>;
     has_hip_alert?: boolean;
   };
   body_shape_classification: string;
@@ -212,32 +214,60 @@ export function recommendGarmentSizes(
   }
 
   // 2. TÌM SIZE QUẦN (BOTTOMWEAR)
-  const waistInches = Math.round(waist / 2.54);
-  const rawInseamInches = input.inseam_cm ? Math.round(input.inseam_cm / 2.54) : 30;
+  // Quần mặc thực tế (âu, kaki, jeans) thường đeo ngang cạp trễ hơn rốn (+3cm form vừa, +4.5cm rộng)
+  const inseamCm = input.inseam_cm ?? (height > 0 ? Math.round(height * 0.45 * 10) / 10 : 76);
+  const fitWaistOffset = fit === 'slim' ? 0 : fit === 'relaxed' ? 4.5 : 3.0;
+  const effectiveWaist = Math.round((waist + fitWaistOffset) * 10) / 10;
+  const waistInches = Math.round(effectiveWaist / 2.54);
+  const rawInseamInches = Math.round(inseamCm / 2.54);
   const normalizedInseam = normalizeInseam(rawInseamInches);
 
-  // Tìm size chữ Châu Á cho quần
+  // Tìm size chữ Châu Á cho quần theo vòng cạp thực tế
   let bottomIdx = 0;
-  if (waist < bottomRows[0].waist_min) {
+  if (effectiveWaist < bottomRows[0].waist_min) {
     bottomIdx = 0;
-  } else if (waist >= bottomRows[bottomRows.length - 1].waist_max) {
+  } else if (effectiveWaist >= bottomRows[bottomRows.length - 1].waist_max) {
     bottomIdx = bottomRows.length - 1;
   } else {
     for (let i = 0; i < bottomRows.length; i++) {
-      if (waist >= bottomRows[i].waist_min && waist <= bottomRows[i].waist_max) {
+      if (effectiveWaist >= bottomRows[i].waist_min && effectiveWaist <= bottomRows[i].waist_max) {
         bottomIdx = i;
         break;
       }
-      if (i < bottomRows.length - 1 && waist > bottomRows[i].waist_max && waist < bottomRows[i + 1].waist_min) {
-        bottomIdx = i;
+      if (i < bottomRows.length - 1 && effectiveWaist > bottomRows[i].waist_max && effectiveWaist < bottomRows[i + 1].waist_min) {
+        const diffLow = effectiveWaist - bottomRows[i].waist_max;
+        const diffHigh = bottomRows[i + 1].waist_min - effectiveWaist;
+        bottomIdx = diffLow <= diffHigh ? i : i + 1;
         break;
       }
     }
   }
 
+  // Hiệu chỉnh theo chiều cao & chiều dài chân trong để tránh quần bị ngắn ống / kích đáy
+  let heightUpgraded = false;
+  const tallThreshold = isFemale ? 163 : 168;
+  const longInseamThreshold = isFemale ? 74 : 76.5;
+  if (
+    fit !== 'slim' &&
+    bottomRows[bottomIdx]?.asia === 'S' &&
+    bottomIdx < bottomRows.length - 1 &&
+    ((height >= tallThreshold && weight >= (isFemale ? 48 : 53)) || inseamCm >= longInseamThreshold) &&
+    effectiveWaist >= bottomRows[bottomIdx].waist_min + 1.5
+  ) {
+    bottomIdx += 1;
+    heightUpgraded = true;
+  }
+
   const selectedBottom = bottomRows[bottomIdx];
   const asiaBottom = selectedBottom.asia;
   const usBottom = `${waistInches}W x ${normalizedInseam}L`;
+
+  const bottomFitNotesKey: "heightInseamUpgrade" | "basedOnWaist" = heightUpgraded
+    ? "heightInseamUpgrade"
+    : "basedOnWaist";
+  const bottomFitNotesParams = heightUpgraded
+    ? { size: asiaBottom, height: height || 170, inseam: inseamCm, waist }
+    : { waist, effectiveWaist };
 
   // Kiểm tra độ chênh lệch mông - eo
   let hipNotes: string | undefined;
@@ -251,9 +281,9 @@ export function recommendGarmentSizes(
     }
   }
 
-  // Tag hiển thị quần
-  const trouserTag = `Cỡ ${waistInches} (${waistInches}W x ${normalizedInseam}L) ≈ Size ${asiaBottom}`;
-  const trouserSub = `US/UK: ${waistInches}W x ${normalizedInseam}L`;
+  // Tag hiển thị quần (đồng nhất và gọn trên 1 dòng)
+  const trouserTag = `Cỡ ${asiaBottom} (Số ${waistInches})`;
+  const trouserSub = `${waistInches}W x ${normalizedInseam}L`;
 
   // 3. PHÂN LOẠI PHOM DÁNG (BODY SHAPE CLASSIFICATION)
   const ratio = chest / (waist > 0 ? waist : 1);
@@ -289,6 +319,8 @@ export function recommendGarmentSizes(
       tag: trouserTag,
       sub_label: trouserSub,
       notes: hipNotes,
+      fit_notes_key: bottomFitNotesKey,
+      fit_notes_params: bottomFitNotesParams,
       has_hip_alert: hasHipAlert,
     },
     body_shape_classification: fitType,

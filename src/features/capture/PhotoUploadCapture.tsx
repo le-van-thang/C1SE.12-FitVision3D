@@ -286,7 +286,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           </label>
           <div className="grid grid-cols-3 gap-2">
             {(["male", "female", "neutral"] as const).map((g) => {
-              const label = g === "male" ? t("cap.male", "Nam") : g === "female" ? t("cap.female", "Nữ") : t("cap.unisex", "Unisex");
+              const label = g === "male" ? t("cap.male", "Nam") : g === "female" ? t("cap.female", "Nữ") : t("cap.unisex", "Khác");
               const isSel = gender === g;
               return (
                 <button
