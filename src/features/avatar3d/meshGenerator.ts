@@ -133,9 +133,11 @@ function normalizeAndDeformFemaleGeometry(
     // Only rotate if raw geometry is still lying along Z axis
     if (preSize.z > preSize.y * 1.15) {
       geo.rotateX(-Math.PI / 2);
-      geo.computeBoundingBox();
     }
   }
+  // Face front (+Z toward camera) instead of showing the back
+  geo.rotateY(Math.PI);
+  geo.computeBoundingBox();
 
   const box = geo.boundingBox;
   if (!box) return;
@@ -168,7 +170,7 @@ function normalizeAndDeformFemaleGeometry(
     const armMask = 1.0 - smoothstep(0.155, 0.215, Math.abs(x));
     const scaleXZ = 1.0 + (torsoFactor - 1.0) * armMask;
 
-    const zCenter = 0.032;
+    const zCenter = -0.035;
     x *= scaleXZ;
     z = zCenter + (z - zCenter) * scaleXZ;
 
@@ -190,9 +192,9 @@ function buildMeasurementRings(
 ): THREE.Mesh[] {
   const ringConfigs = isFemale
     ? [
-        { key: 'chest', y: 0.42, rx: 0.140 * sChest, rz: 0.116 * sChest, zOffset: 0.032 },
-        { key: 'waist', y: 0.26, rx: 0.116 * sWaist, rz: 0.088 * sWaist, zOffset: 0.015 },
-        { key: 'hips', y: 0.02, rx: 0.176 * sHips, rz: 0.108 * sHips, zOffset: 0.050 },
+        { key: 'chest', y: 0.42, rx: 0.145 * sChest, rz: 0.118 * sChest, zOffset: -0.037 },
+        { key: 'waist', y: 0.26, rx: 0.120 * sWaist, rz: 0.084 * sWaist, zOffset: -0.015 },
+        { key: 'hips', y: 0.02, rx: 0.174 * sHips, rz: 0.105 * sHips, zOffset: -0.056 },
       ]
     : [
         { key: 'chest', y: 0.42, rx: 0.145 * sChest, rz: 0.112 * sChest, zOffset: 0.020 },

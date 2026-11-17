@@ -200,7 +200,7 @@ const FitVisionAuthShowcaseInner: React.FC = () => {
         </div>
 
         {/* Top-Right Compact Male / Female 3D Model Preview Switch */}
-        <div className="hidden md:flex absolute top-4 right-2 z-20 items-center gap-1 p-1 rounded-full bg-black/45 backdrop-blur-md border border-white/15">
+        <div className="hidden md:flex absolute top-4 right-2 z-20 items-center gap-1 p-1 rounded-full bg-black/45 backdrop-blur-md border border-white/15 select-none">
           <button
             type="button"
             onClick={() => setPreviewGender('male')}
