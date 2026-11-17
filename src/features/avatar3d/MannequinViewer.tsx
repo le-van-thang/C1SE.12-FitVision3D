@@ -259,19 +259,21 @@ function rebuildGarmentOverlayGroup(
   const gHips = Math.max(0.75, Math.min(1.5, overlay.hipCm / 94));
   const easePad = 0.006;
 
-  const baseColor = new THREE.Color(overlay.colorHex || "#3B82F6");
+  const baseColor = new THREE.Color(overlay.colorHex || "#2563EB");
+  // Smooth tailored fabric material matching shop product palette
   const fabricMat = new THREE.MeshBasicMaterial({
     color: baseColor,
     transparent: true,
-    opacity: 0.34,
+    opacity: 0.44,
     side: THREE.DoubleSide,
     depthWrite: false,
   });
-  const wireMat = new THREE.MeshBasicMaterial({
-    color: baseColor.clone().lerp(new THREE.Color("#FFFFFF"), 0.45),
+  // Subtle contour accent for hem and seam lines
+  const contourMat = new THREE.MeshBasicMaterial({
+    color: baseColor.clone().lerp(new THREE.Color("#FFFFFF"), 0.55),
     wireframe: true,
     transparent: true,
-    opacity: 0.22,
+    opacity: 0.15,
     depthWrite: false,
   });
 
@@ -281,7 +283,7 @@ function rebuildGarmentOverlayGroup(
 
   const addLoftedPiece = (rings: { y: number; rx: number; rz: number; cx?: number; cz?: number }[]) => {
     shellGroup.add(buildLoftedEllipticalMesh(rings, fabricMat));
-    shellGroup.add(buildLoftedEllipticalMesh(rings, wireMat));
+    shellGroup.add(buildLoftedEllipticalMesh(rings, contourMat));
   };
 
   if (overlay.category === "top" || overlay.category === "full") {
@@ -292,33 +294,16 @@ function rebuildGarmentOverlayGroup(
     const hemRx = (isFemale ? 0.165 : 0.144) * Math.max(gWaist, gHips * 0.96) + easePad;
     const hemRz = (isFemale ? 0.105 : 0.094) * Math.max(gWaist, gHips * 0.96) + easePad;
 
+    // Tailored torso silhouette (collar down to hem, no protruding rigid cone sleeves)
     const topProfile = [
-      { y: 0.54, rx: 0.11 * gChest, rz: 0.078 * gChest, cz: zChest },
-      { y: 0.49, rx: chestRx * 1.03, rz: chestRz * 0.96, cz: zChest },
-      { y: 0.42, rx: chestRx, rz: chestRz, cz: zChest },
-      { y: 0.26, rx: waistRx, rz: waistRz, cz: zWaist },
-      { y: overlay.category === "full" ? 0.06 : 0.10, rx: hemRx, rz: hemRz, cz: zHips },
+      { y: 0.58, rx: 0.072 * gChest, rz: 0.055 * gChest, cz: zChest }, // Collar / Neckline
+      { y: 0.53, rx: 0.128 * gChest, rz: 0.088 * gChest, cz: zChest }, // Shoulder slope
+      { y: 0.48, rx: chestRx * 1.02, rz: chestRz * 0.98, cz: zChest }, // Upper chest
+      { y: 0.40, rx: chestRx, rz: chestRz, cz: zChest }, // Bust / Chest line
+      { y: 0.26, rx: waistRx, rz: waistRz, cz: zWaist }, // Natural waist
+      { y: overlay.category === "full" ? 0.06 : 0.10, rx: hemRx, rz: hemRz, cz: zHips }, // Shirt / Jacket hem
     ];
     addLoftedPiece(topProfile);
-
-    // Sleeves aligned to Female T-Pose vs Male A-Pose
-    const sleeveR = 0.056 * Math.sqrt(gChest);
-    [-1, 1].forEach((dir) => {
-      const sleeveGeo = new THREE.CylinderGeometry(sleeveR * 0.88, sleeveR * 1.02, 0.24, 24, 1, true);
-      const sleeveMesh = new THREE.Mesh(sleeveGeo, fabricMat);
-      const sleeveWire = new THREE.Mesh(sleeveGeo, wireMat);
-      if (isFemale) {
-        sleeveMesh.rotation.z = dir * (Math.PI / 2);
-        sleeveMesh.position.set(dir * (0.27 * gChest), 0.54, 0.0);
-      } else {
-        sleeveMesh.rotation.z = dir * -0.96;
-        sleeveMesh.position.set(dir * (0.26 * gChest), 0.42, 0.005);
-      }
-      sleeveWire.rotation.copy(sleeveMesh.rotation);
-      sleeveWire.position.copy(sleeveMesh.position);
-      shellGroup.add(sleeveMesh);
-      shellGroup.add(sleeveWire);
-    });
   }
 
   if (overlay.category === "bottom" || overlay.category === "full") {

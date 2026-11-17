@@ -72,6 +72,8 @@ interface StudioOutfitItem {
   fabric: string;
   sourceProduct?: FashionProduct;
   variantSpecs?: Partial<Record<GarmentSizeKey, { chest: number; waist: number; hip: number }>>;
+  tryOnFlatImg?: string;
+  isFoldedOriginal?: boolean;
 }
 
 const DEFAULT_GARMENT_SPECS: Record<GarmentSizeKey, { chest: number; waist: number; hip: number }> = {
@@ -237,6 +239,12 @@ function mapProductToStudioItem(p: FashionProduct): StudioOutfitItem {
         ? 'full'
         : 'top';
 
+  const isFolded = nameLower.includes('sơ my') || nameLower.includes('sơ mi') || nameLower.includes('gấp');
+  // Với sản phẩm áo sơ mi bị chụp gấp nếp, dùng phom áo sơ mi may đo cao cấp mở phẳng để ướm thử vừa vặn dáng người:
+  const flatImg = isFolded
+    ? 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=700&q=80'
+    : p.image_url;
+
   return {
     key: `shop-${p.id}`,
     shopName: p.brand_name || 'FitVision Partner',
@@ -254,6 +262,8 @@ function mapProductToStudioItem(p: FashionProduct): StudioOutfitItem {
     fabric: p.fabric_material,
     sourceProduct: p,
     variantSpecs,
+    tryOnFlatImg: flatImg,
+    isFoldedOriginal: isFolded,
   };
 }
 
@@ -363,6 +373,12 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
   const [enableCutout, setEnableCutout] = useState<boolean>(true);
   const [bgSensitivity, setBgSensitivity] = useState<number>(0.52);
   const [isCuttingOut, setIsCuttingOut] = useState<boolean>(false);
+
+  // 2D Virtual Try-On Layer States (Ướm trang phục thật lên Ảnh Cá Nhân)
+  const [wearGarmentOnPhoto, setWearGarmentOnPhoto] = useState<boolean>(true);
+  const [photoTryOnYOffset, setPhotoTryOnYOffset] = useState<number>(0);
+  const [photoTryOnScale, setPhotoTryOnScale] = useState<number>(1.0);
+  const [photoGarmentOpacity, setPhotoGarmentOpacity] = useState<number>(0.94);
 
   // Sync gender & targeted Shop Room cleanly when opening modal or changing userBody.gender
   useEffect(() => {
@@ -1023,36 +1039,6 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
                     </div>
                   ) : (
                     <div className="relative w-full h-full flex flex-col items-center justify-end pb-2">
-                      {/* Scaled Person Cutout Standing Tall inside Studio Loft */}
-                      <img
-                        src={enableCutout ? cutoutResult.cutoutDataUrl : cutoutResult.originalDataUrl}
-                        alt="Personal cutout"
-                        className="h-[82%] max-h-[540px] w-auto object-contain object-bottom drop-shadow-[0_22px_32px_rgba(0,0,0,0.85)] transition-all duration-300"
-                        style={{
-                          filter: isCuttingOut ? 'blur(2px) brightness(0.9)' : 'none',
-                        }}
-                      />
-
-                      {/* Selected Garment Spec Floating Card Next to Cutout */}
-                      <div className="hidden sm:flex items-center gap-2.5 p-2 rounded-2xl bg-stone-950/85 backdrop-blur-xl border border-white/20 shadow-2xl absolute right-2 bottom-4 max-w-[205px] z-20">
-                        <img
-                          src={currentLook.thumb}
-                          alt={currentLook.name}
-                          className="w-11 h-14 rounded-xl object-cover shrink-0 border border-white/15"
-                        />
-                        <div className="min-w-0">
-                          <span className="text-[9px] font-black uppercase text-blue-300 block truncate">
-                            {currentLook.shopName}
-                          </span>
-                          <span className="text-[11px] font-extrabold text-white block truncate">
-                            {currentLook.name}
-                          </span>
-                          <span className="text-[10px] font-mono font-bold text-emerald-300 block mt-0.5">
-                            {hasBodyProfile ? `Size ${activeSize} · ${activeEval.pct}%` : 'Chưa có số đo'}
-                          </span>
-                        </div>
-                      </div>
-
                       {/* Top Cutout Controls + 3D Scan Action */}
                       <div className="absolute top-1 inset-x-1 flex flex-wrap items-center justify-between gap-2 p-2 rounded-2xl bg-stone-950/80 backdrop-blur-xl border border-white/15 text-[11px] z-20">
                         <div className="flex items-center gap-2">
@@ -1098,6 +1084,155 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
                             <Camera size={12} />
                             <span>Quét lấy số đo 3D</span>
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Smart Hint when garment was originally photographed flat-folded */}
+                      {currentLook.isFoldedOriginal && wearGarmentOnPhoto && (
+                        <div className="absolute top-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/85 backdrop-blur-md border border-blue-400/40 text-[10px] font-semibold text-blue-200 z-20 shadow-lg whitespace-nowrap">
+                          <span>✦ Đã chuyển sang phom áo phẳng may đo để ướm thử vừa vặn</span>
+                        </div>
+                      )}
+
+                      {/* Scaled Person Cutout Frame + Virtual Garment Layering */}
+                      <div className="relative h-[82%] max-h-[540px] flex items-end justify-center select-none w-full">
+                        {/* 1. Base Personal Photo (Cutout or Original) */}
+                        <img
+                          src={enableCutout ? cutoutResult.cutoutDataUrl : cutoutResult.originalDataUrl}
+                          alt="Personal cutout"
+                          className="h-full w-auto object-contain object-bottom drop-shadow-[0_22px_32px_rgba(0,0,0,0.85)] transition-all duration-300 pointer-events-none"
+                          style={{
+                            filter: isCuttingOut ? 'blur(2px) brightness(0.9)' : 'none',
+                          }}
+                        />
+
+                        {/* 2. Live 2D Garment Overlay Layer - MẶC TRỰC TIẾP LÊN ẢNH NGƯỜI */}
+                        {wearGarmentOnPhoto && currentLook && (
+                          <div
+                            className="absolute inset-x-0 mx-auto flex items-center justify-center pointer-events-none transition-all duration-200"
+                            style={{
+                              top:
+                                currentLook.garment3dType === 'bottom'
+                                  ? `calc(47% + ${photoTryOnYOffset}px)`
+                                  : `calc(22.5% + ${photoTryOnYOffset}px)`,
+                              height:
+                                currentLook.garment3dType === 'bottom'
+                                  ? '50%'
+                                  : currentLook.garment3dType === 'full'
+                                    ? '74%'
+                                    : '46%',
+                              width:
+                                currentLook.garment3dType === 'bottom'
+                                  ? `${Math.round(44 * (activeSize === 'XS' ? 0.94 : activeSize === 'S' ? 0.97 : activeSize === 'M' ? 1.0 : activeSize === 'L' ? 1.05 : 1.1) * photoTryOnScale)}%`
+                                  : `${Math.round(52 * (activeSize === 'XS' ? 0.94 : activeSize === 'S' ? 0.97 : activeSize === 'M' ? 1.0 : activeSize === 'L' ? 1.05 : 1.1) * photoTryOnScale)}%`,
+                              opacity: photoGarmentOpacity,
+                              filter: 'drop-shadow(0 14px 22px rgba(0,0,0,0.65))',
+                            }}
+                          >
+                            <img
+                              src={currentLook.tryOnFlatImg || currentLook.img}
+                              alt={currentLook.name}
+                              className="w-full h-full object-contain filter brightness-105 contrast-105"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Try-On Toolbar Controls on Photo Viewport */}
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-2xl bg-stone-950/90 backdrop-blur-xl border border-white/20 shadow-2xl text-[11px] z-30 flex-wrap justify-center max-w-[96%]">
+                        <button
+                          type="button"
+                          onClick={() => setWearGarmentOnPhoto((v) => !v)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all ${
+                            wearGarmentOnPhoto ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white/10 text-stone-300'
+                          }`}
+                        >
+                          <Shirt size={13} />
+                          <span>{wearGarmentOnPhoto ? 'Đang Mặc Đồ' : 'Thử Mặc Lên Người'}</span>
+                        </button>
+
+                        {wearGarmentOnPhoto && (
+                          <>
+                            <div className="h-4 w-px bg-white/20 mx-0.5" />
+                            <div className="flex items-center gap-0.5 bg-white/10 rounded-xl p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setPhotoTryOnYOffset((y) => y - 5)}
+                                className="w-6 h-6 rounded-lg hover:bg-white/15 text-stone-200 hover:text-white flex items-center justify-center font-bold cursor-pointer"
+                                title="Kéo đồ lên"
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPhotoTryOnYOffset((y) => y + 5)}
+                                className="w-6 h-6 rounded-lg hover:bg-white/15 text-stone-200 hover:text-white flex items-center justify-center font-bold cursor-pointer"
+                                title="Kéo đồ xuống"
+                              >
+                                ↓
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPhotoTryOnScale((s) => Math.max(0.75, s - 0.05))}
+                                className="w-6 h-6 rounded-lg hover:bg-white/15 text-stone-200 hover:text-white flex items-center justify-center font-bold cursor-pointer"
+                                title="Thu nhỏ đồ"
+                              >
+                                −
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPhotoTryOnScale((s) => Math.min(1.35, s + 0.05))}
+                                className="w-6 h-6 rounded-lg hover:bg-white/15 text-stone-200 hover:text-white flex items-center justify-center font-bold cursor-pointer"
+                                title="Phóng to đồ"
+                              >
+                                +
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPhotoTryOnYOffset(0);
+                                  setPhotoTryOnScale(1.0);
+                                }}
+                                className="px-1.5 h-6 rounded-lg hover:bg-white/15 text-[10px] text-stone-300 hover:text-white flex items-center justify-center font-bold cursor-pointer"
+                                title="Đặt lại căn chuẩn"
+                              >
+                                ↺
+                              </button>
+                            </div>
+
+                            <label className="flex items-center gap-1.5 text-stone-300 font-medium px-2 py-0.5 bg-white/10 rounded-xl">
+                              <span className="text-[10px]">Độ rõ</span>
+                              <input
+                                type="range"
+                                min={0.5}
+                                max={1.0}
+                                step={0.05}
+                                value={photoGarmentOpacity}
+                                onChange={(e) => setPhotoGarmentOpacity(parseFloat(e.target.value))}
+                                className="w-14 accent-emerald-400 cursor-pointer"
+                              />
+                            </label>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Selected Garment Spec Floating Card Next to Cutout */}
+                      <div className="hidden sm:flex items-center gap-2.5 p-2 rounded-2xl bg-stone-950/85 backdrop-blur-xl border border-white/20 shadow-2xl absolute right-2 bottom-14 max-w-[205px] z-20">
+                        <img
+                          src={currentLook.thumb}
+                          alt={currentLook.name}
+                          className="w-11 h-14 rounded-xl object-cover shrink-0 border border-white/15"
+                        />
+                        <div className="min-w-0">
+                          <span className="text-[9px] font-black uppercase text-blue-300 block truncate">
+                            {currentLook.shopName}
+                          </span>
+                          <span className="text-[11px] font-extrabold text-white block truncate">
+                            {currentLook.name}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-emerald-300 block mt-0.5">
+                            {hasBodyProfile ? `Size ${activeSize} · ${activeEval.pct}%` : 'Chưa có số đo'}
+                          </span>
                         </div>
                       </div>
                     </div>
