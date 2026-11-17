@@ -137,6 +137,18 @@ export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
   ],
 };
 
+function sanitizeMarqueeVi(items: string[]): string[] {
+  return items.map((s) =>
+    /\bRAM\b/i.test(s) ? 'Không lưu ảnh chụp · Tự xóa ngay sau khi đo 100%' : s
+  );
+}
+
+function sanitizeMarqueeEn(items: string[]): string[] {
+  return items.map((s) =>
+    /\bRAM\b/i.test(s) ? '100% Zero-Save Photo Privacy · Auto-Deleted' : s
+  );
+}
+
 export function loadPlatformConfig(): PlatformConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -151,8 +163,11 @@ export function loadPlatformConfig(): PlatformConfig {
         hiddenProductIds: Array.isArray(parsed.hiddenProductIds) ? parsed.hiddenProductIds : [],
         priceOverrides: parsed.priceOverrides && typeof parsed.priceOverrides === 'object' ? parsed.priceOverrides : {},
         marqueeItemsVi: Array.isArray(parsed.marqueeItemsVi) && parsed.marqueeItemsVi.length > 0
-          ? parsed.marqueeItemsVi
+          ? sanitizeMarqueeVi(parsed.marqueeItemsVi)
           : DEFAULT_PLATFORM_CONFIG.marqueeItemsVi,
+        marqueeItemsEn: Array.isArray(parsed.marqueeItemsEn) && parsed.marqueeItemsEn.length > 0
+          ? sanitizeMarqueeEn(parsed.marqueeItemsEn)
+          : DEFAULT_PLATFORM_CONFIG.marqueeItemsEn,
       };
     }
   } catch {
@@ -208,11 +223,11 @@ export async function syncPlatformConfigFromBackend(
     marqueeEnabled: settings ? Boolean(settings.marquee_enabled) : DEFAULT_PLATFORM_CONFIG.marqueeEnabled,
     marqueeItemsVi:
       settings && Array.isArray(settings.marquee_items_vi) && settings.marquee_items_vi.length > 0
-        ? settings.marquee_items_vi
+        ? sanitizeMarqueeVi(settings.marquee_items_vi)
         : DEFAULT_PLATFORM_CONFIG.marqueeItemsVi,
     marqueeItemsEn:
       settings && Array.isArray(settings.marquee_items_en) && settings.marquee_items_en.length > 0
-        ? settings.marquee_items_en
+        ? sanitizeMarqueeEn(settings.marquee_items_en)
         : DEFAULT_PLATFORM_CONFIG.marqueeItemsEn,
     heroBadgeVi: settings?.hero_badge_vi || DEFAULT_PLATFORM_CONFIG.heroBadgeVi,
     heroTitleVi: settings?.hero_title_vi || DEFAULT_PLATFORM_CONFIG.heroTitleVi,

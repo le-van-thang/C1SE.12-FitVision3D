@@ -36,16 +36,24 @@ export function calculateProductFit(
     let shoulderDiff = 0;
 
     if (isPants) {
-      // Pants focusing on waist and hips
-      waistDiff = spec.waist_cm - user.waist_cm;
+      // Quần thực tế đeo dưới eo tự nhiên (~2.5-3cm rộng hơn eo giải phẫu) + cân đối chiều cao/chân trong
+      const inseam = user.inseam_cm ?? user.height_cm * 0.45;
+      const effectiveWaist = user.waist_cm + 2.5;
+      waistDiff = spec.waist_cm - effectiveWaist;
       const hipDiff = (spec.hip_cm || user.hip_cm + 4) - user.hip_cm;
       const targetEase = (spec.ease_min_cm + spec.ease_max_cm) / 2;
 
-      // Penalize deviation from target ease
       const waistPenalty = Math.abs(waistDiff - targetEase) * 4;
       const hipPenalty = Math.abs(hipDiff - 4) * 3;
 
       if (waistDiff < 0) score -= 35; // Too tight at waist!
+      // Người cao >= 167cm hoặc dài chân >= 76cm mặc size S dễ bị cộc/kích đáy
+      const tallForSmall =
+        (user.gender === 'female' ? user.height_cm >= 163 : user.height_cm >= 167) ||
+        inseam >= 76;
+      if (tallForSmall && (variant.size_label === 'XS' || variant.size_label === 'S') && user.weight_kg >= 52) {
+        score -= 14;
+      }
       score -= (waistPenalty + hipPenalty);
     } else {
       // Shirts, Polo, Blazer, Dresses

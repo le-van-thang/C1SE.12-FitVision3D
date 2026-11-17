@@ -4,7 +4,7 @@
 // Col 2: 3D Humanoid Wireframe Topology Viewport (ZOZOFIT)
 // Col 3: ISO 8559 Anthropometric Table & Quan's AI Garment Card
 // ============================================================
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -27,6 +27,11 @@ import { MeasurementsPanel } from "../features/anthropometry/MeasurementsPanel";
 import { AiGarmentCard } from "../features/anthropometry/AiGarmentCard";
 import { runAiMeasurement, type AiMeasurementResponse } from "../services/aiService";
 import { recommendGarmentSizes } from "../utils/garmentSizeCalculator";
+import {
+  saveFullScanSnapshot,
+  loadFullScanSnapshot,
+  clearFullScanSnapshot,
+} from "../utils/bodyProfileStorage";
 import { DEMO_BIOMETRIC, DEMO_MEASUREMENT, DEMO_MESH, bmi } from "../data/mockData";
 import type { BiometricInput, Measurement, MeshParameter, SystemAuditLog } from "../types/database.types";
 
@@ -50,7 +55,7 @@ const loadInitialBiometric = (): { height?: number; weight?: number; gender: "ma
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, userRole, openSignIn } = useAuth();
+  const { isAuthenticated, currentUser, userRole, openSignIn } = useAuth();
   const { t } = useI18n();
   // Guests may scan + view the 3D model only. Measurements / size charts stay locked and are never stored.
   const locked = !isAuthenticated;
@@ -69,6 +74,20 @@ export const Dashboard: React.FC = () => {
   const [demo, setDemo] = useState(false);
   const [tab, setTab] = useState<Tab>("capture");
   const [activeMetric, setActiveMetric] = useState<MetricKey>("chest_circ_cm");
+
+  // Restore last saved scan snapshot for this authenticated account when returning to Dashboard
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) return;
+    const saved = loadFullScanSnapshot(currentUser.id);
+    if (saved) {
+      setMeasurement(saved.measurement);
+      setBiometric(saved.biometric);
+      setMesh(saved.mesh);
+      setGarmentRec(saved.garmentRec);
+      setIsLiveBackend(saved.isLiveBackend);
+      setExecutionTime(saved.executionTime);
+    }
+  }, [isAuthenticated, currentUser?.id]);
 
   // Handle Photo Scan from Phone / Disk (Single Front A-Pose Image)
   const handleScan = useCallback(
@@ -161,9 +180,25 @@ export const Dashboard: React.FC = () => {
         setIsLiveBackend(Boolean(res.is_live_backend));
         setExecutionTime(res.execution_time_seconds || elapsed);
 
+        // Sync scanned anthropometric profile immediately to Storefront (Homepage recommendations)
+        if (currentUser?.id) {
+          saveFullScanSnapshot(
+            currentUser.id,
+            {
+              measurement: newMeasurement,
+              biometric: newBiometric,
+              mesh: newMesh,
+              garmentRec: res.garment_size_recommendations,
+              isLiveBackend: Boolean(res.is_live_backend),
+              executionTime: res.execution_time_seconds || elapsed,
+            },
+            "scan"
+          );
+        }
+
         setAudit({
           id: Date.now(),
-          user_id: "usr-current",
+          user_id: currentUser?.id || "usr-current",
           action_type: "body_scan",
           execution_time_ms: Math.round(elapsed * 1000),
           zero_retention_flag: true,
@@ -179,7 +214,7 @@ export const Dashboard: React.FC = () => {
         setProcessing(false);
       }
     },
-    []
+    [currentUser?.id]
   );
 
   function dai_chan_inseam_cm_fallback(val: number | undefined, h: number): number {
@@ -189,11 +224,12 @@ export const Dashboard: React.FC = () => {
   // Load Demo Data for fast preview
   const handleLoadDemo = useCallback(() => {
     setDemo(true);
-    setBiometric(DEMO_BIOMETRIC);
-    setMeasurement({
+    const demoMeas: Measurement = {
       ...DEMO_MEASUREMENT,
       arm_length_cm: 58.5,
-    });
+    };
+    setBiometric(DEMO_BIOMETRIC);
+    setMeasurement(demoMeas);
     setMesh(DEMO_MESH);
 
     const demoSizing = recommendGarmentSizes({
@@ -207,7 +243,7 @@ export const Dashboard: React.FC = () => {
       inseam_cm: DEMO_MEASUREMENT.inseam_cm ?? undefined,
     });
 
-    setGarmentRec({
+    const demoRec = {
       topwear_shirt_size: demoSizing.topwear.recommended_label,
       bottomwear_trouser_size: demoSizing.bottomwear.tag,
       waist_inches: demoSizing.bottomwear.waist_inches,
@@ -216,12 +252,30 @@ export const Dashboard: React.FC = () => {
       ease_allowance_recommendation: demoSizing.ease_allowance_recommendation,
       topwear: demoSizing.topwear,
       bottomwear: demoSizing.bottomwear,
-    });
+    };
+
+    setGarmentRec(demoRec);
     setIsLiveBackend(false);
     setExecutionTime(0.85);
-  }, []);
+
+    if (currentUser?.id) {
+      saveFullScanSnapshot(
+        currentUser.id,
+        {
+          measurement: demoMeas,
+          biometric: DEMO_BIOMETRIC,
+          mesh: DEMO_MESH,
+          garmentRec: demoRec,
+          isLiveBackend: false,
+          executionTime: 0.85,
+        },
+        "demo"
+      );
+    }
+  }, [currentUser?.id]);
 
   const resetAll = () => {
+    clearFullScanSnapshot(currentUser?.id);
     setMeasurement(null);
     setMesh(null);
     setBiometric(null);
@@ -425,7 +479,7 @@ export const Dashboard: React.FC = () => {
 
         {/* ROW 2: Full-width Horizontal AI Size Advisor Card (when scanned) */}
         {!locked && garmentRec && (
-          <div className="mt-5">
+          <div className="mt-5 space-y-3">
             <AiGarmentCard
               data={garmentRec}
               executionTime={executionTime}
@@ -451,6 +505,22 @@ export const Dashboard: React.FC = () => {
                   : "neutral"
               }
             />
+
+            <div className="rounded-2xl bg-[#F5EBD8]/80 border border-[#E5D3B3] px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="text-xs font-bold text-[#14171C]">
+                {t(
+                  "app.dash.syncedToStore",
+                  "Số đo 3D của bạn đã được lưu & đồng bộ sang Sàn Thời Trang để gợi ý trang phục hợp dáng."
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="px-4 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-black transition-colors cursor-pointer whitespace-nowrap self-start sm:self-auto"
+              >
+                {t("app.dash.browseMatches", "Xem đồ hợp dáng trên Sàn →")}
+              </button>
+            </div>
           </div>
         )}
       </main>

@@ -61,7 +61,10 @@ export interface UserBodyProfile {
   hip_cm: number;
   shoulder_cm: number;
   arm_length_cm: number;
+  inseam_cm?: number;
   gender: 'male' | 'female' | 'neutral';
+  source?: 'scan' | 'manual' | 'demo';
+  updated_at?: string;
 }
 
 export interface FitMatchResult {

@@ -38,6 +38,12 @@ import {
 } from 'lucide-react';
 import { MOCK_PRODUCTS, INITIAL_USER_BODY } from './mockProducts';
 import { calculateProductFit } from './fitCalculator';
+import { recommendGarmentSizes } from '@/utils/garmentSizeCalculator';
+import {
+  BODY_PROFILE_UPDATED_EVENT,
+  loadUserBodyProfile,
+  saveUserBodyProfile,
+} from '@/utils/bodyProfileStorage';
 import { FitAnalysisDrawer } from './FitAnalysisDrawer';
 import { SmartCartDrawer } from './SmartCartDrawer';
 import { QuickBiometricModal } from './QuickBiometricModal';
@@ -181,34 +187,30 @@ export const FashionStoreHome: React.FC = () => {
   const [hasBodyProfile, setHasBodyProfile] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !currentUser) {
-      setHasBodyProfile(false);
-      setFilterByMyFitOnly(false);
-      return;
-    }
-
-    const storageKey = `fv3d_user_body_${currentUser.id}`;
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        setUserBody(JSON.parse(saved));
-        setHasBodyProfile(true);
+    const syncFromStorage = () => {
+      if (!isAuthenticated || !currentUser) {
+        setHasBodyProfile(false);
+        setFilterByMyFitOnly(false);
         return;
-      } catch {
-        // ignore invalid stored payload
       }
-    }
 
-    // Seed default anthropometric profile only for built-in demo accounts
-    const isSeededDemo =
-      currentUser.id.startsWith('usr-') ||
-      (currentUser.email || '').toLowerCase() === 'levanthanglvt01@gmail.com';
-    if (isSeededDemo) {
-      setUserBody(INITIAL_USER_BODY);
-      setHasBodyProfile(true);
-    } else {
-      setHasBodyProfile(false);
-    }
+      const saved = loadUserBodyProfile(currentUser.id);
+      if (saved) {
+        setUserBody(saved);
+        setHasBodyProfile(true);
+      } else {
+        setHasBodyProfile(false);
+        setFilterByMyFitOnly(false);
+      }
+    };
+
+    syncFromStorage();
+    window.addEventListener(BODY_PROFILE_UPDATED_EVENT, syncFromStorage);
+    window.addEventListener('storage', syncFromStorage);
+    return () => {
+      window.removeEventListener(BODY_PROFILE_UPDATED_EVENT, syncFromStorage);
+      window.removeEventListener('storage', syncFromStorage);
+    };
   }, [isAuthenticated, currentUser]);
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -321,12 +323,13 @@ export const FashionStoreHome: React.FC = () => {
     return () => clearInterval(interval);
   }, [isBannerPaused]);
 
-  // Save body changes per-user in localStorage
+  // Save body changes per-user in shared storage
   const handleSaveBody = (newBody: UserBodyProfile) => {
-    setUserBody(newBody);
+    const withMeta: UserBodyProfile = { ...newBody, source: 'manual' };
+    setUserBody(withMeta);
     setHasBodyProfile(true);
     if (isAuthenticated && currentUser) {
-      localStorage.setItem(`fv3d_user_body_${currentUser.id}`, JSON.stringify(newBody));
+      saveUserBodyProfile(currentUser.id, withMeta);
     }
   };
 
@@ -360,6 +363,24 @@ export const FashionStoreHome: React.FC = () => {
     });
   }, [dbProducts, platformConfig.hiddenProductIds, platformConfig.priceOverrides]);
 
+  // Live garment size profile (strictly active ONLY after measuring)
+  const personalSizeSummary = useMemo(() => {
+    if (!isAuthenticated || !hasBodyProfile) return null;
+    return recommendGarmentSizes(
+      {
+        gender: userBody.gender,
+        height_cm: userBody.height_cm,
+        weight_kg: userBody.weight_kg,
+        chest_cm: userBody.chest_cm,
+        waist_cm: userBody.waist_cm,
+        hips_cm: userBody.hip_cm,
+        shoulder_cm: userBody.shoulder_cm,
+        inseam_cm: userBody.inseam_cm ?? Math.round(userBody.height_cm * 0.45 * 10) / 10,
+      },
+      'asia'
+    );
+  }, [isAuthenticated, hasBodyProfile, userBody]);
+
   // Pre-calculate fit scores for all products
   const productsWithFit = useMemo(() => {
     return visibleCatalogProducts.map((prod) => {
@@ -373,6 +394,20 @@ export const FashionStoreHome: React.FC = () => {
       };
     });
   }, [visibleCatalogProducts, userBody, locale]);
+
+  // Top 3 personalized product picks based on newly scanned body & gender (hidden until measured)
+  const personalizedPicks = useMemo(() => {
+    if (!isAuthenticated || !hasBodyProfile) return [];
+    const targetGender = userBody.gender === 'female' ? 'female' : userBody.gender === 'male' ? 'male' : null;
+    return [...productsWithFit]
+      .sort((a, b) => {
+        const aGenderMatch = !targetGender || a.gender_target === targetGender || a.gender_target === 'unisex' ? 1 : 0;
+        const bGenderMatch = !targetGender || b.gender_target === targetGender || b.gender_target === 'unisex' ? 1 : 0;
+        if (bGenderMatch !== aGenderMatch) return bGenderMatch - aGenderMatch;
+        return b.fitResult.match_percentage - a.fitResult.match_percentage;
+      })
+      .slice(0, 3);
+  }, [isAuthenticated, hasBodyProfile, productsWithFit, userBody.gender]);
 
   // Filtered and Sorted products
   const filteredProducts = useMemo(() => {
@@ -1179,12 +1214,16 @@ export const FashionStoreHome: React.FC = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
-                  {/* Top Floating Match Badge — Show personalized % only when signed in with measurements */}
+                  {/* Top Floating Match Badge — Dynamic size match when measured */}
                   <div className="absolute top-4 right-4 z-10 animate-in fade-in slide-in-from-top-2">
-                    {isAuthenticated && hasBodyProfile ? (
+                    {isAuthenticated && hasBodyProfile && personalSizeSummary ? (
                       <div className="bg-emerald-600 text-white px-3 py-1.5 rounded-2xl shadow-xl flex items-center gap-1.5 text-xs font-mono font-black border border-emerald-400/40">
                         <CheckCircle2 size={14} />
-                        <span>{HERO_PRODUCT_SLIDES[activeBannerSlide].fitPercentage}% {t('ecommerce.hero.perfectFit', 'Vừa Vặn Tuyệt Đối')}</span>
+                        <span>
+                          {locale === 'en'
+                            ? `3D Ready · Top ${personalSizeSummary.topwear.asia} · Pants ${personalSizeSummary.bottomwear.asia}`
+                            : `Chuẩn dáng · Áo ${personalSizeSummary.topwear.asia} · Quần ${personalSizeSummary.bottomwear.asia}`}
+                        </span>
                       </div>
                     ) : (
                       <div className="bg-slate-900/85 backdrop-blur-md text-white px-3 py-1.5 rounded-2xl shadow-xl flex items-center gap-1.5 text-xs font-bold border border-white/20">
@@ -1231,13 +1270,17 @@ export const FashionStoreHome: React.FC = () => {
                       <span className="text-xs text-amber-300 font-mono font-bold">
                         {HERO_PRODUCT_SLIDES[activeBannerSlide].price.toLocaleString('vi-VN')} ₫
                       </span>
-                      {isAuthenticated && hasBodyProfile ? (
+                      {isAuthenticated && hasBodyProfile && personalSizeSummary ? (
                         <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-700/60 font-bold">
-                          {t('ecommerce.hero.suggestedSize', 'Gợi ý: Size {size}').replace('{size}', HERO_PRODUCT_SLIDES[activeBannerSlide].fitSize)}
+                          {locale === 'en'
+                            ? `Top ${personalSizeSummary.topwear.asia} · Pants ${personalSizeSummary.bottomwear.asia}`
+                            : `Gợi ý: Áo ${personalSizeSummary.topwear.asia} · Quần ${personalSizeSummary.bottomwear.asia}`}
                         </span>
                       ) : (
                         <span className="text-[10px] text-slate-200 bg-slate-900/70 px-2 py-0.5 rounded-md border border-white/20 font-semibold">
-                          {locale === 'en' ? 'Sign in for AI size' : 'Đăng nhập để gợi ý size'}
+                          {!isAuthenticated
+                            ? (locale === 'en' ? 'Sign in for AI size' : 'Đăng nhập để gợi ý size')
+                            : (locale === 'en' ? 'Scan 3D for your size' : 'Quét 3D để gợi ý size chuẩn')}
                         </span>
                       )}
                     </div>
@@ -1747,30 +1790,51 @@ export const FashionStoreHome: React.FC = () => {
               </div>
 
               {isAuthenticated && hasBodyProfile ? (
-                <label className="flex items-start gap-2 pt-1 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={filterByMyFitOnly}
-                    onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded text-blue-600 border-slate-300 accent-blue-600 cursor-pointer flex-shrink-0"
-                  />
-                  <span className="text-[11px] font-bold text-slate-800 leading-snug">
-                    {t('ecommerce.biometricsBar.filterMyFit', 'Chỉ hiện đồ vừa chuẩn dáng tôi (≥ 90%)')}
-                  </span>
-                </label>
+                <div className="space-y-2 pt-1">
+                  {personalSizeSummary && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold">
+                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200">
+                        {locale === 'en' ? `Top: ${personalSizeSummary.topwear.asia}` : `Áo: ${personalSizeSummary.topwear.asia}`}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        {locale === 'en' ? `Pants: ${personalSizeSummary.bottomwear.asia}` : `Quần: ${personalSizeSummary.bottomwear.asia}`}
+                      </span>
+                    </div>
+                  )}
+                  <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={filterByMyFitOnly}
+                      onChange={(e) => setFilterByMyFitOnly(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded text-blue-600 border-slate-300 accent-blue-600 cursor-pointer flex-shrink-0"
+                    />
+                    <span className="text-[11px] font-bold text-slate-800 leading-snug">
+                      {t('ecommerce.biometricsBar.filterMyFit', 'Chỉ hiện đồ vừa chuẩn dáng tôi (≥ 90%)')}
+                    </span>
+                  </label>
+                </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
-                  className="w-full py-2 px-3 rounded-xl bg-[#14171C] hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Ruler size={13} className="text-blue-400" />
-                  <span>
-                    {!isAuthenticated
-                      ? (locale === 'en' ? 'Sign in for 3D Fit' : 'Đăng nhập đo độ vừa 3D')
-                      : (locale === 'en' ? 'Enter 3D Measurements' : 'Nhập số đo vóc dáng 3D')}
-                  </span>
-                </button>
+                <div className="space-y-2 pt-1">
+                  <Link
+                    to="/dashboard"
+                    className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                  >
+                    <Camera size={13} />
+                    <span>{locale === 'en' ? 'Scan 3D Body Now' : 'Quét AI 3D lấy số đo'}</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={!isAuthenticated ? openSignIn : handleOpenBiometrics}
+                    className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Ruler size={13} className="text-slate-600" />
+                    <span>
+                      {!isAuthenticated
+                        ? (locale === 'en' ? 'Sign in for 3D Fit' : 'Đăng nhập đo độ vừa 3D')
+                        : (locale === 'en' ? 'Quick Manual Input' : 'Hoặc nhập nhanh số đo')}
+                    </span>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1989,6 +2053,103 @@ export const FashionStoreHome: React.FC = () => {
 
           {/* RIGHT MAIN CATALOG AREA (9 cols) */}
           <div className="lg:col-span-9 space-y-5">
+
+            {/* PERSONALIZED FIT PICKS: Strictly shown ONLY after customer has measured/saved 3D body profile */}
+            {isAuthenticated && hasBodyProfile && personalizedPicks.length > 0 && (
+              <section
+                aria-label={locale === 'en' ? 'Recommended for your body profile' : 'Gợi ý riêng theo số đo mới của bạn'}
+                className="rounded-3xl bg-white border-2 border-[#E5D3B3] p-4 sm:p-5 shadow-sm space-y-4"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#14171C] text-[#F5EBD8] text-[10px] font-black uppercase tracking-wider">
+                        <Sparkles size={11} />
+                        <span>
+                          {locale === 'en' ? 'Tailored To Your Latest Scan' : 'Gợi Ý Riêng Theo Số Đo Của Bạn'}
+                        </span>
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-slate-600">
+                        {userBody.height_cm}cm · {userBody.weight_kg}kg · {locale === 'en' ? 'Chest' : 'Ngực'} {userBody.chest_cm} · {locale === 'en' ? 'Waist' : 'Eo'} {userBody.waist_cm}
+                      </span>
+                    </div>
+                    {personalSizeSummary && (
+                      <p className="text-xs text-slate-600 font-medium mt-1.5 flex items-center gap-2 flex-wrap">
+                        <span>{locale === 'en' ? 'Recommended sizes:' : 'Cỡ đề xuất cho dáng bạn:'}</span>
+                        <strong className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 font-mono text-[11px]">
+                          {locale === 'en' ? `Topwear ${personalSizeSummary.topwear.asia}` : `Áo cỡ ${personalSizeSummary.topwear.asia}`}
+                        </strong>
+                        <strong className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[11px]">
+                          {locale === 'en'
+                            ? `Pants ${personalSizeSummary.bottomwear.asia} (${personalSizeSummary.bottomwear.waist_inches}W)`
+                            : `Quần cỡ ${personalSizeSummary.bottomwear.asia} (Số ${personalSizeSummary.bottomwear.waist_inches})`}
+                        </strong>
+                      </p>
+                    )}
+                  </div>
+
+                  <Link
+                    to="/dashboard"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline shrink-0"
+                  >
+                    <Camera size={13} />
+                    <span>{locale === 'en' ? 'Re-scan 3D' : 'Đo lại 3D'}</span>
+                    <ChevronRight size={13} />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  {personalizedPicks.map((item) => {
+                    const price = item.sale_price ?? item.price;
+                    return (
+                      <div
+                        key={`rec-${item.id}`}
+                        className="rounded-2xl border border-slate-200 bg-[#FAFAF8] hover:border-[#14171C] hover:bg-white p-2.5 flex items-center gap-3 transition-all shadow-2xs group"
+                      >
+                        <div
+                          onClick={() => handleOpenAnalysis(item)}
+                          className="w-16 h-20 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 cursor-pointer relative"
+                        >
+                          <img
+                            src={item.image_url}
+                            alt={getProductName(item)}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[10px] font-black uppercase text-slate-500 truncate">
+                              {item.brand_name}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white font-mono text-[10px] font-black shrink-0">
+                              {item.fitResult.match_percentage}%
+                            </span>
+                          </div>
+                          <h4
+                            onClick={() => handleOpenAnalysis(item)}
+                            className="text-xs font-extrabold text-slate-900 line-clamp-1 cursor-pointer hover:text-blue-600"
+                          >
+                            {getProductName(item)}
+                          </h4>
+                          <div className="flex items-center justify-between gap-1.5 pt-0.5">
+                            <span className="text-xs font-mono font-black text-[#14171C]">
+                              {price.toLocaleString('vi-VN')} ₫
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleAddToCart(item, item.recommendedVariant)}
+                              className="px-2 py-1 rounded-lg bg-[#14171C] hover:bg-blue-600 text-white font-mono text-[10px] font-bold transition-colors cursor-pointer shrink-0"
+                            >
+                              + Size {item.fitResult.recommended_size}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* Catalog Header Bar: Result Count + Active Search Tag + Sort Select */}
             <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Camera, Sparkles, Check, RefreshCw } from 'lucide-react';
 import type { UserBodyProfile } from './types';
 import { useI18n } from '@/i18n';
@@ -20,6 +20,12 @@ export const QuickBiometricModal: React.FC<QuickBiometricModalProps> = ({
 }) => {
   const { t } = useI18n();
   const [form, setForm] = useState<UserBodyProfile>(currentBody);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm(currentBody);
+    }
+  }, [isOpen, currentBody]);
 
   if (!isOpen) return null;
 
