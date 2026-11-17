@@ -536,7 +536,7 @@ export const QuickAdminModal: React.FC<QuickAdminModalProps> = ({ isOpen, onClos
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase block">BẢO MẬT RAM 100%</span>
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase block">BẢO MẬT ẢNH 100%</span>
                   <span className="text-xl font-black text-emerald-950 mt-1 block">Zero-Retention</span>
                   <span className="text-[10px] text-emerald-600 mt-0.5 block">Xóa ảnh ngay sau xử lý</span>
                 </div>

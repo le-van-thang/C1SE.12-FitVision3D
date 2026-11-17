@@ -73,7 +73,7 @@
     "step3Title": "Nhận số đo & Mô hình",
     "step3Desc": "Nhận ngay bảy số đo giải phẫu cốt lõi, ma-nơ-canh ba chiều và gợi ý kích cỡ theo từng thương hiệu.",
     "privacyTitle": "Cam kết hủy ảnh khỏi bộ nhớ tạm thời",
-    "privacyDesc": "Toàn bộ việc xử lý ảnh diễn ra ngay trong bộ nhớ RAM trình duyệt. Ngay sau khi tính toán số đo thành công, mọi khung hình đều được giải phóng hoàn toàn và không lưu lại bất cứ đâu.",
+    "privacyDesc": "Toàn bộ việc xử lý ảnh diễn ra trực tiếp trên thiết bị. Ngay sau khi tính toán số đo thành công, mọi khung hình đều được xóa hoàn toàn và không lưu lại bất cứ đâu.",
     "privacyPoint1": "Không lưu ảnh vào bộ nhớ máy chủ hay cơ sở dữ liệu.",
     "privacyPoint2": "Chỉ truyền tải các số đo hình học dạng số.",
     "privacyPoint3": "Quy trình kiểm toán độc lập và minh bạch.",
@@ -102,7 +102,7 @@
     "sideGuide": "Xoay người sang bên một góc vuông chín mươi độ, giữ thẳng lưng.",
     "countdown": "Chuẩn bị chụp trong",
     "processing": "Đang cắt rập số đo",
-    "memoryCleared": "Đã hủy toàn bộ khung ảnh khỏi bộ nhớ RAM",
+    "memoryCleared": "Đã tự động xóa toàn bộ ảnh sau khi đo",
     "retake": "Chụp lại",
     "manualCapture": "Chụp thủ công"
   },
@@ -222,7 +222,7 @@
       "confirmPh": "Nhập lại mật khẩu",
       "fullName": "Họ và tên",
       "fullNamePh": "Nguyễn Văn A",
-      "terms": "Tôi đồng ý với chính sách xử lý RAM tạm thời & Zero-Image Retention của FitVision 3D.",
+      "terms": "Tôi đồng ý với chính sách xử lý ảnh tạm thời và không lưu trữ ảnh của FitVision 3D.",
       "submitSignin": "Đăng nhập ngay",
       "submitRegister": "Tạo tài khoản cá nhân",
       "loadingSignin": "Đang xác thực...",
@@ -236,7 +236,7 @@
       "chipSpeed": "Xử lý",
       "chipRetention": "Lưu ảnh",
       "aboutTitle": "Về FitVision 3D",
-      "aboutDesc": "Nền tảng đo nhân trắc học 3D theo chuẩn ISO 8559-1: trích xuất số đo cơ thể từ ảnh chụp, dựng mô hình 3D và gợi ý kích cỡ phù hợp. Kết nối khách hàng với cửa hàng và nhà may, ảnh chỉ xử lý trên RAM và không lưu trữ.",
+      "aboutDesc": "Nền tảng đo nhân trắc học 3D theo chuẩn ISO 8559-1: trích xuất số đo cơ thể từ ảnh chụp, dựng mô hình 3D và gợi ý kích cỡ phù hợp. Kết nối khách hàng với cửa hàng và nhà may, ảnh chỉ xử lý tạm thời và không lưu trữ.",
       "engine": "Công cụ phân tích hình thể không gian",
       "isoBadge": "Chứng nhận nhân trắc học ISO 8559-1",
       "topology": "Lưới 3D hai lớp",
@@ -283,7 +283,7 @@
     "dash": {
       "title": "Phòng Đo Nhân Trắc Học 3D",
       "sub": "Trích xuất số đo may mặc 3D tự động từ 1 ảnh chụp di động theo chuẩn quốc tế ISO 8559-1:2017.",
-      "zeroBadge": "Không lưu ảnh: Xử lý RAM tạm thời",
+      "zeroBadge": "Không lưu ảnh: Tự xóa ngay sau khi đo",
       "retake": "Chụp lại / Đo lại",
       "uploadTitle": "Tải ảnh chụp từ điện thoại",
       "uploadPill": "1 Ảnh A-Pose Chuẩn",
@@ -385,7 +385,7 @@
       "p3": {
         "tag": "Chuẩn ISO 8559-1",
         "title": "Bảo mật tạm thời, không lưu ảnh",
-        "desc": "Khung hình được xử lý hoàn toàn trong RAM tạm thời và hủy ngay lập tức. Không có ảnh hay video sinh trắc học nào được ghi xuống ổ đĩa."
+        "desc": "Ảnh chụp chỉ được xử lý tạm thời và tự động xóa ngay lập tức. Không có ảnh hay video cá nhân nào được lưu lại."
       },
       "p4": {
         "tag": "Cầu nối B2B cho nhà may",
@@ -425,7 +425,7 @@
     },
     "privacy": {
       "title": "Ảnh của bạn không bao giờ rời khỏi thiết bị",
-      "desc": "Khung hình chỉ được xử lý trong RAM trình duyệt tạm thời và bị hủy vĩnh viễn sau khi tính toán. Chỉ số đo dạng số ẩn danh được giữ lại.",
+      "desc": "Ảnh chỉ được xử lý tạm thời ngay trên trình duyệt và tự xóa vĩnh viễn sau khi tính toán. Chỉ số đo dạng số ẩn danh được giữ lại.",
       "cta": "Bắt đầu quét"
     },
     "footer": {
@@ -841,8 +841,8 @@
       "ticker": {
         "slide1Title": "Đo Nhân Trắc Học Chuẩn Y Khoa ISO 8559-1",
         "slide1Desc": "Trích xuất 13 mốc giải phẫu may mặc chính xác chỉ từ 2 góc chụp không tiếp xúc",
-        "slide2Title": "Bảo Mật Quyền Riêng Tư RAM Tuyệt Đối",
-        "slide2Desc": "Xoá sạch ảnh ngay sau khi đo đạc, không lưu trữ dữ liệu nhạy cảm trên máy chủ",
+        "slide2Title": "Bảo Mật Ảnh Tuyệt Đối · Không Lưu Trữ",
+        "slide2Desc": "Tự xóa ảnh ngay sau khi đo xong, không lưu trữ hình ảnh nhạy cảm trên máy chủ",
         "slide3Title": "Mô Phỏng Cắt Lớp Elip Ramanujan 3D",
         "slide3Desc": "Tính chu vi ngực, eo, hông bằng tích phân elip bậc hai với sai số dưới 1.2%",
         "slide4Title": "Độ Cử Động May Đo Thực Tế (+3cm ~ +6cm)",
@@ -982,7 +982,7 @@
       "f1Title": "Xấp Xỉ Elip Ramanujan 3D",
       "f1Desc": "Không dùng ước lượng thô sơ. Hệ thống cắt lớp mặt phẳng ngực, eo, hông và áp dụng tích phân chu vi elip bậc hai kết hợp mật độ mô sinh học Siri-Deurenberg để trích xuất số đo thực tế.",
       "f2Title": "Bảo Mật Quyền Riêng Tư Tuyệt Đối",
-      "f2Desc": "Ảnh chụp của khách hàng được xử lý ngay trong bộ nhớ tạm In-Memory RAM và tự động xóa vĩnh viễn (Zero-Retention Policy). Không lưu trữ hình ảnh nhạy cảm trên máy chủ.",
+      "f2Desc": "Ảnh chụp của khách hàng chỉ được xử lý tạm thời và tự động xóa vĩnh viễn ngay sau khi đo xong. Hoàn toàn không lưu trữ hình ảnh nhạy cảm trên máy chủ.",
       "f3Title": "Độ Cử Động May Đo (Ease Allowance)",
       "f3Desc": "Áo quần không bao giờ may bằng khít với da thịt. FitVision 3D tính toán chính xác độ chùng vải (ease: +3cm đến +6cm) để đảm bảo bạn mặc đẹp nhưng vẫn cử động thoải mái khi làm việc."
     },
@@ -998,7 +998,7 @@
       "hours": "Hoạt động: 8:00 - 21:00 (T2 - CN)",
       "guarantee": "Cam kết vừa vặn 100% đổi trả miễn phí",
       "isoBadge": "Chuẩn ISO 8559-1:2014",
-      "privacyBadge": "Bảo Mật RAM 100%",
+      "privacyBadge": "Bảo Mật Ảnh 100%",
       "tagline": "Thời Trang Vừa Vặn Chuẩn Xác Cho Mọi Vóc Dáng"
     },
     "mobileNav": {

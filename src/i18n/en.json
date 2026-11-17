@@ -102,7 +102,7 @@
     "sideGuide": "Rotate ninety degrees sideways and maintain an upright posture.",
     "countdown": "Capturing frame in",
     "processing": "Extracting cross-sectional slices",
-    "memoryCleared": "Raw camera frames cleared from browser RAM",
+    "memoryCleared": "Raw camera frames automatically deleted after scan",
     "retake": "Retake",
     "manualCapture": "Manual Capture"
   },
@@ -222,7 +222,7 @@
       "confirmPh": "Re-enter your password",
       "fullName": "Full Name",
       "fullNamePh": "John Doe",
-      "terms": "I agree to the temporary RAM processing & Zero-Image Retention policy of FitVision 3D.",
+      "terms": "I agree to the temporary processing & zero-photo-storage privacy policy of FitVision 3D.",
       "submitSignin": "Sign in now",
       "submitRegister": "Create personal account",
       "loadingSignin": "Authenticating...",
@@ -236,7 +236,7 @@
       "chipSpeed": "Processing",
       "chipRetention": "Image stored",
       "aboutTitle": "About FitVision 3D",
-      "aboutDesc": "A 3D anthropometric platform based on ISO 8559-1: extract body measurements from a photo, build a 3D model and recommend the right size. It connects customers with stores and tailors; photos are processed in RAM only and never stored.",
+      "aboutDesc": "A 3D anthropometric platform based on ISO 8559-1: extract body measurements from a photo, build a 3D model and recommend the right size. It connects customers with stores and tailors; photos are processed temporarily and never stored.",
       "engine": "Spatial Body Intelligence Engine",
       "isoBadge": "ISO 8559-1 Anthropometrics Certified",
       "topology": "3D Dual-Mesh Topology",
@@ -283,7 +283,7 @@
     "dash": {
       "title": "Anthropometric 3D Studio (AI-Tailor Studio)",
       "sub": "Automatically extract 3D garment measurements from a single mobile photo, following ISO 8559-1:2017.",
-      "zeroBadge": "Zero-Retention: RAM-Only ephemeral processing",
+      "zeroBadge": "Zero-Save Privacy: Auto-deleted right after scan",
       "retake": "Retake / Re-measure",
       "uploadTitle": "Upload photo from phone",
       "uploadPill": "1 standard A-Pose photo",
@@ -385,7 +385,7 @@
       "p3": {
         "tag": "ISO 8559-1 Certified",
         "title": "Zero-Retention Ephemeral Privacy",
-        "desc": "Scan frames are processed entirely in ephemeral RAM and immediately discarded. No camera footage or biometric photos ever touch disk storage."
+        "desc": "Scan frames are processed temporarily on your device and immediately discarded. No camera footage or biometric photos ever touch disk storage."
       },
       "p4": {
         "tag": "B2B Atelier Bridge",
@@ -425,7 +425,7 @@
     },
     "privacy": {
       "title": "Your photos never leave your device",
-      "desc": "Image frames are processed exclusively in volatile browser RAM and permanently discarded upon calculation. Only anonymized numerical measurements are retained.",
+      "desc": "Image frames are processed temporarily on your browser and permanently deleted upon calculation. Only anonymized numerical measurements are retained.",
       "cta": "Start Scan"
     },
     "footer": {
@@ -841,8 +841,8 @@
       "ticker": {
         "slide1Title": "ISO 8559-1 Medical-Grade 3D Anthropometry",
         "slide1Desc": "Contact-free extraction of 13 anatomical garment landmarks from just 2 photos",
-        "slide2Title": "100% In-Memory RAM Privacy Guarantee",
-        "slide2Desc": "Instant photo destruction from RAM after sizing, zero sensitive imagery on servers",
+        "slide2Title": "100% Zero-Save Photo Privacy Guarantee",
+        "slide2Desc": "Photos are automatically deleted right after sizing — zero sensitive imagery stored on servers",
         "slide3Title": "3D Ramanujan Elliptical Slice Modeling",
         "slide3Desc": "Calculates chest, waist, and hip circumferences via quadratic integrals (< 1.2% error)",
         "slide4Title": "Artisan Tailor Ease Allowance (+3cm to +6cm)",
@@ -982,7 +982,7 @@
       "f1Title": "3D Ramanujan Ellipse Fitting",
       "f1Desc": "No crude heuristics. We cross-section chest, waist, and hip planar curves with Ramanujan elliptical integrals and Siri-Deurenberg biological tissue density to extract true dimensions.",
       "f2Title": "Zero-Retention Privacy Guarantee",
-      "f2Desc": "Captured customer photos are processed entirely in-memory RAM and permanently purged immediately (Zero-Retention Policy). No sensitive imagery is ever stored on disk or servers.",
+      "f2Desc": "Captured customer photos are processed temporarily and permanently deleted right after measurement. No sensitive imagery is ever stored on disk or servers.",
       "f3Title": "Tailoring Ease Allowance",
       "f3Desc": "Garments should never cling like a second skin. FitVision 3D precisely factors ease allowance (+3cm to +6cm) to ensure you look sharp while staying comfortable throughout the day."
     },
@@ -998,7 +998,7 @@
       "hours": "Hours: 8:00 AM - 9:00 PM (Mon - Sun)",
       "guarantee": "100% Perfect Fit or Free Return Guarantee",
       "isoBadge": "ISO 8559-1:2014 Standard",
-      "privacyBadge": "100% RAM Privacy",
+      "privacyBadge": "100% Photo Privacy",
       "tagline": "Precision Tailored Fashion for Every Body Type"
     },
     "mobileNav": {

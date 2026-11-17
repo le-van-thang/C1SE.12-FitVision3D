@@ -1159,7 +1159,7 @@ export const FashionStoreHome: React.FC = () => {
                       0s Save
                     </span>
                     <span className="text-[11px] text-stone-200/90 font-medium">
-                      {locale === 'en' ? 'RAM zero-retention privacy' : 'Xóa ảnh tức thì trên RAM'}
+                      {locale === 'en' ? 'Auto-deleted immediately after scan' : 'Tự xóa ảnh ngay sau khi đo'}
                     </span>
                   </div>
                 </div>
@@ -2456,7 +2456,7 @@ export const FashionStoreHome: React.FC = () => {
                 {t('ecommerce.tech.f2Title', 'Bảo Mật Quyền Riêng Tư Tuyệt Đối')}
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                {t('ecommerce.tech.f2Desc', 'Ảnh chụp của khách hàng được xử lý ngay trong bộ nhớ tạm In-Memory RAM và tự động xóa vĩnh viễn (Zero-Retention Policy). Không lưu trữ hình ảnh nhạy cảm trên máy chủ.')}
+                {t('ecommerce.tech.f2Desc', 'Ảnh chụp của khách hàng chỉ được xử lý tạm thời và tự động xóa vĩnh viễn ngay sau khi đo xong. Hoàn toàn không lưu trữ hình ảnh nhạy cảm trên máy chủ.')}
               </p>
             </div>
 
@@ -2513,7 +2513,7 @@ export const FashionStoreHome: React.FC = () => {
               </div>
               <div>
                 <h4 className="text-xs font-extrabold text-slate-950">
-                  {locale === 'en' ? 'RAM Zero-Retention' : 'Bảo Mật Ảnh RAM 100%'}
+                  {locale === 'en' ? '100% Zero-Save Privacy' : 'Không Lưu Ảnh Chụp 100%'}
                 </h4>
                 <p className="text-[11px] text-slate-700">
                   {locale === 'en' ? 'Zero photo storage on servers' : 'Không lưu trữ ảnh chụp vóc dáng'}
@@ -2654,7 +2654,7 @@ export const FashionStoreHome: React.FC = () => {
                 {t('ecommerce.footer.isoBadge', 'Chuẩn ISO 8559-1:2014')}
               </span>
               <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 font-mono text-[10px]">
-                {t('ecommerce.footer.privacyBadge', 'Bảo Mật RAM 100%')}
+                {t('ecommerce.footer.privacyBadge', 'Bảo Mật Ảnh 100%')}
               </span>
             </div>
 

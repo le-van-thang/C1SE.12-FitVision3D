@@ -46,7 +46,7 @@ const EDITORIAL_PILLARS = [
     num: "03",
     tag: "ISO 8559-1 Certified",
     title: "Zero-Retention Ephemeral Privacy",
-    desc: "Scan frames are processed entirely in ephemeral RAM and immediately discarded. No camera footage or biometric photos ever touch disk storage.",
+    desc: "Scan frames are processed temporarily on your device and immediately discarded. No camera footage or biometric photos ever touch disk storage.",
   },
   {
     num: "04",
