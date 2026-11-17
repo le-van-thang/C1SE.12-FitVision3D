@@ -157,8 +157,8 @@ interface CalloutDef {
 const CALLOUTS: CalloutDef[] = [
   { key: "chest_circ_cm", label: "Chest", side: "left", get3DPoint: (lm) => lm.chest },
   { key: "bicep_circ_cm", label: "bicep", side: "left", get3DPoint: (lm) => lm.bicep },
-  { key: "waist_circ_cm", label: "Waist", side: "left", get3DPoint: (lm) => lm.waist },
   { key: "wrist_circ_cm", label: "wrist", side: "left", get3DPoint: (lm) => lm.wrist },
+  { key: "waist_circ_cm", label: "Waist", side: "left", get3DPoint: (lm) => lm.waist },
   { key: "inseam_cm", label: "Inseam", side: "left", get3DPoint: (lm) => lm.inseam },
   { key: "shoulder_breadth_cm", label: "Shoulders", side: "right", get3DPoint: (lm) => lm.shoulders },
   { key: "arm_length_cm", label: "arm_length", side: "right", get3DPoint: (lm) => lm.arm_length },
@@ -269,8 +269,16 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     let h = el.clientHeight || 560;
     let disposed = false;
 
+    const calcResponsiveFov = (vw: number, vh: number) => {
+      const aspect = vw / Math.max(vh, 1);
+      if (aspect >= 0.96) return 38;
+      // Preserve horizontal span in portrait viewports so A-pose arms never touch side callouts
+      const halfTan = Math.tan((38 * Math.PI) / 360) * (0.96 / Math.max(aspect, 0.54));
+      return Math.min(54, (Math.atan(halfTan) * 360) / Math.PI);
+    };
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 50);
+    const camera = new THREE.PerspectiveCamera(calcResponsiveFov(w, h), w / h, 0.1, 50);
     const initialPreset = VIEW_PRESETS.full_body;
     camera.position.copy(initialPreset.pos);
     camera.lookAt(initialPreset.target);
@@ -434,6 +442,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       w = el.clientWidth;
       h = el.clientHeight;
       if (!w || !h) return;
+      camera.fov = calcResponsiveFov(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -609,8 +618,8 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
         style={{
           position: "absolute",
           top: "60px",
-          left: "20px",
-          bottom: "40px",
+          left: "14px",
+          bottom: "48px",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-around",
@@ -675,9 +684,9 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       <div
         style={{
           position: "absolute",
-          top: "80px",
-          right: "20px",
-          bottom: "100px",
+          top: "74px",
+          right: "14px",
+          bottom: "78px",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-around",

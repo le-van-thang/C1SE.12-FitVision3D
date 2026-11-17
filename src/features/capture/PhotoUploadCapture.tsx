@@ -241,9 +241,21 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 
       {/* Biometric Calibration Inputs */}
       <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/90 p-4 space-y-3">
-        <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 block">
-          {t("cap.calibTitle", "THÔNG SỐ HIỆU CHUẨN NHÂN TRẮC HỌC")}
-        </span>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">
+            {t("cap.calibTitle", "THÔNG SỐ HIỆU CHUẨN NHÂN TRẮC HỌC")}
+          </span>
+          {!height || !weight ? (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+              {t("cap.optionalRecommended", "Khuyên nhập · Không bắt buộc")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <CheckCircle2 size={11} />
+              <span>{t("cap.calibReady", "Đã hiệu chuẩn")}</span>
+            </span>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1.5">
@@ -258,7 +270,9 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               value={height}
               onChange={handleHeightChange}
               onBlur={handleHeightBlur}
-              className="w-full bg-white border-2 border-slate-300 focus:border-blue-600 rounded-xl px-3 py-2 text-sm font-black font-mono text-slate-900 outline-none transition-all shadow-2xs"
+              className={`w-full border-2 focus:border-blue-600 focus:bg-white rounded-xl px-3 py-2 text-sm font-black font-mono text-slate-900 outline-none transition-all shadow-2xs ${
+                !height ? "bg-amber-50/50 border-amber-300" : "bg-white border-slate-300"
+              }`}
             />
           </div>
           <div>
@@ -274,10 +288,20 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               value={weight}
               onChange={handleWeightChange}
               onBlur={handleWeightBlur}
-              className="w-full bg-white border-2 border-slate-300 focus:border-blue-600 rounded-xl px-3 py-2 text-sm font-black font-mono text-slate-900 outline-none transition-all shadow-2xs"
+              className={`w-full border-2 focus:border-blue-600 focus:bg-white rounded-xl px-3 py-2 text-sm font-black font-mono text-slate-900 outline-none transition-all shadow-2xs ${
+                !weight ? "bg-amber-50/50 border-amber-300" : "bg-white border-slate-300"
+              }`}
             />
           </div>
         </div>
+        {(!height || !weight) && (
+          <p className="text-[11px] leading-snug text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1.5 font-medium">
+            {t(
+              "cap.calibNudge",
+              "Gợi ý: Nhập chiều cao & cân nặng để AI đo chuẩn dáng bạn hơn (có thể bỏ trống — tự dùng mức 172 cm · 68 kg)."
+            )}
+          </p>
+        )}
 
         <div>
           <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1.5">

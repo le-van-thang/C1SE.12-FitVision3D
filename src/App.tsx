@@ -71,7 +71,7 @@ export const App: React.FC = () => (
             <Route path="/dashboard" element={<DashboardRoute />} />
             <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />
             <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
-            <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
+            <Route path="/size-charts" element={<RequireAuth><SizeChartManager /></RequireAuth>} />
             <Route path="/admin" element={<AdminRoute />} />
             <Route path="*" element={<RoleFallbackRoute />} />
           </Routes>

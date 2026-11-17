@@ -50,10 +50,11 @@ const loadInitialBiometric = (): { height?: number; weight?: number; gender: "ma
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, openSignIn } = useAuth();
+  const { isAuthenticated, userRole, openSignIn } = useAuth();
   const { t } = useI18n();
   // Guests may scan + view the 3D model only. Measurements / size charts stay locked and are never stored.
   const locked = !isAuthenticated;
+  const canOpenTailor = userRole === "store" || userRole === "tailor" || userRole === "admin";
   const [lockedFeature, setLockedFeature] = useState<string | null>(null);
   const initBio = loadInitialBiometric();
 
@@ -315,12 +316,12 @@ export const Dashboard: React.FC = () => {
                 </span>
               </div>
 
-              <div className="flex-1 rounded-2xl overflow-hidden border-2 border-slate-900 bg-slate-950 shadow-inner">
+              <div className="flex-1 min-h-[560px] rounded-2xl overflow-hidden border-2 border-slate-900 bg-slate-950 shadow-inner">
                 <MannequinViewer
                   meshParams={mesh}
                   measurement={locked ? null : measurement}
                   isLoading={processing}
-                  height={560}
+                  height="100%"
                   activeMetric={activeMetric}
                   onSelectMetric={setActiveMetric}
                 />
@@ -396,23 +397,25 @@ export const Dashboard: React.FC = () => {
 
                 {/* Quick Actions */}
                 <div className="flex gap-2.5 pt-2.5 border-t-2 border-slate-100">
-                  <button
-                    id="btn-export-dossier"
-                    type="button"
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                    onClick={() => navigate("/tailor")}
-                  >
-                    <FileText size={15} strokeWidth={2} />
-                    <span>{t("app.dash.featDossier", "Hồ sơ may đo")}</span>
-                  </button>
+                  {canOpenTailor && (
+                    <button
+                      id="btn-export-dossier"
+                      type="button"
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      onClick={() => navigate("/tailor")}
+                    >
+                      <FileText size={15} strokeWidth={2} />
+                      <span>{t("app.dash.featDossier", "Hồ sơ may đo")}</span>
+                    </button>
+                  )}
                   <button
                     id="btn-size-charts"
                     type="button"
-                    className="py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 active:scale-95 text-slate-800 border-2 border-slate-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    className={`${canOpenTailor ? "" : "flex-1 "}py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 active:scale-95 text-slate-800 border-2 border-slate-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer`}
                     onClick={() => navigate("/size-charts")}
                   >
                     <Table2 size={15} strokeWidth={2} />
-                    <span>{t("app.dash.featSize", "Bảng size")}</span>
+                    <span>{t("app.dash.featSize", "Bảng kích cỡ")}</span>
                   </button>
                 </div>
               </div>
