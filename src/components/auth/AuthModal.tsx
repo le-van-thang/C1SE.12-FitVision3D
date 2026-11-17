@@ -67,11 +67,17 @@ export const AuthModal: React.FC = () => {
 
   // Track form submit attempts for empty required fields
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const pendingSuccessBannerRef = useRef<string | null>(null);
 
   // Reset inputs and unlock flags whenever the modal opens or tab switches
   useEffect(() => {
     setErrorMessage(null);
-    setSuccessMessage(null);
+    if (pendingSuccessBannerRef.current) {
+      setSuccessMessage(pendingSuccessBannerRef.current);
+      pendingSuccessBannerRef.current = null;
+    } else {
+      setSuccessMessage(null);
+    }
     setEmailUnlocked(false);
     setPasswordUnlocked(false);
     setSubmitAttempted(false);
@@ -330,7 +336,7 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(t('app.auth.successRegister'));
+      setSuccessMessage(t('app.auth.successRegister', 'Đăng ký thành công! Vui lòng nhập mã OTP gửi về email.'));
       setOtpCode('');
       openVerifyEmail(email);
     } else {
@@ -350,7 +356,9 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(t('app.auth.successVerify'));
+      const verifyMsg = t('app.auth.successVerify', 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.');
+      setSuccessMessage(verifyMsg);
+      pendingSuccessBannerRef.current = verifyMsg;
       setTimeout(() => {
         openSignIn();
       }, 1200);
@@ -375,7 +383,7 @@ export const AuthModal: React.FC = () => {
 
     if (res.success) {
       setSubmitAttempted(false);
-      setSuccessMessage(t('app.auth.successForgot'));
+      setSuccessMessage(t('app.auth.successForgot', 'Đã gửi mã OTP 6 số đến Gmail của bạn. Vui lòng kiểm tra hộp thư.'));
       setOtpCode('');
       setForgotStep('reset');
     } else {
@@ -386,29 +394,61 @@ export const AuthModal: React.FC = () => {
   // 5. Handle Reset Password with OTP
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validatePassword(newPassword).valid || newPassword !== confirmNewPassword) {
-      return;
-    }
+    setSubmitAttempted(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setLoading(true);
 
+    const cleanOtp = otpCode.trim();
+    if (cleanOtp.length !== 6) {
+      setErrorMessage(isEnLocale ? 'Please enter the 6-digit OTP sent to your Gmail.' : 'Vui lòng nhập đủ 6 chữ số mã OTP đã gửi về Gmail.');
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const passCheck = validatePassword(newPassword);
+    if (!passCheck.valid) {
+      setErrorMessage(
+        passCheck.error ||
+          (isEnLocale
+            ? 'Password must be 6–32 chars and include at least 1 special character.'
+            : 'Mật khẩu mới phải từ 6–32 ký tự và chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...).')
+      );
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setErrorMessage(isEnLocale ? 'Confirmation password does not match.' : 'Mật khẩu xác nhận không khớp.');
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setLoading(true);
     const res = await resetPassword({
       email,
-      otp: otpCode,
+      otp: cleanOtp,
       newPassword,
       confirmPassword: confirmNewPassword,
     });
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(t('app.auth.successReset'));
+      const doneMsg =
+        res.message ||
+        t(
+          'app.auth.successReset',
+          'Đổi mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.'
+        );
+      setSuccessMessage(doneMsg);
+      pendingSuccessBannerRef.current = doneMsg;
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => {
         setPassword('');
         openSignIn();
       }, 1500);
     } else {
       setErrorMessage(getLocalizedErrorMessage(undefined, res.error));
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
