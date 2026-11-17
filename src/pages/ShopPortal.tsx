@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Store,
@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   X,
   Video,
-  ShieldAlert,
   MessageSquare,
   Send,
   Star,
@@ -231,6 +230,14 @@ export const ShopPortal: React.FC = () => {
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
   const [authNeedsRelogin, setAuthNeedsRelogin] = useState(false);
   const [recentSubmitTimestamps, setRecentSubmitTimestamps] = useState<number[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    price?: string;
+    salePrice?: string;
+  }>({});
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const priceInputRef = useRef<HTMLInputElement>(null);
+  const salePriceInputRef = useRef<HTMLInputElement>(null);
 
   // Order & Review interactions
   const [replyingReviewId, setReplyingReviewId] = useState<number | null>(null);
@@ -455,27 +462,59 @@ export const ShopPortal: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const focusAndScrollField = (ref: React.RefObject<HTMLInputElement | null>) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => {
+      el.focus();
+    }, 220);
+  };
+
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || !newPrice) return;
-    if (Number(newPrice) < 50_000) {
-      showGlobalToast({
-        type: 'warning',
-        title: 'Giá gốc tối thiểu 50.000₫',
-        message: 'Vui lòng nhập giá bán từ 50.000₫ trở lên theo quy chuẩn sàn.',
-      });
-      return;
+    if (isCreating) return;
+
+    const nextErrors: { name?: string; price?: string; salePrice?: string } = {};
+    const trimmedName = newName.trim();
+    const numericPrice = Number(newPrice);
+    const numericSale = newSalePrice.trim() ? Number(newSalePrice) : null;
+
+    if (trimmedName.length < 3) {
+      nextErrors.name = 'Vui lòng nhập tên sản phẩm tối thiểu 3 ký tự.';
+    }
+    if (!newPrice.trim() || !Number.isFinite(numericPrice) || numericPrice < 1000) {
+      nextErrors.price = 'Vui lòng nhập giá gốc hợp lệ (tối thiểu 1.000₫).';
+    }
+    if (numericSale !== null && (!Number.isFinite(numericSale) || numericSale < 1000 || (Number.isFinite(numericPrice) && numericSale >= numericPrice))) {
+      nextErrors.salePrice = 'Giá khuyến mãi phải từ 1.000₫ và thấp hơn giá gốc.';
     }
 
-    // Client-side Anti-Spam Pre-Check (mirrors PostgreSQL/Backend rate limit: max 10 posts / 60s)
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      if (nextErrors.name) {
+        focusAndScrollField(nameInputRef);
+        showGlobalToast({ type: 'warning', title: 'Thiếu thông tin sản phẩm', message: nextErrors.name });
+      } else if (nextErrors.price) {
+        focusAndScrollField(priceInputRef);
+        showGlobalToast({ type: 'warning', title: 'Chưa đúng giá gốc', message: nextErrors.price });
+      } else if (nextErrors.salePrice) {
+        focusAndScrollField(salePriceInputRef);
+        showGlobalToast({ type: 'warning', title: 'Giá khuyến mãi chưa hợp lệ', message: nextErrors.salePrice });
+      }
+      return;
+    }
+    setFieldErrors({});
+
+    // True Bot / Auto-Click Burst Protection only (ignores normal human speed)
     const now = Date.now();
-    const recent = recentSubmitTimestamps.filter((ts) => now - ts < 60_000);
-    if (recent.length >= 10) {
-      const waitSec = Math.ceil((60_000 - (now - recent[0])) / 1000);
+    const recentMinute = recentSubmitTimestamps.filter((ts) => now - ts < 60_000);
+    const recentBurst = recentMinute.filter((ts) => now - ts < 3_000);
+    if (recentBurst.length >= 4 || recentMinute.length >= 30) {
       showGlobalToast({
         type: 'warning',
-        title: 'Kích hoạt Chống Spam',
-        message: `Bạn vừa đăng liên tiếp 10 sản phẩm/phút. Vui lòng đợi ${waitSec} giây để bảo vệ server.`,
+        title: 'Thao tác quá nhanh',
+        message: 'Phát hiện gửi yêu cầu liên tiếp bất thường (Auto-Click). Vui lòng đợi vài giây.',
       });
       return;
     }
@@ -497,11 +536,11 @@ export const ShopPortal: React.FC = () => {
 
     setIsCreating(true);
     const res = await commerceApi.createShopProduct({
-      name: newName.trim(),
+      name: trimmedName,
       category: newCategory,
       genderTarget: newGender,
-      price: Number(newPrice),
-      salePrice: newSalePrice ? Number(newSalePrice) : null,
+      price: numericPrice,
+      salePrice: numericSale,
       fabricMaterial: newFabric.trim() || 'Cotton Cao Cấp',
       stretchType: newStretch,
       imageUrl: cleanColors[0].imageUrl,
@@ -518,7 +557,7 @@ export const ShopPortal: React.FC = () => {
     setIsCreating(false);
 
     if (res.success && res.data) {
-      setRecentSubmitTimestamps([...recent, Date.now()]);
+      setRecentSubmitTimestamps([...recentMinute, Date.now()]);
       setShowAddForm(false);
       setNewName('');
       setNewPrice('');
@@ -982,21 +1021,9 @@ export const ShopPortal: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Anti-Spam Protection Notice */}
-                  <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex items-start gap-3">
-                    <ShieldAlert size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-xs text-amber-950 space-y-1">
-                      <p className="font-bold">Hệ Thống Chống Spam &amp; Bảo Vệ Tài Nguyên Server Đang Bật</p>
-                      <p className="text-[11px] text-amber-900">
-                        • Tốc độ đăng bài: tối đa <b>10 sản phẩm / 60 giây</b> &amp; hạn mức <b>50 sản phẩm / Shop</b>.{' '}
-                        • Ảnh tải lên: tối đa <b>2MB</b> (JPG/PNG/WEBP).{' '}
-                        • Video tải trực tiếp: tối đa <b>12MB</b> (MP4/WebM) hoặc dán link CDN / YouTube không giới hạn dung lượng.
-                      </p>
-                    </div>
-                  </div>
-
                   {showAddForm && (
                     <form
+                      noValidate
                       onSubmit={handleCreateProduct}
                       className="bg-white rounded-3xl border-2 border-slate-300 p-6 space-y-5 shadow-md"
                     >
@@ -1011,12 +1038,22 @@ export const ShopPortal: React.FC = () => {
                         <div className="md:col-span-2">
                           <label className="text-[11px] font-bold text-slate-800 block mb-1">Tên Sản Phẩm *</label>
                           <input
-                            required
+                            ref={nameInputRef}
                             value={newName}
-                            onChange={(e) => setNewName(e.target.value)}
+                            onChange={(e) => {
+                              setNewName(e.target.value);
+                              if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                            }}
                             placeholder="VD: Áo Sơ Mi Bamboo Dáng Regular Fit"
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-medium text-slate-950 placeholder:text-slate-400 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
+                            className={`w-full px-3.5 py-2.5 rounded-xl border bg-white text-xs font-medium text-slate-950 placeholder:text-slate-400 outline-none focus:ring-2 ${
+                              fieldErrors.name
+                                ? 'border-rose-500 ring-2 ring-rose-500/20 focus:border-rose-600'
+                                : 'border-slate-400 focus:border-slate-950 focus:ring-slate-900/10'
+                            }`}
                           />
+                          {fieldErrors.name && (
+                            <p className="text-[11px] font-bold text-rose-600 mt-1">{fieldErrors.name}</p>
+                          )}
                         </div>
                         <div>
                           <label className="text-[11px] font-bold text-slate-800 block mb-1">Danh Mục</label>
@@ -1050,25 +1087,46 @@ export const ShopPortal: React.FC = () => {
                         <div>
                           <label className="text-[11px] font-bold text-slate-800 block mb-1">Giá Gốc (VNĐ) *</label>
                           <input
-                            required
+                            ref={priceInputRef}
                             type="number"
-                            min={10000}
+                            min={1000}
                             placeholder="VD: 590000"
                             value={newPrice}
-                            onChange={(e) => setNewPrice(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-mono font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
+                            onChange={(e) => {
+                              setNewPrice(e.target.value);
+                              if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: undefined }));
+                            }}
+                            className={`w-full px-3.5 py-2.5 rounded-xl border bg-white text-xs font-mono font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal outline-none focus:ring-2 ${
+                              fieldErrors.price
+                                ? 'border-rose-500 ring-2 ring-rose-500/20 focus:border-rose-600'
+                                : 'border-slate-400 focus:border-slate-950 focus:ring-slate-900/10'
+                            }`}
                           />
+                          {fieldErrors.price && (
+                            <p className="text-[11px] font-bold text-rose-600 mt-1">{fieldErrors.price}</p>
+                          )}
                         </div>
                         <div>
                           <label className="text-[11px] font-bold text-slate-800 block mb-1">Giá Khuyến Mãi (VNĐ)</label>
                           <input
+                            ref={salePriceInputRef}
                             type="number"
-                            min={10000}
+                            min={1000}
                             placeholder="VD: 450000 (Không bắt buộc)"
                             value={newSalePrice}
-                            onChange={(e) => setNewSalePrice(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-mono font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
+                            onChange={(e) => {
+                              setNewSalePrice(e.target.value);
+                              if (fieldErrors.salePrice) setFieldErrors((prev) => ({ ...prev, salePrice: undefined }));
+                            }}
+                            className={`w-full px-3.5 py-2.5 rounded-xl border bg-white text-xs font-mono font-semibold text-slate-950 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal outline-none focus:ring-2 ${
+                              fieldErrors.salePrice
+                                ? 'border-rose-500 ring-2 ring-rose-500/20 focus:border-rose-600'
+                                : 'border-slate-400 focus:border-slate-950 focus:ring-slate-900/10'
+                            }`}
                           />
+                          {fieldErrors.salePrice && (
+                            <p className="text-[11px] font-bold text-rose-600 mt-1">{fieldErrors.salePrice}</p>
+                          )}
                         </div>
                         <div>
                           <label className="text-[11px] font-bold text-slate-800 block mb-1">Độ Co Giãn</label>

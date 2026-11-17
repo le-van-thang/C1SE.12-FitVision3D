@@ -17,8 +17,10 @@ function computeTierFromSpend(totalSpend: number): MembershipTierId {
   return 'member';
 }
 
+const SHOP_BURST_WINDOW_MS = 3_000;
+const SHOP_MAX_BURST_POSTS = 4;
 const SHOP_PRODUCT_WINDOW_MS = 60_000;
-const SHOP_MAX_POSTS_PER_WINDOW = 10;
+const SHOP_MAX_POSTS_PER_WINDOW = 30;
 const SHOP_MAX_PRODUCTS_QUOTA = 50;
 const shopPostTimestamps = new Map<string, number[]>();
 
@@ -27,11 +29,15 @@ export function assertShopAntiSpam(userId: string): void {
   const prev = (shopPostTimestamps.get(userId) || []).filter(
     (ts) => now - ts < SHOP_PRODUCT_WINDOW_MS
   );
+  const recentBurst = prev.filter((ts) => now - ts < SHOP_BURST_WINDOW_MS);
+  if (recentBurst.length >= SHOP_MAX_BURST_POSTS) {
+    throw new Error('Phát hiện thao tác gửi quá nhanh (Auto-Click). Vui lòng đợi vài giây rồi thử lại.');
+  }
   if (prev.length >= SHOP_MAX_POSTS_PER_WINDOW) {
     const oldest = prev[0];
     const waitSec = Math.max(1, Math.ceil((SHOP_PRODUCT_WINDOW_MS - (now - oldest)) / 1000));
     throw new Error(
-      `Chống spam: Bạn chỉ được đăng tối đa ${SHOP_MAX_POSTS_PER_WINDOW} sản phẩm / media mỗi phút. Vui lòng chờ ${waitSec} giây.`
+      `Hệ thống bảo vệ: Quá nhiều yêu cầu trong 1 phút (${SHOP_MAX_POSTS_PER_WINDOW} lượt). Vui lòng chờ ${waitSec} giây.`
     );
   }
   prev.push(now);
@@ -544,7 +550,10 @@ export const commerceRepository = {
     const price = Number(payload.price);
     const salePrice = payload.salePrice ? Number(payload.salePrice) : null;
     if (name.length < 3) throw new Error('Tên sản phẩm phải có tối thiểu 3 ký tự.');
-    if (!Number.isFinite(price) || price < 50_000) throw new Error('Giá bán phải tối thiểu 50.000₫.');
+    if (!Number.isFinite(price) || price < 1_000) throw new Error('Giá bán phải tối thiểu 1.000₫.');
+    if (salePrice !== null && (salePrice < 1_000 || salePrice >= price)) {
+      throw new Error('Giá khuyến mãi phải từ 1.000₫ trở lên và thấp hơn giá gốc.');
+    }
 
     const rawImg = String(payload.imageUrl || '').trim();
     if (rawImg.startsWith('data:image/') && rawImg.length > 4_200_000) {
