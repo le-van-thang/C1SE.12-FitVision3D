@@ -117,7 +117,7 @@ export const AdminPortal: React.FC = () => {
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setActionMessage({ type, text });
-    setTimeout(() => setActionMessage(null), 4500);
+    setTimeout(() => setActionMessage(null), 2400);
   };
 
   // Fetch all live data from PostgreSQL via backend API
