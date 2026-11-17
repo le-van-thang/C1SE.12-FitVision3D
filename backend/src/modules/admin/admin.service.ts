@@ -97,6 +97,10 @@ export const adminService = {
     return await adminRepository.getAuditLogs(limit || 50);
   },
 
+  async getMyShop(ownerId: string) {
+    return await adminRepository.getShopByOwnerId(ownerId);
+  },
+
   async applyShop(ownerId: string, data: {
     shopName: string;
     phoneNumber: string;

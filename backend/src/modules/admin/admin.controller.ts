@@ -55,6 +55,15 @@ export const adminController = {
     sendSuccess(res, logs);
   },
 
+  async getMyShop(req: Request, res: Response) {
+    const userId = req.user?.sub;
+    if (!userId) {
+      throw new Error('Yêu cầu xác thực.');
+    }
+    const shop = await adminService.getMyShop(userId);
+    sendSuccess(res, shop, 200);
+  },
+
   async applyShop(req: Request, res: Response) {
     const userId = (req.user?.sub || 'system');
     if (!userId) {

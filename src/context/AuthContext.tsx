@@ -160,6 +160,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
+  const syncMyStoreFromBackend = useCallback(async (userId: string) => {
+    try {
+      const myRes = await adminApi.getMyStore();
+      if (myRes.success && myRes.data) {
+        const dbShop = myRes.data;
+        const mapped: Store = {
+          id: dbShop.id,
+          user_id: userId,
+          brand_name: dbShop.shop_name,
+          phone: dbShop.phone_number,
+          address: dbShop.shop_address,
+          verification_doc: dbShop.business_license_no || '',
+          status: dbShop.status,
+          is_approved: dbShop.status === 'APPROVED',
+          rejection_reason: dbShop.rejection_reason || null,
+          created_at: dbShop.created_at,
+          updated_at: dbShop.updated_at,
+        };
+        setStores((prev) => [mapped, ...prev.filter((s) => s.user_id !== userId && s.id !== mapped.id)]);
+        return;
+      }
+
+      // If DB has no shop yet, auto-push any unsynced local pending shop (e.g., submitted before schema fix)
+      if (myRes.success && myRes.data === null) {
+        const savedRaw = localStorage.getItem(STORAGE_KEY_STORES);
+        const savedStores: Store[] = savedRaw ? JSON.parse(savedRaw) : [];
+        const localPending = savedStores.find((s) => s.user_id === userId && s.status === 'PENDING');
+        if (localPending) {
+          const replayRes = await adminApi.applyStore({
+            shopName: localPending.brand_name,
+            phoneNumber: localPending.phone,
+            shopAddress: localPending.address,
+            businessLicenseNo: localPending.verification_doc,
+          });
+          if (replayRes.success && replayRes.data) {
+            setStores((prev) =>
+              prev.map((s) => (s.id === localPending.id ? { ...s, id: replayRes.data!.id } : s))
+            );
+          }
+        }
+      }
+    } catch {
+      // ignore offline
+    }
+  }, []);
+
   // Initial Session Check from Backend (via silent refresh or cookie)
   useEffect(() => {
     let isMounted = true;
@@ -173,6 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return exists ? prev.map((p) => (p.id === prof.id ? prof : p)) : [prof, ...prev];
           });
           setCurrentUserId(prof.id);
+          await syncMyStoreFromBackend(prof.id);
         }
       } catch {
         // Not logged in with live backend session
@@ -182,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [syncMyStoreFromBackend]);
 
   // Sync with localStorage
   useEffect(() => {
@@ -287,6 +334,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setCurrentUserId(profile.id);
         setIsAuthModalOpen(false);
+        syncMyStoreFromBackend(profile.id);
         showGlobalToast({
           type: 'success',
           title: 'Đăng nhập thành công!',
@@ -486,6 +534,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setCurrentUserId(prof.id);
         setIsAuthModalOpen(false);
+        syncMyStoreFromBackend(prof.id);
         showGlobalToast({
           type: 'success',
           title: 'Đăng nhập Google thành công!',
@@ -568,18 +617,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // Gửi đồng bộ trực tiếp vào cơ sở dữ liệu PostgreSQL (qua backend API)
-      try {
-        await adminApi.applyStore({
-          shopName: brandName,
-          phoneNumber: payload.phone.trim(),
-          shopAddress: address,
-          businessLicenseNo: verificationDoc,
-        });
-      } catch (dbErr) {
-        console.warn('[applyMerchant] PostgreSQL API sync warning:', dbErr);
-      }
-
       const existingStore = stores.find((s) => s.user_id === currentUser.id);
       const now = new Date().toISOString();
 
@@ -596,10 +633,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             error: 'Cửa hàng của bạn đã được phê duyệt.',
           };
         }
+      }
+
+      // Gửi đồng bộ trực tiếp vào cơ sở dữ liệu PostgreSQL (qua backend API)
+      let dbStoreId: string | undefined;
+      try {
+        const apiRes = await adminApi.applyStore({
+          shopName: brandName,
+          phoneNumber: payload.phone.trim(),
+          shopAddress: address,
+          businessLicenseNo: verificationDoc,
+        });
+        if (!apiRes.success) {
+          const errCode = apiRes.error?.code;
+          if (errCode !== 'NETWORK_ERROR' && errCode !== 'FETCH_ERROR') {
+            return {
+              success: false,
+              error: apiRes.error?.message || 'Không thể lưu hồ sơ shop vào cơ sở dữ liệu PostgreSQL.',
+            };
+          }
+        } else if (apiRes.data?.id) {
+          dbStoreId = apiRes.data.id;
+        }
+      } catch (dbErr) {
+        console.warn('[applyMerchant] PostgreSQL API sync warning:', dbErr);
+      }
+
+      if (existingStore) {
         const updatedStores = stores.map((s) =>
           s.id === existingStore.id
             ? {
                 ...s,
+                id: dbStoreId || s.id,
                 brand_name: brandName,
                 phone: payload.phone.trim(),
                 address,
@@ -614,11 +679,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setStores(updatedStores);
         setIsOnboardingModalOpen(false);
         setIsStatusModalOpen(true);
+        showGlobalToast({
+          type: 'success',
+          title: 'Đã gửi lại hồ sơ mở shop!',
+          message: `Hồ sơ "${brandName}" đã lưu vào PostgreSQL chờ Admin duyệt.`,
+        });
         return { success: true };
       }
 
       const newStore: Store = {
-        id: `store-${Date.now()}`,
+        id: dbStoreId || `store-${Date.now()}`,
         user_id: currentUser.id,
         brand_name: brandName,
         phone: payload.phone.trim(),
@@ -636,8 +706,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsStatusModalOpen(true);
       showGlobalToast({
         type: 'success',
-        title: 'Đã gửi hồ sơ mở gian hàng!',
-        message: `Hồ sơ "${brandName}" đã chuyển tới Admin xét duyệt.`,
+        title: 'Đã gửi hồ sơ mở shop!',
+        message: `Hồ sơ "${brandName}" đã lưu vào PostgreSQL & chuyển tới Admin duyệt.`,
       });
 
       return { success: true };

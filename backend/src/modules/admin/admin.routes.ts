@@ -31,5 +31,6 @@ adminRouter.get('/audit-logs', requireAuth, requireRole('ADMIN'), adminControlle
 // =============================================================================
 // USER SHOP APPLICATION (Bất kỳ người dùng đã đăng nhập nào cũng có thể nộp đơn)
 // =============================================================================
+adminRouter.get('/stores/my-shop', requireAuth, adminController.getMyShop);
 adminRouter.post('/stores/apply', requireAuth, adminController.applyShop);
 

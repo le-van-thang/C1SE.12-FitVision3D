@@ -266,6 +266,17 @@ export const adminRepository = {
   },
 
   /**
+   * Lấy hồ sơ shop của chính người dùng đang đăng nhập
+   */
+  async getShopByOwnerId(ownerId: string): Promise<AdminShopEntity | null> {
+    const rows = await query<AdminShopEntity>(
+      'SELECT * FROM shops WHERE owner_id = $1 LIMIT 1',
+      [ownerId]
+    );
+    return rows[0] || null;
+  },
+
+  /**
    * Người dùng nộp đơn mở cửa hàng
    */
   async applyShop(ownerId: string, data: {

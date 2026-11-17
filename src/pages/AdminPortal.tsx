@@ -328,7 +328,7 @@ export const AdminPortal: React.FC = () => {
       items: [
         {
           id: 'STORES',
-          label: 'Duyệt Nhà May',
+          label: 'Duyệt Shop',
           icon: <StoreIcon size={16} />,
           badge: stats.pendingStores > 0 ? `${stats.pendingStores} mới` : stores.length,
           badgeTone: stats.pendingStores > 0 ? 'amber' : 'blue',
@@ -354,11 +354,11 @@ export const AdminPortal: React.FC = () => {
   const activeSectionMeta: Record<AdminMainTab, { title: string; subtitle: string }> = {
     OVERVIEW: {
       title: 'Tổng Quan Điều Hành Sàn',
-      subtitle: 'Theo dõi doanh thu GMV, tỷ lệ hoàn thành đơn may đo, hàng chờ xét duyệt và tình trạng toàn hệ thống.',
+      subtitle: 'Theo dõi doanh thu GMV, tỷ lệ hoàn thành đơn may đo, hồ sơ shop chờ duyệt và tình trạng toàn hệ thống.',
     },
     ORDERS: {
       title: 'Điều Phối Đơn Hàng Toàn Sàn',
-      subtitle: 'Giám sát mọi đơn may đo xuyên suốt các nhà may đối tác và cập nhật tiến độ xử lý theo thời gian thực.',
+      subtitle: 'Giám sát mọi đơn hàng xuyên suốt các shop đối tác và cập nhật tiến độ xử lý theo thời gian thực.',
     },
     CATALOG: {
       title: 'Kiểm Duyệt Sản Phẩm & Giá Bán',
@@ -369,8 +369,8 @@ export const AdminPortal: React.FC = () => {
       subtitle: 'Chỉnh sửa thanh thông báo chạy, thông điệp Hero trang chủ và phát hành mã giảm giá cho Checkout.',
     },
     STORES: {
-      title: 'Thẩm Định & Xét Duyệt Nhà May Đối Tác',
-      subtitle: 'Kiểm tra ảnh minh chứng, địa chỉ Atelier và phê duyệt/từ chối hồ sơ đăng ký bán hàng.',
+      title: 'Thẩm Định & Xét Duyệt Shop Đối Tác',
+      subtitle: 'Kiểm tra ảnh minh chứng, GPKD và phê duyệt/từ chối hồ sơ đăng ký mở shop trên PostgreSQL.',
     },
     USERS: {
       title: 'Quản Lý Tài Khoản & Phân Quyền RBAC',

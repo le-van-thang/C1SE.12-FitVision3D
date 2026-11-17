@@ -182,6 +182,13 @@ export const adminApi = {
   },
 
   /**
+   * Lấy hồ sơ shop hiện tại của người dùng từ PostgreSQL
+   */
+  async getMyStore(): Promise<AdminApiResponse<AdminStoreItem | null>> {
+    return await adminRequest<AdminStoreItem | null>('/stores/my-shop');
+  },
+
+  /**
    * Người dùng nộp đơn mở cửa hàng vào PostgreSQL
    */
   async applyStore(payload: {

@@ -121,7 +121,7 @@ export const AdminOverviewSection: React.FC<OverviewProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#9A6E24]">
-              Hồ Sơ Nhà May Chờ Duyệt
+              Hồ Sơ Shop Chờ Duyệt
             </span>
             <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[#C8963E]">
               <StoreIcon size={18} />
@@ -131,7 +131,7 @@ export const AdminOverviewSection: React.FC<OverviewProps> = ({
             {stats.pendingStores} <span className="text-base font-bold text-slate-400">/ {stats.totalStores}</span>
           </div>
           <p className="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
-            <span>{stats.approvedStores} nhà may đang hoạt động</span>
+            <span>{stats.approvedStores} shop đang hoạt động</span>
             <ArrowRight size={11} className="text-[#C8963E]" />
           </p>
         </button>
@@ -228,7 +228,7 @@ export const AdminOverviewSection: React.FC<OverviewProps> = ({
         <div className="lg:col-span-6 rounded-2xl bg-white border border-slate-200/90 p-6 shadow-xs space-y-4">
           <h3 className="text-sm font-extrabold text-[#14161A] flex items-center gap-2 border-b border-slate-100 pb-3">
             <StoreIcon size={16} className="text-[#C8963E]" />
-            <span>Doanh Thu Theo Nhà May & Việc Cần Xử Lý</span>
+            <span>Doanh Thu Theo Shop & Việc Cần Xử Lý</span>
           </h3>
 
           <div className="space-y-2.5">
@@ -358,7 +358,7 @@ export const AdminOrdersSection: React.FC<OrdersProps> = ({
               <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50">
                 <th className="py-3.5 px-4 font-bold">Mã Đơn / Ngày</th>
                 <th className="py-3.5 px-4 font-bold">Khách Hàng & Giao Nhận</th>
-                <th className="py-3.5 px-4 font-bold">Nhà May</th>
+                <th className="py-3.5 px-4 font-bold">Shop / Nhà May</th>
                 <th className="py-3.5 px-4 font-bold">Sản Phẩm</th>
                 <th className="py-3.5 px-4 font-bold">Tổng Tiền</th>
                 <th className="py-3.5 px-4 font-bold">Điều Phối Trạng Thái</th>

@@ -295,6 +295,8 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
 
   bootstrapPromise = (async () => {
     try {
+      await query(`ALTER TABLE shops ALTER COLUMN business_license_no TYPE TEXT;`).catch(() => undefined);
+
       await query(`
         CREATE TABLE IF NOT EXISTS platform_settings (
           id VARCHAR(40) PRIMARY KEY DEFAULT 'default',
