@@ -43,6 +43,7 @@ import {
   BODY_PROFILE_UPDATED_EVENT,
   loadUserBodyProfile,
   saveUserBodyProfile,
+  hydrateBodyProfileFromBackend,
 } from '@/utils/bodyProfileStorage';
 import { FitAnalysisDrawer } from './FitAnalysisDrawer';
 import { SmartCartDrawer } from './SmartCartDrawer';
@@ -208,6 +209,9 @@ export const FashionStoreHome: React.FC = () => {
     };
 
     syncFromStorage();
+    if (isAuthenticated && currentUser?.id) {
+      void hydrateBodyProfileFromBackend(currentUser.id);
+    }
     window.addEventListener(BODY_PROFILE_UPDATED_EVENT, syncFromStorage);
     window.addEventListener('storage', syncFromStorage);
     return () => {
