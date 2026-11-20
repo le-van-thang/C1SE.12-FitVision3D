@@ -85,7 +85,7 @@ services:
   # ----------------------------------------------------------------------------
   # ai-service:
   #   build:
-  #     context: .
+  #     context: ./ai-service
   #     dockerfile: Dockerfile
   #   container_name: fv3d-ai-tailor
   #   restart: unless-stopped

@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:backend": "cd backend && npm run dev",
     "dev:all": "concurrently -n \"FRONTEND,BACKEND\" -c \"cyan,magenta\" \"vite --port 5173 --host\" \"cd backend && npm run dev\"",
-    "dev:full": "concurrently -n \"FRONTEND,BACKEND,AI-CORE\" -c \"cyan,magenta,yellow\" \"vite --port 5173 --host\" \"cd backend && npm run dev\" \"python app.py\"",
+    "dev:full": "concurrently -n \"FRONTEND,BACKEND,AI-CORE\" -c \"cyan,magenta,yellow\" \"vite --port 5173 --host\" \"cd backend && npm run dev\" \"cd ai-service && python app.py\"",
     "start": "npm run dev:all",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
