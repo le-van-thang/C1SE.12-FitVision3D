@@ -1636,6 +1636,30 @@ export const ShopPortal: React.FC = () => {
                                 Ghi chú khách: {order.recipient.note}
                               </p>
                             )}
+                            {order.measurement_snapshot && (
+                              <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3 space-y-1.5">
+                                <div className="flex items-center justify-between text-[11px] font-black text-blue-900 uppercase">
+                                  <span>📏 Bản sao 13 số đo 3D đính kèm (ISO 8559-1)</span>
+                                  <span className="font-mono font-semibold text-blue-700">
+                                    {order.measurement_snapshot.stature_cm}cm · {order.measurement_snapshot.weight_kg}kg
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-[11px] font-mono text-slate-800">
+                                  <span>Ngực: <b>{order.measurement_snapshot.chest_circ_cm}</b></span>
+                                  <span>Eo: <b>{order.measurement_snapshot.waist_circ_cm}</b></span>
+                                  <span>Hông: <b>{order.measurement_snapshot.hip_circ_cm}</b></span>
+                                  {order.measurement_snapshot.shoulder_breadth_cm != null && (
+                                    <span>Vai: <b>{order.measurement_snapshot.shoulder_breadth_cm}</b></span>
+                                  )}
+                                  {order.measurement_snapshot.arm_length_cm != null && (
+                                    <span>Tay: <b>{order.measurement_snapshot.arm_length_cm}</b></span>
+                                  )}
+                                  {order.measurement_snapshot.inseam_cm != null && (
+                                    <span>Inseam: <b>{order.measurement_snapshot.inseam_cm}</b></span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
