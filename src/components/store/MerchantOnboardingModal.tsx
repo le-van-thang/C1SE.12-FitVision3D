@@ -302,13 +302,13 @@ export const MerchantOnboardingModal: React.FC = () => {
               <div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 999, background: 'rgba(246, 173, 85, 0.12)', border: '1px solid rgba(246, 173, 85, 0.3)', color: '#F6AD55', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                   <ShieldCheck size={12} />
-                  {t('merchant.badge')}
+                  {t('merchant.badge', 'ĐĂNG KÝ ĐỐI TÁC B2B')}
                 </div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
-                  {t('merchant.title')}
+                  {t('merchant.title', 'Đăng ký mở Cửa hàng / Nhà may')}
                 </h2>
                 <p style={{ fontSize: 12, color: '#94A3B8', marginTop: 4, marginBottom: 0, lineHeight: 1.5 }}>
-                  {t('merchant.desc')}
+                  {t('merchant.desc', 'Nộp hồ sơ thương hiệu & giấy phép kinh doanh để mở shop bán và may đo 3D trên sàn FitVision.')}
                 </p>
               </div>
             </div>
@@ -350,7 +350,7 @@ export const MerchantOnboardingModal: React.FC = () => {
               {/* Tên thương hiệu / Nhà may */}
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 6 }}>
-                  {t('merchant.brandName')} <span style={{ color: '#F6AD55' }}>*</span>
+                  {t('merchant.brandName', 'Tên Shop / Thương hiệu')} <span style={{ color: '#F6AD55' }}>*</span>
                 </label>
                 <div style={{ position: 'relative' }}>
                   <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748B' }}>
@@ -361,7 +361,7 @@ export const MerchantOnboardingModal: React.FC = () => {
                     required
                     value={brandName}
                     onChange={(e) => setBrandName(e.target.value)}
-                    placeholder={t('merchant.brandPlaceholder')}
+                    placeholder={t('merchant.brandPlaceholder', 'Ví dụ: Atelier Hanoi Bespoke, Veston Sài Gòn...')}
                     style={{
                       width: '100%',
                       height: 40,
@@ -380,7 +380,7 @@ export const MerchantOnboardingModal: React.FC = () => {
               {/* Số điện thoại */}
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 6 }}>
-                  {t('merchant.phone')} <span style={{ color: '#F6AD55' }}>*</span>
+                  {t('merchant.phone', 'Số điện thoại liên hệ')} <span style={{ color: '#F6AD55' }}>*</span>
                 </label>
                 <div style={{ position: 'relative' }}>
                   <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748B' }}>
@@ -391,7 +391,7 @@ export const MerchantOnboardingModal: React.FC = () => {
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder={t('merchant.phonePlaceholder')}
+                    placeholder={t('merchant.phonePlaceholder', 'Ví dụ: 0912345678 hoặc +84912345678')}
                     style={{
                       width: '100%',
                       height: 40,
@@ -406,14 +406,14 @@ export const MerchantOnboardingModal: React.FC = () => {
                   />
                 </div>
                 <p style={{ margin: '4px 0 0 0', fontSize: 10, color: '#64748B' }}>
-                  {t('merchant.phoneHint')}
+                  {t('merchant.phoneHint', 'Hệ thống tự động lọc số rác và kiểm tra tính duy nhất trên hệ thống.')}
                 </p>
               </div>
 
               {/* Địa chỉ xưởng may / Showroom */}
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 6 }}>
-                  {t('merchant.address')} <span style={{ color: '#F6AD55' }}>*</span>
+                  {t('merchant.address', 'Địa chỉ cửa hàng / xưởng may')} <span style={{ color: '#F6AD55' }}>*</span>
                 </label>
                 <div style={{ position: 'relative' }}>
                   <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748B' }}>
@@ -424,7 +424,7 @@ export const MerchantOnboardingModal: React.FC = () => {
                     required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder={t('merchant.addressPlaceholder')}
+                    placeholder={t('merchant.addressPlaceholder', 'Số nhà, đường phố, quận/huyện, tỉnh/thành phố')}
                     style={{
                       width: '100%',
                       height: 40,

@@ -10,7 +10,10 @@ import {
 } from './auth.dto.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
-import { isDisposableEmail } from '../../constants/disposableEmails.js';
+import {
+  isDisposableEmail,
+  validateEmailDomainAndGmailPolicy,
+} from '../../constants/disposableEmails.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
 import {
   generateAccessToken,
@@ -34,12 +37,21 @@ export const authService = {
       };
     }
 
-    // 2. Kiểm tra Disposable Email (Lớp 3 chống spam)
+    // 2. Kiểm tra Disposable Email & Chuẩn Tên Miền / Gmail Policy
     if (isDisposableEmail(dto.email)) {
       throw new AppError(
         400,
         ErrorCode.AUTH_DISPOSABLE_EMAIL,
         'Hệ thống không chấp nhận email tạm thời/email rác. Vui lòng dùng email chính thức.'
+      );
+    }
+
+    const emailPolicy = validateEmailDomainAndGmailPolicy(dto.email);
+    if (!emailPolicy.valid) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        emailPolicy.message || 'Email không đúng định dạng hợp lệ.'
       );
     }
 
@@ -96,12 +108,21 @@ export const authService = {
       };
     }
 
-    // 2. Disposable Email check
+    // 2. Disposable Email & Domain Policy check
     if (isDisposableEmail(dto.email)) {
       throw new AppError(
         400,
         ErrorCode.AUTH_DISPOSABLE_EMAIL,
         'Hệ thống không chấp nhận email tạm thời. Vui lòng dùng email chính thức.'
+      );
+    }
+
+    const emailPolicy = validateEmailDomainAndGmailPolicy(dto.email);
+    if (!emailPolicy.valid) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        emailPolicy.message || 'Email không đúng định dạng hợp lệ.'
       );
     }
 
@@ -259,6 +280,7 @@ export const authService = {
     });
 
     return {
+      requiresAdmin2fa: false as const,
       accessToken,
       refreshToken: rawRefreshToken,
       expiresIn: 900, // 15 phút
@@ -464,49 +486,62 @@ export const authService = {
   },
 
   /**
-   * Đăng Nhập / Đăng Ký với Google (Google OAuth Social Login)
+   * Đăng Nhập / Đăng Ký với Google (Chỉ dành cho Khách hàng / Shop; Khóa cứng đối với ADMIN & xác thực token Google)
    */
   async loginWithGoogle(dto: GoogleAuthDtoType) {
-    let email = dto.email;
+    let email = '';
     let fullName = dto.fullName || 'Google User';
     let avatarUrl = dto.avatarUrl;
 
-    // Nếu gửi kèm Google credential (ID Token JWT), giải mã và xác thực chuẩn từ Google
+    // Bắt buộc xác thực trực tiếp qua máy chủ Google (tuyệt đối không tin email thô từ client gửi lên)
     if (dto.credential) {
-      try {
-        const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${dto.credential}`);
-        if (verifyRes.ok) {
-          const gData: any = await verifyRes.json();
-          if (gData.email) email = gData.email;
-          if (gData.name) fullName = gData.name;
-          if (gData.picture) avatarUrl = gData.picture;
-        } else {
-          const parts = dto.credential.split('.');
-          if (parts.length >= 2) {
-            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-            if (payload.email) email = payload.email;
-            if (payload.name) fullName = payload.name;
-            if (payload.picture) avatarUrl = payload.picture;
-          }
-        }
-      } catch (err) {
-        try {
-          const parts = dto.credential.split('.');
-          if (parts.length >= 2) {
-            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-            if (payload.email) email = payload.email;
-            if (payload.name) fullName = payload.name;
-            if (payload.picture) avatarUrl = payload.picture;
-          }
-        } catch {}
+      const verifyRes = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(dto.credential)}`
+      );
+      if (!verifyRes.ok) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Google ID Token không hợp lệ hoặc đã hết hạn.');
       }
-    }
-
-    if (!email) {
-      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Không tìm thấy thông tin email từ tài khoản Google.');
+      const gData: any = await verifyRes.json();
+      if (!gData.email || gData.email_verified === 'false' || gData.email_verified === false) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Email Google chưa được xác minh.');
+      }
+      email = gData.email;
+      if (gData.name) fullName = gData.name;
+      if (gData.picture) avatarUrl = gData.picture;
+    } else if (dto.accessToken) {
+      const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${dto.accessToken}` },
+      });
+      if (!userInfoRes.ok) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Phiên xác thực Google OAuth đã hết hạn hoặc không hợp lệ.');
+      }
+      const gData: any = await userInfoRes.json();
+      if (!gData.email || gData.email_verified === false) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Tài khoản Google chưa xác minh email.');
+      }
+      email = gData.email;
+      if (gData.name) fullName = gData.name;
+      if (gData.picture) avatarUrl = gData.picture;
+    } else {
+      throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Thiếu mã xác thực Google OAuth2 hợp lệ.');
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const existingAccount = await authRepository.findUserByEmail(cleanEmail);
+    const isProtectedAdminEmail =
+      existingAccount?.role === 'ADMIN' ||
+      cleanEmail === 'levanthang0166@gmail.com' ||
+      cleanEmail === 'admin@fitvision3d.com';
+
+    // Bảo mật: Khóa tài khoản Quản trị viên (ADMIN) không cho đăng nhập qua nút Google Social Login
+    if (isProtectedAdminEmail) {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Tài khoản Quản trị viên (Admin) bị khóa đăng nhập qua nút Google để bảo mật hệ thống. Vui lòng tự nhập Email và Mật khẩu.'
+      );
+    }
+
     const user = await authRepository.findOrCreateGoogleUser({
       email: cleanEmail,
       fullName,

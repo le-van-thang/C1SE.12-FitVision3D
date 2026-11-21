@@ -1,4 +1,4 @@
-﻿# 🧵 FitVision 3D (C1SE.12)
+# 🧵 FitVision 3D (C1SE.12)
 ### Hệ Thống Đo Nhân Trắc Học 3D Không Tiếp Xúc & May Đo Thông Minh Theo Chuẩn Quốc Tế ISO 8559-1
 > **AI-Powered Contactless 3D Anthropometry & Virtual Fitting Intelligence Platform**
 

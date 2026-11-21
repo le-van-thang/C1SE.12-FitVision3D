@@ -5,28 +5,246 @@
  * ============================================================
  */
 
-export const DISPOSABLE_EMAIL_DOMAINS = new Set([
+/**
+ * Danh sách đen các nhà cung cấp email tạm thời / email ảo / email 10 phút (Đồng bộ với Backend)
+ */
+export const DISPOSABLE_EMAIL_DOMAINS = new Set<string>([
   'tempmail.com',
+  'temp-mail.org',
+  'temp-mail.io',
+  'tempmailo.com',
+  'tempmail.net',
+  'tempail.com',
+  'tempr.email',
+  'tmpmail.org',
+  'tmpmail.net',
   '10minutemail.com',
+  '10minutemail.net',
+  '10mail.org',
   'mailinator.com',
+  'mailinator.net',
+  'maildrop.cc',
+  'mailnesia.com',
+  'mailcatch.com',
+  'mailnull.com',
   'yopmail.com',
+  'yopmail.fr',
+  'yopmail.net',
   'sharklasers.com',
   'guerrillamail.com',
+  'guerrillamail.info',
+  'guerrillamail.net',
+  'guerrillamail.org',
+  'guerrillamail.de',
+  'guerrillamailblock.com',
+  'grr.la',
   'throwawaymail.com',
   'getnada.com',
+  'nada.ltd',
   'dispostable.com',
+  'disposablemail.com',
   'fakeinbox.com',
+  'fakemailgenerator.com',
   'trashmail.com',
-  'tempr.email',
+  'trashmail.net',
+  'trashmail.me',
+  'trash-mail.com',
   'mytemp.email',
   'mohmal.com',
   'burnermail.io',
   'dropmail.me',
-  'nada.ltd',
   'crazymailing.com',
   'spambog.com',
-  'trashmail.net',
+  'inboxkitten.com',
+  'mintemail.com',
+  'emailondeck.com',
+  'tempinbox.com',
+  'anonymbox.com',
+  'spam4.me',
+  'spamgourmet.com',
+  'moakt.com',
+  'luxusmail.org',
+  'armyspy.com',
+  'cuvox.de',
+  'dayrep.com',
+  'einrot.com',
+  'fleckens.hu',
+  'gustr.com',
+  'jourrapide.com',
+  'rhyta.com',
+  'superrito.com',
+  'teleworm.us',
+  'cool.fr.nf',
+  'jetable.fr.nf',
+  'nospam.ze.tc',
+  'nomail.xl.cx',
+  'mega.zik.dj',
+  'speed.1s.fr',
+  'courriel.fr.nf',
+  'moncourrier.fr.nf',
+  'monemail.fr.nf',
+  'monmail.fr.nf',
 ]);
+
+/**
+ * Các nhà cung cấp email uy tín phổ biến trên thế giới hiện nay còn hoạt động
+ * (Ngoài danh sách này, email công ty/tổ chức/trường học đúng chuẩn vẫn được chấp nhận)
+ */
+export const TRUSTED_GLOBAL_EMAIL_PROVIDERS = new Set<string>([
+  // Google
+  'gmail.com',
+  'googlemail.com',
+  // Microsoft
+  'outlook.com',
+  'outlook.com.vn',
+  'outlook.jp',
+  'outlook.fr',
+  'outlook.de',
+  'hotmail.com',
+  'hotmail.co.uk',
+  'hotmail.fr',
+  'live.com',
+  'msn.com',
+  // Yahoo
+  'yahoo.com',
+  'yahoo.com.vn',
+  'yahoo.co.uk',
+  'yahoo.co.jp',
+  'yahoo.fr',
+  'yahoo.de',
+  'ymail.com',
+  'rocketmail.com',
+  // Apple
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  // Security & Global Providers
+  'proton.me',
+  'protonmail.com',
+  'protonmail.ch',
+  'pm.me',
+  'tuta.com',
+  'tuta.io',
+  'tutanota.com',
+  'zoho.com',
+  'zohomail.com',
+  'zohomail.in',
+  'aol.com',
+  'gmx.com',
+  'gmx.net',
+  'gmx.de',
+  'web.de',
+  'mail.com',
+  'fastmail.com',
+  'yandex.com',
+  'yandex.ru',
+  'mail.ru',
+  // Asia (Korea / China)
+  'naver.com',
+  'daum.net',
+  'hanmail.net',
+  'kakao.com',
+  'qq.com',
+  '163.com',
+  '126.com',
+  'foxmail.com',
+]);
+
+/**
+ * Các tên miền hay bị gõ sai chính tả của các dịch vụ lớn -> Gợi ý tên miền đúng
+ */
+export const EMAIL_DOMAIN_TYPOS: Record<string, string> = {
+  // Gmail typos
+  'gmial.com': 'gmail.com',
+  'gmai.com': 'gmail.com',
+  'gmal.com': 'gmail.com',
+  'gamil.com': 'gmail.com',
+  'gnail.com': 'gmail.com',
+  'gmaill.com': 'gmail.com',
+  'gmsil.com': 'gmail.com',
+  'gmeil.com': 'gmail.com',
+  'gimail.com': 'gmail.com',
+  'gmaii.com': 'gmail.com',
+  'gmali.com': 'gmail.com',
+  'gmil.com': 'gmail.com',
+  'hmail.com': 'gmail.com',
+  'fmail.com': 'gmail.com',
+  'gogglemail.com': 'googlemail.com',
+  'googlemai.com': 'googlemail.com',
+  'gmail.con': 'gmail.com',
+  'gmail.cpm': 'gmail.com',
+  'gmail.cmo': 'gmail.com',
+  'gmail.om': 'gmail.com',
+  'gmail.vom': 'gmail.com',
+  'gmail.comm': 'gmail.com',
+  'gmail.coom': 'gmail.com',
+  'gmail.co': 'gmail.com',
+  'gmail.cm': 'gmail.com',
+  'gmail.vn': 'gmail.com',
+  'gmail.com.vn': 'gmail.com',
+  'gmail.net': 'gmail.com',
+  'gmail.org': 'gmail.com',
+  // Yahoo typos
+  'yaho.com': 'yahoo.com',
+  'yahooo.com': 'yahoo.com',
+  'yhoo.com': 'yahoo.com',
+  'yaoo.com': 'yahoo.com',
+  'yahho.com': 'yahoo.com',
+  'yhaoo.com': 'yahoo.com',
+  'yahoo.con': 'yahoo.com',
+  'yahoo.cpm': 'yahoo.com',
+  'yahoo.cmo': 'yahoo.com',
+  // Outlook / Hotmail typos
+  'outlok.com': 'outlook.com',
+  'outllok.com': 'outlook.com',
+  'oulook.com': 'outlook.com',
+  'outook.com': 'outlook.com',
+  'outlook.con': 'outlook.com',
+  'outlook.cpm': 'outlook.com',
+  'hotmai.com': 'hotmail.com',
+  'hotmal.com': 'hotmail.com',
+  'hotmial.com': 'hotmail.com',
+  'homail.com': 'hotmail.com',
+  'hotmaill.com': 'hotmail.com',
+  'hotmail.con': 'hotmail.com',
+  'hotmail.cpm': 'hotmail.com',
+  // iCloud typos
+  'iclod.com': 'icloud.com',
+  'icoud.com': 'icloud.com',
+  'icluod.com': 'icloud.com',
+  'icloud.con': 'icloud.com',
+  'icloud.cpm': 'icloud.com',
+  // Proton / Zoho typos
+  'protonmai.com': 'protonmail.com',
+  'prontonmail.com': 'protonmail.com',
+  'protonmail.con': 'protonmail.com',
+  'proton.con': 'proton.me',
+  'zohomail.con': 'zohomail.com',
+};
+
+const INVALID_TYPO_TLDS = new Set([
+  'con',
+  'cpm',
+  'cmo',
+  'om',
+  'vom',
+  'comm',
+  'coom',
+  'ocm',
+  'xom',
+  'vnn',
+]);
+
+/** Kiểm tra domain có thuộc danh sách rác (bao gồm cả subdomain như abc.yopmail.com) */
+export function isDisposableEmailDomain(domain: string): boolean {
+  const clean = (domain || '').toLowerCase().trim();
+  if (!clean) return false;
+  if (DISPOSABLE_EMAIL_DOMAINS.has(clean)) return true;
+  for (const blocked of DISPOSABLE_EMAIL_DOMAINS) {
+    if (clean.endsWith('.' + blocked)) return true;
+  }
+  return false;
+}
 
 /** Vietnam & Standard International Mobile (+84 / 0) with prefixes 3, 5, 7, 8, 9 */
 export const VN_PHONE_REGEX = /^(?:0|\+84)(?:3|5|7|8|9)[0-9]{8}$/;
@@ -35,17 +253,18 @@ export const VN_PHONE_REGEX = /^(?:0|\+84)(?:3|5|7|8|9)[0-9]{8}$/;
 export const EMAIL_REGEX =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
-/** Password: 8-32 chars, at least 1 lower, 1 upper, 1 digit, 1 special character */
+/** Password: 6-32 chars, at least 1 special character */
 export const PASSWORD_REGEX = /^(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]).{6,32}$/;
 
 export interface ValidationResult {
   valid: boolean;
   error?: string;
   code?: string;
+  suggestion?: string;
 }
 
 /**
- * Normalize and validate Email
+ * Normalize and validate Email (Strict syntax + Gmail policy + Typo catch + Anti-disposable)
  */
 export function validateEmail(
   rawEmail: string,
@@ -57,26 +276,110 @@ export function validateEmail(
     return { valid: false, error: 'Email không được để trống.', code: 'EMAIL_REQUIRED' };
   }
 
+  if (/\s/.test(email)) {
+    return {
+      valid: false,
+      error: 'Email không được chứa khoảng trắng.',
+      code: 'EMAIL_INVALID',
+    };
+  }
+
+  if (/[^\x00-\x7F]/.test(email)) {
+    return {
+      valid: false,
+      error: 'Email không được chứa chữ tiếng Việt có dấu hoặc ký tự đặc biệt ngoài chuẩn quốc tế.',
+      code: 'EMAIL_INVALID',
+    };
+  }
+
   if (email.length > 254) {
     return { valid: false, error: 'Email vượt quá độ dài tối đa (254 ký tự).', code: 'EMAIL_TOO_LONG' };
+  }
+
+  const parts = email.split('@');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    return {
+      valid: false,
+      error: 'Email phải gồm đúng 1 ký tự @ (ví dụ: ten@gmail.com).',
+      code: 'EMAIL_INVALID',
+    };
+  }
+
+  const [localPart, domain] = parts;
+
+  if (localPart.startsWith('.') || localPart.endsWith('.') || localPart.includes('..')) {
+    return {
+      valid: false,
+      error: 'Phần tên trước @ không được bắt đầu/kết thúc bằng dấu chấm hoặc có hai dấu chấm liền nhau.',
+      code: 'EMAIL_INVALID',
+    };
+  }
+
+  if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..') || !domain.includes('.')) {
+    return {
+      valid: false,
+      error: 'Tên miền email chưa hợp lệ (ví dụ đúng: gmail.com, outlook.com).',
+      code: 'EMAIL_INVALID',
+    };
   }
 
   if (!EMAIL_REGEX.test(email)) {
     return { valid: false, error: 'Định dạng email không hợp lệ.', code: 'EMAIL_INVALID' };
   }
 
-  const parts = email.split('@');
-  if (parts.length !== 2) {
-    return { valid: false, error: 'Định dạng email không hợp lệ.', code: 'EMAIL_INVALID' };
-  }
-
-  const domain = parts[1];
-  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) {
+  const tld = domain.split('.').pop() || '';
+  if (tld.length < 2 || /^\d+$/.test(tld)) {
     return {
       valid: false,
-      error: 'Không được sử dụng dịch vụ email tạm thời (disposable mail) để đăng ký.',
+      error: 'Đuôi tên miền email không hợp lệ (ví dụ: .com, .vn, .edu.vn).',
+      code: 'EMAIL_INVALID',
+    };
+  }
+
+  if (isDisposableEmailDomain(domain)) {
+    return {
+      valid: false,
+      error: 'Không chấp nhận dịch vụ email tạm thời / email 10 phút (rác) để đăng ký.',
       code: 'AUTH_DISPOSABLE_EMAIL',
     };
+  }
+
+  const typoSuggestion = EMAIL_DOMAIN_TYPOS[domain];
+  if (typoSuggestion) {
+    return {
+      valid: false,
+      error: `Tên miền "${domain}" có vẻ bị gõ nhầm. Có phải bạn muốn dùng @${typoSuggestion}?`,
+      code: 'EMAIL_DOMAIN_TYPO',
+      suggestion: `${localPart}@${typoSuggestion}`,
+    };
+  }
+
+  if (INVALID_TYPO_TLDS.has(tld)) {
+    return {
+      valid: false,
+      error: `Đuôi ".${tld}" không hợp lệ (thường do gõ nhầm từ .com).`,
+      code: 'EMAIL_DOMAIN_TYPO',
+    };
+  }
+
+  // Kiểm tra chuẩn riêng của Google Gmail / Googlemail
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    const baseName = localPart.split('+')[0];
+    if (!baseName || !/^[a-z0-9.]+$/.test(baseName)) {
+      return {
+        valid: false,
+        error: 'Tên tài khoản Gmail chỉ được dùng chữ cái không dấu (a-z), số (0-9) và dấu chấm (.).',
+        code: 'EMAIL_GMAIL_INVALID',
+      };
+    }
+    const strippedDots = baseName.replace(/\./g, '');
+    if (strippedDots.length < 6 || strippedDots.length > 30) {
+      return {
+        valid: false,
+        error: 'Tên Gmail chuẩn của Google phải dài từ 6 đến 30 ký tự.',
+        code: 'EMAIL_GMAIL_LENGTH',
+      };
+    }
   }
 
   const isDuplicate = existingEmails.some(

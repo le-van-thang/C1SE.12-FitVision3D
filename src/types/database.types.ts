@@ -32,6 +32,7 @@ export interface Store {
   verification_doc: string;     // text NOT NULL (Business license ID or Partner Website/Fanpage URL)
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   is_approved?: boolean;        // boolean flag (true when status === 'APPROVED')
+  is_mall?: boolean;            // Official FitVision Mall verification badge
   rejection_reason?: string | null; // text (mandatory when status === 'REJECTED')
   created_at: string;           // timestamptz NOT NULL
   updated_at?: string;          // timestamptz

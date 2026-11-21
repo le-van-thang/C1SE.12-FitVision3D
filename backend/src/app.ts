@@ -5,6 +5,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
+import { commerceRouter } from './modules/commerce/commerce.routes.js';
+import { aiRouter } from './modules/ai/ai.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { env } from './config/env.js';
 
@@ -31,8 +33,8 @@ app.use(
 );
 
 // 2. Parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(cookieParser());
 
 // 3. Phục vụ thư mục tĩnh (Dùng cho Giao diện Test public/test-auth.html)
@@ -42,6 +44,8 @@ app.use(express.static(path.resolve(__dirname, '../public')));
 // 4. Mount API Routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/commerce', commerceRouter);
+app.use('/api/v1/ai', aiRouter);
 
 // 5. Health Check Endpoint
 app.get('/health', (req, res) => {

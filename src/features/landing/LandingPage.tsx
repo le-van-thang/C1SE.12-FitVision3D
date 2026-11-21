@@ -185,7 +185,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
               <div>
                 <span className="font-mono text-xl sm:text-2xl font-semibold text-indigo block">
-                  RAM 100%
+                  0% Lưu
                 </span>
                 <span className="text-xs text-ink-2 font-sans mt-0.5 block">
                   {t('landing.statPrivacy')}

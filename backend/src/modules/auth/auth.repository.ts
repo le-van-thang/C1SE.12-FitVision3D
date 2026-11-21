@@ -384,12 +384,12 @@ export const authRepository = {
       return existing;
     }
 
-    // Tạo mới tài khoản Google (role USER hoặc ADMIN nếu là chủ hệ thống, status ACTIVE)
+    // Tạo mới tài khoản Google: luôn là USER thường (không bao giờ tự phong ADMIN qua Google OAuth)
     return this.createUser({
       email: cleanEmail,
-      fullName: data.fullName || (cleanEmail === 'levanthang0166@gmail.com' ? 'Lê Văn Thắng' : 'Google User'),
+      fullName: data.fullName || 'Google User',
       passwordHash: '$2a$12$google_oauth_no_direct_password_' + crypto.randomUUID(),
-      role: (cleanEmail === 'levanthang0166@gmail.com' || cleanEmail === 'admin@fitvision3d.com') ? 'ADMIN' : 'USER',
+      role: 'USER',
       status: 'ACTIVE',
     });
   },

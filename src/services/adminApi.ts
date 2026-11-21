@@ -25,6 +25,7 @@ export interface AdminStoreItem {
   tax_code?: string;
   business_license_no?: string;
   is_verified: boolean;
+  is_mall?: boolean;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejection_reason?: string | null;
   approved_at?: string | null;
@@ -148,6 +149,16 @@ export const adminApi = {
   },
 
   /**
+   * Cấp / Thu hồi huy hiệu FitVision Mall chính hãng cho Shop
+   */
+  async toggleStoreMall(storeId: string, isMall: boolean): Promise<AdminApiResponse<AdminStoreItem>> {
+    return await adminRequest<AdminStoreItem>(`/stores/${storeId}/mall`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isMall }),
+    });
+  },
+
+  /**
    * Lấy danh sách toàn bộ người dùng thực tế từ PostgreSQL
    */
   async getUsers(): Promise<AdminApiResponse<AdminUserItem[]>> {
@@ -179,6 +190,13 @@ export const adminApi = {
    */
   async getAuditLogs(limit = 50): Promise<AdminApiResponse<AdminAuditLogItem[]>> {
     return await adminRequest<AdminAuditLogItem[]>(`/audit-logs?limit=${limit}`);
+  },
+
+  /**
+   * Lấy hồ sơ shop hiện tại của người dùng từ PostgreSQL
+   */
+  async getMyStore(): Promise<AdminApiResponse<AdminStoreItem | null>> {
+    return await adminRequest<AdminStoreItem | null>('/stores/my-shop');
   },
 
   /**

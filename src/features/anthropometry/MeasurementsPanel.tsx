@@ -40,34 +40,38 @@ export const MetricRow: React.FC<{
   const shown = useCountUp(value);
   return (
     <div
-      className={`zf-row ${isActive ? "active-row" : ""}`}
       onClick={onClick}
-      style={{
-        cursor: onClick ? "pointer" : "default",
-        padding: "10px 8px",
-        borderRadius: "6px",
-        transition: "background 0.15s",
-        background: isActive ? "rgba(163, 230, 53, 0.08)" : "transparent",
-      }}
+      className={`flex items-center justify-between px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+        isActive
+          ? 'bg-emerald-50 border-2 border-emerald-400 shadow-xs text-emerald-950'
+          : 'bg-slate-50 hover:bg-blue-50/70 border border-slate-200 hover:border-blue-300 text-slate-900'
+      }`}
     >
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        <span style={{ color: isActive ? "#A3E635" : undefined, fontWeight: isActive ? 600 : undefined }}>
+      <div className="flex flex-col min-w-0 pr-2">
+        <span className={`text-xs font-bold truncate leading-tight ${isActive ? 'text-emerald-950 font-black' : 'text-slate-800'}`}>
           {label}
         </span>
         {sublabel ? (
-          <span style={{ fontSize: "10px", color: "var(--muted, #94a3b8)", marginTop: "1px" }}>
+          <span className={`text-[10px] leading-tight truncate ${isActive ? 'text-emerald-700 font-medium' : 'text-slate-500'}`}>
             {sublabel}
           </span>
         ) : null}
       </div>
-      {value == null ? (
-        <b className="empty">—</b>
-      ) : (
-        <b style={{ color: isActive ? "#A3E635" : undefined }}>
-          {shown.toFixed(1)}
-          {unit && <em>{unit}</em>}
-        </b>
-      )}
+
+      <div className="flex-shrink-0 text-right">
+        {value == null ? (
+          <span className="font-mono text-slate-400 text-xs font-bold">—</span>
+        ) : (
+          <span className={`font-mono text-xs sm:text-sm font-black ${isActive ? 'text-emerald-700' : 'text-blue-700'}`}>
+            {shown.toFixed(1)}
+            {unit && (
+              <em className="not-italic text-[10px] font-bold text-slate-500 ml-0.5">
+                {unit}
+              </em>
+            )}
+          </span>
+        )}
+      </div>
     </div>
   );
 };
@@ -93,38 +97,29 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
   const conf = measurement?.extraction_confidence;
 
   return (
-    <section className="zf-card zf-card-pad" id={id} aria-label={t("meas.title")}>
-      <div className="zf-section-head" style={{ marginBottom: 6 }}>
+    <section id={id} aria-label={t("meas.title", "Bảng Số Đo ISO 8559")}>
+      <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100 mb-3">
         <div>
-          <h2 className="zf-eyebrow">{t("meas.title")}</h2>
+          <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+            {t("meas.title", "SỐ ĐO ISO 8559-1")}
+          </h2>
           {measurement && (
-            <div
-              style={{
-                fontSize: "11px",
-                color: isLiveBackend ? "#34d399" : "#38bdf8",
-                marginTop: "2px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                fontWeight: 500,
-              }}
-            >
-              <span>{isLiveBackend ? t("dashx.sourceModel") : t("dashx.sourceFormula")}</span>
+            <div className="text-[10px] font-bold text-blue-600 mt-0.5 flex items-center gap-1">
+              <span>{isLiveBackend ? t("dashx.sourceModel", "Mô hình SMPLer-X") : t("dashx.sourceFormula", "Giải tích ISO 8559")}</span>
             </div>
           )}
         </div>
         {conf != null && (
-          <span
-            className={`zf-pill mono ${conf >= 0.85 ? "zf-pill--lime" : "zf-pill--teal"}`}
-          >
-            {t("meas.confidence").replace("{p}", (conf * 100).toFixed(0))}
+          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+            {t("meas.confidence", "Độ tin cậy: {p}%").replace("{p}", (conf * 100).toFixed(0))}
           </span>
         )}
       </div>
-      <div className="zf-rows">
+
+      <div className="space-y-1">
         <MetricRow
-          label={t("meas.chest")}
-          sublabel={t("meas.chestSub") || undefined}
+          label={t("meas.chest", "Vòng ngực")}
+          sublabel={t("meas.chestSub", "Đo ngang đỉnh ngực chuẩn") || undefined}
           field="chest_circ_cm"
           value={measurement?.chest_circ_cm}
           unit="cm"
@@ -132,8 +127,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("chest_circ_cm")}
         />
         <MetricRow
-          label={t("meas.waist")}
-          sublabel={t("meas.waistSub") || undefined}
+          label={t("meas.waist", "Vòng eo")}
+          sublabel={t("meas.waistSub", "Vị trí hẹp nhất thắt lưng") || undefined}
           field="waist_circ_cm"
           value={measurement?.waist_circ_cm}
           unit="cm"
@@ -141,8 +136,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("waist_circ_cm")}
         />
         <MetricRow
-          label={t("meas.hips")}
-          sublabel={t("meas.hipsSub") || undefined}
+          label={t("meas.hips", "Vòng mông / hông")}
+          sublabel={t("meas.hipsSub", "Điểm nở nhất của mông") || undefined}
           field="hip_circ_cm"
           value={measurement?.hip_circ_cm}
           unit="cm"
@@ -150,8 +145,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("hip_circ_cm")}
         />
         <MetricRow
-          label={t("meas.shoulders")}
-          sublabel={t("meas.shouldersSub") || undefined}
+          label={t("meas.shoulders", "Rộng vai")}
+          sublabel={t("meas.shouldersSub", "Từ mút vai trái sang phải") || undefined}
           field="shoulder_breadth_cm"
           value={measurement?.shoulder_breadth_cm}
           unit="cm"
@@ -159,8 +154,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("shoulder_breadth_cm")}
         />
         <MetricRow
-          label={t("meas.armLength")}
-          sublabel={t("meas.armLengthSub") || undefined}
+          label={t("meas.armLength", "Chiều dài tay áo")}
+          sublabel={t("meas.armLengthSub", "Từ đỉnh vai đến cổ tay") || undefined}
           field="arm_length_cm"
           value={measurement?.arm_length_cm}
           unit="cm"
@@ -168,8 +163,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("arm_length_cm")}
         />
         <MetricRow
-          label={t("meas.bicep")}
-          sublabel={t("meas.bicepSub") || undefined}
+          label={t("meas.bicep", "Vòng bắp tay")}
+          sublabel={t("meas.bicepSub", "Chính giữa đỉnh vai và cùi chỏ") || undefined}
           field="bicep_circ_cm"
           value={measurement?.bicep_circ_cm}
           unit="cm"
@@ -177,8 +172,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("bicep_circ_cm")}
         />
         <MetricRow
-          label={t("meas.wrist")}
-          sublabel={t("meas.wristSub") || undefined}
+          label={t("meas.wrist", "Vòng cổ tay")}
+          sublabel={t("meas.wristSub", "Ngay phía trên mắt cá cổ tay") || undefined}
           field="wrist_circ_cm"
           value={measurement?.wrist_circ_cm}
           unit="cm"
@@ -186,8 +181,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("wrist_circ_cm")}
         />
         <MetricRow
-          label={t("meas.thigh")}
-          sublabel={t("meas.thighSub") || undefined}
+          label={t("meas.thigh", "Vòng đùi")}
+          sublabel={t("meas.thighSub", "Vị trí lớn nhất sát đáy quần") || undefined}
           field="thigh_circ_cm"
           value={measurement?.thigh_circ_cm}
           unit="cm"
@@ -195,8 +190,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("thigh_circ_cm")}
         />
         <MetricRow
-          label={t("meas.calf")}
-          sublabel={t("meas.calfSub") || undefined}
+          label={t("meas.calf", "Vòng bắp chân")}
+          sublabel={t("meas.calfSub", "Điểm lớn nhất bắp chuối") || undefined}
           field="calf_circ_cm"
           value={measurement?.calf_circ_cm}
           unit="cm"
@@ -204,8 +199,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("calf_circ_cm")}
         />
         <MetricRow
-          label={t("meas.ankle")}
-          sublabel={t("meas.ankleSub") || undefined}
+          label={t("meas.ankle", "Vòng cổ chân")}
+          sublabel={t("meas.ankleSub", "Ngay trên mắt cá chân") || undefined}
           field="ankle_circ_cm"
           value={measurement?.ankle_circ_cm}
           unit="cm"
@@ -213,8 +208,8 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
           onClick={() => onSelectMetric?.("ankle_circ_cm")}
         />
         <MetricRow
-          label={t("meas.inseam")}
-          sublabel={t("meas.inseamSub") || undefined}
+          label={t("meas.inseam", "Dài chân (Inseam)")}
+          sublabel={t("meas.inseamSub", "Từ đáy quần xuống gấu quần") || undefined}
           field="inseam_cm"
           value={measurement?.inseam_cm}
           unit="cm"
@@ -223,13 +218,13 @@ export const MeasurementsPanel: React.FC<MeasurementsPanelProps> = ({
         />
       </div>
 
-      <h3 className="zf-eyebrow zf-group-label" style={{ marginTop: "14px" }}>
-        {t("meas.bioTitle")}
+      <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-wider mt-2.5 mb-1.5 block pt-2 border-t-2 border-slate-100">
+        {t("meas.bioTitle", "CHỈ SỐ THỂ TRẠNG")}
       </h3>
-      <div className="zf-rows">
-        <MetricRow label={t("meas.stature")} field="stature_cm" value={biometric?.stature_cm} unit="cm" />
-        <MetricRow label={t("meas.weight")} field="weight_kg" value={biometric?.weight_kg} unit="kg" />
-        <MetricRow label={t("meas.bmi")} field="calculated_bmi" value={biometric?.calculated_bmi} unit="" />
+      <div className="space-y-1">
+        <MetricRow label={t("meas.stature", "Chiều cao")} field="stature_cm" value={biometric?.stature_cm} unit="cm" />
+        <MetricRow label={t("meas.weight", "Cân nặng")} field="weight_kg" value={biometric?.weight_kg} unit="kg" />
+        <MetricRow label={t("meas.bmi", "Chỉ số BMI")} field="calculated_bmi" value={biometric?.calculated_bmi} unit="" />
       </div>
     </section>
   );

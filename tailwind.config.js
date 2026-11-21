@@ -2,6 +2,7 @@
 export default {
   content: [
     "./index.html",
+    "./landing.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class',
@@ -20,10 +21,6 @@ export default {
           DEFAULT: 'var(--ink)',
           2: 'var(--ink-2)',
         },
-        indigo: {
-          DEFAULT: 'var(--indigo)',
-          hover: 'var(--indigo-hover)',
-        },
         vermilion: {
           DEFAULT: 'var(--vermilion)',
           hover: 'var(--vermilion-hover)',
@@ -36,8 +33,8 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Fraunces"', 'Georgia', 'serif'],
-        sans: ['"Instrument Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Lora"', '"Be Vietnam Pro"', 'Georgia', 'serif'],
+        sans: ['"Be Vietnam Pro"', '"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       borderRadius: {

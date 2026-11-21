@@ -6,6 +6,7 @@ import {
   loadRealHumanModel,
   createSkinnedZozofitMaterial,
   type HumanBodyParams,
+  type AnatomicalLandmarks,
 } from "./meshGenerator";
 import type { MeshParameter, Measurement } from "../../types/database.types";
 
@@ -23,6 +24,21 @@ export type MetricKey =
   | "thigh_circ_cm"
   | "calf_circ_cm"
   | "ankle_circ_cm";
+
+export type MannequinViewZone = "full_body" | "chest" | "waist" | "hips";
+
+export interface GarmentOverlay3D {
+  visible: boolean;
+  category: "top" | "bottom" | "full";
+  sizeLabel: string;
+  chestCm: number;
+  waistCm: number;
+  hipCm: number;
+  bodyChestCm: number;
+  bodyWaistCm: number;
+  bodyHipCm: number;
+  colorHex?: string;
+}
 
 export interface MannequinViewerProps {
   meshParams: MeshParameter | null;
@@ -43,9 +59,16 @@ export interface MannequinViewerProps {
   activeMetric?: MetricKey | null;
   onSelectMetric?: (metric: MetricKey) => void;
   zonePillAlign?: "center" | "left" | "right";
+  variant?: "dark" | "studio";
+  autoRotate?: boolean;
+  hideCallouts?: boolean;
+  hideZonePill?: boolean;
+  hideDragHint?: boolean;
+  externalZone?: MannequinViewZone;
+  garmentOverlay?: GarmentOverlay3D | null;
 }
 
-type ViewZone = "full_body" | "chest" | "waist" | "hips";
+type ViewZone = MannequinViewZone;
 type ActiveZoneKey =
   | "chest"
   | "waist"
@@ -66,20 +89,20 @@ interface CameraPreset {
 
 const VIEW_PRESETS: Record<ViewZone, CameraPreset> = {
   full_body: {
-    target: new THREE.Vector3(0, -0.02, 0),
-    pos: new THREE.Vector3(0, 0.04, 3.20),
+    target: new THREE.Vector3(0, 0.0, 0),
+    pos: new THREE.Vector3(0, 0.06, 3.05),
   },
   chest: {
-    target: new THREE.Vector3(0, 0.30, 0),
-    pos: new THREE.Vector3(0, 0.32, 1.35),
+    target: new THREE.Vector3(0, 0.42, 0),
+    pos: new THREE.Vector3(0, 0.44, 1.35),
   },
   waist: {
-    target: new THREE.Vector3(0, 0.08, 0),
-    pos: new THREE.Vector3(0, 0.10, 1.25),
+    target: new THREE.Vector3(0, 0.25, 0),
+    pos: new THREE.Vector3(0, 0.27, 1.25),
   },
   hips: {
-    target: new THREE.Vector3(0, -0.09, 0),
-    pos: new THREE.Vector3(0, -0.07, 1.35),
+    target: new THREE.Vector3(0, 0.02, 0),
+    pos: new THREE.Vector3(0, 0.04, 1.35),
   },
 };
 
@@ -117,37 +140,24 @@ function metricToZone(metric: MetricKey): ActiveZoneKey {
   }
 }
 
-interface AnatomicalLandmarks {
-  chest: THREE.Vector3;
-  waist: THREE.Vector3;
-  hips: THREE.Vector3;
-  shoulders: THREE.Vector3;
-  inseam: THREE.Vector3;
-  arm_length: THREE.Vector3;
-  bicep: THREE.Vector3;
-  wrist: THREE.Vector3;
-  thigh: THREE.Vector3;
-  calf: THREE.Vector3;
-  ankle: THREE.Vector3;
-}
-
 function computeLandmarks(params: HumanBodyParams): AnatomicalLandmarks {
   const sChest = params.scale_chest || 1.0;
   const sWaist = params.scale_waist || 1.0;
   const sHips = params.scale_hips || 1.0;
+  const isFemale = params.gender === "female";
 
   return {
-    chest: new THREE.Vector3(-0.165 * sChest, 0.30, 0.015),
-    waist: new THREE.Vector3(-0.135 * sWaist, 0.08, 0.010),
-    hips: new THREE.Vector3(0.178 * sHips, -0.09, -0.005),
-    shoulders: new THREE.Vector3(0.195 * sChest, 0.43, 0.0),
-    inseam: new THREE.Vector3(-0.085 * sHips, -0.35, 0.0),
-    arm_length: new THREE.Vector3(0.38 * sChest, 0.20, 0.0),
-    bicep: new THREE.Vector3(-0.27 * sChest, 0.28, 0.0),
-    wrist: new THREE.Vector3(-0.43 * sChest, 0.04, 0.015),
-    thigh: new THREE.Vector3(0.11 * sHips, -0.24, 0.015),
-    calf: new THREE.Vector3(0.10 * sHips, -0.52, -0.01),
-    ankle: new THREE.Vector3(0.09 * sHips, -0.74, 0.0),
+    chest: new THREE.Vector3((isFemale ? -0.145 : -0.145) * sChest, 0.42, isFemale ? 0.0 : 0.020),
+    waist: new THREE.Vector3((isFemale ? -0.118 : -0.118) * sWaist, isFemale ? 0.26 : 0.25, isFemale ? 0.0 : 0.035),
+    hips: new THREE.Vector3((isFemale ? 0.172 : 0.152) * sHips, 0.02, isFemale ? -0.04 : 0.038),
+    shoulders: new THREE.Vector3(0.18 * sChest, isFemale ? 0.53 : 0.50, 0.0),
+    inseam: new THREE.Vector3(-0.065 * sHips, -0.35, isFemale ? -0.04 : 0.0),
+    arm_length: new THREE.Vector3(isFemale ? 0.535 : 0.54, isFemale ? 0.536 : 0.27, 0.0),
+    bicep: new THREE.Vector3(isFemale ? -0.31 : -0.30, isFemale ? 0.54 : 0.42, 0.0),
+    wrist: new THREE.Vector3(isFemale ? -0.585 : -0.62, isFemale ? 0.537 : 0.22, 0.02),
+    thigh: new THREE.Vector3(0.105 * sHips, -0.18, isFemale ? -0.038 : 0.015),
+    calf: new THREE.Vector3(0.10 * sHips, -0.50, isFemale ? -0.068 : -0.01),
+    ankle: new THREE.Vector3(isFemale ? 0.084 : 0.125, isFemale ? -0.74 : -0.76, isFemale ? -0.049 : 0.0),
   };
 }
 
@@ -161,8 +171,8 @@ interface CalloutDef {
 const CALLOUTS: CalloutDef[] = [
   { key: "chest_circ_cm", label: "Chest", side: "left", get3DPoint: (lm) => lm.chest },
   { key: "bicep_circ_cm", label: "bicep", side: "left", get3DPoint: (lm) => lm.bicep },
-  { key: "waist_circ_cm", label: "Waist", side: "left", get3DPoint: (lm) => lm.waist },
   { key: "wrist_circ_cm", label: "wrist", side: "left", get3DPoint: (lm) => lm.wrist },
+  { key: "waist_circ_cm", label: "Waist", side: "left", get3DPoint: (lm) => lm.waist },
   { key: "inseam_cm", label: "Inseam", side: "left", get3DPoint: (lm) => lm.inseam },
   { key: "shoulder_breadth_cm", label: "Shoulders", side: "right", get3DPoint: (lm) => lm.shoulders },
   { key: "arm_length_cm", label: "arm_length", side: "right", get3DPoint: (lm) => lm.arm_length },
@@ -171,6 +181,199 @@ const CALLOUTS: CalloutDef[] = [
   { key: "calf_circ_cm", label: "calf", side: "right", get3DPoint: (lm) => lm.calf },
   { key: "ankle_circ_cm", label: "ankle", side: "right", get3DPoint: (lm) => lm.ankle },
 ];
+
+function buildLoftedEllipticalMesh(
+  profileRings: { y: number; rx: number; rz: number; cx?: number; cz?: number }[],
+  mat: THREE.Material,
+  segs = 36
+): THREE.Mesh {
+  const positions: number[] = [];
+  const indices: number[] = [];
+
+  for (let r = 0; r < profileRings.length; r++) {
+    const ring = profileRings[r];
+    const cx = ring.cx ?? 0;
+    const cz = ring.cz ?? 0;
+    for (let s = 0; s <= segs; s++) {
+      const theta = (s / segs) * Math.PI * 2;
+      positions.push(
+        cx + Math.cos(theta) * ring.rx,
+        ring.y,
+        cz + Math.sin(theta) * ring.rz
+      );
+    }
+  }
+
+  const stride = segs + 1;
+  for (let r = 0; r < profileRings.length - 1; r++) {
+    for (let s = 0; s < segs; s++) {
+      const a = r * stride + s;
+      const b = a + stride;
+      const c = a + 1;
+      const d = b + 1;
+      indices.push(a, b, c, c, b, d);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, mat);
+}
+
+function fitColorForDelta(deltaCm: number): number {
+  if (deltaCm < 1.5) return 0xfb7185; // Tight / snug alert (rose)
+  if (deltaCm > 8.5) return 0x38bdf8; // Relaxed / loose (sky)
+  return 0x34d399; // Ideal tailoring ease (emerald)
+}
+
+function disposeGroup(group: THREE.Object3D): void {
+  group.traverse((obj) => {
+    const m = obj as THREE.Mesh;
+    if (m.geometry) m.geometry.dispose();
+    if (m.material) {
+      if (Array.isArray(m.material)) m.material.forEach((mm) => mm.dispose());
+      else m.material.dispose();
+    }
+  });
+}
+
+function rebuildGarmentOverlayGroup(
+  root: THREE.Group,
+  overlay: GarmentOverlay3D | null | undefined,
+  isFemale: boolean
+): void {
+  const existing = root.getObjectByName("garment_3d_shell");
+  if (existing) {
+    root.remove(existing);
+    disposeGroup(existing);
+  }
+  if (!overlay || !overlay.visible) return;
+
+  const shellGroup = new THREE.Group();
+  shellGroup.name = "garment_3d_shell";
+
+  const gChest = Math.max(0.75, Math.min(1.5, overlay.chestCm / 88));
+  const gWaist = Math.max(0.7, Math.min(1.5, overlay.waistCm / 80));
+  const gHips = Math.max(0.75, Math.min(1.5, overlay.hipCm / 94));
+  const easePad = 0.006;
+
+  const baseColor = new THREE.Color(overlay.colorHex || "#2563EB");
+  // Smooth tailored fabric material matching shop product palette
+  const fabricMat = new THREE.MeshBasicMaterial({
+    color: baseColor,
+    transparent: true,
+    opacity: 0.44,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  // Subtle contour accent for hem and seam lines
+  const contourMat = new THREE.MeshBasicMaterial({
+    color: baseColor.clone().lerp(new THREE.Color("#FFFFFF"), 0.55),
+    wireframe: true,
+    transparent: true,
+    opacity: 0.15,
+    depthWrite: false,
+  });
+
+  const zChest = isFemale ? -0.036 : 0.02;
+  const zWaist = isFemale ? -0.016 : 0.035;
+  const zHips = isFemale ? -0.052 : 0.038;
+
+  const addLoftedPiece = (rings: { y: number; rx: number; rz: number; cx?: number; cz?: number }[]) => {
+    shellGroup.add(buildLoftedEllipticalMesh(rings, fabricMat));
+    shellGroup.add(buildLoftedEllipticalMesh(rings, contourMat));
+  };
+
+  if (overlay.category === "top" || overlay.category === "full") {
+    const chestRx = 0.148 * gChest + easePad;
+    const chestRz = (isFemale ? 0.120 : 0.114) * gChest + easePad;
+    const waistRx = (isFemale ? 0.122 : 0.120) * gWaist + easePad;
+    const waistRz = (isFemale ? 0.088 : 0.092) * gWaist + easePad;
+    const hemRx = (isFemale ? 0.165 : 0.144) * Math.max(gWaist, gHips * 0.96) + easePad;
+    const hemRz = (isFemale ? 0.105 : 0.094) * Math.max(gWaist, gHips * 0.96) + easePad;
+
+    // Tailored torso silhouette (collar down to hem, no protruding rigid cone sleeves)
+    const topProfile = [
+      { y: 0.58, rx: 0.072 * gChest, rz: 0.055 * gChest, cz: zChest }, // Collar / Neckline
+      { y: 0.53, rx: 0.128 * gChest, rz: 0.088 * gChest, cz: zChest }, // Shoulder slope
+      { y: 0.48, rx: chestRx * 1.02, rz: chestRz * 0.98, cz: zChest }, // Upper chest
+      { y: 0.40, rx: chestRx, rz: chestRz, cz: zChest }, // Bust / Chest line
+      { y: 0.26, rx: waistRx, rz: waistRz, cz: zWaist }, // Natural waist
+      { y: overlay.category === "full" ? 0.06 : 0.10, rx: hemRx, rz: hemRz, cz: zHips }, // Shirt / Jacket hem
+    ];
+    addLoftedPiece(topProfile);
+  }
+
+  if (overlay.category === "bottom" || overlay.category === "full") {
+    const waistRx = (isFemale ? 0.122 : 0.120) * gWaist + easePad;
+    const waistRz = (isFemale ? 0.088 : 0.092) * gWaist + easePad;
+    const hipRx = (isFemale ? 0.178 : 0.156) * gHips + easePad;
+    const hipRz = (isFemale ? 0.110 : 0.090) * gHips + easePad;
+
+    addLoftedPiece([
+      { y: 0.24, rx: waistRx, rz: waistRz, cz: zWaist },
+      { y: 0.12, rx: (waistRx + hipRx) / 2, rz: (waistRz + hipRz) / 2, cz: (zWaist + zHips) / 2 },
+      { y: 0.02, rx: hipRx, rz: hipRz, cz: zHips },
+      { y: -0.07, rx: hipRx * 0.94, rz: hipRz * 0.94, cz: zHips },
+    ]);
+
+    const legR = 0.078 * Math.sqrt(gHips) + easePad;
+    const legCalfR = 0.058 * Math.sqrt(gHips) + easePad;
+    [-1, 1].forEach((dir) => {
+      const legCenterX = dir * (isFemale ? 0.088 : 0.098) * Math.max(0.92, gHips * 0.95);
+      addLoftedPiece([
+        { y: -0.07, cx: legCenterX, rx: legR, rz: legR * 0.95, cz: zHips * 0.6 },
+        { y: -0.35, cx: legCenterX * 1.04, rx: legR * 0.85, rz: legR * 0.82, cz: 0 },
+        { y: -0.72, cx: legCenterX * 1.08, rx: legCalfR, rz: legCalfR, cz: 0 },
+      ]);
+    });
+  }
+
+  // Highlight fit rings showing exact Ease gap (Emerald = Ideal, Rose = Tight, Sky = Relaxed)
+  const fitRings: { show: boolean; y: number; rx: number; rz: number; cz: number; color: number }[] = [
+    {
+      show: overlay.category !== "bottom",
+      y: 0.42,
+      rx: 0.151 * gChest + easePad,
+      rz: (isFemale ? 0.123 : 0.117) * gChest + easePad,
+      cz: zChest,
+      color: fitColorForDelta(overlay.chestCm - overlay.bodyChestCm),
+    },
+    {
+      show: true,
+      y: isFemale ? 0.26 : 0.25,
+      rx: (isFemale ? 0.125 : 0.123) * gWaist + easePad,
+      rz: (isFemale ? 0.091 : 0.095) * gWaist + easePad,
+      cz: zWaist,
+      color: fitColorForDelta(overlay.waistCm - overlay.bodyWaistCm),
+    },
+    {
+      show: overlay.category !== "top",
+      y: 0.02,
+      rx: (isFemale ? 0.181 : 0.159) * gHips + easePad,
+      rz: (isFemale ? 0.113 : 0.093) * gHips + easePad,
+      cz: zHips,
+      color: fitColorForDelta(overlay.hipCm - overlay.bodyHipCm),
+    },
+  ];
+
+  fitRings.forEach((fr) => {
+    if (!fr.show) return;
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 48; i++) {
+      const th = (i / 48) * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(th) * fr.rx, fr.y, Math.sin(th) * fr.rz + fr.cz));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts, true);
+    const tubeGeo = new THREE.TubeGeometry(curve, 48, 0.0055, 8, true);
+    const tubeMat = new THREE.MeshBasicMaterial({ color: fr.color, transparent: true, opacity: 0.92 });
+    shellGroup.add(new THREE.Mesh(tubeGeo, tubeMat));
+  });
+
+  root.add(shellGroup);
+}
 
 import { useI18n } from "../../i18n";
 
@@ -183,6 +386,13 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   activeMetric: controlledMetric,
   onSelectMetric,
   zonePillAlign = "center",
+  variant = "dark",
+  autoRotate = false,
+  hideCallouts = false,
+  hideZonePill = false,
+  hideDragHint = false,
+  externalZone,
+  garmentOverlay = null,
 }) => {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement>(null);
@@ -193,6 +403,9 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   const [internalMetric, setInternalMetric] = useState<MetricKey>("waist_circ_cm");
   const activeMetric = controlledMetric ?? internalMetric;
   const activeMetricRef = useRef<MetricKey>(activeMetric);
+
+  const garmentOverlayRef = useRef<GarmentOverlay3D | null | undefined>(garmentOverlay);
+  garmentOverlayRef.current = garmentOverlay;
 
   const [currentZone, setCurrentZone] = useState<ViewZone>("full_body");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -229,6 +442,27 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     threeRef.current.isTransitioning = true;
   }, []);
 
+  // Sync external zone when driven by parent showcase
+  useEffect(() => {
+    if (!externalZone) return;
+    handleZoneSelect(externalZone);
+  }, [externalZone, handleZoneSelect]);
+
+  // Update autoRotate dynamically when prop changes
+  useEffect(() => {
+    if (!threeRef.current) return;
+    threeRef.current.controls.autoRotate = Boolean(autoRotate);
+    threeRef.current.controls.autoRotateSpeed = 1.4;
+  }, [autoRotate]);
+
+  // Update 3D garment shell whenever selected outfit / size / fit changes
+  useEffect(() => {
+    const root = threeRef.current?.humanRoot;
+    if (!root) return;
+    const isFemale = Boolean(meshParams?.base_gender_mesh?.includes("female"));
+    rebuildGarmentOverlayGroup(root, garmentOverlay, isFemale);
+  }, [garmentOverlay, meshParams]);
+
   // Update active ring color/opacity when activeMetric changes
   useEffect(() => {
     activeMetricRef.current = activeMetric;
@@ -254,8 +488,16 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     let h = el.clientHeight || 560;
     let disposed = false;
 
+    const calcResponsiveFov = (vw: number, vh: number) => {
+      const aspect = vw / Math.max(vh, 1);
+      if (aspect >= 0.96) return 38;
+      // Preserve horizontal span in portrait viewports so A-pose arms never touch side callouts
+      const halfTan = Math.tan((38 * Math.PI) / 360) * (0.96 / Math.max(aspect, 0.54));
+      return Math.min(54, (Math.atan(halfTan) * 360) / Math.PI);
+    };
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 50);
+    const camera = new THREE.PerspectiveCamera(calcResponsiveFov(w, h), w / h, 0.1, 50);
     const initialPreset = VIEW_PRESETS.full_body;
     camera.position.copy(initialPreset.pos);
     camera.lookAt(initialPreset.target);
@@ -270,6 +512,8 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
+    controls.autoRotate = Boolean(autoRotate);
+    controls.autoRotateSpeed = 1.4;
     controls.target.copy(initialPreset.target);
     controls.maxPolarAngle = Math.PI * 0.65;
     controls.minPolarAngle = Math.PI * 0.25;
@@ -332,6 +576,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       if (disposed) return;
       scene.add(humanGroup);
       state.humanRoot = humanGroup;
+      if (humanGroup.userData?.landmarks) {
+        state.landmarks = humanGroup.userData.landmarks as AnatomicalLandmarks;
+      }
+      rebuildGarmentOverlayGroup(humanGroup, garmentOverlayRef.current, params.gender === "female");
       setModelLoading(false);
     });
 
@@ -339,6 +587,18 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
 
     const animate = () => {
       state.raf = requestAnimationFrame(animate);
+
+      // Keep renderer & FOV strictly synchronized with live container size during resize/flex stretch
+      const curW = el.clientWidth;
+      const curH = el.clientHeight;
+      if (curW > 0 && curH > 0 && (curW !== w || curH !== h)) {
+        w = curW;
+        h = curH;
+        camera.fov = calcResponsiveFov(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
 
       if (state.isTransitioning) {
         camera.position.lerp(state.targetCamPos, 0.08);
@@ -358,8 +618,9 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
 
       const svg = svgRef.current;
       if (svg && state.humanRoot) {
-        const svgW = svg.clientWidth || w;
-        const svgH = svg.clientHeight || h;
+        const parentRect = el.getBoundingClientRect();
+        const svgW = parentRect.width || svg.clientWidth || w;
+        const svgH = parentRect.height || svg.clientHeight || h;
 
         CALLOUTS.forEach((callout) => {
           const p3 = callout.get3DPoint(state.landmarks);
@@ -375,33 +636,43 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
 
           const linePathEl = svg.querySelector(`#leader-${callout.key}`) as SVGPathElement | null;
           const circleEl = svg.querySelector(`#target-${callout.key}`) as SVGCircleElement | null;
+          const anchorEl = svg.querySelector(`#anchor-${callout.key}`) as SVGCircleElement | null;
 
           if (cardEl && linePathEl && circleEl) {
             const cardRect = cardEl.getBoundingClientRect();
-            const parentRect = el.getBoundingClientRect();
 
             const ax =
               callout.side === "left"
-                ? cardRect.right - parentRect.left + 8
-                : cardRect.left - parentRect.left - 8;
-            const ay = cardRect.top + cardRect.height * 0.55 - parentRect.top;
+                ? cardRect.right - parentRect.left + 4
+                : cardRect.left - parentRect.left - 4;
+            const ay = cardRect.top + cardRect.height * 0.45 - parentRect.top;
+            const elbowX = ax + (callout.side === "left" ? 10 : -10);
 
             if (projVec.z < 1.0) {
-              linePathEl.setAttribute("d", `M ${ax} ${ay} L ${lx} ${ly}`);
+              linePathEl.setAttribute("d", `M ${ax} ${ay} L ${elbowX} ${ay} L ${lx} ${ly}`);
               circleEl.setAttribute("cx", `${lx}`);
               circleEl.setAttribute("cy", `${ly}`);
+              if (anchorEl) {
+                anchorEl.setAttribute("cx", `${ax}`);
+                anchorEl.setAttribute("cy", `${ay}`);
+              }
 
               const isFocus = callout.key === activeMetricRef.current;
               linePathEl.setAttribute(
                 "stroke",
                 isFocus ? "#A3E635" : "rgba(255, 255, 255, 0.35)"
               );
-              linePathEl.setAttribute("stroke-width", "1");
-              circleEl.setAttribute("fill", isFocus ? "#A3E635" : "rgba(255, 255, 255, 0.55)");
-              circleEl.setAttribute("r", isFocus ? "3" : "2");
+              linePathEl.setAttribute("stroke-width", isFocus ? "1.35" : "1");
+              circleEl.setAttribute("fill", isFocus ? "#A3E635" : "rgba(255, 255, 255, 0.65)");
+              circleEl.setAttribute("r", isFocus ? "3.2" : "2.1");
+              if (anchorEl) {
+                anchorEl.setAttribute("fill", isFocus ? "#A3E635" : "rgba(255, 255, 255, 0.45)");
+                anchorEl.setAttribute("r", isFocus ? "2.2" : "1.5");
+              }
             } else {
               linePathEl.setAttribute("d", "");
               circleEl.setAttribute("r", "0");
+              if (anchorEl) anchorEl.setAttribute("r", "0");
             }
           }
         });
@@ -414,6 +685,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       w = el.clientWidth;
       h = el.clientHeight;
       if (!w || !h) return;
+      camera.fov = calcResponsiveFov(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -434,6 +706,8 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
   const rightCallouts = CALLOUTS.filter((c) => c.side === "right");
   const showLoading = isLoading || modelLoading;
 
+  const isStudio = variant === "studio";
+
   return (
     <div
       id={id}
@@ -442,15 +716,17 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
         position: "relative",
         width: "100%",
         height,
-        background:
-          "radial-gradient(ellipse 70% 50% at 50% 88%, rgba(56, 189, 248, 0.08) 0%, rgba(12, 34, 43, 0.22) 45%, #0A0F12 85%)",
+        background: isStudio
+          ? "transparent"
+          : "radial-gradient(ellipse 70% 50% at 50% 88%, rgba(56, 189, 248, 0.08) 0%, rgba(12, 34, 43, 0.22) 45%, #0A0F12 85%)",
         overflow: "hidden",
-        borderRadius: "12px",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: isStudio ? "0px" : "12px",
+        border: isStudio ? "none" : "1px solid rgba(255, 255, 255, 0.08)",
         userSelect: "none",
       }}
     >
       {/* 1. Top Centered Viewport Zoom Pill Dropdown */}
+      {!hideZonePill && (
       <div
         style={{
           position: "absolute",
@@ -536,6 +812,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           )}
         </div>
       </div>
+      )}
 
       {/* 2. Three.js Mount Canvas Container */}
       <div
@@ -548,6 +825,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       />
 
       {/* 3. Overlay SVG for 2D/3D Leader Lines */}
+      {!hideCallouts && (
       <svg
         ref={svgRef}
         style={{
@@ -568,6 +846,11 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               strokeWidth="1"
             />
             <circle
+              id={`anchor-${c.key}`}
+              r="1.5"
+              fill="rgba(255, 255, 255, 0.45)"
+            />
+            <circle
               id={`target-${c.key}`}
               r="2"
               fill="rgba(255, 255, 255, 0.45)"
@@ -575,16 +858,19 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           </g>
         ))}
       </svg>
+      )}
 
       {/* 4. ZOZOFIT Left Floating Typography Callouts (Chest, Waist, Inseam) */}
+      {!hideCallouts && (
       <div
         style={{
           position: "absolute",
           top: "60px",
-          left: "20px",
-          bottom: "40px",
+          left: "14px",
+          bottom: "48px",
           display: "flex",
           flexDirection: "column",
+          alignItems: "flex-start",
           justifyContent: "space-around",
           zIndex: 20,
           pointerEvents: "none",
@@ -604,8 +890,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               style={{
                 pointerEvents: "auto",
                 cursor: "pointer",
+                width: "fit-content",
                 display: "inline-flex",
                 flexDirection: "column",
+                alignItems: "flex-start",
                 gap: "2px",
                 background: "transparent",
                 border: "none",
@@ -640,16 +928,19 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           );
         })}
       </div>
+      )}
 
       {/* 5. ZOZOFIT Right Floating Typography Callouts (Shoulders, Hips) */}
+      {!hideCallouts && (
       <div
         style={{
           position: "absolute",
-          top: "80px",
-          right: "20px",
-          bottom: "100px",
+          top: "74px",
+          right: "14px",
+          bottom: "78px",
           display: "flex",
           flexDirection: "column",
+          alignItems: "flex-end",
           justifyContent: "space-around",
           zIndex: 20,
           pointerEvents: "none",
@@ -669,8 +960,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               style={{
                 pointerEvents: "auto",
                 cursor: "pointer",
+                width: "fit-content",
                 display: "inline-flex",
                 flexDirection: "column",
+                alignItems: "flex-end",
                 gap: "2px",
                 textAlign: "right",
                 background: "transparent",
@@ -706,8 +999,10 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           );
         })}
       </div>
+      )}
 
       {/* 6. Bottom Rotation Hint */}
+      {!hideDragHint && (
       <div
         style={{
           position: "absolute",
@@ -716,7 +1011,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
           transform: "translateX(-50%)",
           fontSize: "11px",
           fontFamily: "var(--font-mono)",
-          color: "var(--muted)",
+          color: isStudio ? "#475569" : "var(--muted)",
           pointerEvents: "none",
           letterSpacing: "0.04em",
           zIndex: 15,
@@ -724,6 +1019,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       >
         {t("viewer.drag")}
       </div>
+      )}
 
       {/* 7. Loading Overlay */}
       {showLoading && (
@@ -737,7 +1033,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
             alignItems: "center",
             justifyContent: "center",
             gap: "12px",
-            background: "rgba(10, 15, 18, 0.88)",
+            background: isStudio ? "rgba(226, 228, 232, 0.85)" : "rgba(10, 15, 18, 0.88)",
             zIndex: 40,
           }}
         >
@@ -746,12 +1042,12 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               width: "36px",
               height: "36px",
               borderRadius: "50%",
-              border: "2px solid rgba(56, 189, 248, 0.2)",
-              borderTopColor: "#38BDF8",
+              border: isStudio ? "2px solid rgba(37, 99, 235, 0.2)" : "2px solid rgba(56, 189, 248, 0.2)",
+              borderTopColor: isStudio ? "#2563EB" : "#38BDF8",
               animation: "spin 0.8s linear infinite",
             }}
           />
-          <span style={{ color: "#94A3B8", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
+          <span style={{ color: isStudio ? "#334155" : "#94A3B8", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
             {t("viewer.loading")}
           </span>
         </div>

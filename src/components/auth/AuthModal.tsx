@@ -8,18 +8,18 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  ShieldCheck,
-  Layers,
-  Box,
+  Check,
   ArrowLeft,
-  KeyRound,
   CheckCircle2,
+  Scissors,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
-import { MeshViewport } from '@/features/anthropometry/MeshViewport';
-import { DEMO_MESH, DEMO_MEASUREMENT } from '@/data/mockData';
+import { validateEmail, validatePassword } from '@/lib/validationRules';
+import { FitVisionAuthShowcase } from './FitVisionAuthShowcase';
+
+const SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/;
 
 export const AuthModal: React.FC = () => {
   const {
@@ -46,9 +46,8 @@ export const AuthModal: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [termsAgreed, setTermsAgreed] = useState(true);
-  const [websiteTrap, setWebsiteTrap] = useState('');
+  const [websiteTrap, setWebsiteTrap] = useState(''); // Honeypot trap
   const formPaneRef = useRef<HTMLDivElement>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}); // Honeypot trap
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,12 +62,22 @@ export const AuthModal: React.FC = () => {
   const [emailUnlocked, setEmailUnlocked] = useState(false);
   const [passwordUnlocked, setPasswordUnlocked] = useState(false);
 
+  // Track form submit attempts for empty required fields
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const pendingSuccessBannerRef = useRef<string | null>(null);
+
   // Reset inputs and unlock flags whenever the modal opens or tab switches
   useEffect(() => {
     setErrorMessage(null);
-    setSuccessMessage(null);
+    if (pendingSuccessBannerRef.current) {
+      setSuccessMessage(pendingSuccessBannerRef.current);
+      pendingSuccessBannerRef.current = null;
+    } else {
+      setSuccessMessage(null);
+    }
     setEmailUnlocked(false);
     setPasswordUnlocked(false);
+    setSubmitAttempted(false);
     if (authModalTab === 'signin' || authModalTab === 'register') {
       setForgotStep('request');
       setOtpCode('');
@@ -76,16 +85,6 @@ export const AuthModal: React.FC = () => {
       setConfirmNewPassword('');
     }
   }, [authModalTab, isAuthModalOpen]);
-
-  // Responsive 3D viewport height so the showcase never overflows the screen
-  const [meshHeight, setMeshHeight] = useState(() =>
-    Math.max(150, Math.min(320, window.innerHeight - 520)),
-  );
-  useEffect(() => {
-    const onResize = () => setMeshHeight(Math.max(150, Math.min(320, window.innerHeight - 520)));
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
 
   
   // Helper dịch mã lỗi sang ngôn ngữ đang chọn (VI/EN)
@@ -137,6 +136,9 @@ export const AuthModal: React.FC = () => {
       if (lower.includes('bot') || lower.includes('honeypot')) {
         return t('app.authErrors.BOT_DETECTED');
       }
+      if (lower.includes('quản trị viên') || lower.includes('admin')) {
+        return rawMsg;
+      }
       if (lower.includes('google')) {
         return t('app.authErrors.GOOGLE_LOGIN_FAILED');
       }
@@ -164,76 +166,123 @@ export const AuthModal: React.FC = () => {
     return rawMsg || t('app.authErrors.DEFAULT_ERROR');
   };
 
-  const renderInlineError = () => {
-    if (!errorMessage) return null;
-    return (
-      <div
-        style={{
-          padding: '10px 14px',
-          borderRadius: 8,
-          background: 'rgba(239, 68, 68, 0.15)',
-          border: '1px solid rgba(239, 68, 68, 0.4)',
-          color: '#FCA5A5',
-          fontSize: 12,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          marginBottom: 10,
-          marginTop: 4,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <AlertCircle size={16} className="shrink-0 text-red-400" />
-          <span style={{ flex: 1, lineHeight: 1.4 }}>{errorMessage}</span>
-        </div>
-        {(errorMessage.includes('chưa được kích hoạt') ||
-          errorMessage.toLowerCase().includes('activated') ||
-          errorMessage.includes('OTP')) && (
-          <button
-            type="button"
-            onClick={() => openVerifyEmail(email)}
-            style={{
-              alignSelf: 'flex-start',
-              background: '#4FD1C5',
-              color: '#0A0F12',
-              border: 'none',
-              borderRadius: 6,
-              padding: '5px 12px',
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              marginTop: 2,
-            }}
-          >
-            👉 Nhập mã kích hoạt OTP ngay
-          </button>
-        )}
-      </div>
-    );
-  };
+  // Lock background page scroll while full-screen auth portal is open
+  useEffect(() => {
+    if (!isAuthModalOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isAuthModalOpen]);
 
   if (!isAuthModalOpen) return null;
+
+  // ── Shared Live Field Validation (Reusing @/lib/validationRules.ts) ──
+  const isEnLocale = locale === 'en';
+  const emailValidation = validateEmail(email);
+  const passwordValidation = validatePassword(password);
+  const trimmedName = fullName.trim();
+
+  const shouldValidateName = submitAttempted || fullName.length > 0;
+  const nameError =
+    shouldValidateName && trimmedName.length < 2
+      ? isEnLocale
+        ? 'Full name must be at least 2 characters.'
+        : 'Họ và tên phải có tối thiểu 2 ký tự.'
+      : null;
+
+  const shouldValidateEmail = submitAttempted || email.trim().length > 0;
+  const emailSuggestion = shouldValidateEmail && !emailValidation.valid ? emailValidation.suggestion : undefined;
+  const emailError = shouldValidateEmail && !emailValidation.valid
+    ? (() => {
+        if (emailValidation.code === 'EMAIL_REQUIRED') {
+          return t('app.authErrors.AUTH_EMAIL_REQUIRED', 'Vui lòng nhập địa chỉ email của bạn.');
+        }
+        if (emailValidation.code === 'AUTH_DISPOSABLE_EMAIL') {
+          return t('app.authErrors.AUTH_DISPOSABLE_EMAIL', 'Không chấp nhận email tạm thời / email rác.');
+        }
+        if (emailValidation.code === 'EMAIL_TOO_LONG') {
+          return isEnLocale ? 'Email must not exceed 254 characters.' : 'Email không được vượt quá 254 ký tự.';
+        }
+        if (isEnLocale) {
+          if (emailValidation.code === 'EMAIL_DOMAIN_TYPO') {
+            return emailSuggestion
+              ? `Possible domain typo. Did you mean ${emailSuggestion}?`
+              : 'Invalid top-level domain (check for typos like .con or .cpm).';
+          }
+          if (emailValidation.code === 'EMAIL_GMAIL_INVALID') {
+            return 'Gmail usernames can only contain letters (a-z), numbers (0-9), and periods (.).';
+          }
+          if (emailValidation.code === 'EMAIL_GMAIL_LENGTH') {
+            return 'Standard Gmail usernames must be between 6 and 30 characters long.';
+          }
+          return 'Invalid email format (e.g. name@gmail.com).';
+        }
+        return emailValidation.error || 'Email chưa đúng định dạng (ví dụ: ten@gmail.com).';
+      })()
+    : null;
+
+  const hasValidLength = password.length >= 6 && password.length <= 32;
+  const hasSpecialChar = SPECIAL_CHAR_REGEX.test(password);
+  const shouldValidatePassword = submitAttempted || password.length > 0;
+  const passwordError = shouldValidatePassword && !passwordValidation.valid
+    ? passwordValidation.code === 'PASSWORD_REQUIRED'
+      ? t('app.authErrors.AUTH_PASSWORD_REQUIRED', 'Vui lòng nhập mật khẩu.')
+      : passwordValidation.code === 'PASSWORD_LENGTH_INVALID'
+      ? t('app.authErrors.PASSWORD_LENGTH_INVALID', 'Mật khẩu phải dài từ 6 đến 32 ký tự.')
+      : t('app.authErrors.PASSWORD_COMPLEXITY_FAILED', 'Mật khẩu cần ít nhất 1 ký tự đặc biệt (!@#$%^&*...).')
+    : null;
+
+  const signInPasswordError =
+    submitAttempted && password.length === 0
+      ? t('app.authErrors.AUTH_PASSWORD_REQUIRED', 'Vui lòng nhập mật khẩu.')
+      : null;
+
+  const hasConfirmInput = confirmPassword.length > 0;
+  const confirmMatches = hasConfirmInput && confirmPassword === password;
+  const shouldShowConfirmError =
+    (hasConfirmInput && confirmPassword !== password) ||
+    (submitAttempted && confirmPassword.length === 0);
+  const confirmError = shouldShowConfirmError
+    ? confirmPassword.length === 0
+      ? isEnLocale
+        ? 'Please re-enter your password to confirm.'
+        : 'Vui lòng nhập lại mật khẩu xác nhận.'
+      : isEnLocale
+      ? 'Passwords do not match.'
+      : 'Mật khẩu xác nhận không khớp.'
+    : null;
+
+  const termsError =
+    submitAttempted && !termsAgreed
+      ? isEnLocale
+        ? 'Please agree to the Terms & Zero-Image Retention policy.'
+        : 'Vui lòng đồng ý với Điều khoản & Chính sách bảo mật trước khi đăng ký.'
+      : null;
 
   // 1. Handle Sign In
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setLoading(true);
 
+    if (!emailValidation.valid || password.length === 0) {
+      return;
+    }
+
+    setLoading(true);
     const res = await signIn(email, password, websiteTrap);
     setLoading(false);
 
     if (!res.success) {
       if (res.errorCode === 'AUTH_EMAIL_NOT_VERIFIED') {
         setErrorMessage(getLocalizedErrorMessage('AUTH_EMAIL_NOT_VERIFIED', res.error));
-      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         setErrorMessage(getLocalizedErrorMessage((res as any).errorCode, res.error));
-      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
   };
@@ -241,10 +290,21 @@ export const AuthModal: React.FC = () => {
   // 2. Handle Register
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setLoading(true);
 
+    if (
+      trimmedName.length < 2 ||
+      !emailValidation.valid ||
+      !passwordValidation.valid ||
+      confirmPassword !== password ||
+      !termsAgreed
+    ) {
+      return;
+    }
+
+    setLoading(true);
     const res = await register({
       fullName,
       email,
@@ -256,7 +316,7 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(t('app.auth.successRegister'));
+      setSuccessMessage(t('app.auth.successRegister', 'Đăng ký thành công! Vui lòng nhập mã OTP gửi về email.'));
       setOtpCode('');
       openVerifyEmail(email);
     } else {
@@ -276,7 +336,9 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(t('app.auth.successVerify'));
+      const verifyMsg = t('app.auth.successVerify', 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.');
+      setSuccessMessage(verifyMsg);
+      pendingSuccessBannerRef.current = verifyMsg;
       setTimeout(() => {
         openSignIn();
       }, 1200);
@@ -288,19 +350,20 @@ export const AuthModal: React.FC = () => {
   // 4. Handle Request Forgot Password OTP
   const handleRequestForgotOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setErrorMessage(t('app.authErrors.AUTH_EMAIL_REQUIRED'));
-      return;
-    }
+    setSubmitAttempted(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    if (!emailValidation.valid) {
+      return;
+    }
     setLoading(true);
 
     const res = await forgotPassword(email);
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(t('app.auth.successForgot'));
+      setSubmitAttempted(false);
+      setSuccessMessage(t('app.auth.successForgot', 'Đã gửi mã OTP 6 số đến Gmail của bạn. Vui lòng kiểm tra hộp thư.'));
       setOtpCode('');
       setForgotStep('reset');
     } else {
@@ -311,30 +374,61 @@ export const AuthModal: React.FC = () => {
   // 5. Handle Reset Password with OTP
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmNewPassword) {
-      setErrorMessage(t('app.authErrors.AUTH_PASSWORD_MISMATCH'));
-      return;
-    }
+    setSubmitAttempted(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setLoading(true);
 
+    const cleanOtp = otpCode.trim();
+    if (cleanOtp.length !== 6) {
+      setErrorMessage(isEnLocale ? 'Please enter the 6-digit OTP sent to your Gmail.' : 'Vui lòng nhập đủ 6 chữ số mã OTP đã gửi về Gmail.');
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const passCheck = validatePassword(newPassword);
+    if (!passCheck.valid) {
+      setErrorMessage(
+        passCheck.error ||
+          (isEnLocale
+            ? 'Password must be 6–32 chars and include at least 1 special character.'
+            : 'Mật khẩu mới phải từ 6–32 ký tự và chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...).')
+      );
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setErrorMessage(isEnLocale ? 'Confirmation password does not match.' : 'Mật khẩu xác nhận không khớp.');
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setLoading(true);
     const res = await resetPassword({
       email,
-      otp: otpCode,
+      otp: cleanOtp,
       newPassword,
       confirmPassword: confirmNewPassword,
     });
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(t('app.auth.successReset'));
+      const doneMsg =
+        res.message ||
+        t(
+          'app.auth.successReset',
+          'Đổi mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.'
+        );
+      setSuccessMessage(doneMsg);
+      pendingSuccessBannerRef.current = doneMsg;
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => {
         setPassword('');
         openSignIn();
       }, 1500);
     } else {
       setErrorMessage(getLocalizedErrorMessage(undefined, res.error));
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -384,8 +478,9 @@ export const AuthModal: React.FC = () => {
                 return;
               }
 
-              // Gửi thông tin tài khoản thật về Backend để cấp Access Token & HttpOnly Cookie
+              // Gửi accessToken từ Google về Backend để máy chủ xác thực trực tiếp với Google + chặn tài khoản Admin
               const res = await signInWithGoogle({
+                accessToken: tokenResponse.access_token,
                 email: googleUser.email,
                 fullName: googleUser.name || googleUser.email.split('@')[0],
                 avatarUrl: googleUser.picture,
@@ -394,7 +489,7 @@ export const AuthModal: React.FC = () => {
 
               setLoading(false);
               if (!res.success) {
-                setErrorMessage(getLocalizedErrorMessage('GOOGLE_LOGIN_FAILED', res.error));
+                setErrorMessage(res.errorCode === 'FORBIDDEN_INSUFFICIENT_PERMISSIONS' ? (res.error || '') : getLocalizedErrorMessage('GOOGLE_LOGIN_FAILED', res.error));
               }
             } catch (err: any) {
               setLoading(false);
@@ -412,327 +507,150 @@ export const AuthModal: React.FC = () => {
     }
   };
 
+  const isEn = locale === 'en';
+
+  const handleGoHome = () => {
+    closeAuthModal();
+    if (window.location.pathname !== '/') {
+      window.location.href = '/';
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const fieldBorderClass = (hasError: boolean, isValid = false) =>
+    hasError
+      ? 'border-rose-500 bg-rose-50/40 hover:border-rose-600 focus:border-rose-600'
+      : isValid
+      ? 'border-emerald-500/90 bg-white hover:border-emerald-600 focus:border-emerald-600'
+      : 'border-slate-400/80 bg-white hover:border-slate-500 focus:border-blue-600';
+
+  const inputBaseClass = `w-full h-11 pl-10 pr-4 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(false)}`;
+
+  const renderEmailFeedback = (showSuccessHint = false) => {
+    if (emailError) {
+      return (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <p className="text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0 leading-snug">
+            <AlertCircle size={13} className="shrink-0" />
+            <span>{emailError}</span>
+          </p>
+          {emailSuggestion && (
+            <button
+              type="button"
+              onClick={() => setEmail(emailSuggestion)}
+              className="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 border border-rose-300 text-[11px] font-bold text-rose-700 cursor-pointer transition-colors"
+            >
+              {isEnLocale ? `Fix to ${emailSuggestion}` : `Sửa thành ${emailSuggestion}`}
+            </button>
+          )}
+        </div>
+      );
+    }
+    if (showSuccessHint && email.trim() && emailValidation.valid) {
+      return (
+        <p className="mt-1 text-[11px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
+          <Check size={13} className="shrink-0" />
+          <span>
+            {isEn
+              ? 'Valid email — 6-digit verification OTP will be sent here.'
+              : 'Email hợp lệ — mã OTP kích hoạt sẽ gửi về hộp thư này.'}
+          </span>
+        </p>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="zf-auth-fullscreen animate-fade-in">
-      {/* ── CỘT TRÁI: VISUAL SHOWCASE (CHIA ĐÔI TOÀN MÀN HÌNH TRÊN DESKTOP) ── */}
-      <div className="zf-auth-showcase-pane">
-        {/* Ambient radial lighting */}
-        <div
-          style={{
-            position: 'absolute',
-            top: -80,
-            left: -80,
-            width: 380,
-            height: 380,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(79, 209, 197, 0.12) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Decorative blueprint grid + drifting orb + scan beam */}
-        <div className="zf-auth-grid" />
-        <div className="zf-auth-orb" />
-        <div className="zf-auth-scan" />
-
-        {/* Top Header & Certifications */}
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                background: 'rgba(79, 209, 197, 0.15)',
-                border: '1px solid rgba(79, 209, 197, 0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#4FD1C5',
-              }}
-            >
-              <Box size={22} strokeWidth={2} />
-            </div>
-            <div>
-              <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: '#FFFFFF' }}>
-                FitVision <b style={{ color: '#4FD1C5', fontWeight: 700 }}>3D</b>
-              </span>
-              <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
-                {t('app.auth.engine')}
-              </p>
-            </div>
+      {/* ── UNIFIED TOP STOREFRONT HEADER (#14171C OBSIDIAN) ── */}
+      <header className="h-14 sm:h-16 px-4 sm:px-8 bg-[#14171C] text-white border-b border-white/10 flex items-center justify-between gap-4 shrink-0 z-30">
+        {/* Left: Clickable FitVision 3D Brand -> Quay lại trang chủ */}
+        <button
+          type="button"
+          onClick={handleGoHome}
+          className="flex items-center gap-2.5 group bg-transparent border-0 p-0 text-left cursor-pointer"
+          title={isEn ? 'Back to FitVision 3D Storefront' : 'Quay lại trang chủ FitVision 3D'}
+        >
+          <div className="w-9 h-9 rounded-xl bg-blue-600 group-hover:bg-blue-500 text-white flex items-center justify-center shadow-sm transition-colors">
+            <Scissors size={18} strokeWidth={2.2} />
           </div>
-
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '4px 12px',
-              borderRadius: 20,
-              fontSize: 11,
-              fontFamily: 'var(--font-mono)',
-              textTransform: 'uppercase',
-              letterSpacing: '.06em',
-              background: 'rgba(79, 209, 197, 0.1)',
-              border: '1px solid rgba(79, 209, 197, 0.25)',
-              color: '#4FD1C5',
-            }}
-          >
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: '#4FD1C5',
-                boxShadow: '0 0 8px #4FD1C5',
-              }}
-            />
-            {t('app.auth.isoBadge')}
-          </div>
-        </div>
-
-        {/* Center: Live 3D Wireframe Mannequin Mesh */}
-        <div style={{ margin: 'auto 0', position: 'relative', zIndex: 2, width: '100%' }}>
-          <div
-            style={{
-              borderRadius: 16,
-              overflow: 'hidden',
-              background: '#070B0E',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(0, 0, 0, 0.6)',
-            }}
-          >
-            <MeshViewport
-              meshParams={DEMO_MESH}
-              measurement={DEMO_MEASUREMENT}
-              height={meshHeight}
-              zonePillAlign="right"
-            />
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: 11,
-              color: '#94A3B8',
-              fontFamily: 'var(--font-mono)',
-              marginTop: 10,
-              padding: '0 6px',
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Layers size={13} style={{ color: '#4FD1C5' }} /> {t('app.auth.topology')}
+          <div>
+            <span className="font-black text-base sm:text-lg tracking-tight text-white block leading-none">
+              FitVision <span className="text-blue-400">3D</span>
             </span>
-            <span style={{ color: '#A3E635' }}>{t('app.auth.latency')}</span>
+            <span className="text-[10px] font-medium text-stone-400 group-hover:text-amber-300 flex items-center gap-1 mt-0.5 transition-colors">
+              <ArrowLeft size={10} />
+              <span>{t('app.auth.back', 'Quay lại trang chủ')}</span>
+            </span>
           </div>
-        </div>
+        </button>
 
-        {/* Tagline + stat chips */}
-        <div style={{ position: 'relative', zIndex: 2, marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.25, color: '#FFFFFF' }}>
-            {t('app.auth.taglinePre')}<span style={{ color: '#4FD1C5' }}>{t('app.auth.taglineHi')}</span>,
-            <br />
-            {t('app.auth.taglinePost')}
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 14 }}>
-            {[
-              { v: '±0.8cm', l: t('app.auth.chipError') },
-              { v: '1.25s', l: t('app.auth.chipSpeed') },
-              { v: '0 byte', l: t('app.auth.chipRetention') },
-            ].map((s) => (
-              <div key={s.l} className="zf-auth-chip">
-                <b>{s.v}</b>
-                <small>{s.l}</small>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Bottom: Privacy & RAM-only retention guarantee */}
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 2,
-            padding: '16px 20px',
-            borderRadius: 14,
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.07)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <ShieldCheck size={18} style={{ color: '#4FD1C5' }} />
-            <strong style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600 }}>
-              {t('app.auth.aboutTitle')}
-            </strong>
-          </div>
-          <p style={{ fontSize: 12, color: '#94A3B8', margin: 0, lineHeight: 1.55 }}>
-            {t('app.auth.aboutDesc')}
-          </p>
-        </div>
-      </div>
-
-      {/* ── CỘT PHẢI: FORM VIEW TOÀN MÀN HÌNH ── */}
-      <div ref={formPaneRef} className="zf-auth-form-pane">
-        {/* Top bar with Back button and Close [X] */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '20px 28px',
-            borderBottom: '1px solid #1E293B',
-            flexShrink: 0,
-          }}
-        >
+        {/* Right: VI/EN + Close Button */}
+        <div className="flex items-center gap-2.5">
+          <LanguageSwitcher compact variant="dark" />
           <button
             type="button"
             onClick={closeAuthModal}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              background: 'transparent',
-              border: 'none',
-              color: '#94A3B8',
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'pointer',
-              padding: '6px 10px',
-              borderRadius: 8,
-              transition: 'color .15s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#94A3B8')}
+            className="w-9 h-9 grid place-items-center bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl text-white cursor-pointer transition-colors"
+            aria-label={t('app.auth.close', 'Đóng')}
           >
-            <ArrowLeft size={16} />
-            <span>{t('app.auth.back')}</span>
-          </button>
-
-          <LanguageSwitcher size="md" />
-
-          <button
-            type="button"
-            onClick={closeAuthModal}
-            style={{
-              width: 36,
-              height: 36,
-              display: 'grid',
-              placeItems: 'center',
-              background: '#0F172A',
-              border: '1px solid #1E293B',
-              borderRadius: 10,
-              color: '#94A3B8',
-              cursor: 'pointer',
-              transition: 'all .15s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#FFFFFF';
-              e.currentTarget.style.borderColor = '#4FD1C5';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#94A3B8';
-              e.currentTarget.style.borderColor = '#1E293B';
-            }}
-            aria-label={t('app.auth.close')}
-          >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
+      </header>
 
-        {/* Form Body - Centered vertically and horizontally */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '32px 24px',
-            width: '100%',
-          }}
-        >
-          <div className="zf-auth-card" style={{ width: '100%', maxWidth: 460 }}>
-            {/* Header */}
-            <div style={{ marginBottom: 22, textAlign: 'center' }}>
-              <div className="zf-auth-badge">
-                {authModalTab === 'forgot' ? (
-                  <KeyRound size={22} strokeWidth={2} />
-                ) : authModalTab === 'verify' ? (
-                  <ShieldCheck size={22} strokeWidth={2} />
-                ) : (
-                  <Lock size={22} strokeWidth={2} />
-                )}
-              </div>
-              <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#FFFFFF' }}>
+      {/* ── MAIN SPLIT BODY: 54% LIVE 3D ATELIER STAGE | 46% EDITORIAL FORM SHEET ── */}
+      <div className="zf-auth-body">
+        <FitVisionAuthShowcase />
+
+        <div ref={formPaneRef} className="zf-auth-form-pane px-6 sm:px-10 py-5 sm:py-6">
+          <div className="zf-auth-sheet">
+            {/* Editorial Header */}
+            <div className="mb-4">
+              <h1 className="font-sans text-2xl sm:text-[26px] font-extrabold text-[#14171C] tracking-tight m-0 leading-snug">
                 {authModalTab === 'signin'
-                  ? t('app.auth.signinTitle', 'Đăng nhập')
+                  ? t('app.auth.signinTitle', 'Đăng nhập FitVision 3D')
                   : authModalTab === 'register'
                   ? t('app.auth.registerTitle', 'Tạo tài khoản mới')
                   : authModalTab === 'forgot'
                   ? t('app.auth.forgotTitle', 'Quên mật khẩu')
                   : t('app.auth.verifyTitle', 'Kích hoạt tài khoản')}
               </h1>
-              <p style={{ fontSize: 13, color: '#94A3B8', marginTop: 8, marginBottom: 0 }}>
+              <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-0">
                 {authModalTab === 'signin'
-                  ? t('app.auth.signinDesc', 'Truy cập cổng đo lường nhân trắc học 3D của bạn')
+                  ? t('app.auth.signinDesc', 'Truy cập hồ sơ số đo vóc dáng 3D & phòng thử đồ ảo')
                   : authModalTab === 'register'
-                  ? t('app.auth.registerDesc', 'Tạo tài khoản khách hàng để trải nghiệm thử đồ 3D')
+                  ? t('app.auth.registerDesc', 'Tạo tài khoản để lưu số đo vóc dáng 3D cá nhân')
                   : authModalTab === 'forgot'
                   ? t('app.auth.forgotDesc', 'Khôi phục mật khẩu tài khoản của bạn qua mã xác nhận OTP')
                   : t('app.auth.verifyDesc', 'Nhập mã OTP 6 số để hoàn tất kích hoạt tài khoản')}
               </p>
             </div>
 
-            {/* Tab Switcher (Chỉ hiển thị khi ở tab signin hoặc register) */}
+            {/* Clean Segmented Tab Switcher (Obsidian #14171C Active Tab) */}
             {(authModalTab === 'signin' || authModalTab === 'register') && (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 4,
-                  padding: 4,
-                  background: '#030712',
-                  border: '1px solid #1E293B',
-                  borderRadius: 12,
-                  marginBottom: 24,
-                }}
-              >
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-stone-200/70 border border-stone-300/60 rounded-xl mb-4">
                 <button
                   type="button"
                   onClick={openSignIn}
-                  style={{
-                    padding: '10px 14px',
-                    fontSize: 13,
-                    fontWeight: authModalTab === 'signin' ? 600 : 500,
-                    border: 'none',
-                    borderRadius: 9,
-                    background: authModalTab === 'signin' ? '#1F2937' : 'transparent',
-                    color: authModalTab === 'signin' ? '#4FD1C5' : '#94A3B8',
-                    cursor: 'pointer',
-                    transition: 'all .15s',
-                    boxShadow: authModalTab === 'signin' ? '0 1px 3px rgba(0, 0, 0, 0.4)' : 'none',
-                  }}
+                  className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    authModalTab === 'signin'
+                      ? 'bg-[#14171C] text-white shadow-sm'
+                      : 'text-slate-600 hover:text-[#14171C] bg-transparent'
+                  }`}
                 >
                   {t('app.auth.tabSignin', 'Đăng nhập')}
                 </button>
                 <button
                   type="button"
                   onClick={openRegister}
-                  style={{
-                    padding: '10px 14px',
-                    fontSize: 13,
-                    fontWeight: authModalTab === 'register' ? 600 : 500,
-                    border: 'none',
-                    borderRadius: 9,
-                    background: authModalTab === 'register' ? '#1F2937' : 'transparent',
-                    color: authModalTab === 'register' ? '#4FD1C5' : '#94A3B8',
-                    cursor: 'pointer',
-                    transition: 'all .15s',
-                    boxShadow: authModalTab === 'register' ? '0 1px 3px rgba(0, 0, 0, 0.4)' : 'none',
-                  }}
+                  className={`py-2.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    authModalTab === 'register'
+                      ? 'bg-[#14171C] text-white shadow-sm'
+                      : 'text-slate-600 hover:text-[#14171C] bg-transparent'
+                  }`}
                 >
                   {t('app.auth.tabRegister', 'Tạo tài khoản')}
                 </button>
@@ -741,59 +659,26 @@ export const AuthModal: React.FC = () => {
 
             {/* Success Message Banner */}
             {successMessage && (
-              <div
-                style={{
-                  marginBottom: 18,
-                  padding: '12px 16px',
-                  borderRadius: 10,
-                  background: 'rgba(79, 209, 197, 0.12)',
-                  border: '1px solid rgba(79, 209, 197, 0.35)',
-                  color: '#4FD1C5',
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 10,
-                }}
-              >
-                <CheckCircle2 size={17} style={{ flexShrink: 0, marginTop: 1, color: '#4FD1C5' }} />
-                <span>{successMessage}</span>
+              <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+                <span className="font-medium leading-relaxed">{successMessage}</span>
               </div>
             )}
 
             {/* Error Message Banner */}
             {errorMessage && (
-              <div
-                style={{
-                  marginBottom: 18,
-                  padding: '12px 16px',
-                  borderRadius: 10,
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  color: '#FCA5A5',
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 10,
-                }}
-              >
-                <AlertCircle size={17} style={{ flexShrink: 0, marginTop: 1, color: '#F87171' }} />
-                <div style={{ flex: 1 }}>
-                  <span>{errorMessage}</span>
-                  {(errorMessage.includes('chưa được kích hoạt') || errorMessage.toLowerCase().includes('activated') || errorMessage.includes('OTP')) && (
-                    <div style={{ marginTop: 6 }}>
+              <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+                <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-600" />
+                <div className="flex-1">
+                  <span className="font-medium leading-relaxed">{errorMessage}</span>
+                  {!errorMessage.includes('Quản trị viên') &&
+                    (errorMessage.includes('chưa được kích hoạt') ||
+                      errorMessage.toLowerCase().includes('activated')) && (
+                    <div className="mt-1.5">
                       <button
                         type="button"
                         onClick={() => openVerifyEmail(email)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#4FD1C5',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          padding: 0,
-                        }}
+                        className="text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer bg-transparent border-0 p-0 text-xs"
                       >
                         {t('app.authErrors.CLICK_TO_VERIFY', 'Bấm vào đây để nhập mã kích hoạt')} (OTP: 123456)
                       </button>
@@ -805,8 +690,8 @@ export const AuthModal: React.FC = () => {
 
             {/* ── 1. SIGN IN FORM ── */}
             {authModalTab === 'signin' && (
-              <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                {/* Browser autofill traps (off-screen) */}
+              <form onSubmit={handleSignIn} noValidate className="flex flex-col gap-4">
+                {/* Browser autofill & honeypot traps */}
                 <input
                   type="text"
                   name="b_trap_username"
@@ -821,8 +706,6 @@ export const AuthModal: React.FC = () => {
                   tabIndex={-1}
                   autoComplete="off"
                 />
-
-                {/* Hidden Honeypot Trap */}
                 <input
                   type="text"
                   name="website_trap"
@@ -833,23 +716,13 @@ export const AuthModal: React.FC = () => {
                   autoComplete="off"
                 />
 
-                {/* Email Field */}
+                {/* Email */}
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '.06em',
-                      color: '#94A3B8',
-                      marginBottom: 7,
-                    }}
-                  >
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     {t('app.auth.email', 'Địa chỉ Email')}
                   </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
+                  <div className="relative flex items-center">
+                    <span className={`absolute left-3.5 pointer-events-none ${emailError ? 'text-rose-500' : email.trim() && emailValidation.valid ? 'text-emerald-600' : 'text-slate-400'}`}>
                       <Mail size={16} />
                     </span>
                     <input
@@ -860,49 +733,28 @@ export const AuthModal: React.FC = () => {
                       readOnly={!emailUnlocked}
                       onFocus={() => setEmailUnlocked(true)}
                       onClick={() => setEmailUnlocked(true)}
+                      onFocusCapture={() => setEmailUnlocked(true)}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={t('app.auth.emailPh', 'name@company.com')}
-                      style={{
-                        width: '100%',
-                        height: 46,
-                        padding: '0 14px 0 42px',
-                        background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                        border: '1px solid #1E293B',
-                        borderRadius: 10,
-                        color: '#FFFFFF',
-                        fontSize: 14,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        transition: 'border-color .15s',
-                        caretColor: '#4FD1C5',
-                      }}
-                      onFocusCapture={(e) => {
-                        setEmailUnlocked(true);
-                        e.currentTarget.style.borderColor = '#4FD1C5';
-                      }}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = '#1E293B')}
+                      className={`w-full h-11 pl-10 pr-10 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(emailError), Boolean(email.trim() && emailValidation.valid))}`}
                     />
+                    {email.trim() && emailValidation.valid && (
+                      <span className="absolute right-3 text-emerald-600 pointer-events-none flex items-center">
+                        <CheckCircle2 size={16} />
+                      </span>
+                    )}
                   </div>
+                  {renderEmailFeedback(false)}
                 </div>
 
-                {/* Password Field */}
+                {/* Password */}
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '.06em',
-                      color: '#94A3B8',
-                      marginBottom: 7,
-                    }}
-                  >
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     {t('app.auth.password', 'Mật khẩu')}
                   </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
+                  <div className="relative flex items-center">
+                    <span className={`absolute left-3.5 pointer-events-none ${signInPasswordError ? 'text-rose-500' : 'text-slate-400'}`}>
                       <Lock size={16} />
                     </span>
                     <input
@@ -913,72 +765,38 @@ export const AuthModal: React.FC = () => {
                       readOnly={!passwordUnlocked}
                       onFocus={() => setPasswordUnlocked(true)}
                       onClick={() => setPasswordUnlocked(true)}
+                      onFocusCapture={() => setPasswordUnlocked(true)}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={t('app.auth.passwordPh', 'Mật khẩu của bạn')}
-                      style={{
-                        width: '100%',
-                        height: 46,
-                        padding: '0 44px 0 42px',
-                        background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                        border: '1px solid #1E293B',
-                        borderRadius: 10,
-                        color: '#FFFFFF',
-                        fontSize: 14,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        transition: 'border-color .15s',
-                        caretColor: '#4FD1C5',
-                      }}
-                      onFocusCapture={(e) => {
-                        setPasswordUnlocked(true);
-                        e.currentTarget.style.borderColor = '#4FD1C5';
-                      }}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = '#1E293B')}
+                      className={`w-full h-11 pl-10 pr-11 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(signInPasswordError), false)}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: 12,
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#94A3B8',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: 4,
-                      }}
+                      className="absolute right-3 p-1 text-slate-500 hover:text-[#14171C] bg-transparent border-0 cursor-pointer flex items-center"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
-                  {fieldErrors.password && (
-                    <span style={{ display: 'block', color: '#EF4444', fontSize: 11, marginTop: 4, fontWeight: 500 }}>
-                      * {fieldErrors.password}
-                    </span>
+                  {signInPasswordError && (
+                    <p className="mt-1.5 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{signInPasswordError}</span>
+                    </p>
                   )}
                 </div>
 
-                {/* Remember Me & Forgot Password Row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94A3B8', cursor: 'pointer' }}>
-                    <input type="checkbox" defaultChecked style={{ accentColor: '#4FD1C5', cursor: 'pointer' }} />
+                {/* Remember & Forgot */}
+                <div className="flex items-center justify-between text-xs">
+                  <label className="flex items-center gap-2 text-slate-700 font-medium cursor-pointer select-none">
+                    <input type="checkbox" defaultChecked className="accent-blue-600 cursor-pointer rounded" />
                     <span>{t('app.auth.rememberMe', 'Ghi nhớ đăng nhập')}</span>
                   </label>
                   <button
                     type="button"
                     onClick={openForgotPassword}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#4FD1C5',
-                      fontSize: 12,
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
+                    className="text-blue-600 hover:text-blue-800 font-bold text-xs bg-transparent border-0 cursor-pointer p-0"
                   >
                     {t('app.auth.forgotPassword', 'Quên mật khẩu?')}
                   </button>
@@ -988,87 +806,33 @@ export const AuthModal: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  style={{
-                    height: 48,
-                    marginTop: 4,
-                    background: '#4FD1C5',
-                    color: '#0A0F12',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    borderRadius: 10,
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    width: '100%',
-                    transition: 'opacity .15s, transform .15s',
-                    boxShadow: '0 4px 14px rgba(79, 209, 197, 0.25)',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.92')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                  className="h-12 mt-1 w-full rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-pointer border-0"
                 >
-                  {loading ? t('app.auth.loadingSignin', 'Đang xác thực...') : t('app.auth.submitSignin', 'Đăng nhập')}
-                  <ArrowRight size={17} />
+                  <span>{loading ? t('app.auth.loadingSignin', 'Đang xác thực...') : t('app.auth.submitSignin', 'Đăng nhập ngay')}</span>
+                  <ArrowRight size={16} />
                 </button>
 
                 {/* OR divider */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '6px 0' }}>
-                  <div style={{ flex: 1, height: 1, background: '#1E293B' }} />
-                  <span style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                <div className="flex items-center gap-3 my-1">
+                  <div className="flex-1 h-px bg-slate-300/80" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     {t('app.auth.orContinueWith', 'Hoặc tiếp tục với')}
                   </span>
-                  <div style={{ flex: 1, height: 1, background: '#1E293B' }} />
+                  <div className="flex-1 h-px bg-slate-300/80" />
                 </div>
 
-                {/* Google Sign In Button */}
+                {/* Google Sign In */}
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={loading}
-                  style={{
-                    height: 44,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    background: '#0B1318',
-                    border: '1px solid #1E293B',
-                    borderRadius: 10,
-                    color: '#E2E8F0',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all .15s',
-                    width: '100%',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#4FD1C5';
-                    e.currentTarget.style.background = '#111C23';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#1E293B';
-                    e.currentTarget.style.background = '#0B1318';
-                  }}
+                  className="h-11 w-full rounded-xl bg-white hover:bg-slate-50 border-[1.5px] border-slate-400/85 hover:border-[#14171C] text-[#14171C] font-bold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-xs"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
+                  <svg width="17" height="17" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
                   <span>{t('app.auth.googleSignIn', 'Đăng nhập với Google')}</span>
                 </button>
@@ -1077,8 +841,7 @@ export const AuthModal: React.FC = () => {
 
             {/* ── 2. REGISTER FORM ── */}
             {authModalTab === 'register' && (
-              <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {/* Browser autofill traps (off-screen) */}
+              <form onSubmit={handleRegister} noValidate className="flex flex-col gap-3">
                 <input
                   type="text"
                   name="b_trap_username"
@@ -1093,8 +856,6 @@ export const AuthModal: React.FC = () => {
                   tabIndex={-1}
                   autoComplete="off"
                 />
-
-                {/* Hidden Honeypot Trap */}
                 <input
                   type="text"
                   name="website_trap"
@@ -1107,22 +868,12 @@ export const AuthModal: React.FC = () => {
 
                 {/* Full Name */}
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '.06em',
-                      color: '#94A3B8',
-                      marginBottom: 5,
-                    }}
-                  >
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                     {t('app.auth.nameReg', 'Họ và tên')}
                   </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
-                      <User size={16} />
+                  <div className="relative flex items-center">
+                    <span className={`absolute left-3.5 pointer-events-none ${nameError ? 'text-rose-500' : trimmedName.length >= 2 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      <User size={15} />
                     </span>
                     <input
                       type="text"
@@ -1130,44 +881,31 @@ export const AuthModal: React.FC = () => {
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder={locale === 'en' ? 'John Doe' : 'Nguyễn Văn A'}
-                      style={{
-                        width: '100%',
-                        height: 42,
-                        padding: '0 14px 0 42px',
-                        background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                        border: '1px solid #1E293B',
-                        borderRadius: 10,
-                        color: '#FFFFFF',
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        caretColor: '#4FD1C5',
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = '#4FD1C5')}
-                      onBlur={(e) => (e.target.style.borderColor = '#1E293B')}
+                      placeholder={isEn ? 'John Doe' : 'Nguyễn Văn A'}
+                      className={`w-full h-10 pl-10 pr-9 rounded-xl border-[1.5px] shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(nameError), trimmedName.length >= 2)}`}
                     />
+                    {trimmedName.length >= 2 && (
+                      <span className="absolute right-3 text-emerald-600 pointer-events-none flex items-center">
+                        <CheckCircle2 size={15} />
+                      </span>
+                    )}
                   </div>
+                  {nameError && (
+                    <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{nameError}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '.06em',
-                      color: '#94A3B8',
-                      marginBottom: 5,
-                    }}
-                  >
-                    {t('app.auth.emailReg', 'Địa chỉ Email')}
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    {t('app.auth.emailReg', 'Địa chỉ Email (Chặn domain rác)')}
                   </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
-                      <Mail size={16} />
+                  <div className="relative flex items-center">
+                    <span className={`absolute left-3.5 pointer-events-none ${emailError ? 'text-rose-500' : email.trim() && emailValidation.valid ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      <Mail size={15} />
                     </span>
                     <input
                       type="email"
@@ -1177,49 +915,29 @@ export const AuthModal: React.FC = () => {
                       readOnly={!emailUnlocked}
                       onFocus={() => setEmailUnlocked(true)}
                       onClick={() => setEmailUnlocked(true)}
+                      onFocusCapture={() => setEmailUnlocked(true)}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@company.com"
-                      style={{
-                        width: '100%',
-                        height: 42,
-                        padding: '0 14px 0 42px',
-                        background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                        border: '1px solid #1E293B',
-                        borderRadius: 10,
-                        color: '#FFFFFF',
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        caretColor: '#4FD1C5',
-                      }}
-                      onFocusCapture={(e) => {
-                        setEmailUnlocked(true);
-                        e.currentTarget.style.borderColor = '#4FD1C5';
-                      }}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = '#1E293B')}
+                      placeholder="name@gmail.com"
+                      className={`w-full h-10 pl-10 pr-9 rounded-xl border-[1.5px] shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(emailError), Boolean(email.trim() && emailValidation.valid))}`}
                     />
+                    {email.trim() && emailValidation.valid && (
+                      <span className="absolute right-3 text-emerald-600 pointer-events-none flex items-center">
+                        <CheckCircle2 size={15} />
+                      </span>
+                    )}
                   </div>
+                  {renderEmailFeedback(true)}
                 </div>
 
-                {/* Password */}
+                {/* Password (Full-width with real-time rule guidance) */}
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '.06em',
-                      color: '#94A3B8',
-                      marginBottom: 5,
-                    }}
-                  >
-                    {locale === 'en' ? 'PASSWORD (6-32 CHARS, NUMBERS & SPECIAL CHAR)' : 'MẬT KHẨU (6-32 KÝ TỰ, GỒM SỐ & KÝ TỰ ĐẶC BIỆT)'}
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    {isEn ? 'Password' : 'Mật khẩu'}
                   </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
-                      <Lock size={16} />
+                  <div className="relative flex items-center">
+                    <span className={`absolute left-3.5 pointer-events-none ${passwordError ? 'text-rose-500' : passwordValidation.valid ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      <Lock size={15} />
                     </span>
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -1229,66 +947,59 @@ export const AuthModal: React.FC = () => {
                       readOnly={!passwordUnlocked}
                       onFocus={() => setPasswordUnlocked(true)}
                       onClick={() => setPasswordUnlocked(true)}
+                      onFocusCapture={() => setPasswordUnlocked(true)}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="FitVision@2026"
-                      style={{
-                        width: '100%',
-                        height: 42,
-                        padding: '0 44px 0 42px',
-                        background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                        border: '1px solid #1E293B',
-                        borderRadius: 10,
-                        color: '#FFFFFF',
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        caretColor: '#4FD1C5',
-                      }}
-                      onFocusCapture={(e) => {
-                        setPasswordUnlocked(true);
-                        e.currentTarget.style.borderColor = '#4FD1C5';
-                      }}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = '#1E293B')}
+                      className={`w-full h-10 pl-10 pr-10 rounded-xl border-[1.5px] shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(passwordError), passwordValidation.valid)}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: 12,
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#94A3B8',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: 4,
-                      }}
+                      className="absolute right-2.5 p-1 text-slate-500 hover:text-[#14171C] bg-transparent border-0 cursor-pointer flex items-center"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
+                  </div>
+
+                  {/* Live Password Criteria Chips (Always guide user clearly; red when unmet, green when met) */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold transition-colors ${
+                        hasValidLength
+                          ? 'text-emerald-700'
+                          : shouldValidatePassword
+                          ? 'text-rose-600'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      {hasValidLength ? <Check size={12} strokeWidth={2.5} /> : <AlertCircle size={12} />}
+                      <span>{isEn ? '6–32 characters' : '6–32 ký tự'}</span>
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold transition-colors ${
+                        hasSpecialChar
+                          ? 'text-emerald-700'
+                          : shouldValidatePassword
+                          ? 'text-rose-600'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      {hasSpecialChar ? <Check size={12} strokeWidth={2.5} /> : <AlertCircle size={12} />}
+                      <span>{isEn ? '1 special char (!@#$%^&*...)' : 'Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)'}</span>
+                    </span>
                   </div>
                 </div>
 
-                {/* Confirm Password */}
+                {/* Confirm Password (Live stroke-by-stroke match / mismatch feedback) */}
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '.06em',
-                      color: '#94A3B8',
-                      marginBottom: 5,
-                    }}
-                  >
-                    {t('app.auth.confirm', 'Xác nhận lại mật khẩu')}
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    {t('app.auth.confirm', 'Xác nhận mật khẩu')}
                   </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
-                      <Lock size={16} />
+                  <div className="relative flex items-center">
+                    <span className={`absolute left-3.5 pointer-events-none ${confirmError ? 'text-rose-500' : confirmMatches ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      <Lock size={15} />
                     </span>
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -1298,126 +1009,80 @@ export const AuthModal: React.FC = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder={t('app.auth.confirmPh', 'Nhập lại mật khẩu')}
-                      style={{
-                        width: '100%',
-                        height: 42,
-                        padding: '0 14px 0 42px',
-                        background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                        border: '1px solid #1E293B',
-                        borderRadius: 10,
-                        color: '#FFFFFF',
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = '#4FD1C5')}
-                      onBlur={(e) => (e.target.style.borderColor = '#1E293B')}
+                      className={`w-full h-10 pl-10 pr-10 rounded-xl border-[1.5px] shadow-2xs text-xs sm:text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(confirmError), confirmMatches)}`}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 p-1 text-slate-500 hover:text-[#14171C] bg-transparent border-0 cursor-pointer flex items-center"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
                   </div>
+                  {confirmError ? (
+                    <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{confirmError}</span>
+                    </p>
+                  ) : confirmMatches ? (
+                    <p className="mt-1 text-[11.5px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
+                      <CheckCircle2 size={13} className="shrink-0" />
+                      <span>{isEn ? 'Passwords match.' : 'Mật khẩu trùng khớp.'}</span>
+                    </p>
+                  ) : null}
                 </div>
 
-                {/* Privacy Terms Checkbox */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, paddingTop: 4 }}>
-                  <input
-                    type="checkbox"
-                    id="terms-fullscreen"
-                    checked={termsAgreed}
-                    onChange={(e) => setTermsAgreed(e.target.checked)}
-                    style={{ width: 16, height: 16, marginTop: 2, accentColor: '#4FD1C5', cursor: 'pointer' }}
-                  />
-                  <label
-                    htmlFor="terms-fullscreen"
-                    style={{ fontSize: 12, color: '#94A3B8', cursor: 'pointer', lineHeight: 1.45 }}
-                  >
-                    {t('app.auth.terms', 'Tôi đồng ý với Điều khoản Sử dụng và Cam kết Bảo vệ Dữ liệu')}
+                {/* Terms */}
+                <div>
+                  <label className="flex items-start gap-2 pt-0.5 text-[11px] text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      id="terms-fullscreen"
+                      checked={termsAgreed}
+                      onChange={(e) => setTermsAgreed(e.target.checked)}
+                      className="mt-0.5 accent-blue-600 cursor-pointer rounded"
+                    />
+                    <span className="leading-snug">
+                      {t('app.auth.terms', 'Tôi đồng ý với Điều khoản Sử dụng và Cam kết Bảo vệ Dữ liệu')}
+                    </span>
                   </label>
+                  {termsError && (
+                    <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                      <AlertCircle size={13} className="shrink-0" />
+                      <span>{termsError}</span>
+                    </p>
+                  )}
                 </div>
 
-                {/* Submit Action */}
                 <button
                   type="submit"
                   disabled={loading}
-                  style={{
-                    height: 46,
-                    marginTop: 6,
-                    background: '#4FD1C5',
-                    color: '#0A0F12',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    borderRadius: 10,
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    width: '100%',
-                    transition: 'opacity .15s',
-                    boxShadow: '0 4px 14px rgba(79, 209, 197, 0.25)',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.92')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                  className="h-11 mt-0.5 w-full rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-pointer border-0"
                 >
-                  {loading ? t('app.auth.loadingRegister', 'Đang đăng ký...') : t('app.auth.submitRegister', 'Tạo tài khoản')}
-                  <ArrowRight size={17} />
+                  <span>{loading ? t('app.auth.loadingRegister', 'Đang đăng ký...') : t('app.auth.submitRegister', 'Tạo tài khoản cá nhân')}</span>
+                  <ArrowRight size={16} />
                 </button>
 
-                {/* OR divider */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
-                  <div style={{ flex: 1, height: 1, background: '#1E293B' }} />
-                  <span style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                <div className="flex items-center gap-3 my-0.5">
+                  <div className="flex-1 h-px bg-slate-300/80" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     {t('app.auth.orContinueWith', 'Hoặc tiếp tục với')}
                   </span>
-                  <div style={{ flex: 1, height: 1, background: '#1E293B' }} />
+                  <div className="flex-1 h-px bg-slate-300/80" />
                 </div>
 
-                {/* Google Sign In Button */}
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={loading}
-                  style={{
-                    height: 42,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    background: '#0B1318',
-                    border: '1px solid #1E293B',
-                    borderRadius: 10,
-                    color: '#E2E8F0',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all .15s',
-                    width: '100%',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#4FD1C5';
-                    e.currentTarget.style.background = '#111C23';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#1E293B';
-                    e.currentTarget.style.background = '#0B1318';
-                  }}
+                  className="h-10.5 py-2.5 w-full rounded-xl bg-white hover:bg-slate-50 border-[1.5px] border-slate-400/85 hover:border-[#14171C] text-[#14171C] font-bold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-xs"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
                   <span>{t('app.auth.googleSignUp', 'Đăng ký nhanh với Google')}</span>
                 </button>
@@ -1428,23 +1093,13 @@ export const AuthModal: React.FC = () => {
             {authModalTab === 'forgot' && (
               <div>
                 {forgotStep === 'request' ? (
-                  <form onSubmit={handleRequestForgotOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <form onSubmit={handleRequestForgotOtp} noValidate className="flex flex-col gap-4">
                     <div>
-                      <label
-                        style={{
-                          display: 'block',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                          letterSpacing: '.06em',
-                          color: '#94A3B8',
-                          marginBottom: 7,
-                        }}
-                      >
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                         {t('app.auth.forgotEmailLabel', 'Địa chỉ Email cần lấy lại mật khẩu')}
                       </label>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <span style={{ position: 'absolute', left: 14, color: '#64748B', pointerEvents: 'none' }}>
+                      <div className="relative flex items-center">
+                        <span className={`absolute left-3.5 pointer-events-none ${emailError ? 'text-rose-500' : email.trim() && emailValidation.valid ? 'text-emerald-600' : 'text-slate-400'}`}>
                           <Mail size={16} />
                         </span>
                         <input
@@ -1452,58 +1107,37 @@ export const AuthModal: React.FC = () => {
                           required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="name@company.com"
-                          style={{
-                            width: '100%',
-                            height: 46,
-                            padding: '0 14px 0 42px',
-                            background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                            border: '1px solid #1E293B',
-                            borderRadius: 10,
-                            color: '#FFFFFF',
-                            fontSize: 14,
-                            fontFamily: 'inherit',
-                            outline: 'none',
-                            caretColor: '#4FD1C5',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#4FD1C5')}
-                          onBlur={(e) => (e.target.style.borderColor = '#1E293B')}
+                          placeholder="name@gmail.com"
+                          className={`w-full h-11 pl-10 pr-10 rounded-xl border-[1.5px] shadow-2xs text-sm font-medium text-[#14171C] placeholder:text-slate-400 focus:outline-none transition-all ${fieldBorderClass(Boolean(emailError), Boolean(email.trim() && emailValidation.valid))}`}
                         />
+                        {email.trim() && emailValidation.valid && (
+                          <span className="absolute right-3 text-emerald-600 pointer-events-none flex items-center">
+                            <CheckCircle2 size={16} />
+                          </span>
+                        )}
                       </div>
+                      {renderEmailFeedback(false)}
                     </div>
 
                     <button
                       type="submit"
                       disabled={loading}
-                      style={{
-                        height: 46,
-                        background: '#4FD1C5',
-                        color: '#0A0F12',
-                        fontWeight: 600,
-                        fontSize: 14,
-                        borderRadius: 10,
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        marginTop: 4,
-                      }}
+                      className="h-11 w-full rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-pointer border-0"
                     >
-                      {loading ? t('app.auth.sendingOtpBtn', 'Đang gửi mã...') : t('app.auth.sendOtpBtn', 'Gửi mã xác nhận OTP')}
-                      <ArrowRight size={17} />
+                      <span>{loading ? t('app.auth.sendingOtpBtn', 'Đang gửi mã...') : t('app.auth.sendOtpBtn', 'Gửi mã xác nhận OTP')}</span>
+                      <ArrowRight size={16} />
                     </button>
                   </form>
                 ) : (
-                  <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {/* OTP Field */}
+                  <form onSubmit={handleResetPassword} noValidate className="flex flex-col gap-3.5">
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                        <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8' }}>
+                      <div className="flex justify-between mb-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
                           {t('app.auth.otpLabel', 'Mã OTP xác thực (6 số)')}
                         </label>
-                        <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>{locale === 'en' ? 'Check your Gmail inbox' : 'Đã gửi tới Gmail của bạn'}</span>
+                        <span className="text-[11px] font-mono font-semibold text-blue-600">
+                          {isEn ? 'Check your Gmail inbox' : 'Đã gửi tới Gmail của bạn'}
+                        </span>
                       </div>
                       <input
                         type="text"
@@ -1512,113 +1146,76 @@ export const AuthModal: React.FC = () => {
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value)}
                         placeholder="123456"
-                        style={{
-                          width: '100%',
-                          height: 42,
-                          padding: '0 14px',
-                          background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                          border: '1px solid #1E293B',
-                          borderRadius: 10,
-                          color: '#FFFFFF',
-                          fontSize: 16,
-                          letterSpacing: 4,
-                          fontWeight: 700,
-                          textAlign: 'center',
-                          outline: 'none',
-                        }}
-                        onFocus={(e) => (e.target.style.borderColor = '#4FD1C5')}
-                        onBlur={(e) => (e.target.style.borderColor = '#1E293B')}
+                        className="w-full h-11 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-[#14171C] font-mono text-base font-bold tracking-[0.35em] text-center focus:border-blue-600 focus:outline-none"
                       />
                     </div>
 
-                    {/* New Password */}
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 5 }}>{t('app.auth.newPasswordLabel', 'Mật khẩu mới')}</label>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        {t('app.auth.newPasswordLabel', 'Mật khẩu mới')}
+                      </label>
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder={t('app.auth.newPasswordPh', 'Nhập mật khẩu mới')}
-                        style={{
-                          width: '100%',
-                          height: 42,
-                          padding: '0 14px',
-                          background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                          border: '1px solid #1E293B',
-                          borderRadius: 10,
-                          color: '#FFFFFF',
-                          fontSize: 13,
-                          outline: 'none',
-                        }}
-                        onFocus={(e) => (e.target.style.borderColor = '#4FD1C5')}
-                        onBlur={(e) => (e.target.style.borderColor = '#1E293B')}
+                        className={`w-full h-10 px-4 rounded-xl border-[1.5px] shadow-2xs text-sm text-[#14171C] focus:outline-none transition-all ${fieldBorderClass(newPassword.length > 0 && !validatePassword(newPassword).valid, newPassword.length > 0 && validatePassword(newPassword).valid)}`}
                       />
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${newPassword.length >= 6 && newPassword.length <= 32 ? 'text-emerald-700' : newPassword.length > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                          {newPassword.length >= 6 && newPassword.length <= 32 ? <Check size={12} strokeWidth={2.5} /> : <AlertCircle size={12} />}
+                          <span>{isEn ? '6–32 characters' : '6–32 ký tự'}</span>
+                        </span>
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${SPECIAL_CHAR_REGEX.test(newPassword) ? 'text-emerald-700' : newPassword.length > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                          {SPECIAL_CHAR_REGEX.test(newPassword) ? <Check size={12} strokeWidth={2.5} /> : <AlertCircle size={12} />}
+                          <span>{isEn ? '1 special char (!@#$%^&*...)' : 'Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)'}</span>
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Confirm New Password */}
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 5 }}>{t('app.auth.confirmNewPasswordLabel', 'Xác nhận mật khẩu mới')}</label>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        {t('app.auth.confirmNewPasswordLabel', 'Xác nhận mật khẩu mới')}
+                      </label>
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         required
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         placeholder={t('app.auth.confirmNewPasswordPh', 'Nhập lại mật khẩu mới')}
-                        style={{
-                          width: '100%',
-                          height: 42,
-                          padding: '0 14px',
-                          background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                          border: '1px solid #1E293B',
-                          borderRadius: 10,
-                          color: '#FFFFFF',
-                          fontSize: 13,
-                          outline: 'none',
-                        }}
-                        onFocus={(e) => (e.target.style.borderColor = '#4FD1C5')}
-                        onBlur={(e) => (e.target.style.borderColor = '#1E293B')}
+                        className={`w-full h-10 px-4 rounded-xl border-[1.5px] shadow-2xs text-sm text-[#14171C] focus:outline-none transition-all ${fieldBorderClass(confirmNewPassword.length > 0 && confirmNewPassword !== newPassword, confirmNewPassword.length > 0 && confirmNewPassword === newPassword)}`}
                       />
+                      {confirmNewPassword.length > 0 && confirmNewPassword !== newPassword && (
+                        <p className="mt-1 text-[11.5px] font-semibold text-rose-600 flex items-center gap-1.5 m-0">
+                          <AlertCircle size={13} className="shrink-0" />
+                          <span>{isEn ? 'Passwords do not match.' : 'Mật khẩu xác nhận không khớp.'}</span>
+                        </p>
+                      )}
+                      {confirmNewPassword.length > 0 && confirmNewPassword === newPassword && (
+                        <p className="mt-1 text-[11.5px] font-semibold text-emerald-700 flex items-center gap-1.5 m-0">
+                          <CheckCircle2 size={13} className="shrink-0" />
+                          <span>{isEn ? 'Passwords match.' : 'Mật khẩu trùng khớp.'}</span>
+                        </p>
+                      )}
                     </div>
 
                     <button
                       type="submit"
                       disabled={loading}
-                      style={{
-                        height: 46,
-                        background: '#4FD1C5',
-                        color: '#0A0F12',
-                        fontWeight: 600,
-                        fontSize: 14,
-                        borderRadius: 10,
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        marginTop: 6,
-                      }}
+                      className="h-11 mt-1 w-full rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-pointer border-0"
                     >
-                      {loading ? t('app.auth.updatingPasswordBtn', 'Đang cập nhật...') : t('app.auth.updatePasswordBtn', 'Cập nhật mật khẩu')}
-                      <ArrowRight size={17} />
+                      <span>{loading ? t('app.auth.updatingPasswordBtn', 'Đang cập nhật...') : t('app.auth.updatePasswordBtn', 'Cập nhật mật khẩu')}</span>
+                      <ArrowRight size={16} />
                     </button>
                   </form>
                 )}
 
-                <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <div className="text-center mt-4">
                   <button
                     type="button"
                     onClick={openSignIn}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#94A3B8',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#4FD1C5')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#94A3B8')}
+                    className="text-xs font-semibold text-slate-500 hover:text-blue-600 bg-transparent border-0 cursor-pointer"
                   >
                     {t('app.auth.backToSignIn', '← Quay lại Đăng nhập')}
                   </button>
@@ -1628,34 +1225,28 @@ export const AuthModal: React.FC = () => {
 
             {/* ── 4. VERIFY EMAIL VIEW ── */}
             {authModalTab === 'verify' && (
-              <form onSubmit={handleVerifyEmail} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <form onSubmit={handleVerifyEmail} className="flex flex-col gap-4">
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8', marginBottom: 7 }}>{t('app.auth.verifyEmailLabel', 'Email cần kích hoạt')}</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    {t('app.auth.verifyEmailLabel', 'Email cần kích hoạt')}
+                  </label>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: 42,
-                      padding: '0 14px',
-                      background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                      border: '1px solid #1E293B',
-                      borderRadius: 10,
-                      color: '#FFFFFF',
-                      fontSize: 13,
-                      outline: 'none',
-                    }}
+                    className="w-full h-10 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-sm text-[#14171C] focus:border-blue-600 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: '#94A3B8' }}>
+                  <div className="flex justify-between mb-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
                       {t('app.auth.verifyOtpLabel', 'Mã kích hoạt OTP (6 chữ số)')}
                     </label>
-                    <span style={{ fontSize: 11, color: '#4FD1C5', fontFamily: 'monospace' }}>{locale === 'en' ? 'Check your Gmail inbox' : 'Đã gửi tới Gmail của bạn'}</span>
+                    <span className="text-[11px] font-mono font-semibold text-blue-600">
+                      {isEn ? 'Check your Gmail inbox' : 'Đã gửi tới Gmail của bạn'}
+                    </span>
                   </div>
                   <input
                     type="text"
@@ -1664,61 +1255,24 @@ export const AuthModal: React.FC = () => {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
                     placeholder="123456"
-                    style={{
-                      width: '100%',
-                      height: 44,
-                      padding: '0 14px',
-                      background: '#030712', boxShadow: '0 0 0 1000px #030712 inset', colorScheme: 'dark',
-                      border: '1px solid #1E293B',
-                      borderRadius: 10,
-                      color: '#4FD1C5',
-                      fontSize: 18,
-                      letterSpacing: 6,
-                      fontWeight: 700,
-                      textAlign: 'center',
-                      outline: 'none',
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = '#4FD1C5')}
-                    onBlur={(e) => (e.target.style.borderColor = '#1E293B')}
+                    className="w-full h-11 px-4 rounded-xl bg-white border-[1.5px] border-slate-400/80 shadow-2xs text-blue-700 font-mono text-lg font-bold tracking-[0.4em] text-center focus:border-blue-600 focus:outline-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  style={{
-                    height: 46,
-                    background: '#4FD1C5',
-                    color: '#0A0F12',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    borderRadius: 10,
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    marginTop: 4,
-                  }}
+                  className="h-11 w-full rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-pointer border-0"
                 >
-                  {loading ? t('app.auth.activatingBtn', 'Đang kích hoạt...') : t('app.auth.activateBtn', 'Kích hoạt tài khoản ngay')}
-                  <CheckCircle2 size={17} />
+                  <span>{loading ? t('app.auth.activatingBtn', 'Đang kích hoạt...') : t('app.auth.activateBtn', 'Kích hoạt tài khoản ngay')}</span>
+                  <CheckCircle2 size={16} />
                 </button>
 
-                <div style={{ textAlign: 'center', marginTop: 10 }}>
+                <div className="text-center mt-2">
                   <button
                     type="button"
                     onClick={openSignIn}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#94A3B8',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#4FD1C5')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#94A3B8')}
+                    className="text-xs font-semibold text-slate-500 hover:text-blue-600 bg-transparent border-0 cursor-pointer"
                   >
                     {t('app.auth.backToSignIn', '← Quay lại Đăng nhập')}
                   </button>

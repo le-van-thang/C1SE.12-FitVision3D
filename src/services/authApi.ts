@@ -5,10 +5,31 @@
 
 const API_BASE_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api/v1/auth';
 
-let inMemoryAccessToken: string | null = null;
+const ACCESS_TOKEN_STORAGE_KEY = 'fv3d_access_token_v1';
+
+let inMemoryAccessToken: string | null = (() => {
+  try {
+    return typeof window !== 'undefined' ? window.sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) : null;
+  } catch {
+    return null;
+  }
+})();
+
+let refreshInFlight: Promise<ApiResponse<{ accessToken: string; expiresIn: number }>> | null = null;
 
 export function setAccessToken(token: string | null) {
   inMemoryAccessToken = token;
+  try {
+    if (typeof window !== 'undefined') {
+      if (token) {
+        window.sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+      } else {
+        window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+      }
+    }
+  } catch {
+    // Ignore storage quota errors
+  }
 }
 
 export function getAccessToken(): string | null {
@@ -110,12 +131,15 @@ export const authApi = {
     });
   },
 
-  // 3. Đăng nhập
-  async login(email: string, password: string, rememberMe = true) {
+  // 3. Đăng nhập (hỗ trợ bước 2FA OTP cho Quản trị viên)
+  async login(email: string, password: string, rememberMe = true, adminOtp?: string) {
     const res = await request<{
-      accessToken: string;
-      expiresIn: number;
-      user: {
+      requiresAdmin2fa?: boolean;
+      email?: string;
+      message?: string;
+      accessToken?: string;
+      expiresIn?: number;
+      user?: {
         id: string;
         email: string;
         fullName: string;
@@ -124,7 +148,7 @@ export const authApi = {
       };
     }>('/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password, rememberMe }),
+      body: JSON.stringify({ email, password, rememberMe, ...(adminOtp ? { adminOtp } : {}) }),
     });
 
     if (res.success && res.data?.accessToken) {
@@ -141,15 +165,25 @@ export const authApi = {
     });
   },
 
-  // 5. Silent Refresh Token
+  // 5. Silent Refresh Token (Deduplicated singleton to avoid rotation race conditions)
   async refreshToken() {
-    const res = await request<{ accessToken: string; expiresIn: number }>('/refresh-token', {
-      method: 'POST',
-    });
-    if (res.success && res.data?.accessToken) {
-      setAccessToken(res.data.accessToken);
+    if (refreshInFlight) {
+      return refreshInFlight;
     }
-    return res;
+    refreshInFlight = (async () => {
+      try {
+        const res = await request<{ accessToken: string; expiresIn: number }>('/refresh-token', {
+          method: 'POST',
+        });
+        if (res.success && res.data?.accessToken) {
+          setAccessToken(res.data.accessToken);
+        }
+        return res;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+    return refreshInFlight;
   },
 
   // 6. Đăng xuất
@@ -193,7 +227,7 @@ export const authApi = {
   },
 
   // 10. Đăng nhập với Google
-  async googleLogin(data: { email?: string; fullName?: string; credential?: string; googleId?: string; avatarUrl?: string }) {
+  async googleLogin(data: { accessToken?: string; email?: string; fullName?: string; credential?: string; googleId?: string; avatarUrl?: string }) {
     const res = await request<{
       accessToken: string;
       expiresIn: number;

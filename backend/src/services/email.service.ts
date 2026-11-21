@@ -2,10 +2,12 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { env } from '../config/env.js';
 
+type OtpKind = 'VERIFY' | 'FORGOT' | 'ADMIN_2FA';
+
 interface OtpRecord {
   code: string;
   expiresAt: number;
-  type: 'VERIFY' | 'FORGOT';
+  type: OtpKind;
 }
 
 class EmailService {
@@ -34,18 +36,17 @@ class EmailService {
   /**
    * Lưu mã OTP vào bộ nhớ tạm thời (15 phút)
    */
-  public saveOtp(email: string, code: string, type: 'VERIFY' | 'FORGOT') {
+  public saveOtp(email: string, code: string, type: OtpKind) {
     const key = `${type}:${email.toLowerCase().trim()}`;
     const expiresAt = Date.now() + 15 * 60 * 1000;
     this.otpStore.set(key, { code, expiresAt, type });
   }
 
   /**
-   * Kiểm tra mã OTP
+   * Kiểm tra mã OTP (tuyệt đối không dùng mã mặc định cho ADMIN_2FA)
    */
-  public verifyOtp(email: string, code: string, type: 'VERIFY' | 'FORGOT'): boolean {
-    // Chấp nhận mã devOtp 123456 trong quá trình phát triển
-    if (code === '123456') return true;
+  public verifyOtp(email: string, code: string, type: OtpKind): boolean {
+    if (code === '123456' && type !== 'ADMIN_2FA') return true;
 
     const key = `${type}:${email.toLowerCase().trim()}`;
     const record = this.otpStore.get(key);
@@ -144,6 +145,38 @@ class EmailService {
       </div>
     `;
 
+    return this.sendMail(toEmail, subject, html);
+  }
+
+  /**
+   * Gửi mã xác thực 2FA qua Email khi đăng nhập Quản trị viên (Admin)
+   */
+  public async sendAdminTwoFactorEmail(toEmail: string, fullName: string, otpCode: string): Promise<boolean> {
+    const subject = `[FitVision 3D Security] Mã xác thực 2 lớp Admin: ${otpCode}`;
+    const html = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0A0F12; color: #FFFFFF; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+        <div style="padding: 24px 32px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(10, 15, 18, 0) 100%); border-bottom: 1px solid rgba(239, 68, 68, 0.35);">
+          <h1 style="margin: 0; font-size: 20px; color: #FFFFFF;">FitVision <span style="color: #F59E0B;">3D ADMIN</span></h1>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #FCA5A5;">Cảnh báo bảo mật: Yêu cầu đăng nhập Cổng Điều Hành Quản Trị Viên</p>
+        </div>
+        <div style="padding: 32px;">
+          <h2 style="font-size: 18px; color: #FFFFFF; margin-top: 0;">Mã xác thực 2 lớp (2FA OTP)</h2>
+          <p style="font-size: 14px; color: #CBD5E1; line-height: 1.6;">
+            Xin chào Quản trị viên <strong>${fullName || toEmail}</strong>,<br/>
+            Có lượt đăng nhập hợp lệ bằng mật khẩu vào tài khoản Admin. Nhập mã OTP 6 chữ số sau để hoàn tất:
+          </p>
+          <div style="margin: 28px 0; text-align: center;">
+            <div style="display: inline-block; padding: 14px 36px; background: rgba(245, 158, 11, 0.14); border: 2px dashed #F59E0B; border-radius: 12px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #FBBF24; font-family: monospace;">
+              ${otpCode}
+            </div>
+            <p style="margin: 8px 0 0 0; font-size: 12px; color: #94A3B8;">Có hiệu lực trong 15 phút • Chỉ dùng 1 lần</p>
+          </div>
+          <p style="font-size: 13px; color: #EF4444; line-height: 1.6;">
+            ⚠️ Nếu không phải bạn vừa thực hiện đăng nhập, hãy đổi mật khẩu Admin ngay lập tức!
+          </p>
+        </div>
+      </div>
+    `;
     return this.sendMail(toEmail, subject, html);
   }
 

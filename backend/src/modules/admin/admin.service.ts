@@ -45,6 +45,19 @@ export const adminService = {
     return shop;
   },
 
+  async toggleShopMall(shopId: string, isMall: boolean, adminUserId?: string) {
+    const shop = await adminRepository.setShopMall(shopId, isMall);
+    if (!shop) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy cửa hàng để cập nhật trạng thái Mall.');
+    }
+    await adminRepository.logAction({
+      userId: adminUserId,
+      actionType: isMall ? 'STORE_MALL_GRANTED' : 'STORE_MALL_REVOKED',
+      executionTimeMs: 10,
+    });
+    return shop;
+  },
+
   async getAllUsers() {
     return await adminRepository.getAllUsers();
   },
@@ -95,6 +108,10 @@ export const adminService = {
 
   async getAuditLogs(limit?: number) {
     return await adminRepository.getAuditLogs(limit || 50);
+  },
+
+  async getMyShop(ownerId: string) {
+    return await adminRepository.getShopByOwnerId(ownerId);
   },
 
   async applyShop(ownerId: string, data: {

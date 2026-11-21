@@ -3,7 +3,7 @@
     "cap": {
       "previewAlt": "Front A-Pose Preview",
       "sampleCanvas": "Standard A-Pose Sample",
-      "genderNeutral": "Unisex",
+      "genderNeutral": "Other",
       "ready": "Ready",
       "standby": "Camera standby",
       "state": {
@@ -48,7 +48,7 @@
     "cap": {
       "previewAlt": "Xem trước ảnh chính diện dáng chữ A",
       "sampleCanvas": "Ảnh mẫu dáng chữ A chuẩn",
-      "genderNeutral": "Trung tính",
+      "genderNeutral": "Khác",
       "ready": "Sẵn sàng",
       "standby": "Máy ảnh đang chờ",
       "state": {

@@ -20,6 +20,9 @@ adminRouter.post('/stores/:id/approve', requireAuth, requireRole('ADMIN'), admin
 // 4. Từ chối hồ sơ cửa hàng
 adminRouter.post('/stores/:id/reject', requireAuth, requireRole('ADMIN'), adminController.rejectStore);
 
+// 4b. Cấp / thu hồi huy hiệu FitVision Mall chính hãng
+adminRouter.patch('/stores/:id/mall', requireAuth, requireRole('ADMIN'), adminController.toggleStoreMall);
+
 // 5. Quản lý người dùng
 adminRouter.get('/users', requireAuth, requireRole('ADMIN'), adminController.getUsers);
 adminRouter.patch('/users/:id/status', requireAuth, requireRole('ADMIN'), adminController.updateUserStatus);
@@ -31,5 +34,6 @@ adminRouter.get('/audit-logs', requireAuth, requireRole('ADMIN'), adminControlle
 // =============================================================================
 // USER SHOP APPLICATION (Bất kỳ người dùng đã đăng nhập nào cũng có thể nộp đơn)
 // =============================================================================
+adminRouter.get('/stores/my-shop', requireAuth, adminController.getMyShop);
 adminRouter.post('/stores/apply', requireAuth, adminController.applyShop);
 

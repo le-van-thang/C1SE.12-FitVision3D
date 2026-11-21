@@ -3,7 +3,8 @@
 // brand_size_charts + garment_categories (name, target_gender)
 // ============================================================
 import React, { useMemo, useState } from "react";
-import { Save, RotateCcw, AlertTriangle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Save, RotateCcw, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
 import { useI18n } from "../i18n";
 import { BRAND_NAMES, GARMENT_CATEGORIES, buildSizeRows, type SizeRow } from "../data/mockData";
@@ -76,34 +77,73 @@ export const SizeChartManager: React.FC = () => {
   const delta = (d: number) => `${d > 0 ? "+" : ""}${d.toFixed(1)}`;
 
   return (
-    <div className="zf-app">
+    <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
       <Navbar />
 
-      <main className="zf-main" style={{ paddingTop: "36px" }}>
-        <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-5">
+        {/* Header */}
+        <div className="no-print flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b-2 border-slate-200">
           <div>
-            <h1 className="zf-title">{t("sizes.title")}</h1>
-            <p className="zf-sub">{t("sizes.subtitle")}</p>
+            <h1 className="text-2xl sm:text-3xl font-black text-[#14161A] tracking-tight leading-tight">
+              {t("sizes.title")}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1">
+              {t("sizes.subtitle")}
+            </p>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button id="btn-reset-size-chart" className="zf-btn zf-btn--ghost" onClick={reset}><RotateCcw size={16} strokeWidth={1.5} />{t("sizes.reset")}</button>
-            <button id="btn-save-size-chart" className="zf-btn zf-btn--primary" onClick={save}><Save size={16} strokeWidth={1.5} />{t("sizes.save")}</button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs shadow-2xs transition-all"
+            >
+              <ArrowLeft size={14} />
+              <span>{t("app.nav.dashboard", "Phòng Đo 3D")}</span>
+            </Link>
+            <button
+              id="btn-reset-size-chart"
+              type="button"
+              onClick={reset}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border-2 border-slate-300 font-bold text-xs shadow-2xs transition-all cursor-pointer active:scale-95"
+            >
+              <RotateCcw size={15} strokeWidth={2} />
+              <span>{t("sizes.reset")}</span>
+            </button>
+            <button
+              id="btn-save-size-chart"
+              type="button"
+              onClick={save}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white font-black text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+            >
+              <Save size={15} strokeWidth={2} />
+              <span>{t("sizes.save")}</span>
+            </button>
           </div>
         </div>
 
-        {toast && <div className="zf-notice ok" style={{ marginBottom: 16 }}>{toast}</div>}
+        {toast && (
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-900 text-xs font-bold shadow-2xs">
+            {toast}
+          </div>
+        )}
         {overlaps.length > 0 && (
-          <div className="zf-notice err" style={{ marginBottom: 16, display: "flex", gap: 10 }}>
-            <AlertTriangle size={16} strokeWidth={1.5} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>{overlaps.map((o) => <div key={o}>{o}</div>)}</div>
+          <div className="p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 text-xs font-bold flex items-start gap-2.5 shadow-2xs">
+            <AlertTriangle size={16} strokeWidth={2} className="text-rose-600 flex-shrink-0 mt-0.5" />
+            <div className="space-y-0.5">{overlaps.map((o) => <div key={o}>{o}</div>)}</div>
           </div>
         )}
 
         {/* Configuration bar */}
-        <section className="zf-card zf-card-pad zf-config" style={{ marginBottom: 20 }}>
-          <label className="zf-field">
-            <span>{t("sizes.brand")}</span>
-            <select id="select-brand" className="zf-select" value={brand} onChange={(e) => changeBrand(e.target.value)}>
+        <section className="rounded-3xl border-2 border-slate-200 bg-white p-5 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <label className="block space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 block">
+              {t("sizes.brand")}
+            </span>
+            <select
+              id="select-brand"
+              className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[#14171C] focus:bg-white rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 outline-none cursor-pointer transition-all"
+              value={brand}
+              onChange={(e) => changeBrand(e.target.value)}
+            >
               {BRAND_NAMES.map((b) => (
                 <option key={b} value={b}>
                   {b === "Urban Atelier"
@@ -117,15 +157,31 @@ export const SizeChartManager: React.FC = () => {
               ))}
             </select>
           </label>
-          <label className="zf-field">
-            <span>{t("sizes.targetFit")}</span>
-            <select id="select-target-gender" className="zf-select" value={gender} onChange={(e) => changeGender(e.target.value as GarmentCategory["target_gender"])}>
+
+          <label className="block space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 block">
+              {t("sizes.targetFit")}
+            </span>
+            <select
+              id="select-target-gender"
+              className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[#14171C] focus:bg-white rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 outline-none cursor-pointer transition-all"
+              value={gender}
+              onChange={(e) => changeGender(e.target.value as GarmentCategory["target_gender"])}
+            >
               {GENDERS.map((g) => <option key={g} value={g}>{t("sizes.gender." + g)}</option>)}
             </select>
           </label>
-          <label className="zf-field">
-            <span>{t("sizes.garmentType")}</span>
-            <select id="select-category" className="zf-select" value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value))}>
+
+          <label className="block space-y-1.5">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 block">
+              {t("sizes.garmentType")}
+            </span>
+            <select
+              id="select-category"
+              className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[#14171C] focus:bg-white rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 outline-none cursor-pointer transition-all"
+              value={categoryId}
+              onChange={(e) => setCategoryId(Number(e.target.value))}
+            >
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {t("garment." + c.id) || c.name}
@@ -133,32 +189,65 @@ export const SizeChartManager: React.FC = () => {
               ))}
             </select>
           </label>
-          <div className="zf-field">
-            <span style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>{t("sizes.easeAllowance")}</span>
-              <b className="mono" style={{ color: "var(--white)", fontWeight: 500 }}>+{ease.toFixed(1)} cm</b>
-            </span>
-            <div style={{ height: 40, display: "flex", alignItems: "center" }}>
-              <input id="slider-ease-tolerance" className="zf-slider" type="range" min="0.5" max="6" step="0.1"
-                value={ease} onChange={(e) => setEase(parseFloat(e.target.value))} />
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-600">
+                {t("sizes.easeAllowance")}
+              </span>
+              <span className="font-mono text-xs font-black px-2 py-0.5 rounded-lg bg-[#F5EBD8] text-[#14171C] border border-[#E5D3B3]">
+                +{ease.toFixed(1)} cm
+              </span>
+            </div>
+            <div className="h-9 flex items-center px-1">
+              <input
+                id="slider-ease-tolerance"
+                className="w-full accent-[#14171C] cursor-pointer"
+                type="range"
+                min="0.5"
+                max="6"
+                step="0.1"
+                value={ease}
+                onChange={(e) => setEase(parseFloat(e.target.value))}
+              />
             </div>
           </div>
         </section>
 
         {/* Matrix */}
-        <section className="zf-card" style={{ marginBottom: 20 }}>
-          <div className="zf-table-wrap">
-            <table className="zf-table" id="table-size-chart">
+        <section className="rounded-3xl border-2 border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse" id="table-size-chart">
               <thead>
-                <tr><th>{t("sizes.col.size")}</th>{COLUMNS.map((c) => <th key={c}>{t("sizes.col." + c)}</th>)}</tr>
+                <tr className="bg-[#14171C] text-white">
+                  <th className="px-5 py-3.5 text-[11px] font-black uppercase tracking-wider">
+                    {t("sizes.col.size")}
+                  </th>
+                  {COLUMNS.map((c) => (
+                    <th key={c} className="px-4 py-3.5 text-[11px] font-black uppercase tracking-wider">
+                      {t("sizes.col." + c)}
+                    </th>
+                  ))}
+                </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {rows.map((row, i) => (
-                  <tr key={row.id}>
-                    <td><span className="zf-size-label">{row.size_label}</span></td>
+                  <tr key={row.id} className="hover:bg-[#F5EBD8]/25 transition-colors">
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center justify-center min-w-[36px] px-2.5 py-1 rounded-lg bg-[#14171C] text-[#F5EBD8] font-mono text-xs font-black">
+                        {row.size_label}
+                      </span>
+                    </td>
                     {COLUMNS.map((c) => (
-                      <td key={c}>
-                        <input type="number" step="0.5" className="zf-cell-input" value={row[c] ?? 0} onChange={(e) => edit(i, c, e.target.value)} aria-label={`${row.size_label} ${c}`} />
+                      <td key={c} className="px-4 py-2.5">
+                        <input
+                          type="number"
+                          step="0.5"
+                          className="w-24 bg-slate-50 border-2 border-slate-200 focus:border-blue-600 focus:bg-white rounded-xl px-2.5 py-1.5 font-mono text-xs sm:text-sm font-bold text-slate-900 text-center outline-none transition-all"
+                          value={row[c] ?? 0}
+                          onChange={(e) => edit(i, c, e.target.value)}
+                          aria-label={`${row.size_label} ${c}`}
+                        />
                       </td>
                     ))}
                   </tr>
@@ -169,31 +258,62 @@ export const SizeChartManager: React.FC = () => {
         </section>
 
         {/* Fit simulator */}
-        <section className="zf-card zf-card-pad">
-          <div className="zf-section-head"><h2 className="zf-eyebrow">{t("sizes.simulator")}</h2></div>
-          <div className="zf-sim">
-            <label className="zf-field">
-              <span>{t("sizes.sampleChest")}</span>
-              <input id="sim-input-chest" className="zf-input mono" type="number" step="0.5" value={simChest} onChange={(e) => setSimChest(parseFloat(e.target.value) || 0)} />
-            </label>
-            <label className="zf-field">
-              <span>{t("sizes.sampleWaist")}</span>
-              <input id="sim-input-waist" className="zf-input mono" type="number" step="0.5" value={simWaist} onChange={(e) => setSimWaist(parseFloat(e.target.value) || 0)} />
-            </label>
-            <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+        <section className="rounded-3xl border-2 border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-700 border-b-2 border-slate-100 pb-2.5">
+            {t("sizes.simulator")}
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+            <div className="lg:col-span-5 grid grid-cols-2 gap-3">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold text-slate-700 block">{t("sizes.sampleChest")}</span>
+                <input
+                  id="sim-input-chest"
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[#14171C] focus:bg-white rounded-xl px-3 py-2 font-mono text-sm font-black text-slate-900 outline-none transition-all"
+                  type="number"
+                  step="0.5"
+                  value={simChest}
+                  onChange={(e) => setSimChest(parseFloat(e.target.value) || 0)}
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold text-slate-700 block">{t("sizes.sampleWaist")}</span>
+                <input
+                  id="sim-input-waist"
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[#14171C] focus:bg-white rounded-xl px-3 py-2 font-mono text-sm font-black text-slate-900 outline-none transition-all"
+                  type="number"
+                  step="0.5"
+                  value={simWaist}
+                  onChange={(e) => setSimWaist(parseFloat(e.target.value) || 0)}
+                />
+              </label>
+            </div>
+
+            <div className="lg:col-span-7 rounded-2xl bg-[#F5EBD8]/70 border border-[#E5D3B3] p-4 flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <div className="zf-eyebrow">{t("sizes.recommended")}</div>
-                <div className="zf-size" style={{ fontSize: 32 }}>{result.recommended_size}</div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 block mb-1">
+                  {t("sizes.recommended")}
+                </span>
+                <span className="inline-flex items-center justify-center px-4 py-1.5 rounded-xl bg-[#14171C] text-[#F5EBD8] font-mono text-2xl font-black shadow-xs">
+                  {result.recommended_size}
+                </span>
               </div>
+
               <div>
-                <div className="zf-eyebrow">{t("sizes.fitStyle")}</div>
-                <div style={{ fontSize: 14, marginTop: 4 }}>{t("sizes.fitSuffix").replace("{fit}", t("sizes.fit." + result.fit_type))}</div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 block mb-1">
+                  {t("sizes.fitStyle")}
+                </span>
+                <span className="text-sm font-black text-[#14171C]">
+                  {t("sizes.fitSuffix").replace("{fit}", t("sizes.fit." + result.fit_type))}
+                </span>
               </div>
+
               {([[t("sizes.chestAllowance"), result.chest_delta_cm], [t("sizes.waistAllowance"), result.waist_delta_cm]] as const).map(([label, d]) => (
                 <div key={label}>
-                  <div className="zf-eyebrow">{label}</div>
-                  <div className="mono" style={{ fontSize: 16, marginTop: 4, color: d > 0 ? "var(--lime)" : "var(--white)" }}>
-                    {delta(d)} <span style={{ color: "var(--muted)", fontSize: 12 }}>cm</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 block mb-1">
+                    {label}
+                  </span>
+                  <div className={`font-mono text-base font-black ${d >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                    {delta(d)} <span className="text-xs font-bold text-slate-600">cm</span>
                   </div>
                 </div>
               ))}

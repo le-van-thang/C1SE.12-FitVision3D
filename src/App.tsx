@@ -1,12 +1,16 @@
 import React from "react";
 import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { OrderProvider } from "./context/OrderContext";
 import { I18nProvider } from "./i18n";
 import { Landing } from "./landing/Landing";
+import { FashionStoreHome } from "./features/ecommerce/FashionStoreHome";
 import { Dashboard } from "./pages/Dashboard";
 import { TailorStudio } from "./pages/TailorStudio";
 import { SizeChartManager } from "./pages/SizeChartManager";
 import { AdminPortal } from "./pages/AdminPortal";
+import { ShopPortal } from "./pages/ShopPortal";
+import { GlobalToastHost } from "./components/common/GlobalToastHost";
 import "./index.css";
 
 /** Guests can only use the Dashboard; other studio pages need a signed-in account. */
@@ -25,27 +29,53 @@ const RequireStore: React.FC<{ children: React.ReactElement }> = ({ children }) 
   return children;
 };
 
-/** Admin Portal strictly isolated to System Admin */
-const RequireAdmin: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+/** Admin Portal handles its own dedicated Admin Login Gate without bouncing to shopping home */
+const AdminRoute: React.FC = () => <AdminPortal />;
+
+/** Strict Admin home entry: Admins operate exclusively inside the Admin Portal */
+const HomeRoute: React.FC = () => {
   const { isAuthenticated, userRole } = useAuth();
-  if (!isAuthenticated || userRole !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+  if (isAuthenticated && userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
   }
-  return children;
+  return <FashionStoreHome />;
+};
+
+/** Customer / Store / Guest Dashboard: strictly redirect Admin back to Admin Portal */
+const DashboardRoute: React.FC = () => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (isAuthenticated && userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Dashboard />;
+};
+
+/** Fallback route aligned with authenticated role */
+const RoleFallbackRoute: React.FC = () => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (isAuthenticated && userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
 };
 
 export const App: React.FC = () => (
   <BrowserRouter>
     <I18nProvider>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
-          <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
-          <Route path="/admin" element={<RequireAdmin><AdminPortal /></RequireAdmin>} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+        <OrderProvider>
+          <GlobalToastHost />
+          <Routes>
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/legacy-landing" element={<Landing />} />
+            <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />
+            <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
+            <Route path="/size-charts" element={<RequireAuth><SizeChartManager /></RequireAuth>} />
+            <Route path="/admin" element={<AdminRoute />} />
+            <Route path="*" element={<RoleFallbackRoute />} />
+          </Routes>
+        </OrderProvider>
       </AuthProvider>
     </I18nProvider>
   </BrowserRouter>

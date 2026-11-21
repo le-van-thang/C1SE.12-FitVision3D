@@ -5,6 +5,7 @@
 // ============================================================
 import React, { useState, useRef, useEffect } from "react";
 import { useI18n } from "../../i18n";
+import { consumePendingStudioPhoto } from "../../utils/bodyProfileStorage";
 import {
   UploadCloud,
   CheckCircle2,
@@ -17,6 +18,7 @@ import {
   Ruler,
   HelpCircle,
   FileImage,
+  Camera,
 } from "lucide-react";
 
 export interface PhotoUploadCaptureProps {
@@ -54,6 +56,24 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
   useEffect(() => {
     if (initialWeight) setWeight(String(initialWeight));
   }, [initialWeight]);
+
+  // If user jumped from 3D Fitting Room with a personal photo, load it directly into scan frame
+  useEffect(() => {
+    const pending = consumePendingStudioPhoto();
+    if (!pending?.dataUrl) return;
+    fetch(pending.dataUrl)
+      .then((res) => res.blob())
+      .then((blob) => {
+        setFrontImage({
+          file: blob,
+          url: pending.dataUrl,
+          name: pending.name,
+        });
+      })
+      .catch(() => {
+        // ignore invalid dataUrl
+      });
+  }, []);
 
   const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
@@ -156,105 +176,64 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
     <div className="photo-upload-studio" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Upload Zone: Single Front A-Pose (SMPLer-X Standard) */}
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--foreground, #f8fafc)", display: "flex", alignItems: "center", gap: "6px" }}>
-            <FileImage size={15} style={{ color: "#38bdf8" }} />
-            {t("cap.frontLabel")} <span style={{ color: "#ef4444" }}>*</span>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <FileImage size={15} className="text-blue-600" />
+            <span>{t("cap.frontLabel", "Ảnh toàn thân chính diện (A-Pose)")}</span>
+            <span className="text-rose-500 font-black">*</span>
           </label>
           {!frontImage && (
             <button
               type="button"
               onClick={loadSamplePhoto}
-              style={{
-                background: "rgba(56, 189, 248, 0.12)",
-                border: "1px solid rgba(56, 189, 248, 0.3)",
-                color: "#38bdf8",
-                fontSize: "11px",
-                padding: "3px 8px",
-                borderRadius: "6px",
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border-2 border-blue-200 text-xs font-black shadow-2xs transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
-              <Sparkles size={12} />
-              {t("cap.loadSample")}
+              <Sparkles size={13} className="text-amber-500" />
+              <span>{t("cap.loadSample", "Nạp ảnh mẫu A-Pose")}</span>
             </button>
           )}
         </div>
 
         {frontImage ? (
-          <div
-            style={{
-              position: "relative",
-              borderRadius: "10px",
-              overflow: "hidden",
-              border: "1px solid rgba(56, 189, 248, 0.4)",
-              background: "#09131f",
-              height: "230px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
+          <div className="relative rounded-2xl overflow-hidden border-2 border-slate-300 bg-slate-100 h-60 flex items-center justify-center shadow-xs">
             <img
               src={frontImage.url}
               alt="Front A-Pose Preview"
-              style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+              className="max-h-full max-w-full object-contain"
             />
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                background: "linear-gradient(transparent, rgba(5, 13, 20, 0.9))",
-                padding: "8px 12px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontSize: "11px", color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>
+            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent p-3 flex justify-between items-center gap-2 text-white">
+              <span className="text-xs font-mono font-bold truncate max-w-[140px]">
                 {frontImage.name}
               </span>
-              <button
-                type="button"
-                onClick={() => setFrontImage(null)}
-                style={{
-                  background: "rgba(239, 68, 68, 0.2)",
-                  border: "1px solid rgba(239, 68, 68, 0.4)",
-                  color: "#f87171",
-                  borderRadius: "6px",
-                  padding: "4px 8px",
-                  fontSize: "11px",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <Trash2 size={12} /> {t("cap.deletePhoto")}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => frontInputRef.current?.click()}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                >
+                  <Camera size={12} />
+                  <span>{t("cap.changePhoto", "Chụp / Đổi ảnh")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFrontImage(null)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                >
+                  <Trash2 size={12} />
+                  <span>{t("cap.deletePhoto", "Xóa")}</span>
+                </button>
+              </div>
+              <input
+                ref={frontInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleFrontFile(e.target.files[0])}
+              />
             </div>
-            <div
-              style={{
-                position: "absolute",
-                top: "8px",
-                left: "8px",
-                background: "rgba(16, 185, 129, 0.2)",
-                border: "1px solid rgba(16, 185, 129, 0.4)",
-                color: "#34d399",
-                borderRadius: "9999px",
-                padding: "3px 10px",
-                fontSize: "11px",
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-              }}
-            >
-              <CheckCircle2 size={12} /> {t("cap.photoVerified")}
+            <div className="absolute top-2 left-2 bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm">
+              <CheckCircle2 size={12} />
+              <span>{t("cap.photoVerified", "Ảnh hợp lệ")}</span>
             </div>
           </div>
         ) : (
@@ -270,64 +249,54 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               if (e.dataTransfer.files?.[0]) handleFrontFile(e.dataTransfer.files[0]);
             }}
             onClick={() => frontInputRef.current?.click()}
-            style={{
-              border: `2px dashed ${dragActive ? "#38bdf8" : "rgba(255, 255, 255, 0.15)"}`,
-              borderRadius: "10px",
-              background: dragActive ? "rgba(56, 189, 248, 0.05)" : "rgba(255, 255, 255, 0.02)",
-              padding: "36px 16px",
-              textAlign: "center",
-              cursor: "pointer",
-              transition: "border-color 0.2s, background 0.2s",
-            }}
+            className={`border-2 border-dashed rounded-2xl p-7 text-center cursor-pointer transition-all shadow-xs ${
+              dragActive
+                ? 'border-blue-600 bg-blue-50/70 scale-[1.01]'
+                : 'border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/40'
+            }`}
           >
             <input
               ref={frontInputRef}
               type="file"
               accept="image/*"
-              style={{ display: "none" }}
+              className="hidden"
               onChange={(e) => e.target.files?.[0] && handleFrontFile(e.target.files[0])}
             />
-            <div
-              style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "50%",
-                background: "rgba(56, 189, 248, 0.12)",
-                color: "#38bdf8",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 12px",
-              }}
-            >
+            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-3 shadow-xs">
               <UploadCloud size={24} />
             </div>
-            <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 600, color: "var(--foreground, #f8fafc)" }}>
-              {t("cap.uploadPrompt")}
+            <p className="text-xs sm:text-sm font-black text-slate-900 mb-1">
+              {t("cap.uploadPrompt", "Chọn hoặc kéo thả ảnh chụp toàn thân")}
             </p>
-            <p style={{ margin: 0, fontSize: "12px", color: "var(--muted, #94a3b8)" }}>
-              {t("cap.uploadSub")}
+            <p className="text-[11px] text-slate-500 font-medium">
+              {t("cap.uploadSub", "1 ảnh dáng chữ A nhìn thẳng • Tự động trích xuất số đo 3D")}
             </p>
           </div>
         )}
       </div>
 
       {/* Biometric Calibration Inputs */}
-      <div
-        style={{
-          background: "rgba(255, 255, 255, 0.02)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          borderRadius: "10px",
-          padding: "14px",
-        }}
-      >
-        <span style={{ fontSize: "12px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "10px" }}>
-          {t("cap.calibTitle")}
-        </span>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+      <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/90 p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">
+            {t("cap.calibTitle", "THÔNG SỐ HIỆU CHUẨN NHÂN TRẮC HỌC")}
+          </span>
+          {!height || !weight ? (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+              {t("cap.optionalRecommended", "Khuyên nhập · Không bắt buộc")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <CheckCircle2 size={11} />
+              <span>{t("cap.calibReady", "Đã hiệu chuẩn")}</span>
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-              <Ruler size={13} style={{ color: "#38bdf8" }} /> {t("cap.heightLabel")}
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1.5">
+              <Ruler size={14} className="text-blue-600" />
+              <span>{t("cap.heightLabel", "Chiều cao (cm)")}</span>
             </label>
             <input
               type="number"
@@ -337,69 +306,58 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               value={height}
               onChange={handleHeightChange}
               onBlur={handleHeightBlur}
-              className="zf-calib-input"
-              style={{
-                width: "100%",
-                background: "var(--surface, #0f172a)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "6px",
-                color: "#f8fafc",
-                padding: "8px 10px",
-                fontSize: "13px",
-                boxSizing: "border-box",
-              }}
+              className={`w-full border-2 focus:border-blue-600 focus:bg-white rounded-xl px-3 py-2 text-sm font-black font-mono text-slate-900 outline-none transition-all shadow-2xs ${
+                !height ? "bg-amber-50/50 border-amber-300" : "bg-white border-slate-300"
+              }`}
             />
           </div>
           <div>
-            <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-              <Scale size={13} style={{ color: "#38bdf8" }} /> {t("cap.weightLabel")}
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1.5">
+              <Scale size={14} className="text-blue-600" />
+              <span>{t("cap.weightLabel", "Cân nặng (kg)")}</span>
             </label>
             <input
               type="number"
               min={30}
               max={250}
-              placeholder="VD: 70"
+              placeholder="VD: 68"
               value={weight}
               onChange={handleWeightChange}
               onBlur={handleWeightBlur}
-              className="zf-calib-input"
-              style={{
-                width: "100%",
-                background: "var(--surface, #0f172a)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "6px",
-                color: "#f8fafc",
-                padding: "8px 10px",
-                fontSize: "13px",
-                boxSizing: "border-box",
-              }}
+              className={`w-full border-2 focus:border-blue-600 focus:bg-white rounded-xl px-3 py-2 text-sm font-black font-mono text-slate-900 outline-none transition-all shadow-2xs ${
+                !weight ? "bg-amber-50/50 border-amber-300" : "bg-white border-slate-300"
+              }`}
             />
           </div>
         </div>
+        {(!height || !weight) && (
+          <p className="text-[11px] leading-snug text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1.5 font-medium">
+            {t(
+              "cap.calibNudge",
+              "Gợi ý: Nhập chiều cao & cân nặng để AI đo chuẩn dáng bạn hơn (có thể bỏ trống — tự dùng mức 172 cm · 68 kg)."
+            )}
+          </p>
+        )}
 
         <div>
-          <label style={{ fontSize: "11px", color: "var(--muted, #94a3b8)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
-            <User size={13} style={{ color: "#38bdf8" }} /> {t("cap.genderLabel")}
+          <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1.5">
+            <User size={14} className="text-blue-600" />
+            <span>{t("cap.genderLabel", "Giới tính")}</span>
           </label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+          <div className="grid grid-cols-3 gap-2">
             {(["male", "female", "neutral"] as const).map((g) => {
-              const label = g === "male" ? t("cap.male") : g === "female" ? t("cap.female") : t("cap.unisex");
+              const label = g === "male" ? t("cap.male", "Nam") : g === "female" ? t("cap.female", "Nữ") : t("cap.unisex", "Khác");
               const isSel = gender === g;
               return (
                 <button
                   key={g}
                   type="button"
                   onClick={() => setGender(g)}
-                  style={{
-                    background: isSel ? "rgba(56, 189, 248, 0.15)" : "transparent",
-                    border: `1px solid ${isSel ? "#38bdf8" : "rgba(255, 255, 255, 0.12)"}`,
-                    color: isSel ? "#38bdf8" : "#94a3b8",
-                    padding: "6px",
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                    fontWeight: isSel ? 600 : 400,
-                    cursor: "pointer",
-                  }}
+                  className={`py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    isSel
+                      ? 'bg-blue-600 text-white shadow-xs border-2 border-blue-600'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border-2 border-slate-300'
+                  }`}
                 >
                   {label}
                 </button>
@@ -410,42 +368,25 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
       </div>
 
       {/* Guide Accordion */}
-      <div
-        style={{
-          borderRadius: "8px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          background: "rgba(255, 255, 255, 0.01)",
-          overflow: "hidden",
-        }}
-      >
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
         <button
           type="button"
           onClick={() => setShowGuide(!showGuide)}
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            background: "none",
-            border: "none",
-            color: "var(--muted, #94a3b8)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            cursor: "pointer",
-            fontSize: "12px",
-          }}
+          className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-xs font-bold text-slate-700 cursor-pointer transition-colors"
         >
-          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <HelpCircle size={14} style={{ color: "#38bdf8" }} /> {t("cap.guideTitle")}
+          <span className="flex items-center gap-2">
+            <HelpCircle size={14} className="text-blue-600" />
+            <span>{t("cap.guideTitle", "Hướng dẫn chụp ảnh chuẩn A-Pose")}</span>
           </span>
           {showGuide ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {showGuide && (
-          <div style={{ padding: "0 12px 12px", fontSize: "11px", color: "#94a3b8", lineHeight: 1.6 }}>
-            <ul style={{ margin: 0, paddingLeft: "16px" }}>
-              <li>{t("cap.guidePhotos")}</li>
-              <li>{t("cap.guideDist")}</li>
-              <li>{t("cap.guidePose")}</li>
-              <li>{t("cap.guideWear")}</li>
+          <div className="p-3.5 text-xs text-slate-600 leading-relaxed border-t border-slate-100">
+            <ul className="list-disc pl-4 space-y-1">
+              <li>{t("cap.guidePhotos", "Đứng cách camera 2-2.5m, chụp toàn thân từ đầu đến chân.")}</li>
+              <li>{t("cap.guideDist", "Giữ điện thoại thẳng đứng ngang tầm ngực.")}</li>
+              <li>{t("cap.guidePose", "Tạo dáng chữ A: hai chân rộng bằng vai, hai tay chếch 30-45 độ.")}</li>
+              <li>{t("cap.guideWear", "Mặc trang phục ôm sát gọn gàng để trích xuất số đo chính xác nhất.")}</li>
             </ul>
           </div>
         )}
@@ -454,27 +395,15 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
       {/* Scan CTA Trigger */}
       <button
         type="button"
-        disabled={!frontImage || isProcessing}
-        onClick={handleStartScan}
-        style={{
-          width: "100%",
-          padding: "12px",
-          borderRadius: "8px",
-          background: frontImage && !isProcessing
-            ? "linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)"
-            : "rgba(255, 255, 255, 0.05)",
-          border: frontImage && !isProcessing ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.1)",
-          color: frontImage && !isProcessing ? "#ffffff" : "#64748b",
-          fontWeight: 600,
-          fontSize: "14px",
-          cursor: frontImage && !isProcessing ? "pointer" : "not-allowed",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "8px",
-          boxShadow: frontImage && !isProcessing ? "0 4px 14px rgba(2, 132, 199, 0.35)" : "none",
-          transition: "all 0.2s ease",
-        }}
+        disabled={isProcessing}
+        onClick={frontImage ? handleStartScan : loadSamplePhoto}
+        className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 ${
+          isProcessing
+            ? 'bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed'
+            : frontImage
+            ? 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 shadow-blue-600/20'
+            : 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-900'
+        }`}
       >
         {isProcessing ? (
           <>
@@ -482,18 +411,23 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
               style={{
                 width: "16px",
                 height: "16px",
-                border: "2px solid #ffffff",
+                border: "2.5px solid #64748b",
                 borderTopColor: "transparent",
                 borderRadius: "50%",
                 animation: "spin 0.8s linear infinite",
               }}
             />
-            {t("cap.scanningBtn")}
+            <span>{t("cap.scanningBtn")}</span>
+          </>
+        ) : frontImage ? (
+          <>
+            <Sparkles size={16} className="text-amber-300" />
+            <span>{t("cap.scanBtn")}</span>
           </>
         ) : (
           <>
-            <Sparkles size={16} />
-            {t("cap.scanBtn")}
+            <Camera size={16} className="text-blue-300" />
+            <span>{t("cap.loadSamplePrompt", "Nạp Ảnh Mẫu & Bắt Đầu Quét 3D")}</span>
           </>
         )}
       </button>

@@ -4,8 +4,8 @@
 // Col 2: 3D Humanoid Wireframe Topology Viewport (ZOZOFIT)
 // Col 3: ISO 8559 Anthropometric Table & Quan's AI Garment Card
 // ============================================================
-import React, { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FileText,
   Table2,
@@ -15,8 +15,9 @@ import {
   ShieldCheck,
   Cpu,
   RotateCcw,
-  Sparkles,
   Lock,
+  Sparkles,
+  ArrowLeft,
 } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
 import { LoginRequiredDialog } from "../components/common/LoginRequiredDialog";
@@ -28,6 +29,11 @@ import { MeasurementsPanel } from "../features/anthropometry/MeasurementsPanel";
 import { AiGarmentCard } from "../features/anthropometry/AiGarmentCard";
 import { runAiMeasurement, type AiMeasurementResponse } from "../services/aiService";
 import { recommendGarmentSizes } from "../utils/garmentSizeCalculator";
+import {
+  saveFullScanSnapshot,
+  loadFullScanSnapshot,
+  clearFullScanSnapshot,
+} from "../utils/bodyProfileStorage";
 import { DEMO_BIOMETRIC, DEMO_MEASUREMENT, DEMO_MESH, bmi } from "../data/mockData";
 import type { BiometricInput, Measurement, MeshParameter, SystemAuditLog } from "../types/database.types";
 
@@ -51,10 +57,13 @@ const loadInitialBiometric = (): { height?: number; weight?: number; gender: "ma
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, openSignIn } = useAuth();
+  const [searchParams] = useSearchParams();
+  const cameFromStudio = searchParams.get("from") === "studio";
+  const { isAuthenticated, currentUser, userRole, openSignIn } = useAuth();
   const { t } = useI18n();
   // Guests may scan + view the 3D model only. Measurements / size charts stay locked and are never stored.
   const locked = !isAuthenticated;
+  const canOpenTailor = userRole === "store" || userRole === "tailor" || userRole === "admin";
   const [lockedFeature, setLockedFeature] = useState<string | null>(null);
   const initBio = loadInitialBiometric();
 
@@ -69,6 +78,20 @@ export const Dashboard: React.FC = () => {
   const [demo, setDemo] = useState(false);
   const [tab, setTab] = useState<Tab>("capture");
   const [activeMetric, setActiveMetric] = useState<MetricKey>("chest_circ_cm");
+
+  // Restore last saved scan snapshot for this authenticated account when returning to Dashboard
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) return;
+    const saved = loadFullScanSnapshot(currentUser.id);
+    if (saved) {
+      setMeasurement(saved.measurement);
+      setBiometric(saved.biometric);
+      setMesh(saved.mesh);
+      setGarmentRec(saved.garmentRec);
+      setIsLiveBackend(saved.isLiveBackend);
+      setExecutionTime(saved.executionTime);
+    }
+  }, [isAuthenticated, currentUser?.id]);
 
   // Handle Photo Scan from Phone / Disk (Single Front A-Pose Image)
   const handleScan = useCallback(
@@ -161,9 +184,25 @@ export const Dashboard: React.FC = () => {
         setIsLiveBackend(Boolean(res.is_live_backend));
         setExecutionTime(res.execution_time_seconds || elapsed);
 
+        // Sync scanned anthropometric profile immediately to Storefront (Homepage recommendations)
+        if (currentUser?.id) {
+          saveFullScanSnapshot(
+            currentUser.id,
+            {
+              measurement: newMeasurement,
+              biometric: newBiometric,
+              mesh: newMesh,
+              garmentRec: res.garment_size_recommendations,
+              isLiveBackend: Boolean(res.is_live_backend),
+              executionTime: res.execution_time_seconds || elapsed,
+            },
+            "scan"
+          );
+        }
+
         setAudit({
           id: Date.now(),
-          user_id: "usr-current",
+          user_id: currentUser?.id || "usr-current",
           action_type: "body_scan",
           execution_time_ms: Math.round(elapsed * 1000),
           zero_retention_flag: true,
@@ -179,7 +218,7 @@ export const Dashboard: React.FC = () => {
         setProcessing(false);
       }
     },
-    []
+    [currentUser?.id]
   );
 
   function dai_chan_inseam_cm_fallback(val: number | undefined, h: number): number {
@@ -189,11 +228,12 @@ export const Dashboard: React.FC = () => {
   // Load Demo Data for fast preview
   const handleLoadDemo = useCallback(() => {
     setDemo(true);
-    setBiometric(DEMO_BIOMETRIC);
-    setMeasurement({
+    const demoMeas: Measurement = {
       ...DEMO_MEASUREMENT,
       arm_length_cm: 58.5,
-    });
+    };
+    setBiometric(DEMO_BIOMETRIC);
+    setMeasurement(demoMeas);
     setMesh(DEMO_MESH);
 
     const demoSizing = recommendGarmentSizes({
@@ -207,7 +247,7 @@ export const Dashboard: React.FC = () => {
       inseam_cm: DEMO_MEASUREMENT.inseam_cm ?? undefined,
     });
 
-    setGarmentRec({
+    const demoRec = {
       topwear_shirt_size: demoSizing.topwear.recommended_label,
       bottomwear_trouser_size: demoSizing.bottomwear.tag,
       waist_inches: demoSizing.bottomwear.waist_inches,
@@ -216,12 +256,30 @@ export const Dashboard: React.FC = () => {
       ease_allowance_recommendation: demoSizing.ease_allowance_recommendation,
       topwear: demoSizing.topwear,
       bottomwear: demoSizing.bottomwear,
-    });
+    };
+
+    setGarmentRec(demoRec);
     setIsLiveBackend(false);
     setExecutionTime(0.85);
-  }, []);
+
+    if (currentUser?.id) {
+      saveFullScanSnapshot(
+        currentUser.id,
+        {
+          measurement: demoMeas,
+          biometric: DEMO_BIOMETRIC,
+          mesh: DEMO_MESH,
+          garmentRec: demoRec,
+          isLiveBackend: false,
+          executionTime: 0.85,
+        },
+        "demo"
+      );
+    }
+  }, [currentUser?.id]);
 
   const resetAll = () => {
+    clearFullScanSnapshot(currentUser?.id);
     setMeasurement(null);
     setMesh(null);
     setBiometric(null);
@@ -232,87 +290,72 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="zf-app">
+    <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
       <Navbar onDemoMode={handleLoadDemo} isDemoMode={demo} />
 
-      <main className="zf-main" id="dashboard-main">
-        {/* Top Header & Audit Badges */}
-        <div
-          className="no-print"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "16px",
-            flexWrap: "wrap",
-            gap: "10px",
-          }}
-        >
+      <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8" id="dashboard-main">
+        {/* Top Header & Audit Badges (Sáng sủa, thời thượng, tương phản cao) */}
+        <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-5 border-b-2 border-slate-200">
           <div>
-            <h1 className="zf-title" style={{ fontSize: "20px" }}>
-              {t("app.dash.title")}
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+              {t("app.dash.title", "Phòng Đo Nhân Trắc Học 3D")}
             </h1>
-            <p className="zf-sub" style={{ fontSize: "12px", marginTop: "2px" }}>
-              {t("app.dash.sub")}
+            <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1">
+              {t("app.dash.sub", "Trích xuất số đo may mặc 3D tự động từ 1 ảnh chụp di động theo chuẩn quốc tế ISO 8559-1:2017.")}
             </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "12px",
-                color: "#A3E635",
-                background: "rgba(163, 230, 53, 0.08)",
-                border: "1px solid rgba(163, 230, 53, 0.25)",
-                padding: "4px 10px",
-                borderRadius: "9999px",
-              }}
-            >
-              <ShieldCheck size={14} strokeWidth={2} />
-              {t("app.dash.zeroBadge")}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-900 border-2 border-emerald-300 shadow-2xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <ShieldCheck size={14} className="text-emerald-700" strokeWidth={2.4} />
+              <span>{t("app.dash.zeroBadge", "Không lưu ảnh: Tự xóa ngay sau khi đo")}</span>
             </span>
 
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "12px",
-                color: isLiveBackend ? "#34d399" : "#38bdf8",
-                background: isLiveBackend ? "rgba(16, 185, 129, 0.1)" : "rgba(56, 189, 248, 0.1)",
-                border: isLiveBackend ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(56, 189, 248, 0.25)",
-                padding: "4px 10px",
-                borderRadius: "9999px",
-              }}
-            >
-              <Cpu size={14} />
-              {isLiveBackend ? t("dashx.live") : t("dashx.engine")}
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-blue-50 text-blue-900 border-2 border-blue-300 shadow-2xs">
+              <Cpu size={14} className="text-blue-700" strokeWidth={2.2} />
+              <span>{isLiveBackend ? t("dashx.live", "Mô hình AI Trực Tiếp") : t("dashx.engine", "Công thức giải tích: ISO 8559")}</span>
             </span>
+
+            {cameFromStudio && (
+              <button
+                type="button"
+                onClick={() => navigate("/?openStudio=1&studioMode=photo")}
+                className="inline-flex items-center gap-1.5 text-xs font-black px-3.5 py-1.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white shadow-sm transition-all cursor-pointer"
+              >
+                <ArrowLeft size={13} strokeWidth={2.4} />
+                <span>{t("app.dash.backToStudio", "Quay lại Phòng Thử Đồ 3D")}</span>
+              </button>
+            )}
 
             {measurement && (
               <button
                 type="button"
                 onClick={resetAll}
-                className="zf-btn zf-btn--ghost"
-                style={{ padding: "4px 10px", fontSize: "12px", height: "auto" }}
+                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300 shadow-2xs transition-all cursor-pointer"
               >
-                <RotateCcw size={13} /> {t("app.dash.retake")}
+                <RotateCcw size={13} strokeWidth={2.2} />
+                <span>{t("app.dash.retake", "Chụp lại")}</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* 3-Column Studio Grid */}
-        <div className="zf-dash">
+        {/* 3-Column Studio Grid (3 cột bằng nhau 1/3 - 1/3 - 1/3 & cao đều nhau) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* COLUMN 1: Photo Upload & Biometrics Studio */}
-          <section className={`zf-col ${tab === "capture" ? "tab-active" : ""}`} aria-label="Photo Studio">
-            <div className="zf-card zf-card-pad">
-              <div className="zf-section-head" style={{ marginBottom: "12px" }}>
-                <h2 className="zf-eyebrow">{t("app.dash.uploadTitle")}</h2>
-                <span className="zf-pill zf-pill--teal">{t("app.dash.uploadPill")}</span>
+          <section className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "capture" ? "tab-active" : ""}`} aria-label="Photo Studio">
+            <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-4 hover:border-slate-400 transition-all flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100">
+                <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                  {t("app.dash.uploadTitle", "TẢI ẢNH CHỤP TỪ ĐIỆN THOẠI")}
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 border border-blue-200">
+                  {t("app.dash.uploadPill", "1 Ảnh A-Pose Chuẩn")}
+                </span>
               </div>
 
               <PhotoUploadCapture
@@ -326,38 +369,42 @@ export const Dashboard: React.FC = () => {
           </section>
 
           {/* COLUMN 2: 3D Humanoid Wireframe Topology Viewport */}
-          <section className={`zf-col ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
-            <div className="zf-card zf-card-pad" style={{ position: "relative" }}>
-              <div className="zf-section-head">
-                <h2 className="zf-eyebrow">{t("app.dash.meshTitle")}</h2>
-                <span className="zf-pill mono">
+          <section className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
+            <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-3 hover:border-slate-400 transition-all relative flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100">
+                <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                  {t("app.dash.meshTitle", "MÔ HÌNH 3D VÓC DÁNG")}
+                </h2>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300">
                   {mesh
-                    ? t("app.dash.meshScales")
+                    ? t("app.dash.meshScales", "Tỷ lệ: {c} / {w} / {h}")
                         .replace("{c}", mesh.scale_chest.toFixed(2))
                         .replace("{w}", mesh.scale_waist.toFixed(2))
                         .replace("{h}", mesh.scale_hips.toFixed(2))
-                    : t("app.dash.standby")}
+                    : t("app.dash.standby", "Chế độ chờ A-Pose")}
                 </span>
               </div>
 
-              <MannequinViewer
-                meshParams={mesh}
-                measurement={locked ? null : measurement}
-                isLoading={processing}
-                height={580}
-                activeMetric={activeMetric}
-                onSelectMetric={setActiveMetric}
-              />
+              <div className="flex-1 min-h-[560px] rounded-2xl overflow-hidden border-2 border-slate-900 bg-slate-950 shadow-inner">
+                <MannequinViewer
+                  meshParams={mesh}
+                  measurement={locked ? null : measurement}
+                  isLoading={processing}
+                  height="100%"
+                  activeMetric={activeMetric}
+                  onSelectMetric={setActiveMetric}
+                />
+              </div>
             </div>
           </section>
 
-          {/* COLUMN 3: ISO 8559 Measurements & Quan's Garment Recommendation */}
+          {/* COLUMN 3: ISO 8559 Measurements (Compact 1-column list + Quick Actions) */}
           <section
-            className={`zf-col ${tab === "metrics" ? "tab-active" : ""}`}
+            className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "metrics" ? "tab-active" : ""}`}
             aria-label="Measurements and recommendations"
           >
             {locked ? (
-              <>
+              <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-4 flex flex-col justify-between">
                 {/* Locked state for guests: no measurements, no size recommendation */}
                 <div
                   role="button"
@@ -365,9 +412,9 @@ export const Dashboard: React.FC = () => {
                   id="locked-measurements"
                   onClick={() => setLockedFeature(t("app.dash.featMeasure"))}
                   onKeyDown={(e) => e.key === "Enter" && setLockedFeature(t("app.dash.featMeasure"))}
-                  style={{ position: "relative", cursor: "pointer" }}
+                  className="relative cursor-pointer rounded-2xl overflow-hidden"
                 >
-                  <div style={{ filter: "blur(3px)", opacity: 0.45, pointerEvents: "none", userSelect: "none" }}>
+                  <div className="filter blur-[3px] opacity-40 pointer-events-none select-none">
                     <MeasurementsPanel
                       measurement={null}
                       biometric={null}
@@ -375,51 +422,40 @@ export const Dashboard: React.FC = () => {
                       onSelectMetric={() => undefined}
                     />
                   </div>
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      textAlign: "center",
-                      padding: 16,
-                      borderRadius: 12,
-                      background: "rgba(10, 15, 18, 0.55)",
-                    }}
-                  >
-                    <Lock size={26} style={{ color: "#4FD1C5" }} />
-                    <strong style={{ fontSize: 14 }}>{t("app.dash.lockedTitle")}</strong>
-                    <span style={{ fontSize: 12, color: "#94A3B8", maxWidth: 240 }}>
-                      {t("app.dash.lockedDesc")}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4 rounded-2xl bg-slate-900/40 backdrop-blur-xs text-white">
+                    <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                      <Lock size={24} className="text-white" />
+                    </div>
+                    <strong className="text-sm font-black">{t("app.dash.lockedTitle", "Đăng nhập để xem số đo chi tiết")}</strong>
+                    <span className="text-xs text-slate-200 max-w-xs font-medium">
+                      {t("app.dash.lockedDesc", "Bảo vệ dữ liệu nhân trắc học cá nhân theo tiêu chuẩn ISO 8559.")}
                     </span>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <div className="flex gap-2.5 pt-2">
                   <button
                     id="btn-export-dossier"
-                    className="zf-btn zf-btn--secondary"
-                    style={{ flex: 1, opacity: 0.6 }}
+                    type="button"
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     onClick={() => setLockedFeature(t("app.dash.featDossier"))}
                   >
-                    <Lock size={15} strokeWidth={1.8} /> {t("app.dash.featDossier")}
+                    <Lock size={14} />
+                    <span>{t("app.dash.featDossier", "Hồ sơ may đo")}</span>
                   </button>
                   <button
                     id="btn-size-charts"
-                    className="zf-btn zf-btn--ghost"
-                    style={{ opacity: 0.6 }}
+                    type="button"
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border-2 border-slate-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     onClick={() => setLockedFeature(t("app.dash.featSize"))}
                   >
-                    <Lock size={15} strokeWidth={1.8} /> {t("app.dash.featSize")}
+                    <Lock size={14} />
+                    <span>{t("app.dash.featSize", "Bảng size")}</span>
                   </button>
                 </div>
-              </>
+              </div>
             ) : (
-              <>
-                {/* ISO 8559 Anthropometric Table */}
+              <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm hover:border-slate-400 transition-all flex flex-col justify-between gap-3">
                 <MeasurementsPanel
                   measurement={measurement}
                   biometric={biometric}
@@ -428,72 +464,96 @@ export const Dashboard: React.FC = () => {
                   isLiveBackend={isLiveBackend}
                 />
 
-                {/* Quan's AI Garment Recommendation Card */}
-                {garmentRec ? (
-                  <AiGarmentCard
-                    data={garmentRec}
-                    executionTime={executionTime}
-                    isLiveBackend={isLiveBackend}
-                    measurements={
-                      measurement
-                        ? {
-                            chieu_cao_cm: biometric?.stature_cm || 172,
-                            vong_nguc_cm: measurement.chest_circ_cm,
-                            vong_eo_cm: measurement.waist_circ_cm,
-                            vong_mong_cm: measurement.hip_circ_cm,
-                            rong_vai_cm: measurement.shoulder_breadth_cm,
-                            dai_chan_inseam_cm: measurement.inseam_cm,
-                            can_nang_kg: biometric?.weight_kg || 70,
-                          }
-                        : undefined
-                    }
-                    gender={
-                      biometric?.gender === "female"
-                        ? "female"
-                        : biometric?.gender === "male"
-                        ? "male"
-                        : "neutral"
-                    }
-                  />
-                ) : (
-                  <div
-                    style={{
-                      padding: "16px",
-                      borderRadius: "10px",
-                      border: "1px dashed rgba(255, 255, 255, 0.12)",
-                      background: "rgba(255, 255, 255, 0.02)",
-                      textAlign: "center",
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                    }}
-                  >
-                    <Sparkles size={20} style={{ color: "#38bdf8", margin: "0 auto 8px" }} />
-                    {t("app.dash.emptyRec")}
-                  </div>
-                )}
-
                 {/* Quick Actions */}
-                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
-                  <button
-                    id="btn-export-dossier"
-                    className="zf-btn zf-btn--secondary"
-                    style={{ flex: 1 }}
-                    onClick={() => navigate("/tailor")}
-                  >
-                    <FileText size={16} strokeWidth={1.5} /> {t("app.dash.featDossier")}
-                  </button>
+                <div className="flex gap-2.5 pt-2.5 border-t-2 border-slate-100">
+                  {canOpenTailor && (
+                    <button
+                      id="btn-export-dossier"
+                      type="button"
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      onClick={() => navigate("/tailor")}
+                    >
+                      <FileText size={15} strokeWidth={2} />
+                      <span>{t("app.dash.featDossier", "Hồ sơ may đo")}</span>
+                    </button>
+                  )}
                   <button
                     id="btn-size-charts"
-                    className="zf-btn zf-btn--ghost"
+                    type="button"
+                    className={`${canOpenTailor ? "" : "flex-1 "}py-2.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer`}
                     onClick={() => navigate("/size-charts")}
                   >
-                    <Table2 size={16} strokeWidth={1.5} /> {t("app.dash.featSize")}
+                    <Table2 size={15} strokeWidth={2} />
+                    <span>{t("app.dash.featSize", "Bảng kích cỡ")}</span>
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </section>
         </div>
+
+        {/* ROW 2: Full-width Horizontal AI Size Advisor Card (when scanned) */}
+        {!locked && garmentRec && (
+          <div className="mt-5 space-y-3">
+            <AiGarmentCard
+              data={garmentRec}
+              executionTime={executionTime}
+              isLiveBackend={isLiveBackend}
+              measurements={
+                measurement
+                  ? {
+                      chieu_cao_cm: biometric?.stature_cm || 172,
+                      vong_nguc_cm: measurement.chest_circ_cm,
+                      vong_eo_cm: measurement.waist_circ_cm,
+                      vong_mong_cm: measurement.hip_circ_cm,
+                      rong_vai_cm: measurement.shoulder_breadth_cm,
+                      dai_chan_inseam_cm: measurement.inseam_cm,
+                      can_nang_kg: biometric?.weight_kg || 70,
+                    }
+                  : undefined
+              }
+              gender={
+                biometric?.gender === "female"
+                  ? "female"
+                  : biometric?.gender === "male"
+                  ? "male"
+                  : "neutral"
+              }
+            />
+
+            <div className="rounded-2xl bg-[#F5EBD8]/80 border border-[#E5D3B3] px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="text-xs font-bold text-[#14171C]">
+                {t(
+                  "app.dash.syncedToStore",
+                  "Số đo 3D của bạn đã được lưu & đồng bộ sang Sàn Thời Trang và Phòng Thử Đồ 3D."
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(cameFromStudio ? "/?openStudio=1&studioMode=photo" : "/?openStudio=1")
+                  }
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
+                >
+                  <Sparkles size={13} />
+                  <span>
+                    {cameFromStudio
+                      ? t("app.dash.returnStudioWithMeasures", "Quay lại Phòng Thử Đồ 3D →")
+                      : t("app.dash.openStudioNow", "Thử đồ 3D với số đo mới →")}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="px-3.5 py-2 rounded-xl bg-[#14171C] hover:bg-slate-800 text-white text-xs font-black transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  {t("app.dash.browseMatches", "Xem đồ hợp dáng trên Sàn →")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       <LoginRequiredDialog

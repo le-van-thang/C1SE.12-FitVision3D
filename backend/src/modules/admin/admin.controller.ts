@@ -28,6 +28,14 @@ export const adminController = {
     sendSuccess(res, store, 200);
   },
 
+  async toggleStoreMall(req: Request, res: Response) {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const isMall = Boolean(req.body?.isMall);
+    const adminUserId = (req.user?.sub || 'system');
+    const store = await adminService.toggleShopMall(id, isMall, adminUserId);
+    sendSuccess(res, store, 200);
+  },
+
   async getUsers(req: Request, res: Response) {
     const users = await adminService.getAllUsers();
     sendSuccess(res, users);
@@ -53,6 +61,15 @@ export const adminController = {
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
     const logs = await adminService.getAuditLogs(limit);
     sendSuccess(res, logs);
+  },
+
+  async getMyShop(req: Request, res: Response) {
+    const userId = req.user?.sub;
+    if (!userId) {
+      throw new Error('Yêu cầu xác thực.');
+    }
+    const shop = await adminService.getMyShop(userId);
+    sendSuccess(res, shop, 200);
   },
 
   async applyShop(req: Request, res: Response) {
