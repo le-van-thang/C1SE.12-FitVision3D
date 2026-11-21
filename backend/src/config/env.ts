@@ -30,6 +30,9 @@ export const env = {
   // Anti-Bot Turnstile
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '',
 
+  // Google Gemini AI (Server-side secret only - never expose via VITE_)
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+
   // SMTP / Email Service
   SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
   SMTP_PORT: parseInt(process.env.SMTP_PORT || '465', 10),
