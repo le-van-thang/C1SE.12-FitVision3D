@@ -18,9 +18,15 @@ export const commerceController = {
     }
   },
 
-  async getOrders(_req: Request, res: Response, next: NextFunction) {
+  async getOrders(req: Request, res: Response, next: NextFunction) {
     try {
-      const orders = await commerceRepository.listOrders();
+      if (!req.user) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập để xem đơn hàng.');
+      }
+      const orders = await commerceRepository.listOrdersForActor({
+        sub: req.user.sub,
+        role: req.user.role,
+      });
       sendSuccess(res, orders);
     } catch (err) {
       next(err);
@@ -29,9 +35,16 @@ export const commerceController = {
 
   async createOrder(req: Request, res: Response, next: NextFunction) {
     try {
+      if (!req.user) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập để đặt hàng.');
+      }
       const body = req.body || {};
       const orderId = body.id || `FV3D-${Math.floor(10000 + Math.random() * 90000)}`;
-      const customerId = req.user?.sub || body.customer_id || 'guest';
+      const customerId = req.user.sub;
+
+      if (!body.recipient?.full_name || !body.recipient?.phone || !body.recipient?.address) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Vui lòng cung cấp đầy đủ thông tin người nhận hàng.');
+      }
 
       const created = await commerceRepository.createOrder({
         id: orderId,
@@ -46,8 +59,9 @@ export const commerceController = {
         payment_method: body.payment_method || 'cod',
         payment_status: body.payment_status || 'unpaid',
         status: body.status || 'pending',
-        store_name: body.store_name || 'FitVision Atelier',
+        store_name: body.store_name || '',
         estimated_delivery: body.estimated_delivery || '',
+        measurement_snapshot: body.measurement_snapshot ?? null,
       });
       sendSuccess(res, created, 201);
     } catch (err) {
@@ -57,13 +71,19 @@ export const commerceController = {
 
   async updateOrderStatus(req: Request, res: Response, next: NextFunction) {
     try {
+      if (!req.user) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chưa xác thực danh tính.');
+      }
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { status } = req.body || {};
       const valid = ['pending', 'confirmed', 'tailoring', 'shipping', 'completed', 'cancelled'];
       if (!valid.includes(status)) {
         throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Trạng thái đơn hàng không hợp lệ.');
       }
-      const updated = await commerceRepository.updateOrderStatus(id, status);
+      const updated = await commerceRepository.updateOrderStatus(id, status, {
+        sub: req.user.sub,
+        role: req.user.role,
+      });
       if (!updated) {
         throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy đơn hàng.');
       }
@@ -75,8 +95,14 @@ export const commerceController = {
 
   async markOrderPaid(req: Request, res: Response, next: NextFunction) {
     try {
+      if (!req.user) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chưa xác thực danh tính.');
+      }
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const updated = await commerceRepository.markOrderPaid(id);
+      const updated = await commerceRepository.markOrderPaid(id, {
+        sub: req.user.sub,
+        role: req.user.role,
+      });
       if (!updated) {
         throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy đơn hàng.');
       }

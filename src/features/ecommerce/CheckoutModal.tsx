@@ -18,11 +18,12 @@ import {
   Truck,
   Tag,
 } from 'lucide-react';
-import type { CartItem, PaymentMethod, UserBodyProfile, Order } from './types';
+import type { CartItem, PaymentMethod, UserBodyProfile, Order, OrderMeasurementSnapshot } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
 import { useI18n } from '@/i18n';
 import { loadPlatformConfig } from '@/services/platformConfig';
+import { loadFullScanSnapshot } from '@/utils/bodyProfileStorage';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -41,19 +42,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   userBody,
   onOpenMyOrders,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthenticated, getUserProfileDetails, openSignIn } = useAuth();
   const { createOrder, markPaymentCompleted } = useOrders();
   const { t, locale } = useI18n();
 
   const [step, setStep] = useState<'checkout' | 'success'>('checkout');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
 
-  // Form Fields
-  const [fullName, setFullName] = useState(currentUser?.full_name || 'Lê Văn Thắng');
-  const [phone, setPhone] = useState('0979 307 635');
-  const [city, setCity] = useState('Đà Nẵng');
-  const [address, setAddress] = useState('Ký Túc Xá Đại Học Bách Khoa, 54 Nguyễn Lương Bằng, Hòa Khánh Bắc');
-  const [note, setNote] = useState(locale === 'en' ? 'Tailored to 3D measurements, delivery during business hours.' : 'May chuẩn theo số đo vóc dáng 3D, giao giờ hành chính.');
+  const savedDetails = getUserProfileDetails(currentUser?.id);
+
+  // Form Fields (zero hardcoded PII — populated only from authenticated user's own profile)
+  const [fullName, setFullName] = useState(currentUser?.full_name || '');
+  const [phone, setPhone] = useState(savedDetails?.phone || '');
+  const [city, setCity] = useState(savedDetails?.city || '');
+  const [address, setAddress] = useState(savedDetails?.address || '');
+  const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr_sepay');
 
   // Coupon code
@@ -112,13 +115,59 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleSubmitOrder = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAuthenticated || !currentUser?.id) {
+      openSignIn();
+      return;
+    }
     if (!fullName.trim() || !phone.trim() || !address.trim() || !city.trim()) {
       alert('Vui lòng điền đầy đủ họ tên, số điện thoại và địa chỉ nhận hàng!');
       return;
     }
 
+    const hasBespoke = items.some((it) => Boolean(it.product?.is_bespoke));
+    const fullScan = loadFullScanSnapshot(currentUser.id);
+    let measurementSnapshot: OrderMeasurementSnapshot | null = null;
+
+    if (fullScan) {
+      measurementSnapshot = {
+        stature_cm: fullScan.biometric.stature_cm,
+        weight_kg: fullScan.biometric.weight_kg,
+        gender: fullScan.biometric.gender,
+        calculated_bmi: fullScan.biometric.calculated_bmi ?? undefined,
+        chest_circ_cm: fullScan.measurement.chest_circ_cm,
+        waist_circ_cm: fullScan.measurement.waist_circ_cm,
+        hip_circ_cm: fullScan.measurement.hip_circ_cm,
+        shoulder_breadth_cm: fullScan.measurement.shoulder_breadth_cm ?? null,
+        arm_length_cm: fullScan.measurement.arm_length_cm ?? null,
+        inseam_cm: fullScan.measurement.inseam_cm ?? null,
+        bicep_circ_cm: fullScan.measurement.bicep_circ_cm ?? null,
+        wrist_circ_cm: fullScan.measurement.wrist_circ_cm ?? null,
+        thigh_circ_cm: fullScan.measurement.thigh_circ_cm ?? null,
+        calf_circ_cm: fullScan.measurement.calf_circ_cm ?? null,
+        ankle_circ_cm: fullScan.measurement.ankle_circ_cm ?? null,
+        source: 'scan',
+        captured_at: fullScan.updatedAt,
+      };
+    } else if (userBody && userBody.height_cm > 0 && userBody.chest_cm > 0) {
+      const hM = userBody.height_cm / 100;
+      measurementSnapshot = {
+        stature_cm: userBody.height_cm,
+        weight_kg: userBody.weight_kg,
+        gender: userBody.gender,
+        calculated_bmi: hM > 0 ? Math.round((userBody.weight_kg / (hM * hM)) * 100) / 100 : undefined,
+        chest_circ_cm: userBody.chest_cm,
+        waist_circ_cm: userBody.waist_cm,
+        hip_circ_cm: userBody.hip_cm,
+        shoulder_breadth_cm: userBody.shoulder_cm ?? null,
+        arm_length_cm: userBody.arm_length_cm ?? null,
+        inseam_cm: userBody.inseam_cm ?? null,
+        source: userBody.source || 'manual',
+        captured_at: userBody.updated_at || new Date().toISOString(),
+      };
+    }
+
     const order = createOrder({
-      customer_id: currentUser?.id || 'usr-101',
+      customer_id: currentUser.id,
       customer_name: fullName.trim(),
       recipient: {
         full_name: fullName.trim(),
@@ -134,6 +183,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       total_amount: totalAmount,
       payment_method: paymentMethod,
       store_name: items[0]?.product.brand_name || 'FitVision Atelier',
+      has_bespoke_items: hasBespoke,
+      measurement_snapshot: hasBespoke || measurementSnapshot ? measurementSnapshot : null,
     });
 
     setCreatedOrder(order);
@@ -156,9 +207,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   const bankAccount = {
-    bankName: locale === 'en' ? 'MB Bank (Military Commercial Joint Stock Bank)' : 'MB Bank (Ngân hàng Quân Đội)',
-    accountNumber: '33822222622222',
-    accountHolder: 'LE VAN THANG',
+    bankName: locale === 'en' ? 'MB Bank (Merchant Escrow)' : 'MB Bank (Tài khoản Thu Hộ FitVision)',
+    accountNumber: import.meta.env.VITE_SEPAY_ACCOUNT_NO || '33822222622222',
+    accountHolder: import.meta.env.VITE_SEPAY_ACCOUNT_NAME || 'FITVISION 3D ATELIER',
     transferContent: createdOrder ? `FV3D ${createdOrder.id.replace('FV3D-', '')}` : 'FV3D DH',
   };
 

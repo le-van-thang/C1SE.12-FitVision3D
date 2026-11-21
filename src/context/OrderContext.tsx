@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Order, CreateOrderInput, OrderStatus } from '@/features/ecommerce/types';
-import { MOCK_PRODUCTS } from '@/features/ecommerce/mockProducts';
 import { commerceApi } from '@/services/commerceApi';
+import { useAuth } from '@/context/AuthContext';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
 interface OrderContextType {
@@ -14,180 +14,111 @@ interface OrderContextType {
   getStoreOrders: (storeName?: string) => Order[];
 }
 
-const STORAGE_KEY = 'fv3d_orders_store_v1';
-
-const INITIAL_MOCK_ORDERS: Order[] = [
-  {
-    id: 'FV3D-95123',
-    customer_id: 'usr-101',
-    customer_name: 'Lê Văn Thắng',
-    recipient: {
-      full_name: 'Lê Văn Thắng',
-      phone: '0979 307 635',
-      address: 'Số 12 Đường Bách Khoa, P. Hòa Khánh Bắc, Q. Liên Chiểu',
-      city: 'Đà Nẵng',
-      note: 'Giao giờ hành chính, may theo đúng số đo vòng ngực 96cm.',
-    },
-    items: [
-      {
-        id: 'cart-sample-1',
-        product: MOCK_PRODUCTS[0], // Blazer Sartoria
-        variant: MOCK_PRODUCTS[0].variants[2] || MOCK_PRODUCTS[0].variants[0],
-        quantity: 1,
-        fit_score: 98,
-        is_ai_recommended: true,
-      },
-    ],
-    subtotal: 1650000,
-    shipping_fee: 0,
-    discount_amount: 0,
-    total_amount: 1650000,
-    payment_method: 'vietqr_sepay',
-    payment_status: 'paid',
-    status: 'tailoring',
-    created_at: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
-    store_name: 'Nhà May Sartoria Ý',
-    estimated_delivery: '18/11/2026',
-  },
-  {
-    id: 'FV3D-94812',
-    customer_id: 'usr-101',
-    customer_name: 'Lê Văn Thắng',
-    recipient: {
-      full_name: 'Lê Văn Thắng',
-      phone: '0979 307 635',
-      address: 'Ký Túc Xá Đại Học Bách Khoa, 54 Nguyễn Lương Bằng',
-      city: 'Đà Nẵng',
-      note: 'Vui lòng gọi trước khi giao.',
-    },
-    items: [
-      {
-        id: 'cart-sample-2',
-        product: MOCK_PRODUCTS[1] || MOCK_PRODUCTS[0], // Sơ mi Oxford
-        variant: (MOCK_PRODUCTS[1] || MOCK_PRODUCTS[0]).variants[1] || (MOCK_PRODUCTS[1] || MOCK_PRODUCTS[0]).variants[0],
-        quantity: 2,
-        fit_score: 97,
-        is_ai_recommended: true,
-      },
-    ],
-    subtotal: 1180000,
-    shipping_fee: 0,
-    discount_amount: 100000,
-    total_amount: 1080000,
-    payment_method: 'cod',
-    payment_status: 'paid',
-    status: 'completed',
-    created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(),
-    store_name: 'Atelier Maison Vell',
-    estimated_delivery: '10/11/2026',
-  },
-  {
-    id: 'FV3D-96204',
-    customer_id: 'usr-102',
-    customer_name: 'TS. Lê Minh Thái',
-    recipient: {
-      full_name: 'TS. Lê Minh Thái',
-      phone: '0912 345 678',
-      address: 'Phòng Lab Trí Tuệ Nhân Tạo, Tòa nhà C1',
-      city: 'Đà Nẵng',
-      note: 'Đơn hàng đặt may mẫu nghiên cứu nhân trắc học.',
-    },
-    items: [
-      {
-        id: 'cart-sample-3',
-        product: MOCK_PRODUCTS[2] || MOCK_PRODUCTS[0],
-        variant: (MOCK_PRODUCTS[2] || MOCK_PRODUCTS[0]).variants[0],
-        quantity: 1,
-        fit_score: 99,
-        is_ai_recommended: true,
-      },
-    ],
-    subtotal: 1250000,
-    shipping_fee: 0,
-    discount_amount: 0,
-    total_amount: 1250000,
-    payment_method: 'vietqr_sepay',
-    payment_status: 'paid',
-    status: 'shipping',
-    created_at: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
-    store_name: 'Nhà May Sartoria Ý',
-    estimated_delivery: '16/11/2026',
-  },
-];
+const getOrderStorageKey = (userId?: string | null) =>
+  `fv3d_orders_store_v2_${userId || 'anon'}`;
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [orders, setOrders] = useState<Order[]>(() => {
+  const { isAuthenticated, currentUser } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  // Strict auth gate: clear orders on logout, fetch actor-scoped orders on login
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) {
+      setOrders([]);
+      return;
+    }
+
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+      const cached = localStorage.getItem(getOrderStorageKey(currentUser.id));
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) setOrders(parsed);
+      } else {
+        setOrders([]);
       }
     } catch {
-      // fallback
+      setOrders([]);
     }
-    return INITIAL_MOCK_ORDERS;
-  });
 
-  useEffect(() => {
     let active = true;
     commerceApi.getOrders().then((res) => {
-      if (active && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (active && res.success && Array.isArray(res.data)) {
         setOrders(res.data);
       }
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [isAuthenticated, currentUser?.id]);
 
   useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+      localStorage.setItem(getOrderStorageKey(currentUser.id), JSON.stringify(orders));
     } catch (err) {
       console.error('Failed to save orders to localStorage:', err);
     }
-  }, [orders]);
+  }, [orders, isAuthenticated, currentUser?.id]);
 
-  const createOrder = useCallback((input: CreateOrderInput): Order => {
-    const randomNum = Math.floor(10000 + Math.random() * 90000);
-    const orderId = `FV3D-${randomNum}`;
+  const createOrder = useCallback(
+    (input: CreateOrderInput): Order => {
+      const randomNum = Math.floor(10000 + Math.random() * 90000);
+      const orderId = `FV3D-${randomNum}`;
+      const hasBespoke =
+        input.has_bespoke_items ?? input.items.some((it) => Boolean(it.product?.is_bespoke));
 
-    const newOrder: Order = {
-      id: orderId,
-      customer_id: input.customer_id,
-      customer_name: input.customer_name,
-      recipient: input.recipient,
-      items: input.items,
-      subtotal: input.subtotal,
-      shipping_fee: input.shipping_fee,
-      discount_amount: input.discount_amount,
-      total_amount: input.total_amount,
-      payment_method: input.payment_method,
-      payment_status: input.payment_method === 'vietqr_sepay' ? 'paid' : 'unpaid',
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      store_name: input.store_name || (input.items[0]?.product.brand_name ?? 'FitVision Atelier'),
-      estimated_delivery: new Date(Date.now() + 4 * 24 * 3600 * 1000).toLocaleDateString('vi-VN'),
-    };
+      const newOrder: Order = {
+        id: orderId,
+        customer_id: currentUser?.id || input.customer_id,
+        customer_name: input.customer_name,
+        recipient: input.recipient,
+        items: input.items,
+        subtotal: input.subtotal,
+        shipping_fee: input.shipping_fee,
+        discount_amount: input.discount_amount,
+        total_amount: input.total_amount,
+        payment_method: input.payment_method,
+        payment_status: input.payment_method === 'vietqr_sepay' ? 'paid' : 'unpaid',
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        store_name: input.store_name || (input.items[0]?.product.brand_name ?? 'FitVision Atelier'),
+        has_bespoke_items: hasBespoke,
+        measurement_snapshot: input.measurement_snapshot ?? null,
+        estimated_delivery: new Date(Date.now() + 4 * 24 * 3600 * 1000).toLocaleDateString('vi-VN'),
+      };
 
-    setOrders((prev) => [newOrder, ...prev]);
-    showGlobalToast({
-      type: 'success',
-      title: `Đặt đơn hàng ${orderId} thành công!`,
-      message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫ · Đã lưu vào hệ thống.`,
-    });
-    commerceApi.createOrder(newOrder).then((res) => {
-      if (res.success) {
-        window.dispatchEvent(new Event('fv3d-membership-updated'));
-      }
-    });
-    return newOrder;
-  }, []);
+      setOrders((prev) => [newOrder, ...prev]);
+
+      commerceApi.createOrder(newOrder).then((res) => {
+        if (res.success && res.data) {
+          setOrders((prev) => prev.map((o) => (o.id === orderId ? res.data! : o)));
+          showGlobalToast({
+            type: 'success',
+            title: `Đặt đơn hàng ${orderId} thành công!`,
+            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫ · Đã trừ kho & lưu hệ thống.`,
+          });
+          window.dispatchEvent(new Event('fv3d-membership-updated'));
+        } else if (res.error && res.error.code !== 'NETWORK_ERROR') {
+          setOrders((prev) => prev.filter((o) => o.id !== orderId));
+          showGlobalToast({
+            type: 'error',
+            title: 'Không thể tạo đơn hàng',
+            message: res.error.message || 'Vui lòng kiểm tra lại tồn kho sản phẩm.',
+          });
+        } else {
+          showGlobalToast({
+            type: 'success',
+            title: `Đặt đơn hàng ${orderId} thành công!`,
+            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫ · Đã lưu cục bộ.`,
+          });
+        }
+      });
+      return newOrder;
+    },
+    [currentUser?.id]
+  );
 
   const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
     setOrders((prev) =>
@@ -204,14 +135,20 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: 'cancelled' } : o))
     );
-    showGlobalToast({
-      type: 'warning',
-      title: `Đã hủy đơn hàng ${orderId}`,
-      message: 'Trạng thái đơn hàng đã được cập nhật.',
-    });
     commerceApi.updateOrderStatus(orderId, 'cancelled').then((res) => {
       if (res.success) {
+        showGlobalToast({
+          type: 'warning',
+          title: `Đã hủy đơn hàng ${orderId}`,
+          message: 'Đã hoàn trả số lượng tồn kho và cập nhật trạng thái đơn.',
+        });
         window.dispatchEvent(new Event('fv3d-membership-updated'));
+      } else if (res.error && res.error.code !== 'NETWORK_ERROR') {
+        showGlobalToast({
+          type: 'error',
+          title: 'Không thể hủy đơn hàng',
+          message: res.error.message || 'Đơn hàng đã chuyển sang trạng thái không thể hủy.',
+        });
       }
     });
   }, []);
@@ -225,22 +162,21 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const getUserOrders = useCallback(
     (customerId?: string) => {
-      if (!customerId) return orders;
-      return orders.filter(
-        (o) => o.customer_id === customerId || (o.customer_name && o.customer_name.toLowerCase().includes('thắng'))
-      );
+      if (!isAuthenticated || !customerId) return [];
+      return orders.filter((o) => o.customer_id === customerId);
     },
-    [orders]
+    [orders, isAuthenticated]
   );
 
   const getStoreOrders = useCallback(
     (storeName?: string) => {
+      if (!isAuthenticated) return [];
       if (!storeName) return orders;
       return orders.filter(
-        (o) => !o.store_name || (o.store_name && o.store_name.toLowerCase().includes(storeName.toLowerCase()))
+        (o) => o.store_name && o.store_name.toLowerCase().includes(storeName.toLowerCase())
       );
     },
-    [orders]
+    [orders, isAuthenticated]
   );
 
   return (
@@ -263,7 +199,6 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useOrders = (): OrderContextType => {
   const context = useContext(OrderContext);
   if (!context) {
-    // Fail-safe fallback so components never crash if mounted outside provider
     return {
       orders: [],
       createOrder: () => ({} as Order),
@@ -276,4 +211,3 @@ export const useOrders = (): OrderContextType => {
   }
   return context;
 };
-
