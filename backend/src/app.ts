@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
 import { commerceRouter } from './modules/commerce/commerce.routes.js';
+import { measurementsRouter } from './modules/measurements/measurements.routes.js';
 import { aiRouter } from './modules/ai/ai.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { env } from './config/env.js';
@@ -45,6 +46,7 @@ app.use(express.static(path.resolve(__dirname, '../public')));
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/commerce', commerceRouter);
+app.use('/api/v1/measurements', measurementsRouter);
 app.use('/api/v1/ai', aiRouter);
 
 // 5. Health Check Endpoint

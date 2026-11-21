@@ -1,8 +1,11 @@
 import type { BiometricInput, Measurement, MeshParameter } from '@/types/database.types';
 import type { AiMeasurementResponse } from '@/services/aiService';
 import type { UserBodyProfile } from '@/features/ecommerce/types';
+import { measurementsApi } from '@/services/measurementsApi';
 
 export const BODY_PROFILE_UPDATED_EVENT = 'fv3d-body-profile-updated';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface StoredFullScanSnapshot {
   measurement: Measurement;
@@ -19,6 +22,49 @@ const getBodyKey = (userId?: string | null) =>
 
 const getScanKey = (userId?: string | null) =>
   `fv3d_full_scan_${userId || 'guest'}`;
+
+function writeLocalBodyProfile(userId: string, profile: UserBodyProfile): void {
+  const normalized: UserBodyProfile = {
+    ...profile,
+    updated_at: profile.updated_at || new Date().toISOString(),
+  };
+  localStorage.setItem(getBodyKey(userId), JSON.stringify(normalized));
+  sessionStorage.setItem(
+    'fv3d_estimator',
+    JSON.stringify({
+      stature_cm: normalized.height_cm,
+      weight_kg: normalized.weight_kg,
+      gender: normalized.gender,
+    })
+  );
+  window.dispatchEvent(new Event(BODY_PROFILE_UPDATED_EVENT));
+}
+
+function buildBodyProfileFromSnapshot(
+  snapshot: Omit<StoredFullScanSnapshot, 'updatedAt'> & { updatedAt?: string },
+  source: 'scan' | 'demo' | 'manual'
+): UserBodyProfile {
+  return {
+    height_cm: Math.round(snapshot.biometric.stature_cm * 10) / 10,
+    weight_kg: Math.round(snapshot.biometric.weight_kg * 10) / 10,
+    chest_cm: Math.round(snapshot.measurement.chest_circ_cm * 10) / 10,
+    waist_cm: Math.round(snapshot.measurement.waist_circ_cm * 10) / 10,
+    hip_cm: Math.round(snapshot.measurement.hip_circ_cm * 10) / 10,
+    shoulder_cm: Math.round((snapshot.measurement.shoulder_breadth_cm ?? 42) * 10) / 10,
+    arm_length_cm: Math.round((snapshot.measurement.arm_length_cm ?? 58) * 10) / 10,
+    inseam_cm: snapshot.measurement.inseam_cm
+      ? Math.round(snapshot.measurement.inseam_cm * 10) / 10
+      : undefined,
+    gender:
+      snapshot.biometric.gender === 'female'
+        ? 'female'
+        : snapshot.biometric.gender === 'male'
+        ? 'male'
+        : 'neutral',
+    source: source === 'manual' ? 'manual' : source === 'demo' ? 'demo' : 'scan',
+    updated_at: snapshot.updatedAt || new Date().toISOString(),
+  };
+}
 
 export function loadUserBodyProfile(userId?: string | null): UserBodyProfile | null {
   if (!userId) return null;
@@ -37,26 +83,52 @@ export function loadUserBodyProfile(userId?: string | null): UserBodyProfile | n
 
 export function saveUserBodyProfile(
   userId: string | null | undefined,
-  profile: UserBodyProfile
+  profile: UserBodyProfile,
+  syncRemote = true
 ): void {
   if (!userId) return;
   try {
-    const normalized: UserBodyProfile = {
+    writeLocalBodyProfile(userId, {
       ...profile,
       updated_at: new Date().toISOString(),
-    };
-    localStorage.setItem(getBodyKey(userId), JSON.stringify(normalized));
-    sessionStorage.setItem(
-      'fv3d_estimator',
-      JSON.stringify({
-        stature_cm: normalized.height_cm,
-        weight_kg: normalized.weight_kg,
-        gender: normalized.gender,
-      })
-    );
-    window.dispatchEvent(new Event(BODY_PROFILE_UPDATED_EVENT));
+    });
   } catch {
     // ignore quota errors
+  }
+
+  if (syncRemote && UUID_REGEX.test(userId)) {
+    const gender: 'male' | 'female' | 'neutral' =
+      profile.gender === 'female' ? 'female' : profile.gender === 'male' ? 'male' : 'neutral';
+    const heightM = profile.height_cm / 100;
+    const bmi =
+      heightM > 0 ? Math.round((profile.weight_kg / (heightM * heightM)) * 100) / 100 : 22;
+
+    void measurementsApi.saveSnapshot({
+      biometric: {
+        stature_cm: profile.height_cm,
+        weight_kg: profile.weight_kg,
+        gender,
+        calculated_bmi: bmi,
+      },
+      measurement: {
+        chest_circ_cm: profile.chest_cm,
+        waist_circ_cm: profile.waist_cm,
+        hip_circ_cm: profile.hip_cm,
+        inseam_cm: profile.inseam_cm ?? null,
+        shoulder_breadth_cm: profile.shoulder_cm ?? null,
+        arm_length_cm: profile.arm_length_cm ?? null,
+      },
+      mesh: {
+        base_gender_mesh: gender,
+        scale_chest: 1,
+        scale_waist: 1,
+        scale_hips: 1,
+        morph_payload: { source: 'manual_input' },
+      },
+      source: 'manual',
+      isLiveBackend: false,
+      executionTime: 0,
+    });
   }
 }
 
@@ -93,28 +165,107 @@ export function saveFullScanSnapshot(
     // ignore quota errors
   }
 
-  const bodyProfile: UserBodyProfile = {
-    height_cm: Math.round(snapshot.biometric.stature_cm * 10) / 10,
-    weight_kg: Math.round(snapshot.biometric.weight_kg * 10) / 10,
-    chest_cm: Math.round(snapshot.measurement.chest_circ_cm * 10) / 10,
-    waist_cm: Math.round(snapshot.measurement.waist_circ_cm * 10) / 10,
-    hip_cm: Math.round(snapshot.measurement.hip_circ_cm * 10) / 10,
-    shoulder_cm: Math.round((snapshot.measurement.shoulder_breadth_cm ?? 42) * 10) / 10,
-    arm_length_cm: Math.round((snapshot.measurement.arm_length_cm ?? 58) * 10) / 10,
-    inseam_cm: snapshot.measurement.inseam_cm
-      ? Math.round(snapshot.measurement.inseam_cm * 10) / 10
-      : undefined,
-    gender:
+  const bodyProfile = buildBodyProfileFromSnapshot({ ...snapshot, updatedAt }, source);
+  saveUserBodyProfile(userId, bodyProfile, false);
+
+  if (source === 'scan' && UUID_REGEX.test(userId)) {
+    const gender: 'male' | 'female' | 'neutral' =
       snapshot.biometric.gender === 'female'
         ? 'female'
         : snapshot.biometric.gender === 'male'
         ? 'male'
-        : 'neutral',
-    source,
-    updated_at: updatedAt,
-  };
+        : 'neutral';
 
-  saveUserBodyProfile(userId, bodyProfile);
+    void measurementsApi.saveSnapshot({
+      biometric: {
+        stature_cm: snapshot.biometric.stature_cm,
+        weight_kg: snapshot.biometric.weight_kg,
+        gender,
+        calculated_bmi: snapshot.biometric.calculated_bmi ?? undefined,
+      },
+      measurement: {
+        chest_circ_cm: snapshot.measurement.chest_circ_cm,
+        waist_circ_cm: snapshot.measurement.waist_circ_cm,
+        hip_circ_cm: snapshot.measurement.hip_circ_cm,
+        inseam_cm: snapshot.measurement.inseam_cm ?? null,
+        shoulder_breadth_cm: snapshot.measurement.shoulder_breadth_cm ?? null,
+        arm_length_cm: snapshot.measurement.arm_length_cm ?? null,
+        bicep_circ_cm: snapshot.measurement.bicep_circ_cm ?? null,
+        wrist_circ_cm: snapshot.measurement.wrist_circ_cm ?? null,
+        thigh_circ_cm: snapshot.measurement.thigh_circ_cm ?? null,
+        calf_circ_cm: snapshot.measurement.calf_circ_cm ?? null,
+        ankle_circ_cm: snapshot.measurement.ankle_circ_cm ?? null,
+        extraction_confidence: snapshot.measurement.extraction_confidence ?? 0.95,
+      },
+      mesh: {
+        base_gender_mesh:
+          snapshot.mesh.base_gender_mesh === 'female_base'
+            ? 'female'
+            : snapshot.mesh.base_gender_mesh === 'male_base'
+            ? 'male'
+            : 'neutral',
+        scale_chest: snapshot.mesh.scale_chest,
+        scale_waist: snapshot.mesh.scale_waist,
+        scale_hips: snapshot.mesh.scale_hips,
+        morph_payload: snapshot.mesh.morph_payload ?? null,
+      },
+      garmentRec: snapshot.garmentRec ?? null,
+      source: 'scan',
+      isLiveBackend: snapshot.isLiveBackend,
+      executionTime: snapshot.executionTime,
+    });
+  }
+}
+
+/**
+ * Pulls latest persisted 13-metric scan & biometric profile from PostgreSQL
+ * so authenticated users keep their measurements across devices/browsers.
+ */
+export async function hydrateBodyProfileFromBackend(
+  userId?: string | null
+): Promise<StoredFullScanSnapshot | null> {
+  if (!userId || !UUID_REGEX.test(userId)) return null;
+
+  const res = await measurementsApi.getLatest();
+  if (!res.success || !res.data) return null;
+
+  const remote = res.data;
+  const localScan = loadFullScanSnapshot(userId);
+  const remoteTime = new Date(remote.updatedAt).getTime();
+  const localTime = localScan?.updatedAt ? new Date(localScan.updatedAt).getTime() : 0;
+
+  if (!localScan || remoteTime >= localTime) {
+    const rawMeshGender = String(remote.mesh?.base_gender_mesh || 'neutral_base');
+    const normalizedMeshGender: MeshParameter['base_gender_mesh'] =
+      rawMeshGender === 'male' || rawMeshGender === 'male_base'
+        ? 'male_base'
+        : rawMeshGender === 'female' || rawMeshGender === 'female_base'
+        ? 'female_base'
+        : 'neutral_base';
+
+    const snapshot: StoredFullScanSnapshot = {
+      measurement: remote.measurement,
+      biometric: remote.biometric,
+      mesh: {
+        ...remote.mesh,
+        base_gender_mesh: normalizedMeshGender,
+      },
+      garmentRec: remote.garmentRec,
+      isLiveBackend: remote.isLiveBackend,
+      executionTime: remote.executionTime,
+      updatedAt: remote.updatedAt,
+    };
+    try {
+      localStorage.setItem(getScanKey(userId), JSON.stringify(snapshot));
+      const profile = buildBodyProfileFromSnapshot(snapshot, remote.source);
+      writeLocalBodyProfile(userId, profile);
+    } catch {
+      // ignore storage quota errors
+    }
+    return snapshot;
+  }
+
+  return localScan;
 }
 
 export function clearFullScanSnapshot(userId?: string | null): void {

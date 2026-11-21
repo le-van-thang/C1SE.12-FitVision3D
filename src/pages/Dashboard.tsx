@@ -32,6 +32,7 @@ import { recommendGarmentSizes } from "../utils/garmentSizeCalculator";
 import {
   saveFullScanSnapshot,
   loadFullScanSnapshot,
+  hydrateBodyProfileFromBackend,
   clearFullScanSnapshot,
 } from "../utils/bodyProfileStorage";
 import { DEMO_BIOMETRIC, DEMO_MEASUREMENT, DEMO_MESH, bmi } from "../data/mockData";
@@ -82,15 +83,20 @@ export const Dashboard: React.FC = () => {
   // Restore last saved scan snapshot for this authenticated account when returning to Dashboard
   useEffect(() => {
     if (!isAuthenticated || !currentUser?.id) return;
-    const saved = loadFullScanSnapshot(currentUser.id);
-    if (saved) {
+    const applySnapshot = (saved: ReturnType<typeof loadFullScanSnapshot>) => {
+      if (!saved) return;
       setMeasurement(saved.measurement);
       setBiometric(saved.biometric);
       setMesh(saved.mesh);
       setGarmentRec(saved.garmentRec);
       setIsLiveBackend(saved.isLiveBackend);
       setExecutionTime(saved.executionTime);
-    }
+    };
+
+    applySnapshot(loadFullScanSnapshot(currentUser.id));
+    void hydrateBodyProfileFromBackend(currentUser.id).then((remote) => {
+      if (remote) applySnapshot(remote);
+    });
   }, [isAuthenticated, currentUser?.id]);
 
   // Handle Photo Scan from Phone / Disk (Single Front A-Pose Image)
