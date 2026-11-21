@@ -10,6 +10,9 @@
     "dev:full": "concurrently -n \"FRONTEND,BACKEND,AI-CORE\" -c \"cyan,magenta,yellow\" \"vite --port 5173 --host\" \"cd backend && npm run dev\" \"cd ai-service && python app.py\"",
     "start": "npm run dev:all",
     "build": "tsc -b && vite build",
+    "test": "node --experimental-strip-types --test tests/unit/*.test.mjs tests/integration/*.test.mjs",
+    "test:unit": "node --experimental-strip-types --test tests/unit/*.test.mjs",
+    "test:integration": "node --experimental-strip-types --test tests/integration/*.test.mjs",
     "lint": "oxlint",
     "i18n:check": "node scripts/i18n-check.mjs",
     "preview": "vite preview"
