@@ -3141,13 +3141,15 @@ export const FashionStoreHome: React.FC = () => {
         onSignOut={signOut}
       />
 
-      {/* Floating FitVision 3D Assistant Mascot Chatbot */}
+      {/* Floating FitVision 3D Customer Stylist Chatbot */}
       <GeminiAssistantWidget
+        botId="customer"
+        accountKey={currentUser?.id || null}
         isAuthenticated={isAuthenticated}
         hasBodyProfile={hasBodyProfile}
         onOpenSignIn={openSignIn}
         userBody={
-          isAuthenticated && hasBodyProfile
+          !isAuthenticated && hasBodyProfile
             ? {
                 height_cm: userBody.height_cm,
                 weight_kg: userBody.weight_kg,
@@ -3155,7 +3157,15 @@ export const FashionStoreHome: React.FC = () => {
                 waist_cm: userBody.waist_cm,
                 hip_cm: userBody.hip_cm,
               }
-            : undefined
+            : isAuthenticated && hasBodyProfile
+              ? {
+                  height_cm: userBody.height_cm,
+                  weight_kg: userBody.weight_kg,
+                  chest_cm: userBody.chest_cm,
+                  waist_cm: userBody.waist_cm,
+                  hip_cm: userBody.hip_cm,
+                }
+              : undefined
         }
       />
 

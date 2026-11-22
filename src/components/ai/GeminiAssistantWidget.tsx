@@ -6,8 +6,11 @@ import {
   Maximize2,
   Minimize2,
   LogIn,
+  ShieldCheck,
 } from 'lucide-react';
 import { useI18n } from '@/i18n';
+import { authApi, getAccessToken, setAccessToken } from '@/services/authApi';
+import { BOT_UI_PROFILES, type AiBotId, type BotUiProfile } from './botProfiles';
 
 export interface ChatMessage {
   id: string;
@@ -27,6 +30,8 @@ export interface UserBiometricContext {
 }
 
 export interface GeminiAssistantWidgetProps {
+  botId?: AiBotId;
+  accountKey?: string | null;
   userBody?: UserBiometricContext;
   isAuthenticated?: boolean;
   hasBodyProfile?: boolean;
@@ -41,64 +46,69 @@ export interface GeminiAssistantWidgetProps {
 
 const BACKEND_BASE_URL = (import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
-/** Friendly custom FitVision 3D Atelier Mascot Avatar */
-const FitVisionMascot: React.FC<{ size?: number; className?: string }> = ({
-  size = 44,
-  className = '',
-}) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 64 64"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-    aria-hidden="true"
-  >
-    <defs>
-      <linearGradient id="fvMascotBg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="#2563EB" />
-        <stop offset="100%" stopColor="#1E3A8A" />
-      </linearGradient>
-      <linearGradient id="fvMascotCap" x1="16" y1="8" x2="48" y2="24" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="#60A5FA" />
-        <stop offset="100%" stopColor="#2563EB" />
-      </linearGradient>
-    </defs>
+/** Role-themed FitVision Mascot Avatar */
+const FitVisionMascot: React.FC<{
+  profile: BotUiProfile;
+  size?: number;
+  className?: string;
+}> = ({ profile, size = 44, className = '' }) => {
+  const bgId = `fvMascotBg-${profile.id}`;
+  const capId = `fvMascotCap-${profile.id}`;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={bgId} x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={profile.gradientFrom} />
+          <stop offset="100%" stopColor={profile.gradientTo} />
+        </linearGradient>
+        <linearGradient id={capId} x1="16" y1="8" x2="48" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={profile.capFrom} />
+          <stop offset="100%" stopColor={profile.capTo} />
+        </linearGradient>
+      </defs>
 
-    <circle cx="32" cy="32" r="30" fill="url(#fvMascotBg)" />
-    <circle cx="32" cy="32" r="29" stroke="#FFFFFF" strokeOpacity="0.25" strokeWidth="1.5" />
+      <circle cx="32" cy="32" r="30" fill={`url(#${bgId})`} />
+      <circle cx="32" cy="32" r="29" stroke="#FFFFFF" strokeOpacity="0.25" strokeWidth="1.5" />
 
-    <path d="M15 54C16.5 45.5 23 41 32 41C41 41 47.5 45.5 49 54" fill="#0F172A" />
-    <path d="M25 42L32 49L39 42L36 40.5H28L25 42Z" fill="#FFFFFF" />
-    <path d="M30.5 45.5L32 53L33.5 45.5L32 43.5L30.5 45.5Z" fill="#3B82F6" />
+      <path d="M15 54C16.5 45.5 23 41 32 41C41 41 47.5 45.5 49 54" fill="#0F172A" />
+      <path d="M25 42L32 49L39 42L36 40.5H28L25 42Z" fill="#FFFFFF" />
+      <path d="M30.5 45.5L32 53L33.5 45.5L32 43.5L30.5 45.5Z" fill={profile.capFrom} />
 
-    <circle cx="32" cy="28.5" r="12.5" fill="#EFF6FF" />
-    <path
-      d="M19 26.5C19 19 24.8 14 32.5 14C40.5 14 45.5 19.2 45 25.5C41.5 22.8 37.5 21.5 32 21.5C26.5 21.5 22.5 23.2 19 26.5Z"
-      fill="url(#fvMascotCap)"
-    />
+      <circle cx="32" cy="28.5" r="12.5" fill="#EFF6FF" />
+      <path
+        d="M19 26.5C19 19 24.8 14 32.5 14C40.5 14 45.5 19.2 45 25.5C41.5 22.8 37.5 21.5 32 21.5C26.5 21.5 22.5 23.2 19 26.5Z"
+        fill={`url(#${capId})`}
+      />
 
-    <circle cx="27" cy="28.5" r="1.9" fill="#0F172A" />
-    <circle cx="37" cy="28.5" r="1.9" fill="#0F172A" />
-    <circle cx="27.6" cy="27.8" r="0.65" fill="#FFFFFF" />
-    <circle cx="37.6" cy="27.8" r="0.65" fill="#FFFFFF" />
+      <circle cx="27" cy="28.5" r="1.9" fill="#0F172A" />
+      <circle cx="37" cy="28.5" r="1.9" fill="#0F172A" />
+      <circle cx="27.6" cy="27.8" r="0.65" fill="#FFFFFF" />
+      <circle cx="37.6" cy="27.8" r="0.65" fill="#FFFFFF" />
 
-    <circle cx="23.5" cy="31.5" r="1.7" fill="#93C5FD" fillOpacity="0.55" />
-    <circle cx="40.5" cy="31.5" r="1.7" fill="#93C5FD" fillOpacity="0.55" />
-    <path
-      d="M28.5 32.8C29.6 34.3 34.4 34.3 35.5 32.8"
-      stroke="#0F172A"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-    />
+      <circle cx="23.5" cy="31.5" r="1.7" fill="#93C5FD" fillOpacity="0.55" />
+      <circle cx="40.5" cy="31.5" r="1.7" fill="#93C5FD" fillOpacity="0.55" />
+      <path
+        d="M28.5 32.8C29.6 34.3 34.4 34.3 35.5 32.8"
+        stroke="#0F172A"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
 
-    <circle cx="46.5" cy="18.5" r="5.2" fill="#FACC15" stroke="#FFFFFF" strokeWidth="1.4" />
-    <path d="M44.5 18.5H48.5M46.5 16.5V20.5" stroke="#0F172A" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-);
+      <circle cx="46.5" cy="18.5" r="5.2" fill="#FACC15" stroke="#FFFFFF" strokeWidth="1.4" />
+      <path d="M44.5 18.5H48.5M46.5 16.5V20.5" stroke="#0F172A" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+};
 
-/** Render **bold** and `code`, convert leading markdown `* ` / `- ` bullets cleanly, and never leak raw `*` chars */
+/** Render **bold** and `code`, convert leading markdown `* ` / `- ` bullets cleanly */
 const renderFormattedText = (text: string, isUser: boolean): React.ReactNode => {
   const lines = text.split('\n');
   return lines.map((rawLine, lineIdx) => {
@@ -121,15 +131,14 @@ const renderFormattedText = (text: string, isUser: boolean): React.ReactNode => 
             key={partIdx}
             className={`px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold ${
               isUser
-                ? 'bg-blue-700/80 text-blue-50'
-                : 'bg-blue-50 text-blue-800 border border-blue-100'
+                ? 'bg-white/20 text-white'
+                : 'bg-slate-100 text-slate-800 border border-slate-200'
             }`}
           >
             {part.slice(1, -1)}
           </code>
         );
       }
-      // Strip stray single asterisks if any remain
       return <React.Fragment key={partIdx}>{part.replace(/\*/g, '')}</React.Fragment>;
     });
 
@@ -143,12 +152,17 @@ const renderFormattedText = (text: string, isUser: boolean): React.ReactNode => 
 };
 
 export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
+  botId = 'customer',
+  accountKey = null,
   userBody,
   isAuthenticated = false,
   hasBodyProfile = false,
   onOpenSignIn,
 }) => {
   const { t, locale } = useI18n();
+  const isEn = locale === 'en';
+  const profile = BOT_UI_PROFILES[botId] || BOT_UI_PROFILES.customer;
+
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [inputMessage, setInputMessage] = useState<string>('');
@@ -159,20 +173,25 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const hasVerifiedMeasurements = isAuthenticated && hasBodyProfile && !!userBody;
+  const hasVerifiedMeasurements = botId === 'customer' && isAuthenticated && hasBodyProfile && !!userBody;
+  const floatingHints = isEn ? profile.floatingHintsEn : profile.floatingHintsVi;
+  const quickPrompts = isEn ? profile.quickPromptsEn : profile.quickPromptsVi;
 
-  const floatingHints =
-    locale === 'en'
-      ? [
-          'Find my exact shirt size',
-          'Blazer Linen fit advice',
-          'What is Ease Allowance?',
-        ]
-      : [
-          'Gợi ý size sơ mi vừa vặn',
-          'Tư vấn phối đồ công sở 3D',
-          'Đo số đo chuẩn ISO trong 30s',
-        ];
+  const buildInitialGreetingBubble = (): ChatMessage => ({
+    id: `welcome-${botId}-${Date.now()}`,
+    sender: 'ai',
+    text: isEn ? profile.greetingEn : profile.greetingVi,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  });
+
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialGreetingBubble()]);
+
+  // Strictly isolate conversation history when switching bot role, account, or language
+  useEffect(() => {
+    setMessages([buildInitialGreetingBubble()]);
+    setHintIndex(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botId, accountKey, isAuthenticated, locale]);
 
   useEffect(() => {
     if (isOpen || !showFloatingHint) return;
@@ -182,25 +201,9 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
     return () => clearInterval(timer);
   }, [isOpen, showFloatingHint, floatingHints.length]);
 
-  const buildInitialGreetingBubble = (): ChatMessage => ({
-    id: `welcome-${Date.now()}`,
-    sender: 'ai',
-    text:
-      locale === 'en'
-        ? `Hello! How may I help you pick your size today?`
-        : `Dạ em có thể giúp gì cho anh/chị hôm nay ạ?`,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  });
-
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialGreetingBubble()]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
     if (isOpen) {
-      scrollToBottom();
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen, messages]);
@@ -209,131 +212,123 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
     setMessages([buildInitialGreetingBubble()]);
   };
 
-  const quickPrompts =
-    locale === 'en'
-      ? [
-          {
-            label: 'Recommend my size',
-            query: hasVerifiedMeasurements && userBody
-              ? `Recommend the best size for my measurements: ${userBody.height_cm}cm, ${userBody.weight_kg}kg, Chest ${userBody.chest_cm}cm, Waist ${userBody.waist_cm}cm.`
-              : 'How do I get my 3D size recommendation?',
-          },
-          {
-            label: 'Ease Allowance?',
-            query: 'Explain Ease Allowance in bespoke tailoring.',
-          },
-          {
-            label: 'Outfit pairing',
-            query: 'Suggest a smart-casual outfit pairing from FitVision.',
-          },
-        ]
-      : [
-          {
-            label: 'Tư vấn size của tôi',
-            query: hasVerifiedMeasurements && userBody
-              ? `Dựa vào số đo Cao ${userBody.height_cm}cm, Nặng ${userBody.weight_kg}kg, Ngực ${userBody.chest_cm}cm, Eo ${userBody.waist_cm}cm, hãy tư vấn size áo sơ mi, blazer và quần vừa vặn nhất cho tôi.`
-              : 'Làm sao để tôi nhận được gợi ý size chuẩn theo vóc dáng của mình?',
-          },
-          {
-            label: 'Độ cử động (Ease)',
-            query: 'Giải thích độ cử động vải (Ease Allowance) chuẩn ISO 8559 là gì?',
-          },
-          {
-            label: 'Phối đồ công sở',
-            query: 'Gợi ý cách phối đồ lịch lãm giữa Áo Sơ Mi Oxford và Quần Tây Ý.',
-          },
-        ];
+  const callBotApi = async (
+    query: string,
+    historyPayload: Array<{ role: 'user' | 'model'; text: string }>,
+    token: string | null
+  ) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
-  const generateAssistantReply = async (query: string): Promise<string> => {
+    // Security rule: authenticated users rely on server-side DB context, NEVER client-sent userBody
+    const guestBody =
+      botId === 'customer' && !isAuthenticated && userBody && userBody.height_cm > 0 && userBody.weight_kg > 0
+        ? {
+            height_cm: userBody.height_cm,
+            weight_kg: userBody.weight_kg,
+            chest_cm: userBody.chest_cm,
+            waist_cm: userBody.waist_cm,
+            hip_cm: userBody.hip_cm,
+          }
+        : null;
+
+    return fetch(`${BACKEND_BASE_URL}/api/v1/ai/${botId}/chat`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify({
+        query,
+        locale: isEn ? 'en' : 'vi',
+        history: historyPayload,
+        guestBody,
+      }),
+    });
+  };
+
+  const generateAssistantReply = async (
+    query: string,
+    priorMessages: ChatMessage[]
+  ): Promise<string> => {
+    const historyPayload = priorMessages
+      .filter((m) => !m.id.startsWith('welcome-'))
+      .slice(-6)
+      .map((m) => ({
+        role: m.sender === 'user' ? ('user' as const) : ('model' as const),
+        text: m.text.slice(0, 1000),
+      }));
+
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ai/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query,
-          locale: locale === 'en' ? 'en' : 'vi',
-          hasVerifiedMeasurements,
-          userBody:
-            hasVerifiedMeasurements && userBody
-              ? {
-                  height_cm: userBody.height_cm,
-                  weight_kg: userBody.weight_kg,
-                  chest_cm: userBody.chest_cm,
-                  waist_cm: userBody.waist_cm,
-                  hip_cm: userBody.hip_cm,
-                }
-              : null,
-        }),
-      });
+      let token = getAccessToken();
+      let res = await callBotApi(query, historyPayload, token);
+
+      // If access token expired, attempt silent refresh once and retry
+      if (res.status === 401 && isAuthenticated) {
+        const refreshed = await authApi.refreshToken();
+        if (refreshed.success && refreshed.data?.accessToken) {
+          setAccessToken(refreshed.data.accessToken);
+          token = refreshed.data.accessToken;
+          res = await callBotApi(query, historyPayload, token);
+        }
+      }
 
       if (res.ok) {
         const json = await res.json();
         const replyText = json?.data?.reply;
         if (replyText) return replyText;
       }
+
+      if (res.status === 401) {
+        return isEn
+          ? 'Your session has expired or you need to **Sign In** to use this role-specific assistant.'
+          : 'Phiên đăng nhập đã hết hạn hoặc bạn cần **Đăng nhập** đúng tài khoản để sử dụng trợ lý AI này.';
+      }
+
+      if (res.status === 403) {
+        return isEn
+          ? 'Your account role does not have permission to access this assistant.'
+          : 'Tài khoản hiện tại không có quyền sử dụng trợ lý AI của phân hệ này.';
+      }
+
+      if (res.status === 429) {
+        const errJson = await res.json().catch(() => null);
+        return (
+          errJson?.error?.message ||
+          (isEn
+            ? 'You are sending messages too quickly. Please wait a few seconds.'
+            : 'Bạn đang gửi câu hỏi hơi nhanh. Vui lòng thử lại sau ít giây nhé.')
+        );
+      }
     } catch {
-      // Fallback smoothly to domain expert sizing engine
+      // Network offline fallback handled below
     }
 
-    await new Promise((r) => setTimeout(r, 450));
-    const lower = query.toLowerCase();
-
-    if (lower.includes('size') || lower.includes('kích cỡ') || lower.includes('vừa vặn') || lower.includes('chuẩn')) {
-      if (!isAuthenticated) {
-        return locale === 'en'
-          ? `To recommend your exact tailored size, please **Sign In** so FitVision can sync your 3D body profile — or share your height & weight directly right here!`
-          : `Hiện tại bạn **chưa đăng nhập** nên hệ thống chưa có hồ sơ số đo 3D của bạn. Hãy **Đăng nhập** (hoặc nhắn trực tiếp chiều cao, cân nặng của bạn tại đây) để mình tư vấn size chính xác nhất nhé!`;
-      }
-      if (!hasBodyProfile || !userBody) {
-        return locale === 'en'
-          ? `Your account doesn't have 3D measurements yet. Click **Edit measurements** on the left sidebar or run a **30s 3D AI Scan** so I can compute your exact size!`
-          : `Tài khoản của bạn hiện chưa có số đo 3D. Hãy bấm **Đổi số đo** ở thanh bên trái hoặc chọn **Quét Đo AI 3D** để mình tính chính xác size phù hợp nhé!`;
-      }
-
-      return locale === 'en'
-        ? `**Tailored Size Analysis for Your Frame**
-• Measurements: Chest **${userBody.chest_cm}cm** · Waist **${userBody.waist_cm}cm**
-• Shirts & Blazers: Recommend **Size L** (garment chest ~102cm) for a clean Regular Slim drape with **+6cm Ease Allowance**. Choose **Size M** if you prefer a closer fitted cut.
-• Trousers: Recommend **Size M** with tailored waist ease so sitting stays comfortable.`
-        : `**Phân Tích Kích Cỡ Chuẩn Theo Vóc Dáng**
-• Số đo của bạn: Ngực **${userBody.chest_cm}cm** · Eo **${userBody.waist_cm}cm**
-• Áo Sơ Mi & Blazer: Phù hợp nhất là **Size L** (vòng ngực áo ~102cm, đạt độ cử động **+6cm Ease Allowance**) cho phom đứng lịch lãm. Nếu thích ôm body hơn, có thể chọn **Size M**.
-• Quần Tây / Chino Ý: Khuyên dùng **Size M** để ôm gọn phần hông và thoải mái khi ngồi làm việc.`;
+    if (botId === 'shop') {
+      return isEn
+        ? 'Unable to reach Seller Copilot server right now. Please check your backend connection and try again.'
+        : 'Hiện không kết nối được máy chủ **Seller Copilot**. Bạn vui lòng kiểm tra kết nối backend và thử lại nhé.';
+    }
+    if (botId === 'admin') {
+      return isEn
+        ? 'Unable to reach Admin Ops Copilot server right now. Please verify the backend service is running.'
+        : 'Hiện không kết nối được máy chủ **Admin Ops Copilot**. Vui lòng kiểm tra dịch vụ backend đang hoạt động.';
     }
 
-    if (lower.includes('ease') || lower.includes('cử động') || lower.includes('iso')) {
-      return locale === 'en'
-        ? `**Understanding Ease Allowance (ISO 8559-1)**
-Tailored garments are never cut equal to bare skin measurements:
-• Formula: \`Garment Size = Body Measurement + Ease Allowance\`
-• Slim Fit: \`+3cm to +5cm\` chest room
-• Regular Classic: \`+6cm to +9cm\` for all-day movement`
-        : `**Độ Cử Động Vải (Ease Allowance) Chuẩn ISO 8559**
-Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với số đo cơ thể**:
-• Công thức: \`Thông số áo = Số đo cơ thể + Độ cử động\`
-• Phom Ôm (Slim): cộng thêm \`+3cm ~ +5cm\` vòng ngực.
-• Phom Tiêu Chuẩn (Regular): cộng \`+6cm ~ +9cm\` giúp vươn tay, lái xe và ngồi thoải mái không bị căng khuy ngực.`;
-    }
-
-    return locale === 'en'
-      ? `**Bespoke Styling Suggestion**
-• Top: Pair the **French Normandy Flax Linen Blazer** with an **Egyptian Cotton Oxford Shirt** for clean shoulder framing.
-• Bottom: Match with **Italian Double-Pleated Tapered Trousers** in Charcoal or Navy to elongate your silhouette.
-• Sign in and open **3D Virtual Fitting** to preview how each outfit matches your body!`
-      : `**Gợi Ý Phối Đồ Lịch Lãm Từ FitVision**
-• Áo: Kết hợp **Áo Sơ Mi Oxford Cotton Ai Cập** (590.000₫) hoặc khoác ngoài **Blazer Linen Pháp** (1.650.000₫) cho phom vai đứng gọn và thoáng nhẹ.
-• Quần: Phối cùng **Quần Tây Xếp Ly Đôi Phom Ý** (765.000₫) tông Than Chì hoặc Xanh Navy để tôn chiều cao.
-• Bạn có thể đăng nhập để sử dụng **Phòng Thử Đồ Ảo 3D** xem tỷ lệ vừa vặn theo từng bộ!`;
+    return isEn
+      ? 'I am momentarily offline. Please try again in a moment or sign in to check your 3D sizing profile.'
+      : 'Trợ lý đang tạm mất kết nối máy chủ. Bạn vui lòng thử lại sau ít giây nhé!';
   };
 
   const handleSendMessage = async (customQuery?: string) => {
-    const query = customQuery || inputMessage;
-    if (!query.trim() || isTyping) return;
+    const query = (customQuery ?? inputMessage).trim();
+    if (!query || isTyping) return;
 
+    const priorSnapshot = [...messages];
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
-      text: query.trim(),
+      text: query,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -342,7 +337,7 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
     setIsTyping(true);
 
     try {
-      const reply = await generateAssistantReply(query);
+      const reply = await generateAssistantReply(query, priorSnapshot);
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
@@ -356,10 +351,9 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
         {
           id: `err-${Date.now()}`,
           sender: 'ai',
-          text:
-            locale === 'en'
-              ? 'Sorry, our assistant is momentarily busy. Please try again in a moment.'
-              : 'Xin lỗi, trợ lý đang bận xử lý. Bạn vui lòng thử lại sau giây lát nhé!',
+          text: isEn
+            ? 'Sorry, our assistant is momentarily busy. Please try again in a moment.'
+            : 'Xin lỗi, trợ lý đang bận xử lý. Bạn vui lòng thử lại sau giây lát nhé!',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -368,13 +362,13 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
     }
   };
 
-  const todayTimeLabel = locale === 'en'
+  const todayTimeLabel = isEn
     ? `Today, ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : `Hôm nay, ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
   return (
     <>
-      {/* ── FLOATING ICON LAUNCHER + SUBTLE SUGGESTION PILL (ICON ONLY, NO BUTTON TEXT) ── */}
+      {/* ── FLOATING ICON LAUNCHER + ROLE SUGGESTION PILL ── */}
       {!isOpen && (
         <div className="gemini-assistant-container fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2 pointer-events-auto">
           {showFloatingHint && (
@@ -383,9 +377,9 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
                 type="button"
                 onClick={() => {
                   setIsOpen(true);
-                  handleSendMessage(floatingHints[hintIndex]);
+                  void handleSendMessage(floatingHints[hintIndex]);
                 }}
-                className="px-3.5 py-1.5 rounded-full bg-white/95 hover:bg-white text-slate-600 hover:text-blue-700 text-xs font-medium shadow-md border border-slate-200/90 backdrop-blur-sm transition-all cursor-pointer whitespace-nowrap"
+                className="px-3.5 py-1.5 rounded-full bg-white/95 hover:bg-white text-slate-600 hover:text-slate-900 text-xs font-medium shadow-md border border-slate-200/90 backdrop-blur-sm transition-all cursor-pointer whitespace-nowrap"
               >
                 {floatingHints[hintIndex]}
               </button>
@@ -407,19 +401,19 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
             <button
               type="button"
               onClick={() => setIsOpen(true)}
-              aria-label={t('ecommerce.chatbot.pillTooltip', 'Mở trợ lý FitVision 3D')}
+              aria-label={isEn ? profile.titleEn : profile.titleVi}
               className="relative w-14 h-14 rounded-full p-0.5 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.22)] border border-slate-200 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center"
             >
-              <FitVisionMascot size={50} />
-              <span className="absolute -top-1 right-0 px-1.5 py-0.2 rounded-full bg-white text-slate-600 border border-slate-200 text-[9px] font-bold tracking-wide shadow-2xs">
-                3D
+              <FitVisionMascot profile={profile} size={50} />
+              <span className="absolute -top-1 right-0 px-1.5 py-0.2 rounded-full bg-white text-slate-700 border border-slate-200 text-[9px] font-bold tracking-wide shadow-2xs">
+                {profile.badgeText}
               </span>
             </button>
           </div>
         </div>
       )}
 
-      {/* ── CLEAN AIRY RETAIL ASSISTANT CHAT WINDOW ── */}
+      {/* ── ROLE-SPECIFIC ASSISTANT CHAT WINDOW ── */}
       {isOpen && (
         <div
           className={`gemini-assistant-container fixed z-40 transition-all duration-200 ease-out flex flex-col bg-white border border-slate-200/90 text-slate-900 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)] rounded-3xl overflow-hidden font-sans ${
@@ -428,20 +422,20 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
               : 'bottom-5 right-4 sm:right-5 w-[92vw] sm:w-[400px] h-[565px] max-h-[82vh]'
           }`}
         >
-          {/* Clean Light Header */}
+          {/* Header */}
           <div className="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="shrink-0">
-                <FitVisionMascot size={36} />
+                <FitVisionMascot profile={profile} size={36} />
               </div>
               <div className="min-w-0">
                 <h3 className="font-bold text-sm text-slate-900 truncate leading-tight">
-                  {locale === 'en' ? 'FitVision 3D Assistant' : 'Trợ lý FitVision 3D'}
+                  {isEn ? profile.titleEn : profile.titleVi}
                 </h3>
                 <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                   <span className="truncate">
-                    {locale === 'en' ? 'Online · Instant reply' : 'Trực tuyến · Trả lời ngay'}
+                    {isEn ? profile.subtitleEn : profile.subtitleVi}
                   </span>
                 </div>
               </div>
@@ -452,7 +446,7 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
                 type="button"
                 onClick={handleResetChat}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
-                title={locale === 'en' ? 'New conversation' : 'Làm mới trò chuyện'}
+                title={isEn ? 'New conversation' : 'Làm mới trò chuyện'}
               >
                 <RotateCcw size={14} />
               </button>
@@ -477,56 +471,65 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
             </div>
           </div>
 
-          {/* Airy Scroll Area with Centered Welcome Hero */}
+          {/* Scroll Area */}
           <div className="flex-1 px-4 pt-5 pb-3 overflow-y-auto space-y-3.5 bg-[#F8FAFC]">
-            
-            {/* Centered DMX-Style Friendly Welcome Hero (Zero ugly asterisks!) */}
             <div className="text-center space-y-1.5 pb-2">
               <div className="flex justify-center mb-2">
-                <FitVisionMascot size={62} className="drop-shadow-sm" />
+                <FitVisionMascot profile={profile} size={62} className="drop-shadow-sm" />
               </div>
               <p className="text-sm font-bold text-slate-900 leading-snug">
-                {locale === 'en' ? 'Hello! I am ' : 'Chào bạn, mình là '}
-                <span className="text-blue-600">
-                  {locale === 'en' ? 'FitVision 3D Assistant' : 'Trợ lý FitVision 3D'}
+                {isEn ? 'Hello! I am ' : 'Chào bạn, mình là '}
+                <span className={profile.accentTextClass}>
+                  {isEn ? profile.titleEn : profile.titleVi}
                 </span>
               </p>
-              <p className="text-xs font-semibold text-slate-700">
-                {locale === 'en'
-                  ? 'I help you choose the right tailored size & outfit'
-                  : 'Mình giúp bạn chọn size chuẩn và phối đồ phù hợp'}
+              <p className="text-xs font-semibold text-slate-700 px-2">
+                {isEn ? profile.heroTaglineEn : profile.heroTaglineVi}
               </p>
 
-              {hasVerifiedMeasurements && userBody ? (
-                <p className="text-[11px] text-slate-500 leading-relaxed pt-1 px-2">
-                  {locale === 'en'
-                    ? `Synced profile: ${userBody.height_cm}cm · ${userBody.weight_kg}kg · Chest ${userBody.chest_cm}cm · Waist ${userBody.waist_cm}cm`
-                    : `Đã đồng bộ số đo: ${userBody.height_cm}cm · ${userBody.weight_kg}kg · Ngực ${userBody.chest_cm}cm · Eo ${userBody.waist_cm}cm`}
-                </p>
-              ) : (
-                <div className="pt-1 flex flex-col items-center gap-1.5">
-                  <p className="text-[11px] text-slate-500 leading-relaxed px-2">
-                    {!isAuthenticated
-                      ? locale === 'en'
-                        ? 'Sign in to sync your 3D body profile for personalized sizing'
-                        : 'Chưa đăng nhập · Đăng nhập để đồng bộ số đo riêng của bạn'
-                      : locale === 'en'
-                        ? 'No 3D measurements saved yet'
-                        : 'Tài khoản chưa lưu số đo 3D'}
+              {botId === 'customer' ? (
+                hasVerifiedMeasurements && userBody ? (
+                  <p className="text-[11px] text-slate-500 leading-relaxed pt-1 px-2">
+                    {isEn
+                      ? `Synced profile: ${userBody.height_cm}cm · ${userBody.weight_kg}kg · Chest ${userBody.chest_cm}cm · Waist ${userBody.waist_cm}cm`
+                      : `Đã đồng bộ số đo: ${userBody.height_cm}cm · ${userBody.weight_kg}kg · Ngực ${userBody.chest_cm}cm · Eo ${userBody.waist_cm}cm`}
                   </p>
-                  {!isAuthenticated && onOpenSignIn && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsOpen(false);
-                        onOpenSignIn();
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-bold transition-colors cursor-pointer"
-                    >
-                      <LogIn size={11} />
-                      <span>{locale === 'en' ? 'Sign In Now' : 'Đăng Nhập Ngay'}</span>
-                    </button>
-                  )}
+                ) : (
+                  <div className="pt-1 flex flex-col items-center gap-1.5">
+                    <p className="text-[11px] text-slate-500 leading-relaxed px-2">
+                      {!isAuthenticated
+                        ? isEn
+                          ? 'Sign in to sync your 3D body profile & personal orders'
+                          : 'Chưa đăng nhập · Đăng nhập để đồng bộ số đo & đơn hàng riêng'
+                        : isEn
+                          ? 'No 3D measurements saved yet'
+                          : 'Tài khoản chưa lưu số đo 3D'}
+                    </p>
+                    {!isAuthenticated && onOpenSignIn && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsOpen(false);
+                          onOpenSignIn();
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-bold transition-colors cursor-pointer"
+                      >
+                        <LogIn size={11} />
+                        <span>{isEn ? 'Sign In Now' : 'Đăng Nhập Ngay'}</span>
+                      </button>
+                    )}
+                  </div>
+                )
+              ) : (
+                <div className="pt-1 flex justify-center">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-semibold">
+                    <ShieldCheck size={11} />
+                    <span>
+                      {isEn
+                        ? 'Role-verified · Read-only advisory'
+                        : 'Phân quyền JWT · Chế độ tư vấn chỉ đọc'}
+                    </span>
+                  </span>
                 </div>
               )}
 
@@ -537,7 +540,6 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
               </div>
             </div>
 
-            {/* Chat Messages */}
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
@@ -548,7 +550,7 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
                   <div
                     className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed ${
                       isUser
-                        ? 'bg-blue-600 text-white rounded-br-sm shadow-xs'
+                        ? `${profile.bubbleBgClass} text-white rounded-br-sm shadow-xs`
                         : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-sm shadow-2xs'
                     }`}
                   >
@@ -561,11 +563,11 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
             {isTyping && (
               <div className="flex justify-start">
                 <div className="bg-white border border-slate-200/80 rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-1.5 shadow-2xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:0.15s]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-bounce [animation-delay:0.3s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0.15s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-bounce [animation-delay:0.3s]" />
                   <span className="text-xs text-slate-400 ml-1">
-                    {locale === 'en' ? 'Thinking...' : 'Đang kiểm tra thông số...'}
+                    {isEn ? profile.thinkingEn : profile.thinkingVi}
                   </span>
                 </div>
               </div>
@@ -574,33 +576,33 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Subtle Quick Suggestion Chips — Flex Wrap Compactly so Nothing Gets Clipped */}
+          {/* Quick Prompts */}
           <div className="px-3.5 pt-2 pb-1 bg-white border-t border-slate-100 flex flex-wrap items-center gap-1.5 flex-shrink-0">
             {quickPrompts.map((p, idx) => (
               <button
                 key={idx}
                 type="button"
-                onClick={() => handleSendMessage(p.query)}
-                className="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 hover:border-blue-300 text-[11px] font-medium transition-colors cursor-pointer"
+                onClick={() => void handleSendMessage(p.query)}
+                className={`whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-50 text-slate-600 border border-slate-200 text-[11px] font-medium transition-colors cursor-pointer ${profile.chipHoverClass}`}
               >
                 {p.label}
               </button>
             ))}
           </div>
 
-          {/* Rounded-Full Airy Input Capsule + Circle ArrowUp Button */}
+          {/* Input */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleSendMessage();
+              void handleSendMessage();
             }}
             className="px-3.5 py-2.5 bg-white flex items-center gap-2 flex-shrink-0"
           >
-            <div className="flex-1 h-10 rounded-full border border-slate-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 bg-white px-4 flex items-center transition-all">
+            <div className={`flex-1 h-10 rounded-full border border-slate-300 focus-within:ring-2 bg-white px-4 flex items-center transition-all ${profile.inputFocusClass}`}>
               <input
                 ref={inputRef}
                 type="text"
-                placeholder={locale === 'en' ? 'Message FitVision Assistant...' : 'Nhắn cho trợ lý FitVision...'}
+                placeholder={isEn ? profile.placeholderEn : profile.placeholderVi}
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 className="w-full bg-transparent border-0 text-xs sm:text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
@@ -612,7 +614,7 @@ Trang phục may đo chuẩn mực **không bao giờ cắt bằng khít với s
               aria-label="Send message"
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
                 inputMessage.trim() && !isTyping
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer active:scale-95'
+                  ? `${profile.sendBtnClass} text-white shadow-sm cursor-pointer active:scale-95`
                   : 'bg-slate-100 text-slate-400 cursor-not-allowed'
               }`}
             >
