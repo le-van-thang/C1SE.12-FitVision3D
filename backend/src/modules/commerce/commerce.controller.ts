@@ -370,12 +370,18 @@ export const commerceController = {
 
   async replyProductReview(req: Request, res: Response, next: NextFunction) {
     try {
+      if (!req.user) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập tài khoản Shop để phản hồi đánh giá.');
+      }
       const reviewId = parseInt(Array.isArray(req.params.reviewId) ? req.params.reviewId[0] : req.params.reviewId, 10);
       const reply = String(req.body?.reply || '').trim();
       if (!Number.isFinite(reviewId) || reply.length < 2) {
         throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Nội dung phản hồi không hợp lệ.');
       }
-      const updated = await commerceRepository.replyProductReview(reviewId, reply);
+      const updated = await commerceRepository.replyProductReview(reviewId, reply, {
+        sub: req.user.sub,
+        role: req.user.role,
+      });
       if (!updated) {
         throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy đánh giá.');
       }

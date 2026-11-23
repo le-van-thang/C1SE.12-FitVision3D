@@ -1126,8 +1126,49 @@ export const commerceRepository = {
     };
   },
 
-  async replyProductReview(reviewId: number, shopReply: string) {
+  async replyProductReview(
+    reviewId: number,
+    shopReply: string,
+    actor?: { sub: string; role: string }
+  ) {
     await ensureCommerceTablesAndSeed();
+
+    const reviewRows = await query<{
+      id: number;
+      product_id: string;
+      shop_id: string | null;
+      brand_name: string;
+    }>(
+      `SELECT r.id, r.product_id, p.shop_id, p.brand_name
+       FROM product_reviews r
+       INNER JOIN products p ON p.id = r.product_id
+       WHERE r.id = $1
+       LIMIT 1`,
+      [reviewId]
+    );
+    const reviewRow = reviewRows[0];
+    if (!reviewRow) return null;
+
+    if (actor && actor.role !== 'ADMIN') {
+      const shopRows = await query<{ id: string; shop_name: string }>(
+        'SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1',
+        [actor.sub]
+      );
+      const shop = shopRows[0];
+      const ownsProduct =
+        Boolean(shop) &&
+        (String(reviewRow.shop_id || '') === String(shop.id) ||
+          String(reviewRow.brand_name || '').toLowerCase() === String(shop.shop_name || '').toLowerCase());
+
+      if (!ownsProduct) {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Bạn không có quyền phản hồi đánh giá thuộc sản phẩm của cửa hàng khác.'
+        );
+      }
+    }
+
     const rows = await query(
       `UPDATE product_reviews SET shop_reply = $2 WHERE id = $1 RETURNING *`,
       [reviewId, shopReply]

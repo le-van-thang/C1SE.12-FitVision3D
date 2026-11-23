@@ -308,9 +308,25 @@ export const FashionStoreHome: React.FC = () => {
     setTimeout(() => setCopiedVoucherCode(null), 2000);
   };
 
-  // Cart
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  // Cart (persisted to localStorage so reload/F5 preserves items)
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const raw = localStorage.getItem('fv3d_smart_cart_v1');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fv3d_smart_cart_v1', JSON.stringify(cartItems));
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [cartItems]);
 
   // Drawers & Modals
   const [analysisProduct, setAnalysisProduct] = useState<FashionProduct | null>(null);
@@ -3141,13 +3157,15 @@ export const FashionStoreHome: React.FC = () => {
         onSignOut={signOut}
       />
 
-      {/* Floating FitVision 3D Assistant Mascot Chatbot */}
+      {/* Floating FitVision 3D Customer Stylist Chatbot */}
       <GeminiAssistantWidget
+        botId="customer"
+        accountKey={currentUser?.id || null}
         isAuthenticated={isAuthenticated}
         hasBodyProfile={hasBodyProfile}
         onOpenSignIn={openSignIn}
         userBody={
-          isAuthenticated && hasBodyProfile
+          !isAuthenticated && hasBodyProfile
             ? {
                 height_cm: userBody.height_cm,
                 weight_kg: userBody.weight_kg,
@@ -3155,7 +3173,15 @@ export const FashionStoreHome: React.FC = () => {
                 waist_cm: userBody.waist_cm,
                 hip_cm: userBody.hip_cm,
               }
-            : undefined
+            : isAuthenticated && hasBodyProfile
+              ? {
+                  height_cm: userBody.height_cm,
+                  weight_kg: userBody.weight_kg,
+                  chest_cm: userBody.chest_cm,
+                  waist_cm: userBody.waist_cm,
+                  hip_cm: userBody.hip_cm,
+                }
+              : undefined
         }
       />
 

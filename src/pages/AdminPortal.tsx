@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import { useOrders } from '@/context/OrderContext';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import {
@@ -1478,6 +1479,13 @@ export const AdminPortal: React.FC = () => {
         )}
         </main>
       </div>
+      {isAuthenticated && isAdmin && (
+        <GeminiAssistantWidget
+          botId="admin"
+          accountKey={currentUser?.id || null}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
     </div>
   );
 };

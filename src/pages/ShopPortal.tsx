@@ -32,6 +32,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import {
   commerceApi,
   type DbProduct,
@@ -1901,6 +1902,13 @@ export const ShopPortal: React.FC = () => {
         </main>
       </div>
       <AuthModal />
+      {isAuthenticated && userRole === 'store' && (
+        <GeminiAssistantWidget
+          botId="shop"
+          accountKey={currentUser?.id || null}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
     </div>
   );
 };

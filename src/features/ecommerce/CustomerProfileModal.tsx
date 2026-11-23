@@ -124,11 +124,11 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
       const details = getUserProfileDetails(currentUser.id);
       setFormData({
         fullName: currentUser.full_name || '',
-        phone: details.phone || '0988 123 456',
-        city: details.city || 'Đà Nẵng',
-        address: details.address || '123 Nguyễn Văn Linh, P. Hải Châu',
+        phone: details.phone || '',
+        city: details.city || '',
+        address: details.address || '',
         gender: details.gender || 'male',
-        notes: details.notes || 'May đo phom dáng chuẩn, vải tự nhiên',
+        notes: details.notes || '',
       });
     }
   }, [isOpen, currentUser, initialTab, getUserProfileDetails]);
