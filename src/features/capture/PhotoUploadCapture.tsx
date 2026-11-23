@@ -129,37 +129,6 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
     setFrontImage({ file, url, name: file.name });
   };
 
-  const loadSamplePhoto = async () => {
-    try {
-      const res = await fetch("/hero-avatar.jpg");
-      const blob = await res.blob();
-      const file = new File([blob], "sample_a_pose.jpg", { type: "image/jpeg" });
-      const url = URL.createObjectURL(blob);
-      setFrontImage({ file, url, name: "sample_a_pose.jpg" });
-    } catch {
-      // Fallback: create dummy image canvas if asset is missing
-      const canvas = document.createElement("canvas");
-      canvas.width = 600;
-      canvas.height = 900;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "#0f172a";
-        ctx.fillRect(0, 0, 600, 900);
-        ctx.fillStyle = "#38bdf8";
-        ctx.font = "24px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("Standard A-Pose Sample", 300, 450);
-      }
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], "standard_a_pose.jpg", { type: "image/jpeg" });
-          const url = URL.createObjectURL(blob);
-          setFrontImage({ file, url, name: "standard_a_pose.jpg" });
-        }
-      }, "image/jpeg");
-    }
-  };
-
   const handleStartScan = () => {
     if (!frontImage) return;
     const finalHeight = parseFloat(height) || initialHeight || 172;
@@ -182,16 +151,6 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
             <span>{t("cap.frontLabel", "Ảnh toàn thân chính diện (A-Pose)")}</span>
             <span className="text-rose-500 font-black">*</span>
           </label>
-          {!frontImage && (
-            <button
-              type="button"
-              onClick={loadSamplePhoto}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border-2 border-blue-200 text-xs font-black shadow-2xs transition-all cursor-pointer hover:scale-105 active:scale-95"
-            >
-              <Sparkles size={13} className="text-amber-500" />
-              <span>{t("cap.loadSample", "Nạp ảnh mẫu A-Pose")}</span>
-            </button>
-          )}
         </div>
 
         {frontImage ? (
@@ -396,7 +355,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
       <button
         type="button"
         disabled={isProcessing}
-        onClick={frontImage ? handleStartScan : loadSamplePhoto}
+        onClick={frontImage ? handleStartScan : () => frontInputRef.current?.click()}
         className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 ${
           isProcessing
             ? 'bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed'
@@ -427,7 +386,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
         ) : (
           <>
             <Camera size={16} className="text-blue-300" />
-            <span>{t("cap.loadSamplePrompt", "Nạp Ảnh Mẫu & Bắt Đầu Quét 3D")}</span>
+            <span>{t("cap.selectRealPhoto", "Chọn Ảnh Toàn Thân Để Đo 3D")}</span>
           </>
         )}
       </button>

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X,
+  ArrowLeft,
   Sparkles,
   RotateCcw,
   Undo2,
@@ -690,6 +691,14 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
         {/* ── TOP FROSTED GLASS CONTROL BAR ── */}
         <header className="relative z-20 h-16 px-4 sm:px-6 border-b border-white/15 bg-stone-950/75 backdrop-blur-xl flex items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white border border-white/20 text-xs font-bold transition-all cursor-pointer shrink-0"
+            >
+              <ArrowLeft size={14} />
+              <span className="hidden sm:inline">{locale === 'en' ? 'Back' : 'Quay lại'}</span>
+            </button>
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shrink-0">
               <Sparkles size={16} />
             </div>

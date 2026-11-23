@@ -28,14 +28,13 @@ import { MannequinViewer, type MetricKey } from "../features/avatar3d/MannequinV
 import { MeasurementsPanel } from "../features/anthropometry/MeasurementsPanel";
 import { AiGarmentCard } from "../features/anthropometry/AiGarmentCard";
 import { runAiMeasurement, type AiMeasurementResponse } from "../services/aiService";
-import { recommendGarmentSizes } from "../utils/garmentSizeCalculator";
 import {
   saveFullScanSnapshot,
   loadFullScanSnapshot,
   hydrateBodyProfileFromBackend,
   clearFullScanSnapshot,
 } from "../utils/bodyProfileStorage";
-import { DEMO_BIOMETRIC, DEMO_MEASUREMENT, DEMO_MESH, bmi } from "../data/mockData";
+import { bmi } from "../data/mockData";
 import type { BiometricInput, Measurement, MeshParameter, SystemAuditLog } from "../types/database.types";
 
 type Tab = "capture" | "mesh" | "metrics";
@@ -76,7 +75,6 @@ export const Dashboard: React.FC = () => {
   const [processing, setProcessing] = useState(false);
   const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [executionTime, setExecutionTime] = useState(1.25);
-  const [demo, setDemo] = useState(false);
   const [tab, setTab] = useState<Tab>("capture");
   const [activeMetric, setActiveMetric] = useState<MetricKey>("chest_circ_cm");
 
@@ -107,6 +105,10 @@ export const Dashboard: React.FC = () => {
       weight_kg: number;
       gender: "male" | "female" | "neutral";
     }) => {
+      if (!isAuthenticated) {
+        setLockedFeature(t("app.dash.featMeasure", "Đo 3D với Model AI SMPLer-X"));
+        return;
+      }
       const t0 = performance.now();
       setProcessing(true);
 
@@ -220,69 +222,21 @@ export const Dashboard: React.FC = () => {
         setTab("mesh");
       } catch (err) {
         console.error("Lỗi trích xuất đo đạc:", err);
+        alert(
+          err instanceof Error
+            ? err.message
+            : "Không thể kết nối tới Model AI (Port 8000). Vui lòng kiểm tra AI Server!"
+        );
       } finally {
         setProcessing(false);
       }
     },
-    [currentUser?.id]
+    [currentUser?.id, isAuthenticated, t]
   );
 
   function dai_chan_inseam_cm_fallback(val: number | undefined, h: number): number {
     return val && val > 30 ? val : Math.round(h * 0.46 * 10) / 10;
   }
-
-  // Load Demo Data for fast preview
-  const handleLoadDemo = useCallback(() => {
-    setDemo(true);
-    const demoMeas: Measurement = {
-      ...DEMO_MEASUREMENT,
-      arm_length_cm: 58.5,
-    };
-    setBiometric(DEMO_BIOMETRIC);
-    setMeasurement(demoMeas);
-    setMesh(DEMO_MESH);
-
-    const demoSizing = recommendGarmentSizes({
-      gender: "male",
-      height_cm: DEMO_BIOMETRIC.stature_cm,
-      weight_kg: DEMO_BIOMETRIC.weight_kg,
-      chest_cm: DEMO_MEASUREMENT.chest_circ_cm,
-      waist_cm: DEMO_MEASUREMENT.waist_circ_cm,
-      hips_cm: DEMO_MEASUREMENT.hip_circ_cm,
-      shoulder_cm: DEMO_MEASUREMENT.shoulder_breadth_cm ?? undefined,
-      inseam_cm: DEMO_MEASUREMENT.inseam_cm ?? undefined,
-    });
-
-    const demoRec = {
-      topwear_shirt_size: demoSizing.topwear.recommended_label,
-      bottomwear_trouser_size: demoSizing.bottomwear.tag,
-      waist_inches: demoSizing.bottomwear.waist_inches,
-      inseam_inches: demoSizing.bottomwear.inseam_inches,
-      body_shape_classification: demoSizing.body_shape_classification,
-      ease_allowance_recommendation: demoSizing.ease_allowance_recommendation,
-      topwear: demoSizing.topwear,
-      bottomwear: demoSizing.bottomwear,
-    };
-
-    setGarmentRec(demoRec);
-    setIsLiveBackend(false);
-    setExecutionTime(0.85);
-
-    if (currentUser?.id) {
-      saveFullScanSnapshot(
-        currentUser.id,
-        {
-          measurement: demoMeas,
-          biometric: DEMO_BIOMETRIC,
-          mesh: DEMO_MESH,
-          garmentRec: demoRec,
-          isLiveBackend: false,
-          executionTime: 0.85,
-        },
-        "demo"
-      );
-    }
-  }, [currentUser?.id]);
 
   const resetAll = () => {
     clearFullScanSnapshot(currentUser?.id);
@@ -291,13 +245,12 @@ export const Dashboard: React.FC = () => {
     setBiometric(null);
     setGarmentRec(null);
     setAudit(null);
-    setDemo(false);
     setTab("capture");
   };
 
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
-      <Navbar onDemoMode={handleLoadDemo} isDemoMode={demo} />
+      <Navbar />
 
       <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8" id="dashboard-main">
         {/* Top Header & Audit Badges (Sáng sủa, thời thượng, tương phản cao) */}
@@ -375,8 +328,8 @@ export const Dashboard: React.FC = () => {
           </section>
 
           {/* COLUMN 2: 3D Humanoid Wireframe Topology Viewport */}
-          <section className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
-            <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-3 hover:border-slate-400 transition-all relative flex flex-col">
+          <section className={`lg:col-span-4 min-w-0 flex flex-col relative z-0 isolate ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
+            <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-3 hover:border-slate-400 transition-all relative z-0 isolate flex flex-col">
               <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100">
                 <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
                   {t("app.dash.meshTitle", "MÔ HÌNH 3D VÓC DÁNG")}
@@ -391,7 +344,7 @@ export const Dashboard: React.FC = () => {
                 </span>
               </div>
 
-              <div className="flex-1 min-h-[560px] rounded-2xl overflow-hidden border-2 border-slate-900 bg-slate-950 shadow-inner">
+              <div className="flex-1 min-h-[560px] rounded-2xl overflow-hidden relative z-0 isolate border-2 border-slate-900 bg-slate-950 shadow-inner">
                 <MannequinViewer
                   meshParams={mesh}
                   measurement={locked ? null : measurement}
