@@ -40,6 +40,23 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 }
 
 /**
+ * Middleware xác thực tùy chọn: gắn req.user nếu có Bearer token hợp lệ,
+ * nhưng KHÔNG chặn khách vãng lai (Guest) khi không có token.
+ */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      req.user = verifyAccessToken(token);
+    } catch {
+      // Ignore expired/invalid optional token — downstream treats actor as guest
+    }
+  }
+  next();
+}
+
+/**
  * Middleware phân quyền Role-Based Access Control (RBAC)
  * Tuân thủ @.agent/rules/03-rbac-authorization-rules.md
  */
