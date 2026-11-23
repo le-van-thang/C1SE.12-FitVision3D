@@ -80,7 +80,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         discount_amount: input.discount_amount,
         total_amount: input.total_amount,
         payment_method: input.payment_method,
-        payment_status: input.payment_method === 'vietqr_sepay' ? 'paid' : 'unpaid',
+        payment_status: 'unpaid',
         status: 'pending',
         created_at: new Date().toISOString(),
         store_name: input.store_name || (input.items[0]?.product.brand_name ?? 'FitVision Atelier'),
@@ -97,7 +97,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           showGlobalToast({
             type: 'success',
             title: `Đặt đơn hàng ${orderId} thành công!`,
-            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫ · Đã trừ kho & lưu hệ thống.`,
+            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫.`,
           });
           window.dispatchEvent(new Event('fv3d-membership-updated'));
         } else if (res.error && res.error.code !== 'NETWORK_ERROR') {
@@ -111,7 +111,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           showGlobalToast({
             type: 'success',
             title: `Đặt đơn hàng ${orderId} thành công!`,
-            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫ · Đã lưu cục bộ.`,
+            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫.`,
           });
         }
       });

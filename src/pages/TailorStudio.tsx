@@ -3,7 +3,9 @@
 // Client biometric dossiers, 3D body morphing & precision specs
 // Integrated: Dossier Code · QR Code Exchange · E2EE Token Security
 // ============================================================
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { jsPDF } from "jspdf";
 import {
   FileDown,
   KeyRound,
@@ -23,7 +25,9 @@ import {
 import { Navbar } from "../components/common/Navbar";
 import { useI18n } from "../i18n";
 import { MeshViewport } from "../features/anthropometry/MeshViewport";
-import { DOSSIERS } from "../data/mockData";
+import { DOSSIERS, bmi, type DossierRecord } from "../data/mockData";
+import { commerceApi } from "../services/commerceApi";
+import type { Order } from "../features/ecommerce/types";
 
 const Spec: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="zf-row">
@@ -138,8 +142,84 @@ const SvgQrCode: React.FC<{ text: string; size?: number }> = ({ text, size = 180
   );
 };
 
+function orderToDossier(order: Order): DossierRecord | null {
+  const s = order.measurement_snapshot;
+  if (!s) return null;
+  const gender: "male" | "female" | "other" =
+    s.gender === "female" ? "female" : s.gender === "neutral" ? "other" : "male";
+  const stature = Number(s.stature_cm || 170);
+  const weight = Number(s.weight_kg || 65);
+  const chest = Number(s.chest_circ_cm || 92);
+  const waist = Number(s.waist_circ_cm || 78);
+  const hips = Number(s.hip_circ_cm || 94);
+  return {
+    profile: {
+      id: order.customer_id || `cust-${order.id}`,
+      full_name: order.recipient?.full_name || order.customer_name || `Khách #${order.id}`,
+      email: order.recipient?.phone
+        ? `SĐT: ${order.recipient.phone}${order.recipient.note ? ` · ${order.recipient.note}` : ""}`
+        : `Đơn hàng #${order.id}`,
+      role: "customer",
+      avatar_url: null,
+      created_at: order.created_at,
+      updated_at: order.created_at,
+    },
+    biometric: {
+      id: `bio-${order.id}`,
+      user_id: order.customer_id || `cust-${order.id}`,
+      stature_cm: stature,
+      weight_kg: weight,
+      gender,
+      calculated_bmi: s.calculated_bmi ?? bmi(weight, stature),
+      created_at: s.captured_at || order.created_at,
+    },
+    measurement: {
+      id: `mea-${order.id}`,
+      user_id: order.customer_id || `cust-${order.id}`,
+      input_id: `bio-${order.id}`,
+      chest_circ_cm: chest,
+      waist_circ_cm: waist,
+      hip_circ_cm: hips,
+      shoulder_breadth_cm: s.shoulder_breadth_cm ?? 43,
+      arm_length_cm: s.arm_length_cm ?? 58,
+      inseam_cm: s.inseam_cm ?? 77,
+      bicep_circ_cm: s.bicep_circ_cm ?? null,
+      wrist_circ_cm: s.wrist_circ_cm ?? null,
+      thigh_circ_cm: s.thigh_circ_cm ?? null,
+      calf_circ_cm: s.calf_circ_cm ?? null,
+      ankle_circ_cm: s.ankle_circ_cm ?? null,
+      extraction_confidence: 0.96,
+      created_at: s.captured_at || order.created_at,
+    },
+    mesh: {
+      id: `msh-${order.id}`,
+      measurement_id: `mea-${order.id}`,
+      base_gender_mesh: gender === "female" ? "female_base" : gender === "male" ? "male_base" : "neutral_base",
+      scale_chest: Math.round((chest / 88) * 1000) / 1000,
+      scale_waist: Math.round((waist / 80) * 1000) / 1000,
+      scale_hips: Math.round((hips / 94) * 1000) / 1000,
+      morph_payload: null,
+      created_at: s.captured_at || order.created_at,
+    },
+    dossier: {
+      id: `dos-${order.id}`,
+      measurement_id: `mea-${order.id}`,
+      tailor_id: "usr-tailor-live",
+      access_token: `fv3d_order_${order.id.toLowerCase().replace(/[^a-z0-9]/g, "")}_live_token`,
+      token_expires_at: "2027-12-31T23:59:59Z",
+      pdf_export_url: null,
+      created_at: order.created_at,
+    },
+    dossier_code: order.id,
+  };
+}
+
 export const TailorStudio: React.FC = () => {
   const { t } = useI18n();
+  const [searchParams] = useSearchParams();
+  const requestedOrderId = searchParams.get("orderId");
+
+  const [dossiers, setDossiers] = useState<DossierRecord[]>(() => [...DOSSIERS]);
   const [idx, setIdx] = useState(0);
   const [inputVal, setInputVal] = useState(DOSSIERS[0].dossier_code);
   const [showFullToken, setShowFullToken] = useState(false);
@@ -147,7 +227,47 @@ export const TailorStudio: React.FC = () => {
   const [copiedType, setCopiedType] = useState<"code" | "token" | "link" | null>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  const rec = DOSSIERS[idx];
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const dashRes = await commerceApi.getShopDashboard();
+      const rawOrders: Order[] =
+        dashRes.success && dashRes.data?.orders
+          ? dashRes.data.orders
+          : await commerceApi.getOrders().then((r) => (r.success && Array.isArray(r.data) ? r.data : []));
+      if (!active) return;
+
+      const liveRecords = rawOrders
+        .map(orderToDossier)
+        .filter((d): d is DossierRecord => d !== null);
+
+      if (liveRecords.length > 0) {
+        const merged = [...liveRecords, ...DOSSIERS];
+        setDossiers(merged);
+        if (requestedOrderId) {
+          const hitIdx = merged.findIndex(
+            (d) => d.dossier_code.toLowerCase() === requestedOrderId.toLowerCase()
+          );
+          if (hitIdx >= 0) {
+            setIdx(hitIdx);
+            setInputVal(merged[hitIdx].dossier_code);
+            setNotice({
+              kind: "ok",
+              text: `Đã nạp số đo thật từ đơn hàng ${merged[hitIdx].dossier_code} · ${merged[hitIdx].profile.full_name}`,
+            });
+            return;
+          }
+        }
+        setIdx(0);
+        setInputVal(merged[0].dossier_code);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [requestedOrderId]);
+
+  const rec = dossiers[idx] || DOSSIERS[0];
   const { profile, biometric: b, measurement: m, mesh, dossier, dossier_code } = rec;
 
   const copyToClipboard = (text: string, type: "code" | "token" | "link") => {
@@ -161,8 +281,8 @@ export const TailorStudio: React.FC = () => {
     const query = inputVal.trim().toLowerCase();
     if (!query) return setNotice({ kind: "err", text: "Vui lòng nhập mã hồ sơ hoặc token." });
 
-    // Match by dossier_code (e.g. FV-8492-AN or 8492) OR full access_token
-    const hit = DOSSIERS.findIndex(
+    // Match by dossier_code (e.g. FV-8492-AN or FV3D-12345) OR full access_token
+    const hit = dossiers.findIndex(
       (d) =>
         d.dossier_code.toLowerCase() === query ||
         d.dossier_code.toLowerCase().includes(query) ||
@@ -177,26 +297,77 @@ export const TailorStudio: React.FC = () => {
       });
     }
 
-    if (new Date(DOSSIERS[hit].dossier.token_expires_at) < new Date()) {
+    if (new Date(dossiers[hit].dossier.token_expires_at) < new Date()) {
       return setNotice({ kind: "err", text: "Mã hồ sơ này đã hết hạn hiệu lực." });
     }
 
     setIdx(hit);
-    setInputVal(DOSSIERS[hit].dossier_code);
+    setInputVal(dossiers[hit].dossier_code);
     setNotice({
       kind: "ok",
-      text: `Đã xác thực thành công hồ sơ ${DOSSIERS[hit].dossier_code} · ${DOSSIERS[hit].profile.full_name}`,
+      text: `Đã xác thực thành công hồ sơ ${dossiers[hit].dossier_code} · ${dossiers[hit].profile.full_name}`,
     });
   };
 
   const pick = (i: number) => {
     setIdx(i);
-    setInputVal(DOSSIERS[i].dossier_code);
+    setInputVal(dossiers[i].dossier_code);
     setNotice(null);
   };
 
-  const exportPdf = () =>
-    dossier.pdf_export_url ? window.open(dossier.pdf_export_url, "_blank") : window.print();
+  const exportPdf = () => {
+    try {
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("FITVISION 3D - BESPOKE TECH PACK (ISO 8559-1)", 15, 20);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text(`Order / Dossier Code: ${dossier_code}`, 15, 32);
+      doc.text(`Customer: ${profile.full_name}`, 15, 39);
+      doc.text(`Contact / Notes: ${profile.email}`, 15, 46);
+      doc.text(`Gender Base: ${mesh.base_gender_mesh} | Height: ${b.stature_cm} cm | Weight: ${b.weight_kg} kg | BMI: ${b.calculated_bmi ?? "-"}`, 15, 53);
+
+      doc.setDrawColor(180);
+      doc.line(15, 58, 195, 58);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("BODY MEASUREMENTS (CM)", 15, 68);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      const rows: [string, number | null | undefined][] = [
+        ["Chest Circumference", m.chest_circ_cm],
+        ["Waist Circumference", m.waist_circ_cm],
+        ["Hip Circumference", m.hip_circ_cm],
+        ["Shoulder Breadth", m.shoulder_breadth_cm],
+        ["Arm Length", m.arm_length_cm],
+        ["Inseam", m.inseam_cm],
+        ["Bicep Circumference", m.bicep_circ_cm],
+        ["Wrist Circumference", m.wrist_circ_cm],
+        ["Thigh Circumference", m.thigh_circ_cm],
+        ["Calf Circumference", m.calf_circ_cm],
+        ["Ankle Circumference", m.ankle_circ_cm],
+      ];
+      let y = 76;
+      for (const [label, val] of rows) {
+        doc.text(`${label}:`, 18, y);
+        doc.text(val != null ? `${Number(val).toFixed(1)} cm` : "-", 95, y);
+        y += 7;
+      }
+
+      doc.line(15, y + 4, 195, y + 4);
+      doc.setFont("helvetica", "bold");
+      doc.text("3D MESH MORPH SCALES", 15, y + 14);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Chest Scale: ${mesh.scale_chest.toFixed(3)}   Waist Scale: ${mesh.scale_waist.toFixed(3)}   Hips Scale: ${mesh.scale_hips.toFixed(3)}`, 15, y + 22);
+      doc.setFontSize(9);
+      doc.text(`Generated by FitVision 3D Tailor Studio at ${new Date().toISOString()}`, 15, 280);
+      doc.save(`TechPack-${dossier_code}.pdf`);
+    } catch {
+      dossier.pdf_export_url ? window.open(dossier.pdf_export_url, "_blank") : window.print();
+    }
+  };
 
   const maskedToken = `fv3d_tok_••••••••••••${dossier.access_token.slice(-6)}`;
 
@@ -539,7 +710,7 @@ export const TailorStudio: React.FC = () => {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {DOSSIERS.map((d, i) => (
+              {dossiers.map((d, i) => (
                 <button
                   key={d.profile.id}
                   id={`client-${i}`}
