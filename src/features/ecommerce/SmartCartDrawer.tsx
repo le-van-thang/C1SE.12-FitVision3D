@@ -7,6 +7,9 @@ interface SmartCartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   items: CartItem[];
+  selectedIds?: string[];
+  onToggleSelectItem?: (id: string) => void;
+  onToggleSelectAll?: () => void;
   onRemoveItem: (id: string) => void;
   onUpdateQuantity: (id: string, delta: number) => void;
   onChangeVariant?: (id: string, variantId: string) => void;
@@ -20,6 +23,9 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
   isOpen,
   onClose,
   items,
+  selectedIds,
+  onToggleSelectItem,
+  onToggleSelectAll,
   onRemoveItem,
   onUpdateQuantity,
   onChangeVariant,
@@ -31,12 +37,15 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
   if (!isOpen) return null;
 
   const isEn = locale === 'en';
+  const activeSelectedIds = selectedIds ?? items.map((i) => i.id);
+  const selectedItems = items.filter((i) => activeSelectedIds.includes(i.id));
+  const allSelected = items.length > 0 && selectedItems.length === items.length;
 
-  const totalAmount = items.reduce(
+  const totalAmount = selectedItems.reduce(
     (sum, item) => sum + (item.product.sale_price || item.product.price) * item.quantity,
     0
   );
-  const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalQty = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
   const remainingForFreeship = Math.max(0, FREESHIP_THRESHOLD - totalAmount);
   const freeshipProgress = Math.min(100, Math.round((totalAmount / FREESHIP_THRESHOLD) * 100));
 
@@ -101,11 +110,21 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                 />
               </div>
 
-              {onClearCart && (
-                <div className="flex items-center justify-between pt-0.5 text-[11px]">
-                  <span className="text-slate-600 font-medium">
-                    {isEn ? `${items.length} line item(s)` : `${items.length} mẫu trong giỏ`}
+              <div className="flex items-center justify-between pt-0.5 text-[11px]">
+                <label className="inline-flex items-center gap-2 font-bold text-slate-800 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() => onToggleSelectAll?.()}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>
+                    {isEn
+                      ? `Select all (${selectedItems.length}/${items.length})`
+                      : `Chọn tất cả (${selectedItems.length}/${items.length})`}
                   </span>
+                </label>
+                {onClearCart && (
                   <button
                     type="button"
                     onClick={onClearCart}
@@ -113,8 +132,8 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                   >
                     {isEn ? 'Clear all' : 'Xóa tất cả'}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
@@ -141,11 +160,24 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                 </button>
               </div>
             ) : (
-              items.map((item) => (
+              items.map((item) => {
+                const isSelected = activeSelectedIds.includes(item.id);
+                return (
                 <div
                   key={item.id}
-                  className="p-3.5 rounded-2xl border border-slate-200 bg-white shadow-2xs flex gap-3.5"
+                  className={`p-3.5 rounded-2xl border bg-white shadow-2xs flex gap-3 transition-opacity ${
+                    isSelected ? 'border-slate-200' : 'border-slate-200/60 opacity-70'
+                  }`}
                 >
+                  <div className="flex items-center pt-1">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleSelectItem?.(item.id)}
+                      aria-label={`Select ${item.product.name}`}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </div>
                   <img
                     src={item.product.image_url}
                     alt={item.product.name}
@@ -237,7 +269,8 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
 
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -265,10 +298,21 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
 
               <button
                 type="button"
+                disabled={selectedItems.length === 0}
                 onClick={onCheckout}
-                className="w-full py-3.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all ${
+                  selectedItems.length > 0
+                    ? 'bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white cursor-pointer'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
               >
-                <span>{t('ecommerce.drawer.checkout', 'Tiến Hành Đặt Hàng Ngay')}</span>
+                <span>
+                  {selectedItems.length > 0
+                    ? `${t('ecommerce.drawer.checkout', 'Tiến Hành Đặt Hàng Ngay')} (${selectedItems.length})`
+                    : isEn
+                      ? 'Select at least 1 item'
+                      : 'Vui lòng chọn ít nhất 1 sản phẩm'}
+                </span>
                 <ArrowRight size={16} />
               </button>
 

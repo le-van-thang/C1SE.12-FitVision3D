@@ -35,6 +35,7 @@ interface FitAnalysisDrawerProps {
   fitResult: FitMatchResult | null;
   onSelectSize: (variant: ProductVariant) => void;
   onAddToCart: () => void;
+  onBuyNow?: () => void;
   onAddSuggestedToCart?: (product: FashionProduct, variant?: ProductVariant) => void;
   onOpenVirtualStudio?: () => void;
 }
@@ -48,6 +49,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   fitResult,
   onSelectSize,
   onAddToCart,
+  onBuyNow,
   onAddSuggestedToCart,
   onOpenVirtualStudio,
 }) => {
@@ -908,19 +910,34 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
 
           {/* Footer Actions + Compact Trust Strip */}
           <div className="p-5 border-t border-slate-200 bg-white space-y-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                onAddToCart();
-                onClose();
-              }}
-              className="w-full py-3.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <span>
-                {t('ecommerce.drawer.addToCartSize', 'Thêm Size {size} Vào Giỏ Hàng').replace('{size}', selectedVariant.size_label)}
-              </span>
-              <ChevronRight size={16} />
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  onAddToCart();
+                  onClose();
+                }}
+                className="flex-1 py-3.5 px-3 rounded-xl bg-white hover:bg-slate-50 border-2 border-slate-900 text-slate-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span>{isEn ? 'Add to Cart' : 'Thêm Vào Giỏ'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onBuyNow) onBuyNow();
+                  else onAddToCart();
+                  onClose();
+                }}
+                className="flex-[1.3] py-3.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span>
+                  {isEn
+                    ? `Buy Size ${selectedVariant.size_label} Now`
+                    : `Mua Ngay Size ${selectedVariant.size_label}`}
+                </span>
+                <ChevronRight size={16} />
+              </button>
+            </div>
             <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500">
               <span className="flex items-center gap-1">
                 <ShieldCheck size={13} className="text-emerald-600" />

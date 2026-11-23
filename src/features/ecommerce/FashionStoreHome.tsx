@@ -319,6 +319,10 @@ export const FashionStoreHome: React.FC = () => {
     }
   });
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [selectedCartIds, setSelectedCartIds] = useState<string[]>(() =>
+    cartItems.map((ci) => ci.id)
+  );
+  const [directBuyItems, setDirectBuyItems] = useState<CartItem[] | null>(null);
 
   useEffect(() => {
     try {
@@ -326,6 +330,10 @@ export const FashionStoreHome: React.FC = () => {
     } catch {
       // ignore storage quota errors
     }
+    setSelectedCartIds((prev) => {
+      const validIds = new Set(cartItems.map((ci) => ci.id));
+      return prev.filter((id) => validIds.has(id));
+    });
   }, [cartItems]);
 
   // Drawers & Modals
@@ -508,34 +516,62 @@ export const FashionStoreHome: React.FC = () => {
     };
   }, [visibleCatalogProducts]);
 
-  // Cart Actions
+  // Cart Actions (newest added/updated item appears first at top of cart)
   const handleAddToCart = (product: FashionProduct, variant?: ProductVariant) => {
     const targetVariant = variant || product.variants[0];
     const fit = calculateProductFit(userBody, product);
+    const newId = `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    let selectedIdToActivate = newId;
 
     setCartItems((prev) => {
       const existing = prev.find(
         (ci) => ci.product.id === product.id && ci.variant.id === targetVariant.id
       );
       if (existing) {
-        return prev.map((ci) =>
-          ci.id === existing.id ? { ...ci, quantity: ci.quantity + 1 } : ci
-        );
+        selectedIdToActivate = existing.id;
+        const updatedExisting = { ...existing, quantity: existing.quantity + 1 };
+        const others = prev.filter((ci) => ci.id !== existing.id);
+        return [updatedExisting, ...others];
       }
       return [
-        ...prev,
         {
-          id: `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          id: newId,
           product,
           variant: targetVariant,
           quantity: 1,
           fit_score: fit.match_percentage,
           is_ai_recommended: targetVariant.size_label === fit.recommended_size,
         },
+        ...prev,
       ];
     });
 
+    setSelectedCartIds((prev) =>
+      prev.includes(selectedIdToActivate) ? prev : [selectedIdToActivate, ...prev]
+    );
     setIsCartOpen(true);
+  };
+
+  // Direct Buy Now -> opens CheckoutModal directly with only this item
+  const handleBuyNow = (product: FashionProduct, variant?: ProductVariant) => {
+    if (!isAuthenticated) {
+      openSignIn();
+      return;
+    }
+    const targetVariant = variant || product.variants[0];
+    const fit = calculateProductFit(userBody, product);
+    setDirectBuyItems([
+      {
+        id: `buy-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        product,
+        variant: targetVariant,
+        quantity: 1,
+        fit_score: fit.match_percentage,
+        is_ai_recommended: targetVariant.size_label === fit.recommended_size,
+      },
+    ]);
+    setIsCartOpen(false);
+    setIsCheckoutModalOpen(true);
   };
 
   const handleChangeCartVariant = (cartItemId: string, newVariantId: string) => {
@@ -2502,21 +2538,31 @@ export const FashionStoreHome: React.FC = () => {
                             </button>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleAddToCart(product, product.recommendedVariant)}
-                            className="flex-1 py-2 px-3 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
-                            title={isAuthenticated && hasBodyProfile
-                              ? t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)
-                              : (locale === 'en' ? 'Add to Cart' : 'Thêm vào giỏ hàng')}
-                          >
-                            <ShoppingBag size={13} className="text-white" />
-                            <span>
-                              {isAuthenticated && hasBodyProfile
-                                ? t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)
-                                : (locale === 'en' ? 'Select & Buy' : 'Chọn Mua')}
-                            </span>
-                          </button>
+                          <div className="flex items-center gap-1.5 flex-1">
+                            <button
+                              type="button"
+                              onClick={() => handleAddToCart(product, product.recommendedVariant)}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors cursor-pointer shrink-0"
+                              title={locale === 'en' ? 'Add to Cart' : 'Thêm vào giỏ hàng'}
+                              aria-label={locale === 'en' ? 'Add to Cart' : 'Thêm vào giỏ hàng'}
+                            >
+                              <ShoppingBag size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleBuyNow(product, product.recommendedVariant)}
+                              className="flex-1 py-2 px-3 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                              title={isAuthenticated && hasBodyProfile
+                                ? t('ecommerce.catalog.buySizeTooltip', 'Mua ngay Size {size}').replace('{size}', fit.recommended_size)
+                                : (locale === 'en' ? 'Buy Now' : 'Mua ngay')}
+                            >
+                              <span>
+                                {isAuthenticated && hasBodyProfile
+                                  ? t('ecommerce.catalog.chooseSize', 'Mua Size {size}').replace('{size}', fit.recommended_size)
+                                  : (locale === 'en' ? 'Buy Now' : 'Mua Ngay')}
+                              </span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2963,6 +3009,11 @@ export const FashionStoreHome: React.FC = () => {
             handleAddToCart(analysisProduct, analysisVariant);
           }
         }}
+        onBuyNow={() => {
+          if (analysisProduct && analysisVariant) {
+            handleBuyNow(analysisProduct, analysisVariant);
+          }
+        }}
         onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant)}
         onOpenVirtualStudio={handleOpenVirtualStudio}
       />
@@ -2971,6 +3022,17 @@ export const FashionStoreHome: React.FC = () => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
+        selectedIds={selectedCartIds}
+        onToggleSelectItem={(id) =>
+          setSelectedCartIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+          )
+        }
+        onToggleSelectAll={() =>
+          setSelectedCartIds((prev) =>
+            prev.length === cartItems.length ? [] : cartItems.map((ci) => ci.id)
+          )
+        }
         onRemoveItem={(id) => setCartItems((prev) => prev.filter((i) => i.id !== id))}
         onUpdateQuantity={(id, delta) => {
           setCartItems((prev) =>
@@ -2984,19 +3046,36 @@ export const FashionStoreHome: React.FC = () => {
           );
         }}
         onChangeVariant={handleChangeCartVariant}
-        onClearCart={() => setCartItems([])}
+        onClearCart={() => {
+          setCartItems([]);
+          setSelectedCartIds([]);
+        }}
         onCheckout={() => {
+          setDirectBuyItems(null);
           setIsCartOpen(false);
           setIsCheckoutModalOpen(true);
         }}
       />
 
-      {/* 3-Step E-Commerce Checkout Modal (Học hỏi theo luồng chuẩn đồ án: Giỏ hàng -> Thông tin giao hàng & VietQR -> Đặt hàng thành công) */}
+      {/* 3-Step E-Commerce Checkout Modal (Học hỏi theo luồng chuẩn đồ án: Giỏ hàng / Mua ngay -> Thông tin giao hàng & VietQR -> Đặt hàng thành công) */}
       <CheckoutModal
         isOpen={isCheckoutModalOpen}
-        onClose={() => setIsCheckoutModalOpen(false)}
-        items={cartItems}
-        onClearCart={() => setCartItems([])}
+        onClose={() => {
+          setIsCheckoutModalOpen(false);
+          setDirectBuyItems(null);
+        }}
+        items={
+          directBuyItems ??
+          cartItems.filter((ci) => selectedCartIds.includes(ci.id))
+        }
+        onClearCart={() => {
+          if (directBuyItems) {
+            setDirectBuyItems(null);
+          } else {
+            setCartItems((prev) => prev.filter((ci) => !selectedCartIds.includes(ci.id)));
+            setSelectedCartIds([]);
+          }
+        }}
         userBody={userBody}
         onOpenMyOrders={() => {
           setIsCheckoutModalOpen(false);

@@ -74,4 +74,25 @@ describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Securit
     assert.match(fnBody, /if \(!ownsProduct\)/);
     assert.match(fnBody, /throw new AppError\(\s*403,/);
   });
+
+  it('TC-COM-06: cart prepends new items, supports selective checkboxes, and provides direct Buy Now checkout', () => {
+    const storeHomeSrc = fs.readFileSync(
+      path.join(REPO_ROOT, 'src', 'features', 'ecommerce', 'FashionStoreHome.tsx'),
+      'utf8'
+    );
+    const cartDrawerSrc = fs.readFileSync(
+      path.join(REPO_ROOT, 'src', 'features', 'ecommerce', 'SmartCartDrawer.tsx'),
+      'utf8'
+    );
+
+    // Prepend newest item to top of cart
+    assert.match(storeHomeSrc, /return \[updatedExisting,\s*\.\.\.others\]/);
+    // Direct Buy Now opens CheckoutModal without dumping into cart
+    assert.match(storeHomeSrc, /const handleBuyNow =/);
+    assert.match(storeHomeSrc, /setDirectBuyItems\(/);
+    // Selective checkout preserves unselected items
+    assert.match(cartDrawerSrc, /selectedItems/);
+    assert.match(cartDrawerSrc, /onToggleSelectItem/);
+    assert.match(cartDrawerSrc, /onToggleSelectAll/);
+  });
 });
