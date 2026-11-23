@@ -5,31 +5,35 @@ import datetime
 import shutil
 from mmcv import Config as MMConfig
 
+def _norm_path(p: str) -> str:
+    return p.replace('\\', '/')
+
+
 class Config:
     def __init__(self):
         # Khởi tạo sẵn các đường dẫn cốt lõi ngay khi tạo đối tượng cfg = Config()
         # Tránh lỗi AttributeError: 'Config' object has no attribute 'human_model_path'
-        self.cur_dir = osp.dirname(os.path.abspath(__file__))
-        self.root_dir = osp.abspath(osp.join(self.cur_dir, '..'))
-        self.data_dir = osp.join(self.root_dir, 'dataset')
-        self.human_model_path = osp.join(self.root_dir, 'common', 'utils', 'human_model_files')
+        self.cur_dir = _norm_path(osp.dirname(os.path.abspath(__file__)))
+        self.root_dir = _norm_path(osp.abspath(osp.join(self.cur_dir, '..')))
+        self.data_dir = _norm_path(osp.join(self.root_dir, 'dataset'))
+        self.human_model_path = _norm_path(osp.join(self.root_dir, 'common', 'utils', 'human_model_files'))
 
     def get_config_fromfile(self, config_path):
-        self.config_path = config_path
+        self.config_path = _norm_path(config_path)
         cfg = MMConfig.fromfile(self.config_path)
         self.__dict__.update(dict(cfg))
 
-        # Cập nhật lại đường dẫn sau khi nạp config
-        self.cur_dir = osp.dirname(os.path.abspath(__file__))
-        self.root_dir = osp.abspath(osp.join(self.cur_dir, '..'))
-        self.data_dir = osp.join(self.root_dir, 'dataset')
-        self.human_model_path = osp.join(self.root_dir, 'common', 'utils', 'human_model_files')
+        # Cập nhật lại đường dẫn sau khi nạp config (chuẩn POSIX slash tránh lỗi yapf \uXXXX trên Windows)
+        self.cur_dir = _norm_path(osp.dirname(os.path.abspath(__file__)))
+        self.root_dir = _norm_path(osp.abspath(osp.join(self.cur_dir, '..')))
+        self.data_dir = _norm_path(osp.join(self.root_dir, 'dataset'))
+        self.human_model_path = _norm_path(osp.join(self.root_dir, 'common', 'utils', 'human_model_files'))
 
         # Đảm bảo đường dẫn ViTPose encoder luôn đúng dù gọi từ thư mục gốc hay thư mục main/
         if hasattr(self, 'encoder_config_file') and not osp.exists(self.encoder_config_file):
-            self.encoder_config_file = osp.join(self.cur_dir, self.encoder_config_file)
+            self.encoder_config_file = _norm_path(osp.join(self.cur_dir, self.encoder_config_file))
         if hasattr(self, 'encoder_pretrained_model_path') and not osp.exists(self.encoder_pretrained_model_path):
-            self.encoder_pretrained_model_path = osp.abspath(osp.join(self.cur_dir, self.encoder_pretrained_model_path))
+            self.encoder_pretrained_model_path = _norm_path(osp.abspath(osp.join(self.cur_dir, self.encoder_pretrained_model_path)))
 
         sys.path.insert(0, osp.join(self.root_dir, 'common'))
         from utils.dir import add_pypath
@@ -44,12 +48,12 @@ class Config:
 
     def prepare_dirs(self, exp_name):
         time_str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.output_dir = osp.join(self.root_dir, f'{exp_name}_{time_str}')
-        self.model_dir = osp.join(self.output_dir, 'model_dump')
-        self.vis_dir = osp.join(self.output_dir, 'vis')
-        self.log_dir = osp.join(self.output_dir, 'log')
-        self.code_dir = osp.join(self.output_dir, 'code')
-        self.result_dir = osp.join(self.output_dir, 'result')
+        self.output_dir = _norm_path(osp.join(self.root_dir, f'{exp_name}_{time_str}'))
+        self.model_dir = _norm_path(osp.join(self.output_dir, 'model_dump'))
+        self.vis_dir = _norm_path(osp.join(self.output_dir, 'vis'))
+        self.log_dir = _norm_path(osp.join(self.output_dir, 'log'))
+        self.code_dir = _norm_path(osp.join(self.output_dir, 'code'))
+        self.result_dir = _norm_path(osp.join(self.output_dir, 'result'))
 
         from utils.dir import make_folder
         make_folder(self.model_dir)
@@ -75,7 +79,7 @@ class Config:
                            eval_on_train=False, vis=False):
         self.testset = testset
         self.agora_benchmark = agora_benchmark
-        self.pretrained_model_path = pretrained_model_path
+        self.pretrained_model_path = _norm_path(pretrained_model_path) if pretrained_model_path else pretrained_model_path
         self.shapy_eval_split = shapy_eval_split
         self.use_cache = use_cache
         self.eval_on_train = eval_on_train
@@ -85,7 +89,11 @@ class Config:
         self.num_gpus = num_gpus
         self.exp_name = exp_name
         self.prepare_dirs(self.exp_name)
-        cfg_save = MMConfig(self.__dict__)
+        safe_dict = {
+            k: (_norm_path(v) if isinstance(v, str) and '\\' in v else v)
+            for k, v in self.__dict__.items()
+        }
+        cfg_save = MMConfig(safe_dict)
         cfg_save.dump(osp.join(self.code_dir, 'config_base.py'))
 
 cfg = Config()
