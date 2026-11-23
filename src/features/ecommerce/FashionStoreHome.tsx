@@ -308,9 +308,25 @@ export const FashionStoreHome: React.FC = () => {
     setTimeout(() => setCopiedVoucherCode(null), 2000);
   };
 
-  // Cart
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  // Cart (persisted to localStorage so reload/F5 preserves items)
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const raw = localStorage.getItem('fv3d_smart_cart_v1');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fv3d_smart_cart_v1', JSON.stringify(cartItems));
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [cartItems]);
 
   // Drawers & Modals
   const [analysisProduct, setAnalysisProduct] = useState<FashionProduct | null>(null);

@@ -78,19 +78,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const shippingFee = 0; // Free shipping
   const totalAmount = Math.max(0, subtotal - appliedDiscount + shippingFee);
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
+  const availableVouchers = loadPlatformConfig().vouchers.filter((v) => v.active);
+
+  const applyVoucherByCode = (rawCode: string) => {
     setCouponError(null);
     setCouponSuccess(null);
 
-    const code = couponCode.trim().toUpperCase();
+    const code = rawCode.trim().toUpperCase();
+    setCouponCode(code);
+    if (!code) {
+      setAppliedDiscount(0);
+      setCouponError(locale === 'en' ? 'Please enter a coupon code.' : 'Vui lòng nhập mã giảm giá.');
+      return;
+    }
+
     const activeVouchers = loadPlatformConfig().vouchers;
     const matchedVoucher = activeVouchers.find((v) => v.code.toUpperCase() === code && v.active);
 
     if (matchedVoucher) {
       const discount =
         matchedVoucher.discountType === 'percent'
-          ? Math.round((subtotal * matchedVoucher.discountValue) / 100)
+          ? Math.min(subtotal, Math.round((subtotal * matchedVoucher.discountValue) / 100))
           : Math.min(subtotal, matchedVoucher.discountValue);
       setAppliedDiscount(discount);
       const label =
@@ -103,8 +111,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           : `Đã áp dụng mã ${matchedVoucher.code} (${label}: -${discount.toLocaleString('vi-VN')} ₫)`
       );
     } else {
+      setAppliedDiscount(0);
       setCouponError(locale === 'en' ? 'Coupon code is invalid or expired.' : 'Mã giảm giá không hợp lệ hoặc đã hết hạn.');
     }
+  };
+
+  const handleApplyCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    applyVoucherByCode(couponCode);
+  };
+
+  const handleClearCoupon = () => {
+    setCouponCode('');
+    setAppliedDiscount(0);
+    setCouponError(null);
+    setCouponSuccess(null);
   };
 
   const handleCopy = (text: string, field: string) => {
@@ -475,7 +496,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   >
                     {t('ecommerce.checkout.couponApply', 'Áp Dụng')}
                   </button>
+                  {appliedDiscount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearCoupon}
+                      className="px-3 py-2 bg-white hover:bg-rose-50 text-rose-600 border-2 border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      {locale === 'en' ? 'Remove' : 'Gỡ mã'}
+                    </button>
+                  )}
                 </div>
+
+                {availableVouchers.length > 0 && (
+                  <div className="pt-1 flex flex-wrap gap-1.5">
+                    {availableVouchers.map((v) => {
+                      const isSelected = couponCode.trim().toUpperCase() === v.code.toUpperCase() && appliedDiscount > 0;
+                      const discountTag =
+                        v.discountType === 'percent'
+                          ? `-${v.discountValue}%`
+                          : `-${v.discountValue.toLocaleString('vi-VN')}₫`;
+                      return (
+                        <button
+                          key={v.code}
+                          type="button"
+                          onClick={() => applyVoucherByCode(v.code)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-400'
+                              : 'bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-300 hover:border-indigo-300'
+                          }`}
+                        >
+                          <span className="font-mono">{v.code}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 font-black">
+                            {discountTag}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {couponSuccess && (
                   <p className="text-[11px] font-bold text-emerald-700 mt-1">{couponSuccess}</p>
