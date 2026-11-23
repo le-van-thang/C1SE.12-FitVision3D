@@ -21,16 +21,15 @@ function optionalAuth(req: any, _res: any, next: any) {
 // Public Storefront Bootstrap (Settings + Vouchers + Pre-seeded Products)
 commerceRouter.get('/bootstrap', commerceController.getBootstrap);
 
-// Orders (Public initial read + Checkout create + Status moderation)
-commerceRouter.get('/orders', commerceController.getOrders);
-commerceRouter.post('/orders', optionalAuth, commerceController.createOrder);
+// Orders (Strict Authenticated Isolation + Stock Control + Bespoke Snapshot)
+commerceRouter.get('/orders', requireAuth, commerceController.getOrders);
+commerceRouter.post('/orders', requireAuth, commerceController.createOrder);
 commerceRouter.patch(
   '/orders/:id/status',
   requireAuth,
-  requireRole('ADMIN', 'SHOP_OWNER'),
   commerceController.updateOrderStatus
 );
-commerceRouter.patch('/orders/:id/pay', optionalAuth, commerceController.markOrderPaid);
+commerceRouter.patch('/orders/:id/pay', requireAuth, commerceController.markOrderPaid);
 
 // Real PostgreSQL Membership Endpoints (Authenticated user)
 commerceRouter.get('/membership', requireAuth, commerceController.getMembership);

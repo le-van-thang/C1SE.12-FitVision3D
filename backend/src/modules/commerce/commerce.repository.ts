@@ -1,5 +1,7 @@
-import { query } from '../../config/database.js';
+import { pool, query } from '../../config/database.js';
 import { ensureCommerceTablesAndSeed } from './commerce.bootstrap.js';
+import { AppError } from '../../utils/responseEnvelope.js';
+import { ErrorCode } from '../../constants/errorCodes.js';
 
 export type MembershipTierId = 'member' | 'silver' | 'gold' | 'vip';
 
@@ -189,15 +191,68 @@ export const commerceRepository = {
     return rows[0] || null;
   },
 
-  async listOrders() {
+  async listOrdersForActor(actor: { sub: string; role: string }) {
     await ensureCommerceTablesAndSeed();
+    if (actor.role === 'ADMIN') {
+      return query(
+        `SELECT id, customer_id, customer_name, recipient, items,
+                subtotal, shipping_fee, discount_amount, total_amount,
+                payment_method, payment_status, status, store_name, shop_id,
+                has_bespoke_items, measurement_snapshot,
+                estimated_delivery, created_at, updated_at
+         FROM orders
+         ORDER BY created_at DESC`
+      );
+    }
+
+    if (actor.role === 'SHOP_OWNER') {
+      const shopRows = await query<{ id: string; shop_name: string }>(
+        'SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1',
+        [actor.sub]
+      );
+      const shop = shopRows[0];
+      if (!shop) {
+        return query(
+          `SELECT id, customer_id, customer_name, recipient, items,
+                  subtotal, shipping_fee, discount_amount, total_amount,
+                  payment_method, payment_status, status, store_name, shop_id,
+                  has_bespoke_items, measurement_snapshot,
+                  estimated_delivery, created_at, updated_at
+           FROM orders
+           WHERE customer_id = $1
+           ORDER BY created_at DESC`,
+          [actor.sub]
+        );
+      }
+
+      return query(
+        `SELECT id, customer_id, customer_name, recipient, items,
+                subtotal, shipping_fee, discount_amount, total_amount,
+                payment_method, payment_status, status, store_name, shop_id,
+                has_bespoke_items, measurement_snapshot,
+                estimated_delivery, created_at, updated_at
+         FROM orders
+         WHERE shop_id = $1
+            OR LOWER(COALESCE(store_name, '')) = LOWER($2)
+            OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements(items) AS el
+              WHERE LOWER(COALESCE(el->'product'->>'brand_name', '')) = LOWER($2)
+            )
+         ORDER BY created_at DESC`,
+        [shop.id, shop.shop_name]
+      );
+    }
+
     return query(
       `SELECT id, customer_id, customer_name, recipient, items,
               subtotal, shipping_fee, discount_amount, total_amount,
-              payment_method, payment_status, status, store_name,
+              payment_method, payment_status, status, store_name, shop_id,
+              has_bespoke_items, measurement_snapshot,
               estimated_delivery, created_at, updated_at
        FROM orders
-       ORDER BY created_at DESC`
+       WHERE customer_id = $1
+       ORDER BY created_at DESC`,
+      [actor.sub]
     );
   },
 
@@ -216,65 +271,304 @@ export const commerceRepository = {
     status: string;
     store_name: string;
     estimated_delivery: string;
+    measurement_snapshot?: any;
   }) {
     await ensureCommerceTablesAndSeed();
-    const rows = await query(
-      `INSERT INTO orders (
-         id, customer_id, customer_name, recipient, items,
-         subtotal, shipping_fee, discount_amount, total_amount,
-         payment_method, payment_status, status, store_name, estimated_delivery
-       ) VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-       RETURNING *`,
-      [
-        order.id,
-        order.customer_id,
-        order.customer_name,
-        JSON.stringify(order.recipient),
-        JSON.stringify(order.items),
-        order.subtotal,
-        order.shipping_fee,
-        order.discount_amount,
-        order.total_amount,
-        order.payment_method,
-        order.payment_status,
-        order.status,
-        order.store_name,
-        order.estimated_delivery,
-      ]
-    );
+    if (!Array.isArray(order.items) || order.items.length === 0) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Đơn hàng phải có ít nhất 1 sản phẩm.');
+    }
 
-    const earnedPts = Math.floor((order.total_amount || 0) / 10_000);
-    await this.syncMembershipSpend(order.customer_id);
-    if (earnedPts > 0) {
-      await query(
-        `INSERT INTO membership_point_logs (user_id, action_type, points_delta, description)
-         VALUES ($1, 'ORDER_EARN', $2, $3)`,
+    const client = await pool.connect();
+    let hasBespoke = false;
+    let resolvedShopId: string | null = null;
+    let resolvedStoreName = order.store_name || 'FitVision Atelier';
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Validate & deduct variant stock atomically for every item
+      for (const item of order.items) {
+        const productId = item?.product?.id;
+        const qty = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+        if (!productId) continue;
+
+        const prodRes = await client.query<{
+          id: string;
+          name: string;
+          variants: any[];
+          is_bespoke: boolean;
+          shop_id: string | null;
+          brand_name: string;
+        }>(
+          `SELECT id, name, variants, is_bespoke, shop_id, brand_name
+           FROM products
+           WHERE id = $1
+           FOR UPDATE`,
+          [productId]
+        );
+
+        const dbProd = prodRes.rows[0];
+        if (!dbProd) {
+          throw new AppError(
+            404,
+            ErrorCode.RESOURCE_NOT_FOUND,
+            `Sản phẩm "${item?.product?.name || productId}" không tồn tại trong hệ thống.`
+          );
+        }
+
+        if (dbProd.is_bespoke || item?.product?.is_bespoke) {
+          hasBespoke = true;
+        }
+        if (!resolvedShopId && dbProd.shop_id) {
+          resolvedShopId = dbProd.shop_id;
+        }
+        if (!order.store_name && dbProd.brand_name) {
+          resolvedStoreName = dbProd.brand_name;
+        }
+
+        const variants = Array.isArray(dbProd.variants) ? [...dbProd.variants] : [];
+        const targetVariantId = item?.variant?.id;
+        const targetSku = item?.variant?.sku;
+        const targetSize = item?.variant?.size_label;
+
+        const vIdx = variants.findIndex(
+          (v: any) =>
+            (targetVariantId && v.id === targetVariantId) ||
+            (targetSku && v.sku === targetSku) ||
+            (targetSize && v.size_label === targetSize)
+        );
+
+        if (vIdx >= 0) {
+          const currentStock = Number(variants[vIdx].stock ?? 0);
+          if (currentStock < qty) {
+            throw new AppError(
+              400,
+              ErrorCode.VALIDATION_FAILED,
+              `Sản phẩm "${dbProd.name}" (Size ${variants[vIdx].size_label}) chỉ còn ${currentStock} chiếc trong kho.`
+            );
+          }
+          variants[vIdx] = {
+            ...variants[vIdx],
+            stock: currentStock - qty,
+          };
+          await client.query(
+            `UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`,
+            [dbProd.id, JSON.stringify(variants)]
+          );
+        }
+      }
+
+      // 2. Auto-attach latest 13-metric 3D snapshot from PostgreSQL when placing bespoke order
+      let finalSnapshot = order.measurement_snapshot ?? null;
+      if (hasBespoke && !finalSnapshot) {
+        const snapRes = await client.query(
+          `SELECT
+             m.chest_circ_cm, m.waist_circ_cm, m.hip_circ_cm,
+             m.shoulder_breadth_cm, m.arm_length_cm, m.inseam_cm,
+             m.bicep_circ_cm, m.wrist_circ_cm, m.thigh_circ_cm, m.calf_circ_cm, m.ankle_circ_cm,
+             m.source, m.created_at,
+             b.stature_cm, b.weight_kg, b.gender, b.calculated_bmi
+           FROM measurements m
+           JOIN biometric_inputs b ON b.id = m.input_id
+           WHERE m.user_id::text = $1
+           ORDER BY m.created_at DESC
+           LIMIT 1`,
+          [order.customer_id]
+        ).catch(() => ({ rows: [] as any[] }));
+
+        if (snapRes.rows.length > 0) {
+          const r = snapRes.rows[0];
+          finalSnapshot = {
+            stature_cm: Number(r.stature_cm),
+            weight_kg: Number(r.weight_kg),
+            gender: r.gender,
+            calculated_bmi: Number(r.calculated_bmi),
+            chest_circ_cm: Number(r.chest_circ_cm),
+            waist_circ_cm: Number(r.waist_circ_cm),
+            hip_circ_cm: Number(r.hip_circ_cm),
+            shoulder_breadth_cm: r.shoulder_breadth_cm != null ? Number(r.shoulder_breadth_cm) : null,
+            arm_length_cm: r.arm_length_cm != null ? Number(r.arm_length_cm) : null,
+            inseam_cm: r.inseam_cm != null ? Number(r.inseam_cm) : null,
+            bicep_circ_cm: r.bicep_circ_cm != null ? Number(r.bicep_circ_cm) : null,
+            wrist_circ_cm: r.wrist_circ_cm != null ? Number(r.wrist_circ_cm) : null,
+            thigh_circ_cm: r.thigh_circ_cm != null ? Number(r.thigh_circ_cm) : null,
+            calf_circ_cm: r.calf_circ_cm != null ? Number(r.calf_circ_cm) : null,
+            ankle_circ_cm: r.ankle_circ_cm != null ? Number(r.ankle_circ_cm) : null,
+            source: r.source || 'scan',
+            captured_at: new Date(r.created_at).toISOString(),
+          };
+        }
+      }
+
+      const rows = await client.query(
+        `INSERT INTO orders (
+           id, customer_id, customer_name, recipient, items,
+           subtotal, shipping_fee, discount_amount, total_amount,
+           payment_method, payment_status, status, store_name, shop_id,
+           has_bespoke_items, measurement_snapshot, estimated_delivery
+         ) VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17)
+         RETURNING *`,
         [
+          order.id,
           order.customer_id,
-          earnedPts,
-          `Tích điểm đơn hàng ${order.id} (${order.total_amount.toLocaleString('vi-VN')}₫)`,
+          order.customer_name,
+          JSON.stringify(order.recipient),
+          JSON.stringify(order.items),
+          order.subtotal,
+          order.shipping_fee,
+          order.discount_amount,
+          order.total_amount,
+          order.payment_method,
+          order.payment_status,
+          order.status,
+          resolvedStoreName,
+          resolvedShopId,
+          hasBespoke,
+          finalSnapshot ? JSON.stringify(finalSnapshot) : null,
+          order.estimated_delivery,
         ]
       );
-    }
 
-    return rows[0];
+      await client.query('COMMIT');
+
+      const earnedPts = Math.floor((order.total_amount || 0) / 10_000);
+      await this.syncMembershipSpend(order.customer_id);
+      if (earnedPts > 0) {
+        await query(
+          `INSERT INTO membership_point_logs (user_id, action_type, points_delta, description)
+           VALUES ($1, 'ORDER_EARN', $2, $3)`,
+          [
+            order.customer_id,
+            earnedPts,
+            `Tích điểm đơn hàng ${order.id} (${order.total_amount.toLocaleString('vi-VN')}₫)`,
+          ]
+        );
+      }
+
+      return rows.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
-  async updateOrderStatus(orderId: string, status: string) {
+  async updateOrderStatus(
+    orderId: string,
+    nextStatus: string,
+    actor: { sub: string; role: string }
+  ) {
     await ensureCommerceTablesAndSeed();
-    const rows = await query(
-      `UPDATE orders SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
-      [orderId, status]
-    );
-    const updated = rows[0];
-    if (updated?.customer_id) {
-      await this.syncMembershipSpend(updated.customer_id);
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+      const orderRes = await client.query(
+        `SELECT * FROM orders WHERE id = $1 FOR UPDATE`,
+        [orderId]
+      );
+      const existing = orderRes.rows[0];
+      if (!existing) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      // Enforce strict RBAC ownership
+      if (actor.role === 'USER') {
+        if (existing.customer_id !== actor.sub) {
+          throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Bạn không có quyền thao tác đơn hàng này.');
+        }
+        if (nextStatus !== 'cancelled') {
+          throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Khách hàng chỉ có thể hủy đơn hàng đang chờ xác nhận.');
+        }
+        if (!['pending', 'confirmed'].includes(existing.status)) {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Đơn hàng đang cắt may hoặc giao hàng, không thể hủy.');
+        }
+      } else if (actor.role === 'SHOP_OWNER') {
+        const shopRows = await client.query<{ id: string; shop_name: string }>(
+          'SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1',
+          [actor.sub]
+        );
+        const shop = shopRows.rows[0];
+        const ownsOrder =
+          shop &&
+          (existing.shop_id === shop.id ||
+            String(existing.store_name || '').toLowerCase() === shop.shop_name.toLowerCase());
+        if (!ownsOrder) {
+          throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Bạn không có quyền cập nhật đơn hàng của gian hàng khác.');
+        }
+      }
+
+      // Restore variant stock when transitioning into 'cancelled'
+      if (nextStatus === 'cancelled' && existing.status !== 'cancelled' && Array.isArray(existing.items)) {
+        for (const item of existing.items) {
+          const productId = item?.product?.id;
+          const qty = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+          if (!productId) continue;
+
+          const prodRes = await client.query<{ id: string; variants: any[] }>(
+            `SELECT id, variants FROM products WHERE id = $1 FOR UPDATE`,
+            [productId]
+          );
+          const dbProd = prodRes.rows[0];
+          if (!dbProd || !Array.isArray(dbProd.variants)) continue;
+
+          const variants = [...dbProd.variants];
+          const targetVariantId = item?.variant?.id;
+          const targetSku = item?.variant?.sku;
+          const targetSize = item?.variant?.size_label;
+
+          const vIdx = variants.findIndex(
+            (v: any) =>
+              (targetVariantId && v.id === targetVariantId) ||
+              (targetSku && v.sku === targetSku) ||
+              (targetSize && v.size_label === targetSize)
+          );
+
+          if (vIdx >= 0) {
+            const currentStock = Number(variants[vIdx].stock ?? 0);
+            variants[vIdx] = {
+              ...variants[vIdx],
+              stock: currentStock + qty,
+            };
+            await client.query(
+              `UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`,
+              [dbProd.id, JSON.stringify(variants)]
+            );
+          }
+        }
+      }
+
+      const updRes = await client.query(
+        `UPDATE orders SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
+        [orderId, nextStatus]
+      );
+
+      await client.query('COMMIT');
+      const updated = updRes.rows[0];
+      if (updated?.customer_id) {
+        await this.syncMembershipSpend(updated.customer_id);
+      }
+      return updated || null;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-    return updated || null;
   },
 
-  async markOrderPaid(orderId: string) {
+  async markOrderPaid(orderId: string, actor: { sub: string; role: string }) {
     await ensureCommerceTablesAndSeed();
+    const existingRows = await query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [orderId]);
+    const existing = existingRows[0];
+    if (!existing) return null;
+
+    if (actor.role === 'USER' && existing.customer_id !== actor.sub) {
+      throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Bạn không có quyền xác nhận thanh toán đơn hàng này.');
+    }
+
     const rows = await query(
       `UPDATE orders SET payment_status = 'paid', updated_at = NOW() WHERE id = $1 RETURNING *`,
       [orderId]

@@ -1,0 +1,57 @@
+name: FitVision 3D CI Quality Gates
+
+on:
+  pull_request:
+    branches: [Developer, main]
+  push:
+    branches: [Developer, main]
+
+jobs:
+  frontend-and-tests:
+    name: Frontend Tests, i18n & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run Unit & Integration Tests
+        run: npm test
+
+      # Advisory until pre-existing allowlist entries in src/i18n/vi.json are reconciled on Developer
+      - name: Check i18n Locale Integrity (Advisory)
+        continue-on-error: true
+        run: npm run i18n:check
+
+      - name: TypeScript Check & Production Build
+        run: npm run build
+
+  backend-quality:
+    name: Backend TypeCheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Compile Backend TypeScript
+        working-directory: backend
+        run: npm run build

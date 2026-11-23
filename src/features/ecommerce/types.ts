@@ -103,6 +103,26 @@ export interface OrderRecipient {
 
 export type PaymentMethod = 'cod' | 'vietqr_sepay';
 
+export interface OrderMeasurementSnapshot {
+  stature_cm: number;
+  weight_kg: number;
+  gender: string;
+  calculated_bmi?: number;
+  chest_circ_cm: number;
+  waist_circ_cm: number;
+  hip_circ_cm: number;
+  shoulder_breadth_cm?: number | null;
+  arm_length_cm?: number | null;
+  inseam_cm?: number | null;
+  bicep_circ_cm?: number | null;
+  wrist_circ_cm?: number | null;
+  thigh_circ_cm?: number | null;
+  calf_circ_cm?: number | null;
+  ankle_circ_cm?: number | null;
+  source?: string;
+  captured_at?: string;
+}
+
 export interface Order {
   id: string;
   customer_id: string;
@@ -118,6 +138,9 @@ export interface Order {
   status: OrderStatus;
   created_at: string;
   store_name?: string;
+  shop_id?: string | null;
+  has_bespoke_items?: boolean;
+  measurement_snapshot?: OrderMeasurementSnapshot | null;
   estimated_delivery?: string;
 }
 
@@ -132,6 +155,8 @@ export interface CreateOrderInput {
   total_amount: number;
   payment_method: PaymentMethod;
   store_name?: string;
+  has_bespoke_items?: boolean;
+  measurement_snapshot?: OrderMeasurementSnapshot | null;
 }
 
 

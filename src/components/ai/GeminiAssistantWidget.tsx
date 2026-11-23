@@ -39,7 +39,7 @@ export interface GeminiAssistantWidgetProps {
   };
 }
 
-const GEMINI_API_KEY = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+const BACKEND_BASE_URL = (import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
 /** Friendly custom FitVision 3D Atelier Mascot Avatar */
 const FitVisionMascot: React.FC<{ size?: number; className?: string }> = ({
@@ -245,45 +245,34 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
         ];
 
   const generateAssistantReply = async (query: string): Promise<string> => {
-    const biometricSummary =
-      hasVerifiedMeasurements && userBody
-        ? `- Height: ${userBody.height_cm} cm\n- Weight: ${userBody.weight_kg} kg\n- Chest: ${userBody.chest_cm} cm\n- Waist: ${userBody.waist_cm} cm\n- Hip: ${userBody.hip_cm} cm`
-        : 'User has NOT logged in or has not recorded 3D measurements yet. Do NOT invent or assume fake numbers like 172cm/68kg unless user writes them in the question.';
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/v1/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          locale: locale === 'en' ? 'en' : 'vi',
+          hasVerifiedMeasurements,
+          userBody:
+            hasVerifiedMeasurements && userBody
+              ? {
+                  height_cm: userBody.height_cm,
+                  weight_kg: userBody.weight_kg,
+                  chest_cm: userBody.chest_cm,
+                  waist_cm: userBody.waist_cm,
+                  hip_cm: userBody.hip_cm,
+                }
+              : null,
+        }),
+      });
 
-    if (GEMINI_API_KEY) {
-      try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const promptSystem = `You are FitVision 3D's friendly Style & Sizing Assistant.
-Customer Biometrics (ISO 8559-1):
-${biometricSummary}
-Store Catalog Highlights:
-- Áo Sơ Mi Oxford Cotton Ai Cập (590.000đ)
-- Áo Blazer Linen Pháp Phom May Đo (1.650.000đ)
-- Quần Tây Xếp Ly Đôi Phom Ý (765.000đ)
-- Áo Polo Dệt Kim Lụa (520.000đ)
-- Đầm Lụa Satin Cổ Đổ (1.250.000đ)
-Respond warmly, concisely (under 130 words) in ${
-          locale === 'en' ? 'English' : 'Vietnamese'
-        }. Do not use bullet asterisks (*). Use **bold** sparingly for sizes and product names.`;
-
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              { role: 'user', parts: [{ text: `${promptSystem}\n\nCustomer question: ${query}` }] },
-            ],
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (replyText) return replyText;
-        }
-      } catch {
-        // Fallback smoothly to domain expert sizing engine
+      if (res.ok) {
+        const json = await res.json();
+        const replyText = json?.data?.reply;
+        if (replyText) return replyText;
       }
+    } catch {
+      // Fallback smoothly to domain expert sizing engine
     }
 
     await new Promise((r) => setTimeout(r, 450));

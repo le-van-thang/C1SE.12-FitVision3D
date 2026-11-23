@@ -7,6 +7,7 @@
 import os
 import sys
 import time
+import base64
 import numpy as np
 import cv2
 import torch
@@ -75,6 +76,74 @@ def root():
         "device": MODELS["device"],
         "docs_url": "/docs",
         "iso_standard": "ISO 8559-1 (Clothing Anthropometry)"
+    }
+
+
+@app.post("/api/v1/segment-person")
+async def segment_person(
+    file: UploadFile = File(..., description="Ảnh toàn thân cần tách nền"),
+    threshold: float = Form(0.45, description="Ngưỡng tách nền MediaPipe (0.2 - 0.85)")
+):
+    """
+    Tách nền người dùng chính xác bằng Google MediaPipe SelfieSegmentation,
+    tự động cắt gọn khung nhân vật để đưa vào Phòng Thử Đồ 3D đúng tỷ lệ.
+    """
+    try:
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise HTTPException(status_code=400, detail="Không thể giải mã ảnh.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Lỗi đọc file: {str(e)}")
+
+    import mediapipe as mp
+
+    h, w = img.shape[:2]
+    max_dim = 960
+    if max(h, w) > max_dim:
+        scale = max_dim / max(h, w)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        h, w = img.shape[:2]
+
+    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    thresh = float(np.clip(threshold, 0.15, 0.85))
+    with mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=0) as seg:
+        res = seg.process(rgb)
+        raw_mask = res.segmentation_mask
+
+    binary_mask = (raw_mask > thresh).astype(np.float32)
+    alpha = cv2.GaussianBlur(binary_mask, (5, 5), 0)
+    alpha_u8 = np.clip(alpha * 255.0, 0, 255).astype(np.uint8)
+
+    ys, xs = np.where(alpha_u8 > 50)
+    if len(xs) < 100 or len(ys) < 100:
+        raise HTTPException(status_code=422, detail="Không nhận diện rõ người trong ảnh.")
+
+    pad_x = max(8, int((xs.max() - xs.min()) * 0.05))
+    pad_y = max(8, int((ys.max() - ys.min()) * 0.03))
+    x0 = max(0, int(xs.min()) - pad_x)
+    y0 = max(0, int(ys.min()) - pad_y)
+    x1 = min(w, int(xs.max()) + pad_x)
+    y1 = min(h, int(ys.max()) + pad_y)
+
+    rgba = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
+    rgba[:, :, 3] = alpha_u8
+    cropped = rgba[y0:y1, x0:x1]
+
+    ok, buf = cv2.imencode(".png", cropped)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Lỗi mã hóa PNG sau khi tách nền.")
+
+    b64 = base64.b64encode(buf.tobytes()).decode("ascii")
+    return {
+        "status": "success",
+        "cutout_data_url": f"data:image/png;base64,{b64}",
+        "foreground_ratio": float(len(xs)) / float(w * h),
+        "width": int(x1 - x0),
+        "height": int(y1 - y0),
     }
 
 

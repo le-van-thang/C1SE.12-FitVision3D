@@ -393,6 +393,10 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
         ALTER TABLE products ADD COLUMN IF NOT EXISTS shop_id UUID;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS is_mall BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS video_url TEXT;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS shop_id UUID;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS has_bespoke_items BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS measurement_snapshot JSONB;
+        CREATE INDEX IF NOT EXISTS idx_orders_shop_id ON orders (shop_id);
 
         CREATE TABLE IF NOT EXISTS product_reviews (
           id SERIAL PRIMARY KEY,
@@ -517,133 +521,6 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
             JSON.stringify(p.variants),
           ]
         );
-      }
-
-      // Seed sample orders ONLY when orders table is completely empty
-      const existingOrderCount = await query<{ count: string }>('SELECT COUNT(*) as count FROM orders');
-      if (parseInt(existingOrderCount[0]?.count || '0', 10) === 0) {
-        const sampleOrders = [
-          {
-            id: 'FV3D-95123',
-            customer_id: 'usr-101',
-            customer_name: 'Lê Văn Thắng',
-            recipient: {
-              full_name: 'Lê Văn Thắng',
-              phone: '0979 307 635',
-              address: 'Số 12 Đường Bách Khoa, P. Hòa Khánh Bắc, Q. Liên Chiểu',
-              city: 'Đà Nẵng',
-              note: 'Giao giờ hành chính, may theo đúng số đo vòng ngực 96cm.',
-            },
-            items: [
-              {
-                id: 'cart-sample-1',
-                product: SEED_PRODUCTS[0],
-                variant: SEED_PRODUCTS[0].variants[2],
-                quantity: 1,
-                fit_score: 98,
-                is_ai_recommended: true,
-              },
-            ],
-            subtotal: 1650000,
-            shipping_fee: 0,
-            discount_amount: 0,
-            total_amount: 1650000,
-            payment_method: 'vietqr_sepay',
-            payment_status: 'paid',
-            status: 'tailoring',
-            store_name: 'Nhà May Sartoria Ý',
-            estimated_delivery: '18/11/2026',
-          },
-          {
-            id: 'FV3D-94812',
-            customer_id: 'usr-101',
-            customer_name: 'Lê Văn Thắng',
-            recipient: {
-              full_name: 'Lê Văn Thắng',
-              phone: '0979 307 635',
-              address: 'Ký Túc Xá Đại Học Bách Khoa, 54 Nguyễn Lương Bằng',
-              city: 'Đà Nẵng',
-              note: 'Vui lòng gọi trước khi giao.',
-            },
-            items: [
-              {
-                id: 'cart-sample-2',
-                product: SEED_PRODUCTS[1],
-                variant: SEED_PRODUCTS[1].variants[1],
-                quantity: 2,
-                fit_score: 97,
-                is_ai_recommended: true,
-              },
-            ],
-            subtotal: 1180000,
-            shipping_fee: 0,
-            discount_amount: 100000,
-            total_amount: 1080000,
-            payment_method: 'cod',
-            payment_status: 'paid',
-            status: 'completed',
-            store_name: 'Atelier Maison Vell',
-            estimated_delivery: '10/11/2026',
-          },
-          {
-            id: 'FV3D-96204',
-            customer_id: 'usr-102',
-            customer_name: 'TS. Lê Minh Thái',
-            recipient: {
-              full_name: 'TS. Lê Minh Thái',
-              phone: '0912 345 678',
-              address: 'Phòng Lab Trí Tuệ Nhân Tạo, Tòa nhà C1',
-              city: 'Đà Nẵng',
-              note: 'Đơn hàng đặt may mẫu nghiên cứu nhân trắc học.',
-            },
-            items: [
-              {
-                id: 'cart-sample-3',
-                product: SEED_PRODUCTS[2],
-                variant: SEED_PRODUCTS[2].variants[0],
-                quantity: 1,
-                fit_score: 99,
-                is_ai_recommended: true,
-              },
-            ],
-            subtotal: 1250000,
-            shipping_fee: 0,
-            discount_amount: 0,
-            total_amount: 1250000,
-            payment_method: 'vietqr_sepay',
-            payment_status: 'paid',
-            status: 'shipping',
-            store_name: 'Nhà May Sartoria Ý',
-            estimated_delivery: '16/11/2026',
-          },
-        ];
-
-        for (const o of sampleOrders) {
-          await query(
-            `INSERT INTO orders (
-               id, customer_id, customer_name, recipient, items,
-               subtotal, shipping_fee, discount_amount, total_amount,
-               payment_method, payment_status, status, store_name, estimated_delivery
-             ) VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-             ON CONFLICT (id) DO NOTHING`,
-            [
-              o.id,
-              o.customer_id,
-              o.customer_name,
-              JSON.stringify(o.recipient),
-              JSON.stringify(o.items),
-              o.subtotal,
-              o.shipping_fee,
-              o.discount_amount,
-              o.total_amount,
-              o.payment_method,
-              o.payment_status,
-              o.status,
-              o.store_name,
-              o.estimated_delivery,
-            ]
-          );
-        }
       }
 
       console.log('✅ PostgreSQL Commerce & Membership schema bootstrapped & seeded.');
