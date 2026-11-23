@@ -98,8 +98,11 @@ export const adminBot: AiBotDefinition<AdminAiContext> = {
     const recentAuditActions =
       logsRes.status === 'fulfilled' && Array.isArray(logsRes.value)
         ? logsRes.value.slice(0, 10).map((l: any) => ({
-            action: sanitizeUntrusted(l.action || l.event_type, 50),
-            targetType: sanitizeUntrusted(l.target_type || l.entity_type || 'system', 32),
+            action: sanitizeUntrusted(l.action_type || l.action || l.event_type, 50),
+            targetType: sanitizeUntrusted(
+              l.target_type || l.entity_type || (l.measurement_id ? 'measurement' : 'system'),
+              32
+            ),
             createdAt: sanitizeUntrusted(l.created_at || '', 24),
           }))
         : [];

@@ -104,8 +104,16 @@ export const customerBot: AiBotDefinition<CustomerAiContext> = {
 
       if (wallet.status === 'fulfilled' && wallet.value) {
         membership = {
-          points: Number((wallet.value as any).points ?? (wallet.value as any).fitPoints ?? 0),
-          tier: sanitizeUntrusted((wallet.value as any).tier || 'Member', 24),
+          points: Number(
+            (wallet.value as any).availablePoints ??
+              (wallet.value as any).points ??
+              (wallet.value as any).fitPoints ??
+              0
+          ),
+          tier: sanitizeUntrusted(
+            (wallet.value as any).tierId || (wallet.value as any).tier || 'member',
+            24
+          ),
         };
       }
 

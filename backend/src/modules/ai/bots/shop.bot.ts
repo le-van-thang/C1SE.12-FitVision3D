@@ -64,7 +64,7 @@ export const shopBot: AiBotDefinition<ShopAiContext> = {
     }
 
     const dashboard = await commerceRepository.getShopDashboard(user.sub);
-    if (!dashboard?.shop) {
+    if (!dashboard?.shop || (dashboard.shop.status && dashboard.shop.status !== 'APPROVED')) {
       return {
         hasShop: false,
         shopName: '',

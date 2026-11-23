@@ -1,5 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   BOT_ACCESS_POLICIES,
   checkBotAccessPolicy,
@@ -62,5 +64,17 @@ describe('Role-Based AI Assistants — RBAC Matrix & UI Profiles', () => {
       assert.ok(profile.quickPromptsEn.length >= 3);
       assert.ok(profile.floatingHintsVi.length >= 3);
     }
+  });
+
+  it('TC-AI-08: bot context builders match exact repository/DB field names and APPROVED shop check', () => {
+    const botsDir = path.join(process.cwd(), 'backend', 'src', 'modules', 'ai', 'bots');
+    const adminBotSrc = fs.readFileSync(path.join(botsDir, 'admin.bot.ts'), 'utf8');
+    const customerBotSrc = fs.readFileSync(path.join(botsDir, 'customer.bot.ts'), 'utf8');
+    const shopBotSrc = fs.readFileSync(path.join(botsDir, 'shop.bot.ts'), 'utf8');
+
+    assert.match(adminBotSrc, /l\.action_type/);
+    assert.match(customerBotSrc, /\.availablePoints/);
+    assert.match(customerBotSrc, /\.tierId/);
+    assert.match(shopBotSrc, /dashboard\.shop\.status\s*!==\s*'APPROVED'/);
   });
 });
