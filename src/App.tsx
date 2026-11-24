@@ -10,7 +10,9 @@ import { TailorStudio } from "./pages/TailorStudio";
 import { SizeChartManager } from "./pages/SizeChartManager";
 import { AdminPortal } from "./pages/AdminPortal";
 import { ShopPortal } from "./pages/ShopPortal";
+import { ShopStorefrontPage } from "./pages/ShopStorefrontPage";
 import { GlobalToastHost } from "./components/common/GlobalToastHost";
+import { MerchantOnboardingModal } from "./components/store/MerchantOnboardingModal";
 import "./index.css";
 
 /** Guests can only use the Dashboard; other studio pages need a signed-in account. */
@@ -32,20 +34,26 @@ const RequireStore: React.FC<{ children: React.ReactElement }> = ({ children }) 
 /** Admin Portal handles its own dedicated Admin Login Gate without bouncing to shopping home */
 const AdminRoute: React.FC = () => <AdminPortal />;
 
-/** Strict Admin home entry: Admins operate exclusively inside the Admin Portal */
+/** Strict Admin & Seller isolation: Admin -> /admin, Seller (SHOP_OWNER) -> /shop */
 const HomeRoute: React.FC = () => {
   const { isAuthenticated, userRole } = useAuth();
   if (isAuthenticated && userRole === 'admin') {
     return <Navigate to="/admin" replace />;
   }
+  if (isAuthenticated && userRole === 'store') {
+    return <Navigate to="/shop" replace />;
+  }
   return <FashionStoreHome />;
 };
 
-/** Customer / Store / Guest Dashboard: strictly redirect Admin back to Admin Portal */
+/** Customer / Guest Dashboard: strictly redirect Admin -> /admin and Seller -> /shop */
 const DashboardRoute: React.FC = () => {
   const { isAuthenticated, userRole } = useAuth();
   if (isAuthenticated && userRole === 'admin') {
     return <Navigate to="/admin" replace />;
+  }
+  if (isAuthenticated && userRole === 'store') {
+    return <Navigate to="/shop" replace />;
   }
   return <Dashboard />;
 };
@@ -56,6 +64,9 @@ const RoleFallbackRoute: React.FC = () => {
   if (isAuthenticated && userRole === 'admin') {
     return <Navigate to="/admin" replace />;
   }
+  if (isAuthenticated && userRole === 'store') {
+    return <Navigate to="/shop" replace />;
+  }
   return <Navigate to="/dashboard" replace />;
 };
 
@@ -65,8 +76,10 @@ export const App: React.FC = () => (
       <AuthProvider>
         <OrderProvider>
           <GlobalToastHost />
+          <MerchantOnboardingModal />
           <Routes>
             <Route path="/" element={<HomeRoute />} />
+            <Route path="/stores/:slug" element={<ShopStorefrontPage />} />
             <Route path="/legacy-landing" element={<Landing />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
             <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />

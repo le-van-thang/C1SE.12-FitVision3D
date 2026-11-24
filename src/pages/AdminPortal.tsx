@@ -261,6 +261,49 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
+  // Handle Suspend Store
+  const handleSuspendStore = async (store: AdminStoreItem) => {
+    const reason = window.prompt(
+      `Nhập lý do tạm đình chỉ gian hàng "${store.shop_name}" (sản phẩm sẽ bị ẩn ngay):`,
+      'Vi phạm quy định KYC / Thuế hoặc chậm xử lý đơn hàng'
+    );
+    if (!reason || !reason.trim()) return;
+    setActionLoadingId(store.id);
+    try {
+      const res = await adminApi.suspendStore(store.id, reason.trim());
+      if (res.success) {
+        showToast('success', `Đã tạm đình chỉ gian hàng "${store.shop_name}".`);
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Không thể tạm đình chỉ cửa hàng.');
+      }
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Live MST Lookup inside Admin review table
+  const handleQuickTaxLookup = async (store: AdminStoreItem) => {
+    if (!store.tax_code) {
+      showToast('error', 'Shop chưa cung cấp Mã số thuế (đang dùng CCCD tạm thời).');
+      return;
+    }
+    setActionLoadingId(store.id);
+    try {
+      const res = await adminApi.lookupTaxCode(store.tax_code, store.entity_type || 'ENTERPRISE');
+      if (res.success && res.data) {
+        showToast(
+          res.data.checksumValid ? 'success' : 'error',
+          `${res.data.taxCode}: ${res.data.message}`
+        );
+      } else {
+        showToast('error', res.error?.message || 'Không thể tra cứu MST.');
+      }
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   // Handle Toggle User Status (Lock/Unlock)
   const handleToggleUserStatus = async (user: AdminUserItem) => {
     if (user.email === 'levanthang0166@gmail.com') {
@@ -985,12 +1028,62 @@ export const AdminPortal: React.FC = () => {
                                         <span>Xem ảnh minh chứng</span>
                                       </button>
                                     )}
-                                    {!textPart && !imagePart && (
-                                      <span className="text-xs text-slate-400">Đang cập nhật</span>
+                                    {!textPart && !imagePart && (!store.documents || store.documents.length === 0) && (
+                                      <span className="text-xs text-slate-400">Chưa có GPKD</span>
                                     )}
+                                    <div className="flex flex-wrap items-center gap-1">
+                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[9px] font-bold text-slate-700">
+                                        {store.entity_type || 'INDIVIDUAL'}
+                                      </span>
+                                      {store.national_id_last4 && (
+                                        <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-[9px] font-mono font-bold text-blue-800">
+                                          CCCD: ••••{store.national_id_last4}
+                                        </span>
+                                      )}
+                                      {store.tax_status && (
+                                        <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[9px] font-bold text-emerald-800">
+                                          Thuế: {store.tax_status}
+                                        </span>
+                                      )}
+                                    </div>
                                     {store.tax_code && (
-                                      <div className="text-[10px] font-mono text-slate-500">
-                                        Mã số thuế: {store.tax_code}
+                                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-700">
+                                        <span>MST: <b>{store.tax_code}</b></span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleQuickTaxLookup(store)}
+                                          className="text-[10px] font-sans font-bold text-blue-600 hover:underline cursor-pointer bg-transparent border-0 p-0"
+                                        >
+                                          [Tra cứu]
+                                        </button>
+                                      </div>
+                                    )}
+                                    {Array.isArray(store.documents) && store.documents.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {store.documents.map((doc: any) => (
+                                          <button
+                                            key={doc.id || doc.doc_type}
+                                            type="button"
+                                            onClick={() =>
+                                              setViewProofImage({
+                                                brand: `${store.shop_name} (${doc.doc_type})`,
+                                                url: doc.file_url,
+                                              })
+                                            }
+                                            className="px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[10px] font-bold text-amber-900 cursor-pointer"
+                                          >
+                                            {doc.doc_type}
+                                            {doc.verification_status === 'VERIFIED' ? ' ✓' : ''}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {store.bankAccount && (
+                                      <div className="text-[10px] text-slate-600">
+                                        Bank: <b>{store.bankAccount.bank_name}</b> • {store.bankAccount.account_number} ({store.bankAccount.account_holder_name} ·{' '}
+                                        <span className={store.bankAccount.verification_status === 'MATCHED' ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
+                                          {store.bankAccount.verification_status}
+                                        </span>)
                                       </div>
                                     )}
                                   </div>
@@ -1024,6 +1117,18 @@ export const AdminPortal: React.FC = () => {
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
                                     <XCircle size={12} />
                                     <span>Từ chối</span>
+                                  </span>
+                                  {store.rejection_reason && (
+                                    <p className="text-[10px] text-rose-600 mt-1 max-w-[160px] line-clamp-2" title={store.rejection_reason}>
+                                      Lý do: {store.rejection_reason}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                              {store.status === 'SUSPENDED' && (
+                                <div>
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-800 border border-slate-300 whitespace-nowrap">
+                                    <span>Tạm đình chỉ</span>
                                   </span>
                                   {store.rejection_reason && (
                                     <p className="text-[10px] text-rose-600 mt-1 max-w-[160px] line-clamp-2" title={store.rejection_reason}>
@@ -1073,21 +1178,29 @@ export const AdminPortal: React.FC = () => {
                                         ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-rose-400 hover:text-rose-700'
                                     }`}
-                                    title="Cấp hoặc gỡ chứng nhận Mall chính hãng"
+                                    title="Cấp hoặc gỡ chứng nhận Mall chính hãng (chỉ Doanh nghiệp)"
                                   >
                                     <span>{store.is_mall ? '✓ FitVision Mall' : '+ Cấp Mall'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleSuspendStore(store)}
+                                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-700 hover:text-rose-700 text-[11px] font-bold cursor-pointer"
+                                  >
+                                    Đình chỉ
                                   </button>
                                 </div>
                               )}
 
-                              {isRejected && (
+                              {(isRejected || store.status === 'SUSPENDED') && (
                                 <button
                                   type="button"
                                   disabled={isBusy}
                                   onClick={() => handleApproveStore(store)}
                                   className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer whitespace-nowrap"
                                 >
-                                  Xét duyệt lại
+                                  {store.status === 'SUSPENDED' ? 'Mở khóa lại' : 'Xét duyệt lại'}
                                 </button>
                               )}
                             </td>

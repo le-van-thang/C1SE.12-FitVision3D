@@ -22,18 +22,43 @@ export interface AdminStoreItem {
   shop_address: string;
   city?: string;
   contact_email?: string;
+  entity_type?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
   tax_code?: string;
+  tax_status?: string;
+  legal_representative_name?: string;
+  national_id_last4?: string;
   business_license_no?: string;
   is_verified: boolean;
   is_mall?: boolean;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  operational_mode?: 'ACTIVE' | 'VACATION';
+  tax_lookup_snapshot?: any;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
   rejection_reason?: string | null;
   approved_at?: string | null;
+  reviewed_at?: string | null;
   created_at: string;
   updated_at: string;
   owner_name?: string;
   owner_email?: string;
   owner_role?: string;
+  documents?: Array<{
+    id: string;
+    doc_type: string;
+    file_url: string;
+    file_name?: string;
+    qr_parsed_payload?: any;
+    verification_status: string;
+    reviewer_note?: string;
+  }>;
+  bankAccount?: {
+    id: string;
+    bank_code: string;
+    bank_name: string;
+    account_number: string;
+    account_holder_name: string;
+    name_match_score: number;
+    verification_status: string;
+  } | null;
 }
 
 export interface AdminUserItem {
@@ -149,6 +174,39 @@ export const adminApi = {
   },
 
   /**
+   * Tạm đình chỉ cửa hàng vi phạm
+   */
+  async suspendStore(storeId: string, reason: string): Promise<AdminApiResponse<AdminStoreItem>> {
+    return await adminRequest<AdminStoreItem>(`/stores/${storeId}/suspend`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  /**
+   * Tra cứu MST Doanh nghiệp / Hộ kinh doanh (Casso Open Platform + Checksum Mod-11)
+   */
+  async lookupTaxCode(
+    taxCode: string,
+    entityType: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE' = 'ENTERPRISE'
+  ): Promise<
+    AdminApiResponse<{
+      taxCode: string;
+      checksumValid: boolean;
+      lookupStatus: string;
+      businessName?: string;
+      address?: string;
+      operationalStatus?: string;
+      provider: string;
+      message: string;
+    }>
+  > {
+    return await adminRequest(
+      `/tax-lookup/${encodeURIComponent(taxCode)}?entityType=${encodeURIComponent(entityType)}`
+    );
+  },
+
+  /**
    * Cấp / Thu hồi huy hiệu FitVision Mall chính hãng cho Shop
    */
   async toggleStoreMall(storeId: string, isMall: boolean): Promise<AdminApiResponse<AdminStoreItem>> {
@@ -200,16 +258,30 @@ export const adminApi = {
   },
 
   /**
-   * Người dùng nộp đơn mở cửa hàng vào PostgreSQL
+   * Chủ Shop cập nhật / nộp lại hồ sơ KYC, Thuế & Ngân hàng
    */
   async applyStore(payload: {
     shopName: string;
     phoneNumber: string;
     shopAddress: string;
     businessLicenseNo?: string;
+    entityType?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
+    taxCode?: string;
+    nationalId?: string;
+    legalRepresentativeName?: string;
+    bankCode?: string;
+    bankName?: string;
+    bankAccountNumber?: string;
+    bankAccountHolder?: string;
+    kycDocuments?: Array<{
+      docType: string;
+      fileUrl: string;
+      fileName?: string;
+      qrParsedPayload?: any;
+    }>;
   }): Promise<AdminApiResponse<AdminStoreItem>> {
-    return await adminRequest<AdminStoreItem>('/stores/apply', {
-      method: 'POST',
+    return await adminRequest<AdminStoreItem>('/stores/my-shop/resubmit', {
+      method: 'PUT',
       body: JSON.stringify(payload),
     });
   },

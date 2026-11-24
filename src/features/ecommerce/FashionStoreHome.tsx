@@ -2479,9 +2479,14 @@ export const FashionStoreHome: React.FC = () => {
                               BESPOKE
                             </span>
                           )}
-                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-slate-900 shadow-2xs border border-slate-200/80">
+                          <Link
+                            to={`/stores/${encodeURIComponent(product.brand_name)}`}
+                            onClick={(e) => e.stopPropagation()}
+                            title={`Xem gian hàng & đánh giá ${product.brand_name}`}
+                            className="pointer-events-auto px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 hover:bg-blue-50 text-slate-900 hover:text-blue-700 shadow-2xs border border-slate-200/80 transition-colors"
+                          >
                             {product.brand_name}
-                          </span>
+                          </Link>
                           {product.video_url && (
                             <span className="px-1.5 py-0.5 rounded bg-black/80 text-white text-[9px] font-bold shadow-2xs">
                               ▶ Video

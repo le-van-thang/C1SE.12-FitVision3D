@@ -28,6 +28,21 @@ export const adminController = {
     sendSuccess(res, store, 200);
   },
 
+  async suspendStore(req: Request, res: Response) {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { reason } = req.body || {};
+    const adminUserId = (req.user?.sub || 'system');
+    const store = await adminService.suspendStore(id, String(reason || ''), adminUserId);
+    sendSuccess(res, store, 200);
+  },
+
+  async lookupTaxCode(req: Request, res: Response) {
+    const taxCode = Array.isArray(req.params.taxCode) ? req.params.taxCode[0] : req.params.taxCode;
+    const entityType = String(req.query.entityType || 'ENTERPRISE').toUpperCase() as any;
+    const result = await adminService.lookupTaxCode(taxCode, entityType);
+    sendSuccess(res, result, 200);
+  },
+
   async toggleStoreMall(req: Request, res: Response) {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const isMall = Boolean(req.body?.isMall);
@@ -77,14 +92,8 @@ export const adminController = {
     if (!userId) {
       throw new Error('Yêu cầu xác thực.');
     }
-    const { shopName, phoneNumber, shopAddress, businessLicenseNo } = req.body;
-    const shop = await adminService.applyShop(userId, {
-      shopName,
-      phoneNumber,
-      shopAddress,
-      businessLicenseNo,
-    });
-    sendSuccess(res, shop, 201);
+    const shop = await adminService.applyShop(userId, req.body || {});
+    sendSuccess(res, shop, 200);
   },
 };
 

@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, TokenPayload } from '../utils/jwt.js';
 import { AppError } from '../utils/responseEnvelope.js';
 import { ErrorCode } from '../constants/errorCodes.js';
+import { query } from '../config/database.js';
 
 // Extend Express Request type to include authenticated user
 declare global {
@@ -76,5 +77,83 @@ export function requireRole(...allowedRoles: Array<'ADMIN' | 'SHOP_OWNER' | 'USE
 
     next();
   };
+}
+
+/**
+ * Middleware bắt buộc gian hàng của SHOP_OWNER phải ở trạng thái APPROVED
+ * mới được phép thao tác bán hàng (đăng sản phẩm, xử lý đơn, chỉnh sửa gian hàng).
+ */
+export async function requireApprovedShop(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      return next(new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chưa xác thực danh tính.'));
+    }
+    if (req.user.role === 'ADMIN') {
+      return next();
+    }
+    if (req.user.role !== 'SHOP_OWNER') {
+      return next(
+        new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Chỉ tài khoản Chủ Shop mới có quyền truy cập chức năng này.'
+        )
+      );
+    }
+
+    const rows = await query<{ id: string; status: string; rejection_reason: string | null }>(
+      'SELECT id, status, rejection_reason FROM shops WHERE owner_id = $1 LIMIT 1',
+      [req.user.sub]
+    );
+    const shop = rows[0];
+    if (!shop) {
+      return next(
+        new AppError(
+          403,
+          ErrorCode.AUTH_SHOP_PENDING_APPROVAL,
+          'Tài khoản chưa hoàn tất hồ sơ KYC & Thuế gian hàng.'
+        )
+      );
+    }
+    if (shop.status === 'PENDING') {
+      return next(
+        new AppError(
+          403,
+          ErrorCode.AUTH_SHOP_PENDING_APPROVAL,
+          'Hồ sơ gian hàng đang chờ Quản trị viên thẩm định KYC & Thuế.'
+        )
+      );
+    }
+    if (shop.status === 'REJECTED') {
+      return next(
+        new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          shop.rejection_reason
+            ? `Hồ sơ gian hàng bị từ chối: ${shop.rejection_reason}`
+            : 'Hồ sơ gian hàng bị từ chối. Vui lòng cập nhật lại giấy tờ KYC.'
+        )
+      );
+    }
+    if (shop.status === 'SUSPENDED') {
+      return next(
+        new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          shop.rejection_reason
+            ? `Gian hàng đang bị tạm đình chỉ: ${shop.rejection_reason}`
+            : 'Gian hàng hiện đang bị tạm đình chỉ hoạt động.'
+        )
+      );
+    }
+
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 

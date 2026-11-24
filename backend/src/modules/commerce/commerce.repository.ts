@@ -326,6 +326,40 @@ export const commerceRepository = {
           resolvedStoreName = dbProd.brand_name;
         }
 
+        // Check if target Shop is Approved and NOT in Vacation Mode
+        const shopCheck = await client.query<{
+          id: string;
+          shop_name: string;
+          status: string;
+          operational_mode: string;
+          vacation_note: string | null;
+        }>(
+          `SELECT id, shop_name, status, COALESCE(operational_mode, 'ACTIVE') AS operational_mode, vacation_note
+           FROM shops
+           WHERE id = $1 OR LOWER(shop_name) = LOWER($2)
+           LIMIT 1`,
+          [dbProd.shop_id, dbProd.brand_name]
+        );
+        const ownerShop = shopCheck.rows[0];
+        if (ownerShop) {
+          if (ownerShop.status === 'SUSPENDED') {
+            throw new AppError(
+              400,
+              ErrorCode.VALIDATION_FAILED,
+              `Gian hàng "${ownerShop.shop_name}" hiện đang tạm ngưng hoạt động.`
+            );
+          }
+          if (ownerShop.operational_mode === 'VACATION') {
+            throw new AppError(
+              400,
+              ErrorCode.VALIDATION_FAILED,
+              ownerShop.vacation_note
+                ? `Gian hàng "${ownerShop.shop_name}" đang ở chế độ Tạm nghỉ: ${ownerShop.vacation_note}`
+                : `Gian hàng "${ownerShop.shop_name}" hiện đang tạm nghỉ nhận đơn mới.`
+            );
+          }
+        }
+
         const variants = Array.isArray(dbProd.variants) ? [...dbProd.variants] : [];
         const targetVariantId = item?.variant?.id;
         const targetSku = item?.variant?.sku;
@@ -751,52 +785,175 @@ export const commerceRepository = {
   async ensureShopForUser(userId: string) {
     await ensureCommerceTablesAndSeed();
     const shopRows = await query(
-      `SELECT id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
+      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address,
+              entity_type, tax_code, tax_status, business_license_no,
+              legal_representative_name, national_id_last4,
+              status, rejection_reason, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
+              COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
+              vacation_note, vacation_until, banner_url, logo_url, tagline, description,
+              approved_at, created_at
        FROM shops
        WHERE owner_id = $1
        LIMIT 1`,
       [userId]
     );
-    if (shopRows.length > 0) return shopRows[0];
+    return shopRows[0] || null;
+  },
 
-    // If Admin directly promoted a user to SHOP_OWNER without them submitting an application,
-    // auto-provision an active shop row in PostgreSQL so /shop works immediately.
-    const userRows = await query<{ id: string; full_name: string; email: string; phone: string | null; role: string }>(
-      `SELECT id, full_name, email, phone, role FROM users WHERE id = $1 LIMIT 1`,
-      [userId]
+  async computeShopReputation(shopId: string, shopName: string, isMall: boolean) {
+    const revStats = await query<{
+      avg_rating: string | null;
+      total_reviews: string;
+      replied_reviews: string;
+    }>(
+      `SELECT ROUND(AVG(r.rating)::numeric, 1)::text AS avg_rating,
+              COUNT(r.id)::text AS total_reviews,
+              COUNT(CASE WHEN r.shop_reply IS NOT NULL AND LENGTH(TRIM(r.shop_reply)) > 0 THEN 1 END)::text AS replied_reviews
+       FROM product_reviews r
+       INNER JOIN products p ON p.id = r.product_id
+       WHERE p.shop_id = $1 OR LOWER(p.brand_name) = LOWER($2)`,
+      [shopId, shopName]
     );
-    const u = userRows[0];
-    if (!u || (u.role !== 'SHOP_OWNER' && u.role !== 'ADMIN')) {
-      return null;
+
+    const row = revStats[0];
+    const totalReviews = parseInt(row?.total_reviews || '0', 10);
+    const repliedReviews = parseInt(row?.replied_reviews || '0', 10);
+    const avgRating = totalReviews > 0 ? parseFloat(row?.avg_rating || '5.0') : 5.0;
+    const responseRate = totalReviews > 0 ? Math.round((repliedReviews / totalReviews) * 100) : 100;
+
+    const prodStats = await query<{ cnt: string }>(
+      `SELECT COUNT(*)::text AS cnt
+       FROM products
+       WHERE (shop_id = $1 OR LOWER(brand_name) = LOWER($2)) AND is_hidden = FALSE`,
+      [shopId, shopName]
+    );
+    const activeProductsCount = parseInt(prodStats[0]?.cnt || '0', 10);
+
+    const tier: 'MALL' | 'PREFERRED' | 'REGULAR' = isMall
+      ? 'MALL'
+      : avgRating >= 4.7 && responseRate >= 80 && totalReviews >= 1
+        ? 'PREFERRED'
+        : 'REGULAR';
+
+    return {
+      ratingAvg: avgRating,
+      ratingCount: totalReviews,
+      responseRate,
+      activeProductsCount,
+      tier,
+    };
+  },
+
+  async listPublicStores() {
+    await ensureCommerceTablesAndSeed();
+    const shops = await query<any>(
+      `SELECT id, shop_name, brand_slug, shop_address, city, entity_type,
+              COALESCE(is_mall, FALSE) AS is_mall,
+              COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
+              vacation_note, vacation_until, banner_url, logo_url, tagline, description, created_at
+       FROM shops
+       WHERE status = 'APPROVED'
+       ORDER BY is_mall DESC, created_at DESC`
+    );
+
+    const enriched = await Promise.all(
+      shops.map(async (s: any) => ({
+        ...s,
+        reputation: await this.computeShopReputation(s.id, s.shop_name, Boolean(s.is_mall)),
+      }))
+    );
+    return enriched;
+  },
+
+  async getPublicStorefrontBySlug(slugOrBrand: string) {
+    await ensureCommerceTablesAndSeed();
+    const target = String(slugOrBrand || '').trim();
+    const shops = await query<any>(
+      `SELECT id, shop_name, brand_slug, phone_number, shop_address, city, entity_type,
+              COALESCE(is_mall, FALSE) AS is_mall,
+              COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
+              vacation_note, vacation_until, banner_url, logo_url, tagline, description, created_at
+       FROM shops
+       WHERE status = 'APPROVED'
+         AND (LOWER(brand_slug) = LOWER($1) OR LOWER(shop_name) = LOWER($1) OR id::text = $1)
+       LIMIT 1`,
+      [target]
+    );
+
+    const shop = shops[0];
+    if (!shop) {
+      // Check if pre-seeded brand exists on products without explicit shop row
+      const seedProds = await query(
+        `SELECT id, brand_name, shop_id, COALESCE(is_mall, FALSE) AS is_mall, name, name_en, slug, category, gender_target,
+                price, sale_price, rating::float, reviews_count, fabric_material, fabric_material_en,
+                stretch_type, image_url, secondary_image_url, video_url, description, description_en,
+                is_bestseller, is_bespoke, is_hidden, variants, created_at, updated_at
+         FROM products
+         WHERE (LOWER(brand_name) = LOWER($1) OR LOWER(REPLACE(brand_name, ' ', '-')) = LOWER($1))
+           AND is_hidden = FALSE
+         ORDER BY created_at DESC`,
+        [target]
+      );
+      if (seedProds.length === 0) return null;
+      const brandName = seedProds[0].brand_name;
+      const reputation = await this.computeShopReputation('00000000-0000-0000-0000-000000000000', brandName, Boolean(seedProds[0].is_mall));
+      return {
+        shop: {
+          id: seedProds[0].shop_id || brandName,
+          shop_name: brandName,
+          brand_slug: brandName.toLowerCase().replace(/\s+/g, '-'),
+          shop_address: 'Việt Nam',
+          entity_type: seedProds[0].is_mall ? 'ENTERPRISE' : 'INDIVIDUAL',
+          is_mall: Boolean(seedProds[0].is_mall),
+          operational_mode: 'ACTIVE',
+          tagline: 'Thương hiệu đối tác FitVision 3D Atelier',
+        },
+        reputation,
+        products: seedProds,
+        reviews: [],
+      };
     }
 
-    const baseName = (u.full_name || u.email.split('@')[0] || 'FitVision').trim();
-    const shopName = `${baseName} Fashion`;
-    const slug = `shop-${userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10)}`;
-    const phone = (u.phone || `09${String(Date.now()).slice(-8)}`).slice(0, 15);
+    const [reputation, products, reviews] = await Promise.all([
+      this.computeShopReputation(shop.id, shop.shop_name, Boolean(shop.is_mall)),
+      query(
+        `SELECT id, brand_name, shop_id, COALESCE(is_mall, FALSE) AS is_mall, name, name_en, slug, category, gender_target,
+                price, sale_price, rating::float, reviews_count, fabric_material, fabric_material_en,
+                stretch_type, image_url, secondary_image_url, video_url, description, description_en,
+                is_bestseller, is_bespoke, is_hidden, variants, created_at, updated_at
+         FROM products
+         WHERE (shop_id = $1 OR LOWER(brand_name) = LOWER($2)) AND is_hidden = FALSE
+         ORDER BY created_at DESC`,
+        [shop.id, shop.shop_name]
+      ),
+      query(
+        `SELECT r.id, r.product_id, r.user_name, r.rating, r.comment, r.is_verified_purchase, r.shop_reply, r.created_at, p.name AS product_name
+         FROM product_reviews r
+         INNER JOIN products p ON p.id = r.product_id
+         WHERE p.shop_id = $1 OR LOWER(p.brand_name) = LOWER($2)
+         ORDER BY r.created_at DESC
+         LIMIT 20`,
+        [shop.id, shop.shop_name]
+      ),
+    ]);
 
-    const created = await query(
-      `INSERT INTO shops (
-         owner_id, shop_name, brand_slug, phone_number, shop_address,
-         contact_email, status, is_verified, approved_at, created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, 'Việt Nam', $5, 'APPROVED', TRUE, NOW(), NOW(), NOW())
-       ON CONFLICT (owner_id) DO NOTHING
-       RETURNING id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall`,
-      [userId, shopName, slug, phone, u.email]
-    );
-    if (created.length > 0) return created[0];
-
-    const retry = await query(
-      `SELECT id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
-       FROM shops WHERE owner_id = $1 LIMIT 1`,
-      [userId]
-    );
-    return retry[0] || null;
+    return { shop, reputation, products, reviews };
   },
 
   async updateShopProfile(
     userId: string,
-    payload: { shopName?: string; phoneNumber?: string; shopAddress?: string }
+    payload: {
+      shopName?: string;
+      phoneNumber?: string;
+      shopAddress?: string;
+      tagline?: string;
+      description?: string;
+      bannerUrl?: string;
+      logoUrl?: string;
+      operationalMode?: 'ACTIVE' | 'VACATION';
+      vacationNote?: string;
+      vacationUntil?: string | null;
+    }
   ) {
     const shop = await this.ensureShopForUser(userId);
     if (!shop) {
@@ -805,15 +962,51 @@ export const commerceRepository = {
     const cleanName = String(payload.shopName || shop.shop_name).trim();
     const cleanPhone = String(payload.phoneNumber || shop.phone_number).trim().slice(0, 15);
     const cleanAddr = String(payload.shopAddress || shop.shop_address).trim().slice(0, 255);
+    const cleanTagline = payload.tagline !== undefined ? String(payload.tagline).trim().slice(0, 255) : shop.tagline;
+    const cleanDesc = payload.description !== undefined ? String(payload.description).trim() : shop.description;
+    const cleanBanner = payload.bannerUrl !== undefined ? String(payload.bannerUrl).trim() : shop.banner_url;
+    const cleanLogo = payload.logoUrl !== undefined ? String(payload.logoUrl).trim() : shop.logo_url;
+    const opMode =
+      payload.operationalMode === 'VACATION' || payload.operationalMode === 'ACTIVE'
+        ? payload.operationalMode
+        : shop.operational_mode || 'ACTIVE';
+    const vacNote =
+      payload.vacationNote !== undefined ? String(payload.vacationNote).trim() : shop.vacation_note;
+    const vacUntil =
+      payload.vacationUntil !== undefined
+        ? payload.vacationUntil
+          ? new Date(payload.vacationUntil)
+          : null
+        : shop.vacation_until;
+
     if (cleanName.length < 2) throw new Error('Tên Shop phải có tối thiểu 2 ký tự.');
     if (cleanPhone.length < 8) throw new Error('Số điện thoại Shop không hợp lệ.');
 
     const updated = await query(
       `UPDATE shops
-       SET shop_name = $2, phone_number = $3, shop_address = $4, updated_at = NOW()
+       SET shop_name = $2, phone_number = $3, shop_address = $4,
+           tagline = $5, description = $6, banner_url = $7, logo_url = $8,
+           operational_mode = $9, vacation_note = $10, vacation_until = $11,
+           updated_at = NOW()
        WHERE id = $1
-       RETURNING id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall`,
-      [shop.id, cleanName, cleanPhone, cleanAddr]
+       RETURNING id, owner_id, shop_name, brand_slug, phone_number, shop_address,
+                 entity_type, tax_code, tax_status, status, is_verified,
+                 COALESCE(is_mall, FALSE) AS is_mall,
+                 COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
+                 vacation_note, vacation_until, banner_url, logo_url, tagline, description`,
+      [
+        shop.id,
+        cleanName,
+        cleanPhone,
+        cleanAddr,
+        cleanTagline || null,
+        cleanDesc || null,
+        cleanBanner || null,
+        cleanLogo || null,
+        opMode,
+        vacNote || null,
+        vacUntil,
+      ]
     );
     if (cleanName !== shop.shop_name) {
       await query(
@@ -827,7 +1020,46 @@ export const commerceRepository = {
   async getShopDashboard(userId: string) {
     const shop = await this.ensureShopForUser(userId);
     if (!shop) {
-      return { shop: null, products: [], orders: [], reviews: [] };
+      return {
+        shop: null,
+        documents: [],
+        bankAccount: null,
+        reputation: null,
+        products: [],
+        orders: [],
+        reviews: [],
+      };
+    }
+
+    const [documents, bankRows, reputation] = await Promise.all([
+      query(
+        `SELECT id, doc_type, file_url, file_name, qr_parsed_payload, verification_status, reviewer_note, updated_at
+         FROM shop_kyc_documents
+         WHERE shop_id = $1
+         ORDER BY created_at ASC`,
+        [shop.id]
+      ),
+      query(
+        `SELECT id, bank_code, bank_name, account_number, account_holder_name, is_primary, name_match_score::float, verification_status
+         FROM shop_bank_accounts
+         WHERE shop_id = $1
+         ORDER BY is_primary DESC, created_at ASC
+         LIMIT 1`,
+        [shop.id]
+      ),
+      this.computeShopReputation(shop.id, shop.shop_name, Boolean(shop.is_mall)),
+    ]);
+
+    if (shop.status !== 'APPROVED') {
+      return {
+        shop,
+        documents,
+        bankAccount: bankRows[0] || null,
+        reputation,
+        products: [],
+        orders: [],
+        reviews: [],
+      };
     }
 
     const products = await query(
@@ -844,17 +1076,18 @@ export const commerceRepository = {
     const orders = await query(
       `SELECT id, customer_id, customer_name, recipient, items,
               subtotal, shipping_fee, discount_amount, total_amount,
-              payment_method, payment_status, status, store_name,
-              estimated_delivery, created_at, updated_at
+              payment_method, payment_status, status, store_name, shop_id,
+              has_bespoke_items, measurement_snapshot, estimated_delivery, created_at, updated_at
        FROM orders
-       WHERE LOWER(COALESCE(store_name, '')) = LOWER($1)
+       WHERE shop_id = $1
+          OR LOWER(COALESCE(store_name, '')) = LOWER($2)
           OR EXISTS (
             SELECT 1 FROM jsonb_array_elements(items) AS el
-            WHERE LOWER(COALESCE(el->'product'->>'brand_name', '')) = LOWER($1)
-               OR el->'product'->>'shop_id' = $2
+            WHERE LOWER(COALESCE(el->'product'->>'brand_name', '')) = LOWER($2)
+               OR el->'product'->>'shop_id' = $3
           )
        ORDER BY created_at DESC`,
-      [shop.shop_name, String(shop.id)]
+      [shop.id, shop.shop_name, String(shop.id)]
     );
 
     const reviews = await query(
@@ -868,7 +1101,15 @@ export const commerceRepository = {
       [shop.id, shop.shop_name]
     );
 
-    return { shop, products, orders, reviews };
+    return {
+      shop,
+      documents,
+      bankAccount: bankRows[0] || null,
+      reputation,
+      products,
+      orders,
+      reviews,
+    };
   },
 
   async createShopProduct(userId: string, payload: any) {

@@ -38,6 +38,13 @@ export const commerceController = {
       if (!req.user) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập để đặt hàng.');
       }
+      if (req.user.role === 'SHOP_OWNER') {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Tài khoản Chủ Shop không dùng để đặt hàng cá nhân. Vui lòng sử dụng tài khoản Khách hàng (USER) để tách bạch thuế & chống tự mua.'
+        );
+      }
       const body = req.body || {};
       const orderId = body.id || `FV3D-${Math.floor(10000 + Math.random() * 90000)}`;
       const customerId = req.user.sub;
@@ -74,6 +81,16 @@ export const commerceController = {
       if (!req.user) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chưa xác thực danh tính.');
       }
+      if (req.user.role === 'SHOP_OWNER') {
+        const shop = await commerceRepository.ensureShopForUser(req.user.sub);
+        if (!shop || shop.status !== 'APPROVED') {
+          throw new AppError(
+            403,
+            ErrorCode.AUTH_SHOP_PENDING_APPROVAL,
+            'Gian hàng cần được Quản trị viên phê duyệt trước khi xử lý đơn hàng.'
+          );
+        }
+      }
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { status } = req.body || {};
       const valid = ['pending', 'confirmed', 'tailoring', 'shipping', 'completed', 'cancelled'];
@@ -97,6 +114,16 @@ export const commerceController = {
     try {
       if (!req.user) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chưa xác thực danh tính.');
+      }
+      if (req.user.role === 'SHOP_OWNER') {
+        const shop = await commerceRepository.ensureShopForUser(req.user.sub);
+        if (!shop || shop.status !== 'APPROVED') {
+          throw new AppError(
+            403,
+            ErrorCode.AUTH_SHOP_PENDING_APPROVAL,
+            'Gian hàng cần được Quản trị viên phê duyệt trước khi xử lý đơn hàng.'
+          );
+        }
       }
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const updated = await commerceRepository.markOrderPaid(id, {
@@ -363,6 +390,28 @@ export const commerceController = {
     }
   },
 
+  async listPublicStores(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const stores = await commerceRepository.listPublicStores();
+      sendSuccess(res, stores);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getPublicStorefront(req: Request, res: Response, next: NextFunction) {
+    try {
+      const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+      const storefront = await commerceRepository.getPublicStorefrontBySlug(slug);
+      if (!storefront) {
+        throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy gian hàng.');
+      }
+      sendSuccess(res, storefront);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async listProductReviews(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -378,6 +427,13 @@ export const commerceController = {
       const userId = req.user?.sub;
       if (!userId) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập để gửi đánh giá.');
+      }
+      if (req.user?.role === 'SHOP_OWNER') {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Tài khoản Chủ Shop không được tự gửi đánh giá sản phẩm.'
+        );
       }
       const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { rating, comment, userName } = req.body || {};

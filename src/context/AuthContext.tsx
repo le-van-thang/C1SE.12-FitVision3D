@@ -177,6 +177,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: dbShop.phone_number,
           address: dbShop.shop_address,
           verification_doc: dbShop.business_license_no || '',
+          entity_type: dbShop.entity_type,
+          tax_code: dbShop.tax_code,
+          tax_status: dbShop.tax_status,
           status: dbShop.status,
           is_approved: dbShop.status === 'APPROVED',
           rejection_reason: dbShop.rejection_reason || null,
@@ -185,26 +188,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setStores((prev) => [mapped, ...prev.filter((s) => s.user_id !== userId && s.id !== mapped.id)]);
         return;
-      }
-
-      // If DB has no shop yet, auto-push any unsynced local pending shop (e.g., submitted before schema fix)
-      if (myRes.success && myRes.data === null) {
-        const savedRaw = localStorage.getItem(STORAGE_KEY_STORES);
-        const savedStores: Store[] = savedRaw ? JSON.parse(savedRaw) : [];
-        const localPending = savedStores.find((s) => s.user_id === userId && s.status === 'PENDING');
-        if (localPending) {
-          const replayRes = await adminApi.applyStore({
-            shopName: localPending.brand_name,
-            phoneNumber: localPending.phone,
-            shopAddress: localPending.address,
-            businessLicenseNo: localPending.verification_doc,
-          });
-          if (replayRes.success && replayRes.data) {
-            setStores((prev) =>
-              prev.map((s) => (s.id === localPending.id ? { ...s, id: replayRes.data!.id } : s))
-            );
-          }
-        }
       }
     } catch {
       // ignore offline
@@ -361,6 +344,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         if (profile.role === 'admin') {
           navigate('/admin', { replace: true });
+        } else if (profile.role === 'store') {
+          navigate('/shop', { replace: true });
         }
         return { success: true };
       }

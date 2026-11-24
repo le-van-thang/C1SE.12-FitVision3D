@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { commerceController } from './commerce.controller.js';
-import { requireAuth, requireRole } from '../../middlewares/authGuard.js';
+import { requireApprovedShop, requireAuth, requireRole } from '../../middlewares/authGuard.js';
 import { verifyAccessToken } from '../../utils/jwt.js';
 
 export const commerceRouter = Router();
@@ -18,8 +18,10 @@ function optionalAuth(req: any, _res: any, next: any) {
   next();
 }
 
-// Public Storefront Bootstrap (Settings + Vouchers + Pre-seeded Products)
+// Public Storefront Bootstrap & Brand Storefronts (Settings + Vouchers + Pre-seeded Products + Shop Ratings)
 commerceRouter.get('/bootstrap', commerceController.getBootstrap);
+commerceRouter.get('/stores', commerceController.listPublicStores);
+commerceRouter.get('/stores/:slug', commerceController.getPublicStorefront);
 
 // Orders (Strict Authenticated Isolation + Stock Control + Bespoke Snapshot)
 commerceRouter.get('/orders', requireAuth, commerceController.getOrders);
@@ -44,15 +46,15 @@ commerceRouter.patch('/admin/vouchers/:code', requireAuth, requireRole('ADMIN'),
 commerceRouter.delete('/admin/vouchers/:code', requireAuth, requireRole('ADMIN'), commerceController.deleteVoucher);
 commerceRouter.patch('/admin/products/:id', requireAuth, requireRole('ADMIN'), commerceController.moderateProduct);
 
-// Shop Owner Seller Center Endpoints (Kênh Người Bán)
+// Shop Owner Seller Center Endpoints (Kênh Người Bán - khóa cứng khi Shop chưa APPROVED)
 commerceRouter.get('/shop/dashboard', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.getShopDashboard);
-commerceRouter.patch('/shop/profile', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.updateShopProfile);
-commerceRouter.post('/shop/suggest-description', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.suggestProductDescription);
-commerceRouter.post('/shop/products', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.createShopProduct);
-commerceRouter.patch('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.updateShopProduct);
-commerceRouter.delete('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.deleteShopProduct);
+commerceRouter.patch('/shop/profile', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.updateShopProfile);
+commerceRouter.post('/shop/suggest-description', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.suggestProductDescription);
+commerceRouter.post('/shop/products', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.createShopProduct);
+commerceRouter.patch('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.updateShopProduct);
+commerceRouter.delete('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.deleteShopProduct);
 
 // Product Reviews & Star Ratings Endpoints
 commerceRouter.get('/products/:id/reviews', commerceController.listProductReviews);
 commerceRouter.post('/products/:id/reviews', requireAuth, commerceController.createProductReview);
-commerceRouter.patch('/reviews/:reviewId/reply', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.replyProductReview);
+commerceRouter.patch('/reviews/:reviewId/reply', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.replyProductReview);

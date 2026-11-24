@@ -1,4 +1,14 @@
 import { query } from '../../config/database.js';
+import {
+  compareVietnameseAccountNames,
+  evaluateCccdQrConsistency,
+  hashNationalId,
+  validateVietnamCCCD,
+  validateVietnamTaxCode,
+  cassoTaxAndLocalKycProvider,
+} from '../shop/kycVerification.js';
+import { AppError } from '../../utils/responseEnvelope.js';
+import { ErrorCode } from '../../constants/errorCodes.js';
 
 export interface AdminShopEntity {
   id: string;
@@ -9,20 +19,31 @@ export interface AdminShopEntity {
   shop_address: string;
   city?: string;
   contact_email?: string;
+  entity_type?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
   tax_code?: string;
+  tax_status?: string;
+  legal_representative_name?: string;
+  national_id_last4?: string;
   business_license_no?: string;
   logo_url?: string;
+  banner_url?: string;
+  tagline?: string;
   description?: string;
   is_verified: boolean;
   is_mall?: boolean;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  operational_mode?: 'ACTIVE' | 'VACATION';
+  tax_lookup_snapshot?: any;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
   rejection_reason?: string | null;
   approved_at?: Date | null;
+  reviewed_at?: Date | null;
   created_at: Date;
   updated_at: Date;
   owner_name?: string;
   owner_email?: string;
   owner_role?: string;
+  documents?: any[];
+  bankAccount?: any | null;
 }
 
 export interface AdminUserEntity {
@@ -93,7 +114,7 @@ export const adminRepository = {
   },
 
   /**
-   * Danh sách toàn bộ hồ sơ nhà may / cửa hàng kèm thông tin chủ shop
+   * Danh sách toàn bộ hồ sơ nhà may / cửa hàng kèm tài liệu KYC, ngân hàng & thông tin chủ shop
    */
   async getAllShops(): Promise<AdminShopEntity[]> {
     const sql = `
@@ -106,15 +127,24 @@ export const adminRepository = {
         s.shop_address,
         s.city,
         s.contact_email,
+        COALESCE(s.entity_type, 'INDIVIDUAL') as entity_type,
         s.tax_code,
+        COALESCE(s.tax_status, 'PENDING_REVIEW') as tax_status,
+        s.legal_representative_name,
+        s.national_id_last4,
         s.business_license_no,
         s.logo_url,
+        s.banner_url,
+        s.tagline,
         s.description,
         s.is_verified,
         COALESCE(s.is_mall, FALSE) as is_mall,
+        COALESCE(s.operational_mode, 'ACTIVE') as operational_mode,
+        s.tax_lookup_snapshot,
         COALESCE(s.status, CASE WHEN s.is_verified THEN 'APPROVED' ELSE 'PENDING' END) as status,
         s.rejection_reason,
         s.approved_at,
+        s.reviewed_at,
         s.created_at,
         s.updated_at,
         u.full_name as owner_name,
@@ -124,27 +154,56 @@ export const adminRepository = {
       LEFT JOIN users u ON s.owner_id = u.id
       ORDER BY s.created_at DESC
     `;
-    return await query<AdminShopEntity>(sql);
+    const shops = await query<AdminShopEntity>(sql);
+    if (shops.length === 0) return [];
+
+    const [docs, banks] = await Promise.all([
+      query<any>(
+        `SELECT id, shop_id, doc_type, file_url, file_name, qr_parsed_payload, verification_status, reviewer_note
+         FROM shop_kyc_documents`
+      ).catch(() => []),
+      query<any>(
+        `SELECT id, shop_id, bank_code, bank_name, account_number, account_holder_name, is_primary, name_match_score::float, verification_status
+         FROM shop_bank_accounts
+         WHERE is_primary = TRUE`
+      ).catch(() => []),
+    ]);
+
+    return shops.map((s) => ({
+      ...s,
+      documents: docs.filter((d) => String(d.shop_id) === String(s.id)),
+      bankAccount: banks.find((b) => String(b.shop_id) === String(s.id)) || null,
+    }));
   },
 
   /**
    * Phê duyệt hồ sơ cửa hàng & tự động thăng hạng tài khoản chủ sở hữu
    */
-  async approveShop(shopId: string): Promise<AdminShopEntity | null> {
+  async approveShop(shopId: string, adminUserId?: string): Promise<AdminShopEntity | null> {
     const shopRows = await query<AdminShopEntity>(
       `UPDATE shops 
        SET is_verified = true, 
            status = 'APPROVED', 
            approved_at = NOW(), 
+           reviewed_at = NOW(),
+           reviewed_by = $2,
+           tax_status = CASE WHEN tax_code IS NOT NULL AND tax_code <> '' THEN 'VERIFIED' ELSE tax_status END,
            rejection_reason = NULL,
            updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [shopId]
+      [shopId, adminUserId && adminUserId !== 'system' ? adminUserId : null]
     );
 
     if (shopRows.length === 0) return null;
     const shop = shopRows[0];
+
+    await query(
+      `UPDATE shop_kyc_documents
+       SET verification_status = 'VERIFIED', updated_at = NOW()
+       WHERE shop_id = $1`,
+      [shopId]
+    ).catch(() => undefined);
 
     // Cập nhật người dùng tương ứng thành SHOP_OWNER & ACTIVE
     await query(
@@ -162,16 +221,18 @@ export const adminRepository = {
   /**
    * Từ chối hồ sơ cửa hàng kèm lý do
    */
-  async rejectShop(shopId: string, reason: string): Promise<AdminShopEntity | null> {
+  async rejectShop(shopId: string, reason: string, adminUserId?: string): Promise<AdminShopEntity | null> {
     const shopRows = await query<AdminShopEntity>(
       `UPDATE shops 
        SET is_verified = false, 
            status = 'REJECTED', 
            rejection_reason = $2, 
+           reviewed_at = NOW(),
+           reviewed_by = $3,
            updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [shopId, reason]
+      [shopId, reason, adminUserId && adminUserId !== 'system' ? adminUserId : null]
     );
 
     if (shopRows.length === 0) return null;
@@ -179,9 +240,54 @@ export const adminRepository = {
   },
 
   /**
+   * Tạm đình chỉ cửa hàng vi phạm (ẩn toàn bộ sản phẩm công khai)
+   */
+  async suspendShop(shopId: string, reason: string, adminUserId?: string): Promise<AdminShopEntity | null> {
+    const shopRows = await query<AdminShopEntity>(
+      `UPDATE shops 
+       SET is_verified = false, 
+           status = 'SUSPENDED', 
+           rejection_reason = $2, 
+           reviewed_at = NOW(),
+           reviewed_by = $3,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [shopId, reason, adminUserId && adminUserId !== 'system' ? adminUserId : null]
+    );
+    if (shopRows.length === 0) return null;
+    const shop = shopRows[0];
+    await query(
+      `UPDATE products SET is_hidden = TRUE, updated_at = NOW()
+       WHERE shop_id = $1 OR LOWER(brand_name) = LOWER($2)`,
+      [shop.id, shop.shop_name]
+    ).catch(() => undefined);
+    return shop;
+  },
+
+  /**
    * Cấp / thu hồi huy hiệu FitVision Mall chính hãng cho Shop và đồng bộ sản phẩm
    */
   async setShopMall(shopId: string, isMall: boolean): Promise<AdminShopEntity | null> {
+    if (isMall) {
+      const checkRows = await query<{ entity_type: string; status: string; tax_code: string | null }>(
+        'SELECT COALESCE(entity_type, \'INDIVIDUAL\') as entity_type, status, tax_code FROM shops WHERE id = $1 LIMIT 1',
+        [shopId]
+      );
+      const target = checkRows[0];
+      if (!target) return null;
+      if (target.status !== 'APPROVED') {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Chỉ cửa hàng đã được Duyệt mới có thể cấp huy hiệu FitVision Mall.');
+      }
+      if (target.entity_type !== 'ENTERPRISE' || !target.tax_code) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_ERROR,
+          'Chỉ mô hình Doanh nghiệp (Enterprise) có GPKD & Mã số thuế hợp lệ mới đủ điều kiện FitVision Mall.'
+        );
+      }
+    }
+
     const shopRows = await query<AdminShopEntity>(
       `UPDATE shops
        SET is_mall = $2, updated_at = NOW()
@@ -297,23 +403,79 @@ export const adminRepository = {
       'SELECT * FROM shops WHERE owner_id = $1 LIMIT 1',
       [ownerId]
     );
-    return rows[0] || null;
+    const shop = rows[0];
+    if (!shop) return null;
+    const [documents, bankRows] = await Promise.all([
+      query<any>('SELECT * FROM shop_kyc_documents WHERE shop_id = $1', [shop.id]).catch(() => []),
+      query<any>(
+        'SELECT * FROM shop_bank_accounts WHERE shop_id = $1 ORDER BY is_primary DESC LIMIT 1',
+        [shop.id]
+      ).catch(() => []),
+    ]);
+    return {
+      ...shop,
+      documents,
+      bankAccount: bankRows[0] || null,
+    };
   },
 
   /**
-   * Người dùng nộp đơn mở cửa hàng
+   * Chủ Shop cập nhật & nộp lại hồ sơ KYC/Thuế/Ngân hàng (khi đang PENDING hoặc bị REJECTED)
    */
   async applyShop(ownerId: string, data: {
     shopName: string;
     phoneNumber: string;
     shopAddress: string;
     businessLicenseNo?: string;
+    entityType?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
+    taxCode?: string;
+    nationalId?: string;
+    legalRepresentativeName?: string;
+    bankCode?: string;
+    bankName?: string;
+    bankAccountNumber?: string;
+    bankAccountHolder?: string;
+    kycDocuments?: Array<{
+      docType: string;
+      fileUrl: string;
+      fileName?: string;
+      qrParsedPayload?: any;
+    }>;
   }): Promise<AdminShopEntity> {
+    const entityType = data.entityType || 'INDIVIDUAL';
+    const cleanNationalId = (data.nationalId || '').replace(/\s+/g, '');
+    if (cleanNationalId) {
+      const cccdCheck = validateVietnamCCCD(cleanNationalId);
+      if (!cccdCheck.valid) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, cccdCheck.reason || 'Số CCCD không hợp lệ.');
+      }
+    }
+    const taxValidation = data.taxCode ? validateVietnamTaxCode(data.taxCode) : null;
+    if (taxValidation && !taxValidation.valid) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, taxValidation.reason || 'Mã số thuế không hợp lệ.');
+    }
+    if ((entityType === 'HOUSEHOLD' || entityType === 'ENTERPRISE') && !taxValidation?.normalized) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Hộ kinh doanh / Doanh nghiệp bắt buộc nhập Mã số thuế hợp lệ.');
+    }
+
+    const normalizedTaxCode = taxValidation?.normalized || null;
+    const nationalIdHash = cleanNationalId ? hashNationalId(cleanNationalId) : null;
+    const taxLookup = normalizedTaxCode
+      ? await cassoTaxAndLocalKycProvider.lookupTaxCode(normalizedTaxCode, entityType)
+      : null;
+    const taxStatus =
+      entityType === 'INDIVIDUAL' && !normalizedTaxCode
+        ? 'USING_NATIONAL_ID_TEMP'
+        : taxLookup?.lookupStatus === 'FOUND'
+          ? 'VERIFIED'
+          : 'PENDING_REVIEW';
+
     const existing = await query<AdminShopEntity>(
       'SELECT * FROM shops WHERE owner_id = $1 LIMIT 1',
       [ownerId]
     );
 
+    let shop: AdminShopEntity;
     if (existing.length > 0) {
       const current = existing[0];
       const rows = await query<AdminShopEntity>(
@@ -322,24 +484,129 @@ export const adminRepository = {
              phone_number = $3, 
              shop_address = $4, 
              business_license_no = $5,
+             entity_type = $6,
+             tax_code = COALESCE($7, tax_code),
+             tax_status = $8,
+             legal_representative_name = COALESCE($9, legal_representative_name),
+             national_id_last4 = COALESCE($10, national_id_last4),
+             national_id_hash = COALESCE($11, national_id_hash),
+             tax_lookup_snapshot = COALESCE($12::jsonb, tax_lookup_snapshot),
              status = 'PENDING',
              is_verified = false,
              rejection_reason = NULL,
              updated_at = NOW()
          WHERE id = $1
          RETURNING *`,
-        [current.id, data.shopName, data.phoneNumber, data.shopAddress, data.businessLicenseNo || null]
+        [
+          current.id,
+          data.shopName,
+          data.phoneNumber,
+          data.shopAddress,
+          data.businessLicenseNo || null,
+          entityType,
+          normalizedTaxCode,
+          taxStatus,
+          data.legalRepresentativeName || null,
+          cleanNationalId ? cleanNationalId.slice(-4) : null,
+          nationalIdHash,
+          taxLookup ? JSON.stringify(taxLookup) : null,
+        ]
       );
-      return rows[0];
+      shop = rows[0];
+    } else {
+      const rows = await query<AdminShopEntity>(
+        `INSERT INTO shops (
+           owner_id, shop_name, phone_number, shop_address, business_license_no,
+           entity_type, tax_code, tax_status, legal_representative_name, national_id_last4, national_id_hash,
+           tax_lookup_snapshot, is_verified, status, operational_mode, created_at, updated_at
+         ) VALUES (
+           $1, $2, $3, $4, $5,
+           $6, $7, $8, $9, $10, $11,
+           $12::jsonb, false, 'PENDING', 'ACTIVE', NOW(), NOW()
+         )
+         RETURNING *`,
+        [
+          ownerId,
+          data.shopName,
+          data.phoneNumber,
+          data.shopAddress,
+          data.businessLicenseNo || null,
+          entityType,
+          normalizedTaxCode,
+          taxStatus,
+          data.legalRepresentativeName || null,
+          cleanNationalId ? cleanNationalId.slice(-4) : null,
+          nationalIdHash,
+          taxLookup ? JSON.stringify(taxLookup) : null,
+        ]
+      );
+      shop = rows[0];
     }
 
-    const rows = await query<AdminShopEntity>(
-      `INSERT INTO shops (owner_id, shop_name, phone_number, shop_address, business_license_no, is_verified, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, false, 'PENDING', NOW(), NOW())
-       RETURNING *`,
-      [ownerId, data.shopName, data.phoneNumber, data.shopAddress, data.businessLicenseNo || null]
-    );
-    return rows[0];
+    if (Array.isArray(data.kycDocuments)) {
+      const repName = data.legalRepresentativeName || shop.legal_representative_name || '';
+      for (const doc of data.kycDocuments) {
+        let verificationStatus = 'PENDING';
+        let reviewerNote: string | null = null;
+        if (doc.docType === 'CCCD_FRONT' && cleanNationalId) {
+          const qrEval = evaluateCccdQrConsistency(cleanNationalId, repName, doc.qrParsedPayload);
+          verificationStatus = qrEval.status === 'MATCHED' ? 'VERIFIED' : 'PENDING';
+          reviewerNote = qrEval.notes;
+        }
+        await query(
+          `INSERT INTO shop_kyc_documents (shop_id, doc_type, file_url, file_name, qr_parsed_payload, verification_status, reviewer_note)
+           VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+           ON CONFLICT (shop_id, doc_type) DO UPDATE SET
+             file_url = EXCLUDED.file_url,
+             file_name = EXCLUDED.file_name,
+             qr_parsed_payload = EXCLUDED.qr_parsed_payload,
+             verification_status = EXCLUDED.verification_status,
+             reviewer_note = EXCLUDED.reviewer_note,
+             updated_at = NOW()`,
+          [
+            shop.id,
+            doc.docType,
+            doc.fileUrl,
+            doc.fileName || null,
+            doc.qrParsedPayload ? JSON.stringify(doc.qrParsedPayload) : null,
+            verificationStatus,
+            reviewerNote,
+          ]
+        );
+      }
+    }
+
+    if (data.bankAccountNumber && data.bankName && data.bankAccountHolder) {
+      const expectedName =
+        entityType === 'ENTERPRISE' && taxLookup?.businessName
+          ? taxLookup.businessName
+          : data.legalRepresentativeName || shop.legal_representative_name || data.shopName;
+      const cmp = compareVietnameseAccountNames(data.bankAccountHolder, expectedName);
+      await query(
+        `INSERT INTO shop_bank_accounts (
+           shop_id, bank_code, bank_name, account_number, account_holder_name,
+           is_primary, name_match_score, verification_status
+         ) VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7)
+         ON CONFLICT (shop_id, account_number) DO UPDATE SET
+           bank_code = EXCLUDED.bank_code,
+           bank_name = EXCLUDED.bank_name,
+           account_holder_name = EXCLUDED.account_holder_name,
+           name_match_score = EXCLUDED.name_match_score,
+           verification_status = EXCLUDED.verification_status,
+           updated_at = NOW()`,
+        [
+          shop.id,
+          data.bankCode || 'BANK',
+          data.bankName,
+          data.bankAccountNumber.replace(/\s+/g, ''),
+          data.bankAccountHolder.trim(),
+          cmp.score,
+          cmp.matched ? 'MATCHED' : 'MISMATCHED',
+        ]
+      );
+    }
+
+    return await this.getShopByOwnerId(ownerId) || shop;
   },
 };
 

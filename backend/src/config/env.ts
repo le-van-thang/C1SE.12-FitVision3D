@@ -38,7 +38,12 @@ export const env = {
   SMTP_PORT: parseInt(process.env.SMTP_PORT || '465', 10),
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
-  
+
+  // Shop Tax Lookup & eKYC Verification (Tier 3/4)
+  CASSO_OPENAPI_URL: process.env.CASSO_OPENAPI_URL || 'https://openapi.casso.vn',
+  CASSO_API_KEY: process.env.CASSO_API_KEY || '',
+  EKYC_PROVIDER: process.env.EKYC_PROVIDER || 'local_qr_casso',
+
   isProduction: process.env.NODE_ENV === 'production',
 };
 

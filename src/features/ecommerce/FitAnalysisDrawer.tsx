@@ -342,9 +342,13 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                             <span>MALL</span>
                           </span>
                         )}
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                        <Link
+                          to={`/stores/${encodeURIComponent(product.brand_name)}`}
+                          onClick={onClose}
+                          className="text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:underline inline-flex items-center gap-1"
+                        >
                           {product.brand_name}
-                        </span>
+                        </Link>
                       </div>
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700">
                         <Star size={11} className="fill-amber-400 text-amber-400" />

@@ -27,9 +27,19 @@ export interface ShopEntity {
   id: string;
   owner_id: string;
   shop_name: string;
+  brand_slug?: string | null;
   phone_number: string;
   shop_address: string;
+  entity_type?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
   tax_code: string | null;
+  tax_status?: string | null;
+  business_license_no?: string | null;
+  legal_representative_name?: string | null;
+  national_id_last4?: string | null;
+  national_id_hash?: string | null;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  rejection_reason?: string | null;
+  operational_mode?: 'ACTIVE' | 'VACATION';
   logo_url: string | null;
   approved_at: Date | null;
 }
@@ -267,23 +277,189 @@ export const authRepository = {
     return newUser;
   },
 
+  async findShopByOwnerId(ownerId: string): Promise<ShopEntity | null> {
+    if (await isDbAvailable()) {
+      const rows = await query<ShopEntity>('SELECT * FROM shops WHERE owner_id = $1 LIMIT 1', [ownerId]);
+      return rows[0] || null;
+    }
+    for (const s of memShops.values()) {
+      if (s.owner_id === ownerId) return s;
+    }
+    return null;
+  },
+
+  async findShopDuplicate(params: {
+    taxCode?: string;
+    nationalIdHash?: string;
+    shopName?: string;
+    phoneNumber?: string;
+  }): Promise<{ field: string; value: string } | null> {
+    if (await isDbAvailable()) {
+      if (params.taxCode) {
+        const rows = await query<{ id: string }>(
+          'SELECT id FROM shops WHERE UPPER(tax_code) = UPPER($1) LIMIT 1',
+          [params.taxCode]
+        );
+        if (rows.length > 0) return { field: 'taxCode', value: params.taxCode };
+      }
+      if (params.nationalIdHash) {
+        const rows = await query<{ id: string }>(
+          'SELECT id FROM shops WHERE national_id_hash = $1 LIMIT 1',
+          [params.nationalIdHash]
+        );
+        if (rows.length > 0) return { field: 'nationalId', value: params.nationalIdHash };
+      }
+      if (params.shopName) {
+        const rows = await query<{ id: string }>(
+          'SELECT id FROM shops WHERE LOWER(shop_name) = LOWER($1) LIMIT 1',
+          [params.shopName.trim()]
+        );
+        if (rows.length > 0) return { field: 'shopName', value: params.shopName };
+      }
+      if (params.phoneNumber) {
+        const rows = await query<{ id: string }>(
+          'SELECT id FROM shops WHERE phone_number = $1 LIMIT 1',
+          [params.phoneNumber.trim()]
+        );
+        if (rows.length > 0) return { field: 'phoneNumber', value: params.phoneNumber };
+      }
+    }
+    return null;
+  },
+
   async createShop(data: {
     ownerId: string;
     shopName: string;
+    brandSlug?: string;
     phoneNumber: string;
     shopAddress: string;
+    entityType?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
     taxCode?: string;
+    taxStatus?: string;
+    businessLicenseNo?: string;
+    legalRepresentativeName?: string;
+    nationalIdLast4?: string;
+    nationalIdHash?: string;
+    tagline?: string;
+    taxLookupSnapshot?: unknown;
+    kycDocuments?: Array<{
+      docType: string;
+      fileUrl: string;
+      fileName?: string;
+      qrParsedPayload?: unknown;
+      verificationStatus?: string;
+      reviewerNote?: string;
+    }>;
+    bankAccount?: {
+      bankCode: string;
+      bankName: string;
+      accountNumber: string;
+      accountHolderName: string;
+      nameMatchScore: number;
+      verificationStatus: string;
+    } | null;
   }): Promise<ShopEntity> {
     const id = crypto.randomUUID();
     const now = new Date();
+    const baseSlug = (data.brandSlug || data.shopName)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+    const brandSlug = `${baseSlug || 'shop'}-${id.slice(0, 6)}`;
 
     if (await isDbAvailable()) {
       const rows = await query<ShopEntity>(
-        `INSERT INTO shops (id, owner_id, shop_name, phone_number, shop_address, tax_code, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO shops (
+           id, owner_id, shop_name, brand_slug, phone_number, shop_address,
+           entity_type, tax_code, tax_status, business_license_no,
+           legal_representative_name, national_id_last4, national_id_hash,
+           tagline, tax_lookup_snapshot, status, is_verified, operational_mode,
+           created_at, updated_at
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6,
+           $7, $8, $9, $10,
+           $11, $12, $13,
+           $14, $15::jsonb, 'PENDING', FALSE, 'ACTIVE',
+           $16, $17
+         )
          RETURNING *`,
-        [id, data.ownerId, data.shopName, data.phoneNumber, data.shopAddress, data.taxCode || null, now, now]
+        [
+          id,
+          data.ownerId,
+          data.shopName,
+          brandSlug,
+          data.phoneNumber,
+          data.shopAddress,
+          data.entityType || 'INDIVIDUAL',
+          data.taxCode || null,
+          data.taxStatus || 'PENDING_REVIEW',
+          data.businessLicenseNo || null,
+          data.legalRepresentativeName || null,
+          data.nationalIdLast4 || null,
+          data.nationalIdHash || null,
+          data.tagline || null,
+          data.taxLookupSnapshot ? JSON.stringify(data.taxLookupSnapshot) : null,
+          now,
+          now,
+        ]
       );
+
+      if (Array.isArray(data.kycDocuments)) {
+        for (const doc of data.kycDocuments) {
+          await query(
+            `INSERT INTO shop_kyc_documents (
+               shop_id, doc_type, file_url, file_name, qr_parsed_payload, verification_status, reviewer_note
+             ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+             ON CONFLICT (shop_id, doc_type) DO UPDATE SET
+               file_url = EXCLUDED.file_url,
+               file_name = EXCLUDED.file_name,
+               qr_parsed_payload = EXCLUDED.qr_parsed_payload,
+               verification_status = EXCLUDED.verification_status,
+               reviewer_note = EXCLUDED.reviewer_note,
+               updated_at = NOW()`,
+            [
+              id,
+              doc.docType,
+              doc.fileUrl,
+              doc.fileName || null,
+              doc.qrParsedPayload ? JSON.stringify(doc.qrParsedPayload) : null,
+              doc.verificationStatus || 'PENDING',
+              doc.reviewerNote || null,
+            ]
+          );
+        }
+      }
+
+      if (data.bankAccount && data.bankAccount.accountNumber) {
+        await query(
+          `INSERT INTO shop_bank_accounts (
+             shop_id, bank_code, bank_name, account_number, account_holder_name,
+             is_primary, name_match_score, verification_status
+           ) VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7)
+           ON CONFLICT (shop_id, account_number) DO UPDATE SET
+             bank_code = EXCLUDED.bank_code,
+             bank_name = EXCLUDED.bank_name,
+             account_holder_name = EXCLUDED.account_holder_name,
+             name_match_score = EXCLUDED.name_match_score,
+             verification_status = EXCLUDED.verification_status,
+             updated_at = NOW()`,
+          [
+            id,
+            data.bankAccount.bankCode || 'BANK',
+            data.bankAccount.bankName,
+            data.bankAccount.accountNumber,
+            data.bankAccount.accountHolderName,
+            data.bankAccount.nameMatchScore,
+            data.bankAccount.verificationStatus,
+          ]
+        );
+      }
+
       return rows[0];
     }
 
@@ -291,9 +467,18 @@ export const authRepository = {
       id,
       owner_id: data.ownerId,
       shop_name: data.shopName,
+      brand_slug: brandSlug,
       phone_number: data.phoneNumber,
       shop_address: data.shopAddress,
+      entity_type: data.entityType || 'INDIVIDUAL',
       tax_code: data.taxCode || null,
+      tax_status: data.taxStatus || 'PENDING_REVIEW',
+      business_license_no: data.businessLicenseNo || null,
+      legal_representative_name: data.legalRepresentativeName || null,
+      national_id_last4: data.nationalIdLast4 || null,
+      national_id_hash: data.nationalIdHash || null,
+      status: 'PENDING',
+      operational_mode: 'ACTIVE',
       logo_url: null,
       approved_at: null,
     };
