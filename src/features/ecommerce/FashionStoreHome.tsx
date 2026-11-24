@@ -321,6 +321,9 @@ export const FashionStoreHome: React.FC = () => {
     }
   });
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [selectedCartIds, setSelectedCartIds] = useState<string[]>(() =>
+    cartItems.map((ci) => ci.id)
+  );
   const [quickBuyItems, setQuickBuyItems] = useState<CartItem[] | null>(null);
   const [selectedSizeByProduct, setSelectedSizeByProduct] = useState<Record<string, string>>({});
 
@@ -330,6 +333,10 @@ export const FashionStoreHome: React.FC = () => {
     } catch {
       // ignore storage quota errors
     }
+    setSelectedCartIds((prev) => {
+      const validIds = new Set(cartItems.map((ci) => ci.id));
+      return prev.filter((id) => validIds.has(id));
+    });
   }, [cartItems]);
 
   // Drawers & Modals
@@ -545,7 +552,7 @@ export const FashionStoreHome: React.FC = () => {
     return false;
   };
 
-  // Cart Actions
+  // Cart Actions (newest added/updated item appears first at top of cart)
   const handleAddToCart = (
     product: FashionProduct,
     variant?: ProductVariant,
@@ -563,6 +570,8 @@ export const FashionStoreHome: React.FC = () => {
     const targetVariant = variant || product.variants[0];
     const fit = calculateProductFit(userBody, product);
     const effectiveProduct = bespokeOverride ? { ...product, is_bespoke: true } : product;
+    const newId = `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    let selectedIdToActivate = newId;
 
     setCartItems((prev) => {
       const existing = prev.find(
@@ -572,22 +581,27 @@ export const FashionStoreHome: React.FC = () => {
           Boolean(ci.product.is_bespoke) === Boolean(effectiveProduct.is_bespoke)
       );
       if (existing) {
-        return prev.map((ci) =>
-          ci.id === existing.id ? { ...ci, quantity: ci.quantity + 1 } : ci
-        );
+        selectedIdToActivate = existing.id;
+        const updatedExisting = { ...existing, quantity: existing.quantity + 1 };
+        const others = prev.filter((ci) => ci.id !== existing.id);
+        return [updatedExisting, ...others];
       }
       return [
-        ...prev,
         {
-          id: `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          id: newId,
           product: effectiveProduct,
           variant: targetVariant,
           quantity: 1,
           fit_score: bespokeOverride ? 100 : fit.match_percentage,
           is_ai_recommended: bespokeOverride || targetVariant.size_label === fit.recommended_size,
         },
+        ...prev,
       ];
     });
+
+    setSelectedCartIds((prev) =>
+      prev.includes(selectedIdToActivate) ? prev : [selectedIdToActivate, ...prev]
+    );
 
     if (openDrawer) {
       setIsCartOpen(true);
@@ -3181,6 +3195,17 @@ export const FashionStoreHome: React.FC = () => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
+        selectedIds={selectedCartIds}
+        onToggleSelectItem={(id) =>
+          setSelectedCartIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+          )
+        }
+        onToggleSelectAll={() =>
+          setSelectedCartIds((prev) =>
+            prev.length === cartItems.length ? [] : cartItems.map((ci) => ci.id)
+          )
+        }
         onRemoveItem={(id) => setCartItems((prev) => prev.filter((i) => i.id !== id))}
         onUpdateQuantity={(id, delta) => {
           setCartItems((prev) =>
@@ -3194,7 +3219,10 @@ export const FashionStoreHome: React.FC = () => {
           );
         }}
         onChangeVariant={handleChangeCartVariant}
-        onClearCart={() => setCartItems([])}
+        onClearCart={() => {
+          setCartItems([]);
+          setSelectedCartIds([]);
+        }}
         onCheckout={() => {
           setIsCartOpen(false);
           setQuickBuyItems(null);
@@ -3209,12 +3237,16 @@ export const FashionStoreHome: React.FC = () => {
           setIsCheckoutModalOpen(false);
           setQuickBuyItems(null);
         }}
-        items={quickBuyItems ?? cartItems}
+        items={
+          quickBuyItems ??
+          cartItems.filter((ci) => selectedCartIds.includes(ci.id))
+        }
         onClearCart={() => {
           if (quickBuyItems) {
             setQuickBuyItems(null);
           } else {
-            setCartItems([]);
+            setCartItems((prev) => prev.filter((ci) => !selectedCartIds.includes(ci.id)));
+            setSelectedCartIds([]);
           }
         }}
         userBody={userBody}
