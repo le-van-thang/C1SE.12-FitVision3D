@@ -35,7 +35,8 @@ interface FitAnalysisDrawerProps {
   fitResult: FitMatchResult | null;
   onSelectSize: (variant: ProductVariant) => void;
   onAddToCart: () => void;
-  onBuyNow?: () => void;
+  onQuickBuy?: () => void;
+  onOrderBespoke3D?: () => void;
   onAddSuggestedToCart?: (product: FashionProduct, variant?: ProductVariant) => void;
   onOpenVirtualStudio?: () => void;
 }
@@ -49,7 +50,8 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   fitResult,
   onSelectSize,
   onAddToCart,
-  onBuyNow,
+  onQuickBuy,
+  onOrderBespoke3D,
   onAddSuggestedToCart,
   onOpenVirtualStudio,
 }) => {
@@ -115,7 +117,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
       showGlobalToast({
         type: 'success',
         title: 'Cảm ơn bạn đã đánh giá!',
-        message: 'Đánh giá sao & bình luận đã được lưu vào PostgreSQL.',
+        message: 'Nhận xét của bạn đã được đăng.',
       });
     } else {
       showGlobalToast({
@@ -571,7 +573,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                     </div>
                     <div className="text-right">
                       <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800">
-                        {spec.chest_cm - userBody.chest_cm >= 0 ? '+' : ''}{spec.chest_cm - userBody.chest_cm} cm
+                        {spec.chest_cm - userBody.chest_cm >= 0 ? '+' : ''}{(spec.chest_cm - userBody.chest_cm).toFixed(1)} cm
                       </span>
                       <span className="block text-[10px] text-slate-400 mt-0.5">
                         {t('ecommerce.drawer.easeSmooth', 'Độ cử động êm')}
@@ -613,7 +615,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 </div>
                 <div className="text-right">
                   <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800">
-                    {spec.waist_cm - userBody.waist_cm >= 0 ? '+' : ''}{spec.waist_cm - userBody.waist_cm} cm
+                    {spec.waist_cm - userBody.waist_cm >= 0 ? '+' : ''}{(spec.waist_cm - userBody.waist_cm).toFixed(1)} cm
                   </span>
                   <span className="block text-[10px] text-slate-400 mt-0.5">
                     {t('ecommerce.drawer.waistComfort', 'Thoải mái khi ngồi')}
@@ -910,34 +912,50 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
 
           {/* Footer Actions + Compact Trust Strip */}
           <div className="p-5 border-t border-slate-200 bg-white space-y-2.5">
-            <div className="flex items-center gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => {
                   onAddToCart();
                   onClose();
                 }}
-                className="flex-1 py-3.5 px-3 rounded-xl bg-white hover:bg-slate-50 border-2 border-slate-900 text-slate-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-3 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-[#14171C] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
-                <span>{isEn ? 'Add to Cart' : 'Thêm Vào Giỏ'}</span>
+                <Plus size={15} />
+                <span>
+                  {t('ecommerce.drawer.addToCartSize', 'Thêm vào giỏ ({size})').replace('{size}', selectedVariant.size_label)}
+                </span>
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  if (onBuyNow) onBuyNow();
-                  else onAddToCart();
+                  if (onQuickBuy) {
+                    onQuickBuy();
+                  } else {
+                    onAddToCart();
+                  }
                   onClose();
                 }}
-                className="flex-[1.3] py-3.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-3 px-3.5 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <span>
-                  {isEn
-                    ? `Buy Size ${selectedVariant.size_label} Now`
-                    : `Mua Ngay Size ${selectedVariant.size_label}`}
+                  {isEn ? `Buy Now (${selectedVariant.size_label})` : `Mua ngay (${selectedVariant.size_label})`}
                 </span>
                 <ChevronRight size={16} />
               </button>
             </div>
+            {(product.is_bespoke || product.category === 'tailored') && onOrderBespoke3D && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOrderBespoke3D();
+                  onClose();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <span>✂️ {isEn ? 'Bespoke Tailor to My 13 3D Measurements' : 'Đặt May Đo Bespoke Theo 13 Số Đo 3D'}</span>
+              </button>
+            )}
             <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500">
               <span className="flex items-center gap-1">
                 <ShieldCheck size={13} className="text-emerald-600" />

@@ -202,9 +202,13 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                         {isEn && item.product.name_en ? item.product.name_en : item.product.name}
                       </h5>
 
-                      {/* Inline Variant / Size Switcher + AI Badge */}
+                      {/* Inline Variant / Size Switcher + Bespoke / AI Badge */}
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        {onChangeVariant && item.product.variants.length > 1 ? (
+                        {item.product.is_bespoke ? (
+                          <span className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300">
+                            ✂️ May Đo Bespoke · 13 số đo 3D
+                          </span>
+                        ) : onChangeVariant && item.product.variants.length > 1 ? (
                           <select
                             value={item.variant.id}
                             onChange={(e) => onChangeVariant(item.id, e.target.value)}
@@ -223,7 +227,7 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                           </span>
                         )}
 
-                        {item.is_ai_recommended && (
+                        {!item.product.is_bespoke && item.is_ai_recommended && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <Sparkles size={10} />
                             <span>

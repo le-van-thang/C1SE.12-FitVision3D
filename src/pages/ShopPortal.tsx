@@ -28,10 +28,12 @@ import {
   Palette,
   Wand2,
   KeyRound,
+  Scissors,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import {
   commerceApi,
   type DbProduct,
@@ -212,6 +214,7 @@ export const ShopPortal: React.FC = () => {
   const [discountMode, setDiscountMode] = useState<'discount_amount' | 'final_price'>('discount_amount');
   const [newFabric, setNewFabric] = useState('100% Cotton Cao Cấp');
   const [newStretch, setNewStretch] = useState('Co giãn nhẹ (2-3%)');
+  const [newIsBespoke, setNewIsBespoke] = useState(false);
   const [colorVariants, setColorVariants] = useState<{ colorName: string; colorHex: string; imageUrl: string }[]>([
     { colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: DEFAULT_SAMPLE_IMG },
   ]);
@@ -301,6 +304,24 @@ export const ShopPortal: React.FC = () => {
     [reviews]
   );
 
+  const handleUpdateOrderStatus = async (orderId: string, nextStatus: Order['status']) => {
+    const res = await commerceApi.updateOrderStatus(orderId, nextStatus);
+    if (res.success && res.data) {
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? res.data! : o)));
+      showGlobalToast({
+        type: 'success',
+        title: `Đã cập nhật đơn #${orderId}`,
+        message: `Trạng thái mới: ${nextStatus.toUpperCase()}`,
+      });
+    } else {
+      showGlobalToast({
+        type: 'error',
+        title: 'Không thể cập nhật trạng thái',
+        message: res.error?.message || 'Vui lòng thử lại.',
+      });
+    }
+  };
+
   const handleSaveShopProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (profileName.trim().length < 2) {
@@ -323,7 +344,7 @@ export const ShopPortal: React.FC = () => {
       showGlobalToast({
         type: 'success',
         title: 'Đã cập nhật hồ sơ Shop!',
-        message: 'Tên thương hiệu và thông tin liên hệ đã lưu vào PostgreSQL.',
+        message: 'Tên thương hiệu và thông tin liên hệ đã được cập nhật.',
       });
       void loadShopData();
     } else {
@@ -559,6 +580,7 @@ export const ShopPortal: React.FC = () => {
       genderTarget: newGender,
       price: numericPrice,
       salePrice: resolvedSalePrice,
+      isBespoke: newIsBespoke || newCategory === 'tailored',
       fabricMaterial: newFabric.trim() || 'Cotton Cao Cấp',
       stretchType: newStretch,
       imageUrl: cleanColors[0].imageUrl,
@@ -583,6 +605,7 @@ export const ShopPortal: React.FC = () => {
       setNewDescription('');
       setNewVideoUrl('');
       setNewVideoFileName('');
+      setNewIsBespoke(false);
       setColorVariants([{ colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: DEFAULT_SAMPLE_IMG }]);
       setSelectedSizes(['S', 'M', 'L', 'XL']);
       showGlobalToast({
@@ -1206,6 +1229,23 @@ export const ShopPortal: React.FC = () => {
                         </div>
                       </div>
 
+                      <label className="flex items-center gap-2.5 p-3 rounded-xl border border-amber-300 bg-amber-50/70 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newIsBespoke || newCategory === 'tailored'}
+                          onChange={(e) => setNewIsBespoke(e.target.checked)}
+                          className="w-4 h-4 accent-amber-700 cursor-pointer"
+                        />
+                        <div className="text-xs">
+                          <span className="font-bold text-amber-950 block">
+                            Cho phép May Đo Bespoke (May theo 13 số đo 3D cá nhân)
+                          </span>
+                          <span className="text-[11px] text-amber-800">
+                            Khách có thể đặt may đo riêng 1-1 kèm hồ sơ 13 số đo 3D gửi về Xưởng May của bạn.
+                          </span>
+                        </div>
+                      </label>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="text-[11px] font-bold text-slate-800 block mb-1">Chất Liệu Vải</label>
@@ -1618,9 +1658,28 @@ export const ShopPortal: React.FC = () => {
                                   <span className="ml-2 text-xs font-mono text-blue-700">{order.recipient.phone}</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                  {order.status}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <select
+                                  value={order.status}
+                                  onChange={(e) =>
+                                    void handleUpdateOrderStatus(order.id, e.target.value as Order['status'])
+                                  }
+                                  aria-label={`Trạng thái đơn ${order.id}`}
+                                  className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 cursor-pointer"
+                                >
+                                  <option value="pending">Chờ duyệt (pending)</option>
+                                  <option value="confirmed">Đã xác nhận (confirmed)</option>
+                                  <option value="tailoring">Đang cắt may (tailoring)</option>
+                                  <option value="shipping">Đang giao (shipping)</option>
+                                  <option value="completed">Hoàn tất (completed)</option>
+                                  <option value="cancelled">Đã hủy (cancelled)</option>
+                                </select>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  order.payment_status === 'paid'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}>
+                                  {order.payment_status === 'paid' ? 'Đã TT' : 'Chưa TT'}
                                 </span>
                                 <span className="text-xs font-mono font-black text-emerald-700">
                                   {formatCurrency(order.total_amount)}
@@ -1658,6 +1717,26 @@ export const ShopPortal: React.FC = () => {
                                     <span>Inseam: <b>{order.measurement_snapshot.inseam_cm}</b></span>
                                   )}
                                 </div>
+                                <div className="pt-2 border-t border-blue-200/70 flex justify-end">
+                                  <Link
+                                    to={`/tailor?orderId=${encodeURIComponent(order.id)}`}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14171C] hover:bg-blue-700 text-white text-[11px] font-extrabold transition-colors"
+                                  >
+                                    <Scissors size={12} />
+                                    <span>Mở Xưởng May 3D</span>
+                                  </Link>
+                                </div>
+                              </div>
+                            )}
+                            {!order.measurement_snapshot && order.has_bespoke_items && (
+                              <div className="pt-1 flex justify-end">
+                                <Link
+                                  to={`/tailor?orderId=${encodeURIComponent(order.id)}`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-[#14171C] text-[11px] font-extrabold transition-colors"
+                                >
+                                  <Scissors size={12} />
+                                  <span>Mở Xưởng May 3D</span>
+                                </Link>
                               </div>
                             )}
                           </div>
@@ -1901,6 +1980,13 @@ export const ShopPortal: React.FC = () => {
         </main>
       </div>
       <AuthModal />
+      {isAuthenticated && userRole === 'store' && (
+        <GeminiAssistantWidget
+          botId="shop"
+          accountKey={currentUser?.id || null}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
     </div>
   );
 };

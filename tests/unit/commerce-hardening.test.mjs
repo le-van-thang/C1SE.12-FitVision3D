@@ -87,9 +87,9 @@ describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Securit
 
     // Prepend newest item to top of cart
     assert.match(storeHomeSrc, /return \[updatedExisting,\s*\.\.\.others\]/);
-    // Direct Buy Now opens CheckoutModal without dumping into cart
-    assert.match(storeHomeSrc, /const handleBuyNow =/);
-    assert.match(storeHomeSrc, /setDirectBuyItems\(/);
+    // Direct Quick Buy opens CheckoutModal without dumping into cart
+    assert.match(storeHomeSrc, /const handleQuickBuy =/);
+    assert.match(storeHomeSrc, /setQuickBuyItems\(/);
     // Selective checkout preserves unselected items
     assert.match(cartDrawerSrc, /selectedItems/);
     assert.match(cartDrawerSrc, /onToggleSelectItem/);

@@ -250,6 +250,7 @@ export const commerceApi = {
     genderTarget: 'male' | 'female' | 'unisex';
     price: number;
     salePrice?: number | null;
+    isBespoke?: boolean;
     fabricMaterial: string;
     stretchType: string;
     imageUrl: string;

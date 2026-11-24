@@ -702,7 +702,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         showGlobalToast({
           type: 'success',
           title: 'Đã gửi lại hồ sơ mở shop!',
-          message: `Hồ sơ "${brandName}" đã lưu vào PostgreSQL chờ Admin duyệt.`,
+          message: `Hồ sơ "${brandName}" đã được gửi chờ Admin xét duyệt.`,
         });
         return { success: true };
       }
@@ -727,7 +727,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       showGlobalToast({
         type: 'success',
         title: 'Đã gửi hồ sơ mở shop!',
-        message: `Hồ sơ "${brandName}" đã lưu vào PostgreSQL & chuyển tới Admin duyệt.`,
+        message: `Hồ sơ "${brandName}" đã được chuyển tới Admin xét duyệt.`,
       });
 
       return { success: true };

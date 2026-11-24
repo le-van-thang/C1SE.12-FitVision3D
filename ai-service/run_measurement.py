@@ -25,13 +25,21 @@ HỆ THỐNG TRÍCH XUẤT SỐ ĐO MAY MẶC 1 CHẠM (END-TO-END BODY MEASUREM
 """
 
 import os
+import sys
+
+os.environ["PYTHONUTF8"] = "1"
+os.environ["PYTHONIOENCODING"] = "utf-8"
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 os.environ['MPLBACKEND'] = 'Agg'
 try:
     import matplotlib
     matplotlib.use('Agg')
 except Exception:
     pass
-import sys
 import os.path as osp
 import glob
 import ctypes
@@ -64,6 +72,7 @@ import cv2
 # Thiết lập đường dẫn hệ thống ưu tiên các module nội bộ của dự án
 CURRENT_DIR = osp.dirname(osp.abspath(__file__))
 sys.path.insert(0, osp.join(CURRENT_DIR, 'main'))
+sys.path.insert(0, osp.join(CURRENT_DIR, 'main', 'transformer_utils'))
 sys.path.insert(0, osp.join(CURRENT_DIR, 'common'))
 sys.path.insert(0, osp.join(CURRENT_DIR, 'data'))
 sys.path.insert(0, osp.join(CURRENT_DIR, 'data', 'SHAPY', 'mesh-mesh-intersection'))
