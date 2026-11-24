@@ -78,7 +78,7 @@ export interface AuthContextType {
   verifyEmail: (email: string, otp: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string; devOtp?: string }>;
   resetPassword: (payload: { email: string; otp: string; newPassword: string; confirmPassword?: string }) => Promise<{ success: boolean; error?: string; message?: string }>;
-  signInWithGoogle: (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
+  signInWithGoogle: (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string; mode?: 'signin' | 'register' }) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
 
   // Profile Management
   updateUserProfile: (data: { full_name?: string; avatar_url?: string } & UserProfileDetails) => Promise<{ success: boolean; error?: string }>;
@@ -373,37 +373,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // Hỗ trợ chế độ Offline khi Backend (cổng 5000) chưa bật: Tự động cho phép đăng nhập thử nghiệm
-      if (res.error?.message?.includes('5000') || res.error?.code === 'FETCH_ERROR' || res.error?.code === 'NETWORK_ERROR') {
-        const found = Object.values(TEST_USERS).find((u) => u.email.toLowerCase() === email.toLowerCase());
-        const offlineProfile: Profile = found || {
-          id: 'usr-thang-le',
-          full_name: email.includes('@') ? (email.split('@')[0] === 'thang' ? 'Thắng Lê' : email.split('@')[0]) : 'Thắng Lê',
-          email: email || 'thang.le@fitvision3d.com',
-          role: 'user',
-          avatar_url: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        setProfiles((prev) => {
-          const filtered = prev.filter((p) => p.id !== offlineProfile.id);
-          return [offlineProfile, ...filtered];
-        });
-        setCurrentUserId(offlineProfile.id);
-        setIsAuthModalOpen(false);
-        showGlobalToast({
-          type: 'success',
-          title: 'Đăng nhập thành công!',
-          message: `Chào mừng ${offlineProfile.full_name} đến với FitVision 3D.`,
-        });
-        return { success: true };
-      }
-
       return {
         success: false,
-        errorCode: res.error?.code,
-        error: res.error?.message || 'Email hoặc mật khẩu không chính xác.',
+        errorCode: res.error?.code || 'NETWORK_ERROR',
+        error:
+          res.error?.message ||
+          'Không thể kết nối máy chủ xác thực. Vui lòng kiểm tra kết nối và thử lại.',
       };
     },
     []
@@ -462,6 +437,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         success: false,
+        errorCode: res.error?.code,
         error: res.error?.message || 'Đăng ký thất bại. Vui lòng thử lại.',
       };
     },
@@ -543,7 +519,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 6. Sign In With Google (Thực tế với xác thực token Google tại backend + khóa tài khoản ADMIN)
   const signInWithGoogle = useCallback(
-    async (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => {
+    async (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string; mode?: 'signin' | 'register' }) => {
       const res = await authApi.googleLogin(data);
       if (res.success && res.data?.user) {
         const prof = mapBackendUserToProfile(res.data.user);
@@ -556,7 +532,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         syncMyStoreFromBackend(prof.id);
         showGlobalToast({
           type: 'success',
-          title: 'Đăng nhập Google thành công!',
+          title: data.mode === 'register' ? 'Đăng ký Google thành công!' : 'Đăng nhập Google thành công!',
           message: `Xin chào ${prof.full_name} · Chúc bạn trải nghiệm FitVision 3D.`,
         });
         if (prof.role === 'admin') {

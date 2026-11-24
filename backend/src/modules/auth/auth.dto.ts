@@ -154,6 +154,7 @@ export const GoogleAuthDto = z.object({
   fullName: z.string().optional(),
   googleId: z.string().optional(),
   avatarUrl: z.string().optional(),
+  mode: z.enum(['signin', 'register']).optional().default('signin'),
 });
 
 export type GoogleAuthDtoType = z.infer<typeof GoogleAuthDto>;

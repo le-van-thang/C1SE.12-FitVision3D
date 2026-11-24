@@ -227,7 +227,15 @@ export const authApi = {
   },
 
   // 10. Đăng nhập với Google
-  async googleLogin(data: { accessToken?: string; email?: string; fullName?: string; credential?: string; googleId?: string; avatarUrl?: string }) {
+  async googleLogin(data: {
+    accessToken?: string;
+    email?: string;
+    fullName?: string;
+    credential?: string;
+    googleId?: string;
+    avatarUrl?: string;
+    mode?: 'signin' | 'register';
+  }) {
     const res = await request<{
       accessToken: string;
       expiresIn: number;

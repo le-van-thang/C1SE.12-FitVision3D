@@ -155,19 +155,34 @@ function loadStore() {
 }
 loadStore();
 
-let dbConnected: boolean | null = null;
+let dbConnected = false;
 
 async function isDbAvailable(): Promise<boolean> {
-  if (dbConnected !== null) return dbConnected;
+  if (dbConnected) return true;
   try {
     const res = await pool.query('SELECT 1');
     dbConnected = res.rowCount !== null;
-    return true;
+    return dbConnected;
   } catch {
     dbConnected = false;
     console.warn('[Database]: PostgreSQL offline. Using in-memory store for instant testing.');
     return false;
   }
+}
+
+export function canonicalizeEmail(email: string): string {
+  const cleanEmail = email.toLowerCase().trim();
+  const atIndex = cleanEmail.indexOf('@');
+  if (atIndex === -1) return cleanEmail;
+  let local = cleanEmail.slice(0, atIndex);
+  let domain = cleanEmail.slice(atIndex + 1);
+  if (domain === 'googlemail.com') domain = 'gmail.com';
+  if (domain === 'gmail.com') {
+    const plusIndex = local.indexOf('+');
+    if (plusIndex !== -1) local = local.slice(0, plusIndex);
+    local = local.replace(/\./g, '');
+  }
+  return `${local}@${domain}`;
 }
 
 export const authRepository = {
@@ -182,6 +197,26 @@ export const authRepository = {
     }
     for (const u of memUsers.values()) {
       if (u.email.toLowerCase() === cleanEmail) return u;
+    }
+    return null;
+  },
+
+  async findUserByEmailOrCanonical(email: string): Promise<UserEntity | null> {
+    const exact = await this.findUserByEmail(email);
+    if (exact) return exact;
+
+    const canonical = canonicalizeEmail(email);
+    const domain = canonical.split('@')[1];
+    if (domain !== 'gmail.com') return null;
+
+    if (await isDbAvailable()) {
+      const gmailRows = await query<UserEntity>(
+        "SELECT * FROM users WHERE LOWER(email) LIKE '%@gmail.com' OR LOWER(email) LIKE '%@googlemail.com'"
+      );
+      return gmailRows.find((u) => canonicalizeEmail(u.email) === canonical) || null;
+    }
+    for (const u of memUsers.values()) {
+      if (canonicalizeEmail(u.email) === canonical) return u;
     }
     return null;
   },

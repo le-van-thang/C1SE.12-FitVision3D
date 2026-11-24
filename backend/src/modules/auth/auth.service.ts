@@ -55,8 +55,8 @@ export const authService = {
       );
     }
 
-    // 3. Kiểm tra Trùng lặp Email
-    const existing = await authRepository.findUserByEmail(dto.email);
+    // 3. Kiểm tra Trùng lặp Email (bao gồm biến thể dấu chấm / +alias của Gmail)
+    const existing = await authRepository.findUserByEmailOrCanonical(dto.email);
     if (existing) {
       throw new AppError(
         409,
@@ -126,8 +126,8 @@ export const authService = {
       );
     }
 
-    // 3. Email duplication check
-    const existing = await authRepository.findUserByEmail(dto.email);
+    // 3. Email duplication check (bao gồm biến thể dấu chấm / +alias của Gmail)
+    const existing = await authRepository.findUserByEmailOrCanonical(dto.email);
     if (existing) {
       throw new AppError(
         409,
@@ -172,8 +172,16 @@ export const authService = {
   async login(dto: LoginDtoType) {
     const user = await authRepository.findUserByEmail(dto.email);
 
-    // Chống Account Enumeration: Nếu không tìm thấy user, vẫn trả về thông báo chung
+    // Chống Account Enumeration + Timing Attack: luôn chạy verifyPassword giả định khi không tìm thấy user
     if (!user) {
+      try {
+        await verifyPassword(
+          dto.password,
+          '$2b$12$C6UzMDM.H6dfI/f/IKxGhu3pP6u6Q2x6nC9s2mK8q4wZ6x9Y5rW6K'
+        );
+      } catch {
+        // Ignore hash check error; uniform delay goal
+      }
       throw new AppError(
         401,
         ErrorCode.AUTH_INVALID_CREDENTIALS,
@@ -379,7 +387,11 @@ export const authService = {
   async verifyEmail(dto: { email: string; otp?: string; verificationToken?: string }) {
     const user = await authRepository.findUserByEmail(dto.email);
     if (!user) {
-      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản người dùng.');
+      throw new AppError(
+        400,
+        ErrorCode.AUTH_OTP_INVALID,
+        'Mã OTP không chính xác hoặc đã hết hạn (15 phút). Vui lòng kiểm tra lại Gmail.'
+      );
     }
 
     if (user.status === 'ACTIVE') {
@@ -467,7 +479,11 @@ export const authService = {
     const cleanEmail = dto.email.toLowerCase().trim();
     const user = await authRepository.findUserByEmail(cleanEmail);
     if (!user) {
-      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản người dùng.');
+      throw new AppError(
+        400,
+        ErrorCode.AUTH_OTP_INVALID,
+        'Mã OTP không chính xác hoặc đã hết hạn.'
+      );
     }
 
     // Kiểm tra OTP qua emailService
@@ -527,7 +543,10 @@ export const authService = {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const existingAccount = await authRepository.findUserByEmail(cleanEmail);
+    const existingAccount =
+      dto.mode === 'register'
+        ? await authRepository.findUserByEmailOrCanonical(cleanEmail)
+        : await authRepository.findUserByEmail(cleanEmail);
     const isProtectedAdminEmail =
       existingAccount?.role === 'ADMIN' ||
       cleanEmail === 'levanthang0166@gmail.com' ||
@@ -539,6 +558,15 @@ export const authService = {
         403,
         ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
         'Tài khoản Quản trị viên (Admin) bị khóa đăng nhập qua nút Google để bảo mật hệ thống. Vui lòng tự nhập Email và Mật khẩu.'
+      );
+    }
+
+    // Bảo mật đăng ký: Không tự động đăng nhập nếu người dùng đang ở tab Đăng ký mà email Google đã tồn tại
+    if (existingAccount && dto.mode === 'register') {
+      throw new AppError(
+        409,
+        ErrorCode.AUTH_EMAIL_ALREADY_EXISTS,
+        'Email Google này đã được sử dụng cho một tài khoản trên hệ thống. Vui lòng chuyển sang tab Đăng nhập.'
       );
     }
 
