@@ -25,7 +25,13 @@ export type MetricKey =
   | "calf_circ_cm"
   | "ankle_circ_cm";
 
-export type MannequinViewZone = "full_body" | "chest" | "waist" | "hips";
+export type MannequinViewZone =
+  | "full_body"
+  | "chest"
+  | "waist"
+  | "hips"
+  | "shoulders_arms"
+  | "legs";
 
 export interface GarmentOverlay3D {
   visible: boolean;
@@ -104,13 +110,23 @@ const VIEW_PRESETS: Record<ViewZone, CameraPreset> = {
     target: new THREE.Vector3(0, 0.02, 0),
     pos: new THREE.Vector3(0, 0.04, 1.35),
   },
+  shoulders_arms: {
+    target: new THREE.Vector3(0, 0.46, 0),
+    pos: new THREE.Vector3(0, 0.48, 1.48),
+  },
+  legs: {
+    target: new THREE.Vector3(0, -0.35, 0),
+    pos: new THREE.Vector3(0, -0.32, 1.55),
+  },
 };
 
 const VIEW_LABELS: Record<ViewZone, string> = {
-  full_body: "Full Body",
-  chest: "Chest",
-  waist: "Waist",
-  hips: "Hips",
+  full_body: "Toàn thân",
+  chest: "Vùng Ngực",
+  waist: "Vùng Eo",
+  hips: "Vùng Hông",
+  shoulders_arms: "Vai & Tay",
+  legs: "Đùi & Chân",
 };
 
 function metricToZone(metric: MetricKey): ActiveZoneKey {
@@ -519,6 +535,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
     controls.minPolarAngle = Math.PI * 0.25;
     controls.minDistance = 0.8;
     controls.maxDistance = 6.0;
+    controls.enableZoom = false;
     controls.enablePan = false;
 
     // Subtle radial ground platform under feet (y = -0.86)
@@ -714,6 +731,8 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
       className="zf-mesh"
       style={{
         position: "relative",
+        isolation: "isolate",
+        zIndex: 0,
         width: "100%",
         height,
         background: isStudio
@@ -736,7 +755,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
             : zonePillAlign === "left"
               ? { left: "14px" }
               : { right: "14px" }),
-          zIndex: 30,
+          zIndex: 20,
         }}
       >
         <div style={{ position: "relative" }}>
@@ -761,7 +780,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               transition: "border-color 0.15s",
             }}
           >
-            <span>{t(`viewer.zone.${currentZone}`)}</span>
+            <span>{VIEW_LABELS[currentZone] || t(`viewer.zone.${currentZone}`)}</span>
             <ChevronDown size={14} strokeWidth={2} style={{ color: "#94A3B8" }} />
           </button>
 
@@ -782,12 +801,12 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                 display: "flex",
                 flexDirection: "column",
                 gap: "2px",
-                minWidth: "120px",
+                minWidth: "136px",
                 boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
-                zIndex: 35,
+                zIndex: 25,
               }}
             >
-              {(["full_body", "chest", "waist", "hips"] as const).map((z) => (
+              {(["full_body", "chest", "waist", "hips", "shoulders_arms", "legs"] as const).map((z) => (
                 <button
                   key={z}
                   type="button"
@@ -805,7 +824,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                     transition: "background 0.15s, color 0.15s",
                   }}
                 >
-                  {t(`viewer.zone.${z}`)}
+                  {VIEW_LABELS[z] || t(`viewer.zone.${z}`)}
                 </button>
               ))}
             </div>
@@ -1034,7 +1053,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
             justifyContent: "center",
             gap: "12px",
             background: isStudio ? "rgba(226, 228, 232, 0.85)" : "rgba(10, 15, 18, 0.88)",
-            zIndex: 40,
+            zIndex: 25,
           }}
         >
           <div

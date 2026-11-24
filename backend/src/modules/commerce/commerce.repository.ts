@@ -559,6 +559,43 @@ export const commerceRepository = {
     }
   },
 
+  async confirmOrderPaidBySePayWebhook(params: {
+    content: string;
+    transferAmount: number;
+    referenceCode?: string;
+  }) {
+    await ensureCommerceTablesAndSeed();
+    const rawContent = String(params.content || '').toUpperCase();
+    const match = rawContent.match(/FV3D[- ]?(\d{4,8})/);
+    if (!match) {
+      return { matched: false as const, reason: 'ORDER_CODE_NOT_FOUND' };
+    }
+    const normalizedOrderId = `FV3D-${match[1]}`;
+    const existingRows = await query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [normalizedOrderId]);
+    const existing = existingRows[0];
+    if (!existing) {
+      return { matched: false as const, reason: 'ORDER_NOT_FOUND', orderId: normalizedOrderId };
+    }
+    const requiredAmount = Number(existing.total_amount || 0);
+    if (Number(params.transferAmount || 0) < requiredAmount) {
+      return {
+        matched: false as const,
+        reason: 'INSUFFICIENT_AMOUNT',
+        orderId: normalizedOrderId,
+        expected: requiredAmount,
+        received: Number(params.transferAmount || 0),
+      };
+    }
+    if (existing.payment_status === 'paid') {
+      return { matched: true as const, alreadyPaid: true, order: existing };
+    }
+    const rows = await query(
+      `UPDATE orders SET payment_status = 'paid', updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [normalizedOrderId]
+    );
+    return { matched: true as const, alreadyPaid: false, order: rows[0] || existing };
+  },
+
   async markOrderPaid(orderId: string, actor: { sub: string; role: string }) {
     await ensureCommerceTablesAndSeed();
     const existingRows = await query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [orderId]);
@@ -953,6 +990,8 @@ export const commerceRepository = {
     const secondaryImageUrl =
       rawColors[1]?.imageUrl && rawColors[1].imageUrl !== imageUrl ? rawColors[1].imageUrl : null;
 
+    const isBespoke = Boolean(payload.isBespoke || category === 'tailored');
+
     const rows = await query(
       `INSERT INTO products (
          id, brand_name, shop_id, is_mall, name, name_en, slug, category, gender_target,
@@ -961,7 +1000,7 @@ export const commerceRepository = {
        ) VALUES (
          $1, $2, $3, $4, $5, $5, $6, $7, $8,
          $9, $10, 5.0, 0, $11, $11,
-         $12, $13, $14, $15, $16, $16, TRUE, FALSE, FALSE, $17::jsonb
+         $12, $13, $14, $15, $16, $16, TRUE, $18, FALSE, $17::jsonb
        ) RETURNING *, rating::float`,
       [
         id,
@@ -981,6 +1020,7 @@ export const commerceRepository = {
         rawVideo || null,
         String(payload.description || 'Thiết kế thời trang chuẩn phom dáng, hỗ trợ chọn size chính xác bằng AI quét vóc dáng 3D FitVision.').trim(),
         JSON.stringify(variants),
+        isBespoke,
       ]
     );
     return rows[0];
