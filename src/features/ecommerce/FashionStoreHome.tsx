@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ShoppingBag,
+  ShoppingCart,
   Sparkles,
   Camera,
   Scissors,
@@ -47,6 +48,7 @@ import {
   hydrateBodyProfileFromBackend,
 } from '@/utils/bodyProfileStorage';
 import { FitAnalysisDrawer } from './FitAnalysisDrawer';
+import { ShopStorefrontModal } from './ShopStorefrontModal';
 import { SmartCartDrawer } from './SmartCartDrawer';
 import { QuickBiometricModal } from './QuickBiometricModal';
 import { VellVirtualStudioModal } from './VellVirtualStudioModal';
@@ -62,6 +64,7 @@ import {
   syncPlatformConfigFromBackend,
   type PlatformConfig,
 } from '@/services/platformConfig';
+import type { PublicShopProfile } from '@/services/commerceApi';
 import type { FashionProduct, ProductVariant, UserBodyProfile, CartItem } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
@@ -221,7 +224,7 @@ export const FashionStoreHome: React.FC = () => {
     };
   }, [isAuthenticated, currentUser]);
 
-  // Open/close Virtual Fitting Room in sync with URL query (?openStudio=1) so browser Back works cleanly
+  // Open/close Virtual Fitting Room in sync with URL query (?openStudio=1) and ?shop=
   useEffect(() => {
     if (searchParams.get('openStudio') === '1') {
       const modeParam = searchParams.get('studioMode');
@@ -229,6 +232,10 @@ export const FashionStoreHome: React.FC = () => {
       setIsVellStudioOpen(true);
     } else {
       setIsVellStudioOpen(false);
+    }
+    const shopParam = searchParams.get('shop');
+    if (shopParam) {
+      setActiveShopBrandName(shopParam);
     }
   }, [searchParams]);
 
@@ -249,16 +256,21 @@ export const FashionStoreHome: React.FC = () => {
   const [previewColorMap, setPreviewColorMap] = useState<Record<string, { colorHex: string; imageUrl?: string }>>({});
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig>(() => loadPlatformConfig());
   const [dbProducts, setDbProducts] = useState<FashionProduct[]>(() => MOCK_PRODUCTS);
+  const [publicShops, setPublicShops] = useState<PublicShopProfile[]>([]);
+  const [activeShopBrandName, setActiveShopBrandName] = useState<string | null>(null);
 
   useEffect(() => {
     const syncConfig = () => setPlatformConfig(loadPlatformConfig());
     window.addEventListener('fv3d-platform-config-updated', syncConfig);
     window.addEventListener('storage', syncConfig);
 
-    // Hydrate live products, CMS banners, and vouchers from PostgreSQL
+    // Hydrate live products, CMS banners, vouchers, and verified shops from PostgreSQL
     syncPlatformConfigFromBackend(false).then((synced) => {
       if (synced?.products && synced.products.length > 0) {
         setDbProducts(synced.products);
+      }
+      if (synced?.shops && synced.shops.length > 0) {
+        setPublicShops(synced.shops);
       }
     });
 
@@ -267,6 +279,16 @@ export const FashionStoreHome: React.FC = () => {
       window.removeEventListener('storage', syncConfig);
     };
   }, []);
+
+  const findPublicShop = (brandName?: string | null, shopId?: string | null): PublicShopProfile | null => {
+    if (!brandName && !shopId) return null;
+    const lower = (brandName || '').trim().toLowerCase();
+    return (
+      publicShops.find(
+        (s) => (shopId && s.id === shopId) || s.shop_name.trim().toLowerCase() === lower
+      ) || null
+    );
+  };
 
   const availableColorFilters = useMemo(() => {
     const map = new Map<string, string>();
@@ -2428,19 +2450,20 @@ export const FashionStoreHome: React.FC = () => {
                     (v, idx, arr) => arr.findIndex((x) => x.color_hex === v.color_hex) === idx
                   );
 
+                  const isUserMeasured = Boolean(isAuthenticated && hasBodyProfile);
                   const activeSizeLabel =
                     selectedSizeByProduct[product.id] ||
-                    (isAuthenticated && hasBodyProfile
-                      ? product.recommendedVariant.size_label
-                      : sizeVariants[0]?.size_label);
+                    (isUserMeasured ? product.recommendedVariant.size_label : '');
 
                   const cardActiveVariant =
                     (activeColorHex &&
+                      activeSizeLabel &&
                       product.variants.find(
                         (v) => v.color_hex === activeColorHex && v.size_label === activeSizeLabel
                       )) ||
-                    product.variants.find((v) => v.size_label === activeSizeLabel) ||
-                    product.recommendedVariant ||
+                    (activeSizeLabel &&
+                      product.variants.find((v) => v.size_label === activeSizeLabel)) ||
+                    (isUserMeasured ? product.recommendedVariant : null) ||
                     product.variants[0];
 
                   return (
@@ -2468,22 +2491,31 @@ export const FashionStoreHome: React.FC = () => {
                         )}
 
                         {/* Brand & Official Mall / Bespoke Tag Top Left */}
-                        <div className="absolute top-2.5 left-2.5 pointer-events-none flex items-center gap-1 flex-wrap">
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1 flex-wrap z-10">
                           {product.is_mall && (
-                            <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                            <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs pointer-events-none">
                               MALL
                             </span>
                           )}
                           {(product.is_bespoke || product.category === 'tailored') && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-2xs pointer-events-none">
                               BESPOKE
                             </span>
                           )}
-                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-slate-900 shadow-2xs border border-slate-200/80">
-                            {product.brand_name}
-                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveShopBrandName(product.brand_name);
+                            }}
+                            title={`Xem thương hiệu & đánh giá ${product.brand_name}`}
+                            className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 hover:bg-blue-600 text-slate-900 hover:text-white shadow-2xs border border-slate-200/80 transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <Store size={9} />
+                            <span>{product.brand_name}</span>
+                          </button>
                           {product.video_url && (
-                            <span className="px-1.5 py-0.5 rounded bg-black/80 text-white text-[9px] font-bold shadow-2xs">
+                            <span className="px-1.5 py-0.5 rounded bg-black/80 text-white text-[9px] font-bold shadow-2xs pointer-events-none">
                               ▶ Video
                             </span>
                           )}
@@ -2606,23 +2638,41 @@ export const FashionStoreHome: React.FC = () => {
                           )}
                         </div>
 
-                        {/* Always-visible Size Picker: Suggested vs Manual Choice */}
+                        {/* Always-visible Size Picker: Suggested vs Manual Choice + Quick 3D Icons */}
                         {sizeVariants.length > 0 && (
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[10px]">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px] gap-1">
                               <span className="font-bold text-slate-500 uppercase tracking-wider">
                                 {locale === 'en' ? 'Size' : 'Chọn size'}
                               </span>
-                              {isAuthenticated && hasBodyProfile && (
-                                <span className="font-semibold text-emerald-700">
-                                  ★ {locale === 'en' ? `AI fit: ${fit.recommended_size}` : `Hợp dáng: ${fit.recommended_size}`}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1.5">
+                                {isUserMeasured && (
+                                  <span className="font-semibold text-emerald-700">
+                                    ★ {locale === 'en' ? `AI fit: ${fit.recommended_size}` : `Hợp dáng: ${fit.recommended_size}`}
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAnalysis(product)}
+                                  className="p-1 rounded-md bg-slate-100 hover:bg-blue-50 text-blue-600 transition-colors cursor-pointer"
+                                  title={t('ecommerce.catalog.viewAnalysis', 'Phân tích độ vừa 3D')}
+                                >
+                                  <Ruler size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenVirtualStudio(product)}
+                                  className="p-1 rounded-md bg-slate-100 hover:bg-purple-50 text-purple-600 transition-colors cursor-pointer"
+                                  title={t('ecommerce.sidebar.virtualTryOn', 'Thử đồ ảo 3D (VELL Studio)')}
+                                >
+                                  <Sparkles size={12} />
+                                </button>
+                              </div>
                             </div>
                             <div className="flex flex-wrap gap-1">
                               {sizeVariants.slice(0, 6).map((sv) => {
-                                const isChosen = sv.size_label === activeSizeLabel;
-                                const isRec = isAuthenticated && hasBodyProfile && sv.size_label === fit.recommended_size;
+                                const isChosen = Boolean(activeSizeLabel) && sv.size_label === activeSizeLabel;
+                                const isRec = isUserMeasured && sv.size_label === fit.recommended_size;
                                 return (
                                   <button
                                     key={sv.id}
@@ -2654,51 +2704,53 @@ export const FashionStoreHome: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Card Actions: Phân tích 3D + Thử 3D + Lưu giỏ hàng + Mua ngay 1 SP */}
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAnalysis(product)}
-                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                              title={t('ecommerce.catalog.viewAnalysis', 'Phân tích độ vừa 3D')}
-                            >
-                              <Ruler size={14} className="text-blue-600" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenVirtualStudio(product)}
-                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                              title={t('ecommerce.sidebar.virtualTryOn', 'Thử đồ ảo 3D (VELL Studio)')}
-                            >
-                              <Sparkles size={14} className="text-purple-600" />
-                            </button>
-                          </div>
+                        {/* Card Actions: Balanced 2-Button Shopee Layout (Add Cart + Buy Now -> Detail View) */}
+                        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!isAuthenticated) {
+                                handleAddToCart(product, cardActiveVariant, false, false);
+                                return;
+                              }
+                              if (!activeSizeLabel) {
+                                showGlobalToast({
+                                  type: 'info',
+                                  title: locale === 'en' ? 'Choose a Size' : 'Chọn kích cỡ trước',
+                                  message:
+                                    locale === 'en'
+                                      ? 'Pick a size on the card or select color & size inside.'
+                                      : 'Vui lòng chọn size hoặc xem chi tiết để chọn màu & size.',
+                                });
+                                handleOpenAnalysis(product);
+                                return;
+                              }
+                              handleAddToCart(product, cardActiveVariant, false, false);
+                            }}
+                            className="py-2 px-2.5 rounded-xl bg-blue-50/90 hover:bg-blue-100 active:scale-95 text-blue-900 border border-blue-200 text-[11px] font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                            title={
+                              activeSizeLabel
+                                ? `Thêm Size ${activeSizeLabel} vào Giỏ hàng`
+                                : 'Thêm sản phẩm vào Giỏ hàng'
+                            }
+                          >
+                            <ShoppingCart size={13} className="text-blue-700 shrink-0" />
+                            <span>{locale === 'en' ? 'Add Cart' : 'Thêm giỏ'}</span>
+                          </button>
 
-                          <div className="flex-1 flex items-center gap-1.5 min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => handleAddToCart(product, cardActiveVariant, false, false)}
-                              className="py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-[#14171C] border border-slate-300 text-[11px] font-bold transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
-                              title={locale === 'en' ? `Save Size ${cardActiveVariant.size_label} to Cart` : `Lưu Size ${cardActiveVariant.size_label} vào Giỏ hàng`}
-                            >
-                              <Plus size={12} />
-                              <span>{locale === 'en' ? 'Cart' : 'Giỏ'}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickBuy(product, cardActiveVariant)}
-                              className="flex-1 py-2 px-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-bold transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
-                              title={locale === 'en' ? `Quick Buy Size ${cardActiveVariant.size_label}` : `Mua nhanh ngay Size ${cardActiveVariant.size_label}`}
-                            >
-                              <ShoppingBag size={12} className="text-white" />
-                              <span>
-                                {locale === 'en'
-                                  ? `Buy ${cardActiveVariant.size_label}`
-                                  : `Mua (${cardActiveVariant.size_label})`}
-                              </span>
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAnalysis(product)}
+                            className="py-2 px-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs"
+                            title={
+                              locale === 'en'
+                                ? 'View product details, select color/size & check shop ratings'
+                                : 'Xem chi tiết áo, chọn màu/size & kiểm tra uy tín Shop'
+                            }
+                          >
+                            <ShoppingBag size={13} className="text-white shrink-0" />
+                            <span>{locale === 'en' ? 'Buy Now' : 'Mua Ngay'}</span>
+                          </button>
                         </div>
 
                         {(product.is_bespoke || product.category === 'tailored') && (
@@ -3168,6 +3220,9 @@ export const FashionStoreHome: React.FC = () => {
         product={analysisProduct}
         selectedVariant={analysisVariant}
         userBody={userBody}
+        hasBodyProfile={hasBodyProfile}
+        shopProfile={findPublicShop(analysisProduct?.brand_name, analysisProduct?.shop_id)}
+        onViewShop={(name) => setActiveShopBrandName(name)}
         fitResult={
           analysisProduct ? calculateProductFit(userBody, analysisProduct) : null
         }
@@ -3189,6 +3244,25 @@ export const FashionStoreHome: React.FC = () => {
         }}
         onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant, false, false)}
         onOpenVirtualStudio={handleOpenVirtualStudio}
+      />
+
+      <ShopStorefrontModal
+        isOpen={Boolean(activeShopBrandName)}
+        onClose={() => {
+          setActiveShopBrandName(null);
+          if (searchParams.get('shop')) {
+            const next = new URLSearchParams(searchParams);
+            next.delete('shop');
+            setSearchParams(next, { replace: true });
+          }
+        }}
+        shopName={activeShopBrandName || ''}
+        shopProfile={findPublicShop(activeShopBrandName)}
+        products={productsWithFit}
+        isAuthenticated={isAuthenticated}
+        hasBodyProfile={hasBodyProfile}
+        onOpenProduct={(prod) => handleOpenAnalysis(prod)}
+        onOpenVirtualStudio={(prod) => handleOpenVirtualStudio(prod)}
       />
 
       <SmartCartDrawer

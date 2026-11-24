@@ -1,4 +1,4 @@
-import { commerceApi, type DbProduct } from './commerceApi';
+import { commerceApi, type DbProduct, type PublicShopProfile } from './commerceApi';
 
 export interface PlatformVoucher {
   code: string;
@@ -192,11 +192,11 @@ export function resetPlatformConfig(): PlatformConfig {
 
 export async function syncPlatformConfigFromBackend(
   includeHidden = true
-): Promise<{ config: PlatformConfig; products: DbProduct[] } | null> {
+): Promise<{ config: PlatformConfig; products: DbProduct[]; shops: PublicShopProfile[] } | null> {
   const res = await commerceApi.getBootstrap(includeHidden);
   if (!res.success || !res.data) return null;
 
-  const { settings, vouchers, products } = res.data;
+  const { settings, vouchers, products, shops = [] } = res.data;
   const hiddenProductIds = products.filter((p) => Boolean(p.is_hidden)).map((p) => p.id);
   const priceOverrides: Record<string, number> = {};
   products.forEach((p) => {
@@ -238,5 +238,5 @@ export async function syncPlatformConfigFromBackend(
   };
 
   savePlatformConfig(merged);
-  return { config: merged, products };
+  return { config: merged, products, shops };
 }

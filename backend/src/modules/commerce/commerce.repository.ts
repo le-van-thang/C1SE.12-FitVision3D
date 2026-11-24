@@ -159,6 +159,73 @@ export const commerceRepository = {
     await query('DELETE FROM vouchers WHERE code = $1', [code.toUpperCase()]);
   },
 
+  async listPublicShops() {
+    await ensureCommerceTablesAndSeed();
+    const rows = await query<{
+      id: string;
+      shop_name: string;
+      brand_slug: string | null;
+      phone_number: string;
+      shop_address: string;
+      city: string | null;
+      contact_email: string | null;
+      logo_url: string | null;
+      description: string | null;
+      is_verified: boolean;
+      is_mall: boolean;
+      created_at: string;
+      product_count: string;
+      bespoke_count: string;
+      avg_rating: string;
+      total_reviews: string;
+    }>(
+      `SELECT
+         s.id,
+         s.shop_name,
+         s.brand_slug,
+         s.phone_number,
+         s.shop_address,
+         s.city,
+         s.contact_email,
+         s.logo_url,
+         s.description,
+         s.is_verified,
+         COALESCE(s.is_mall, FALSE) AS is_mall,
+         s.created_at,
+         COUNT(p.id) FILTER (WHERE COALESCE(p.is_hidden, FALSE) = FALSE)::text AS product_count,
+         COUNT(p.id) FILTER (WHERE COALESCE(p.is_hidden, FALSE) = FALSE AND COALESCE(p.is_bespoke, FALSE) = TRUE)::text AS bespoke_count,
+         COALESCE(
+           ROUND(AVG(p.rating) FILTER (WHERE COALESCE(p.is_hidden, FALSE) = FALSE)::numeric, 1),
+           5.0
+         )::text AS avg_rating,
+         COALESCE(SUM(p.reviews_count) FILTER (WHERE COALESCE(p.is_hidden, FALSE) = FALSE), 0)::text AS total_reviews
+       FROM shops s
+       LEFT JOIN products p
+         ON (p.shop_id = s.id OR LOWER(p.brand_name) = LOWER(s.shop_name))
+       WHERE COALESCE(s.status, CASE WHEN s.is_verified THEN 'APPROVED' ELSE 'PENDING' END) = 'APPROVED'
+       GROUP BY s.id
+       ORDER BY s.is_mall DESC, avg_rating DESC, total_reviews DESC, s.created_at ASC`
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      shop_name: r.shop_name,
+      brand_slug: r.brand_slug,
+      phone_number: r.phone_number,
+      shop_address: r.shop_address,
+      city: r.city,
+      contact_email: r.contact_email,
+      logo_url: r.logo_url,
+      description: r.description,
+      is_verified: Boolean(r.is_verified),
+      is_mall: Boolean(r.is_mall),
+      created_at: r.created_at,
+      product_count: parseInt(r.product_count || '0', 10),
+      bespoke_count: parseInt(r.bespoke_count || '0', 10),
+      avg_rating: parseFloat(r.avg_rating || '5.0'),
+      total_reviews: parseInt(r.total_reviews || '0', 10),
+    }));
+  },
+
   async listProducts(includeHidden = true) {
     await ensureCommerceTablesAndSeed();
     const whereClause = includeHidden ? '' : 'WHERE is_hidden = FALSE';
@@ -751,7 +818,7 @@ export const commerceRepository = {
   async ensureShopForUser(userId: string) {
     await ensureCommerceTablesAndSeed();
     const shopRows = await query(
-      `SELECT id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
+      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address, city, contact_email, logo_url, description, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
        FROM shops
        WHERE owner_id = $1
        LIMIT 1`,
@@ -777,17 +844,21 @@ export const commerceRepository = {
 
     const created = await query(
       `INSERT INTO shops (
-         owner_id, shop_name, brand_slug, phone_number, shop_address,
-         contact_email, status, is_verified, approved_at, created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, 'Việt Nam', $5, 'APPROVED', TRUE, NOW(), NOW(), NOW())
+         owner_id, shop_name, brand_slug, phone_number, shop_address, city,
+         contact_email, description, status, is_verified, approved_at, created_at, updated_at
+       ) VALUES (
+         $1, $2, $3, $4, 'Việt Nam', 'Đà Nẵng', $5,
+         'Thương hiệu thời trang may đo chuẩn số đo 3D ISO 8559-1 tại FitVision.',
+         'APPROVED', TRUE, NOW(), NOW(), NOW()
+       )
        ON CONFLICT (owner_id) DO NOTHING
-       RETURNING id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall`,
+       RETURNING id, owner_id, shop_name, brand_slug, phone_number, shop_address, city, contact_email, logo_url, description, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall`,
       [userId, shopName, slug, phone, u.email]
     );
     if (created.length > 0) return created[0];
 
     const retry = await query(
-      `SELECT id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
+      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address, city, contact_email, logo_url, description, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall
        FROM shops WHERE owner_id = $1 LIMIT 1`,
       [userId]
     );
@@ -796,7 +867,14 @@ export const commerceRepository = {
 
   async updateShopProfile(
     userId: string,
-    payload: { shopName?: string; phoneNumber?: string; shopAddress?: string }
+    payload: {
+      shopName?: string;
+      phoneNumber?: string;
+      shopAddress?: string;
+      city?: string;
+      contactEmail?: string;
+      description?: string;
+    }
   ) {
     const shop = await this.ensureShopForUser(userId);
     if (!shop) {
@@ -805,15 +883,19 @@ export const commerceRepository = {
     const cleanName = String(payload.shopName || shop.shop_name).trim();
     const cleanPhone = String(payload.phoneNumber || shop.phone_number).trim().slice(0, 15);
     const cleanAddr = String(payload.shopAddress || shop.shop_address).trim().slice(0, 255);
+    const cleanCity = payload.city !== undefined ? String(payload.city).trim().slice(0, 100) : shop.city;
+    const cleanEmail = payload.contactEmail !== undefined ? String(payload.contactEmail).trim().slice(0, 255) : shop.contact_email;
+    const cleanDesc = payload.description !== undefined ? String(payload.description).trim().slice(0, 1000) : shop.description;
     if (cleanName.length < 2) throw new Error('Tên Shop phải có tối thiểu 2 ký tự.');
     if (cleanPhone.length < 8) throw new Error('Số điện thoại Shop không hợp lệ.');
 
     const updated = await query(
       `UPDATE shops
-       SET shop_name = $2, phone_number = $3, shop_address = $4, updated_at = NOW()
+       SET shop_name = $2, phone_number = $3, shop_address = $4,
+           city = $5, contact_email = $6, description = $7, updated_at = NOW()
        WHERE id = $1
-       RETURNING id, owner_id, shop_name, phone_number, shop_address, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall`,
-      [shop.id, cleanName, cleanPhone, cleanAddr]
+       RETURNING id, owner_id, shop_name, brand_slug, phone_number, shop_address, city, contact_email, logo_url, description, status, is_verified, COALESCE(is_mall, FALSE) AS is_mall`,
+      [shop.id, cleanName, cleanPhone, cleanAddr, cleanCity || null, cleanEmail || null, cleanDesc || null]
     );
     if (cleanName !== shop.shop_name) {
       await query(

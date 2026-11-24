@@ -18,12 +18,17 @@ import {
   Video,
   Camera,
   Ruler,
+  Store,
+  Phone,
+  MapPin,
+  ShoppingCart,
+  ShoppingBag,
 } from 'lucide-react';
 import type { FashionProduct, UserBodyProfile, FitMatchResult, ProductVariant } from './types';
 import { MOCK_PRODUCTS } from './mockProducts';
 import { useI18n } from '@/i18n';
 import { useAuth } from '@/context/AuthContext';
-import { commerceApi, type DbProductReview } from '@/services/commerceApi';
+import { commerceApi, type DbProductReview, type PublicShopProfile } from '@/services/commerceApi';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
 interface FitAnalysisDrawerProps {
@@ -33,6 +38,9 @@ interface FitAnalysisDrawerProps {
   selectedVariant: ProductVariant | null;
   userBody: UserBodyProfile;
   fitResult: FitMatchResult | null;
+  hasBodyProfile?: boolean;
+  shopProfile?: PublicShopProfile | null;
+  onViewShop?: (shopName: string) => void;
   onSelectSize: (variant: ProductVariant) => void;
   onAddToCart: () => void;
   onQuickBuy?: () => void;
@@ -48,6 +56,9 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   selectedVariant,
   userBody,
   fitResult,
+  hasBodyProfile = false,
+  shopProfile,
+  onViewShop,
   onSelectSize,
   onAddToCart,
   onQuickBuy,
@@ -418,22 +429,110 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
               </div>
             </div>
 
+            {/* 1.5 Shop Trust & Contact Banner (Shopee Store Card) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#14171C] to-blue-900 text-white font-black text-sm flex items-center justify-center shrink-0 border border-slate-200">
+                    {product.brand_name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-extrabold text-sm text-slate-950 truncate">
+                        {shopProfile?.shop_name || product.brand_name}
+                      </span>
+                      {(product.is_mall || shopProfile?.is_mall) && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase">
+                          <BadgeCheck size={9} /> MALL
+                        </span>
+                      )}
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold">
+                        {isEn ? 'Verified' : 'Uy Tín'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-[11px] text-slate-600 mt-0.5 flex-wrap">
+                      <span className="inline-flex items-center gap-0.5 font-bold text-amber-600">
+                        <Star size={11} className="fill-amber-400 text-amber-400" />
+                        {(shopProfile?.avg_rating ?? (liveRating ?? product.rating)).toFixed(1)}/5.0
+                      </span>
+                      <span>·</span>
+                      <span>{shopProfile?.product_count ?? 1}+ {isEn ? 'products' : 'sản phẩm'}</span>
+                      <span>·</span>
+                      <span className="inline-flex items-center gap-0.5 truncate max-w-[160px]">
+                        <MapPin size={10} className="text-slate-400 shrink-0" />
+                        {shopProfile?.city || shopProfile?.shop_address || 'Việt Nam'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const phone = shopProfile?.phone_number || '1900 8559';
+                      navigator.clipboard?.writeText(phone).catch(() => undefined);
+                      showGlobalToast({
+                        type: 'info',
+                        title: `Liên hệ ${product.brand_name}`,
+                        message: `Hotline/Zalo Shop: ${phone} · ${shopProfile?.shop_address || 'Hỗ trợ tư vấn trực tiếp'} (đã sao chép SĐT).`,
+                      });
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <Phone size={11} className="text-emerald-600" />
+                    <span className="hidden sm:inline">{isEn ? 'Contact' : 'Liên hệ'}</span>
+                  </button>
+                  {onViewShop && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onViewShop(shopProfile?.shop_name || product.brand_name);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <Store size={11} />
+                      <span>{isEn ? 'View Shop' : 'Xem Shop'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* 2. Match Score Card */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white border border-emerald-500/25 shadow-2xs">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-emerald-600" />
-                  <span className="font-bold text-emerald-900 text-sm">
-                    {verdictLabel}
-                  </span>
+              {isAuthenticated && hasBodyProfile ? (
+                <>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={18} className="text-emerald-600" />
+                      <span className="font-bold text-emerald-900 text-sm">
+                        {verdictLabel}
+                      </span>
+                    </div>
+                    <span className="font-mono text-xl font-black text-emerald-700">
+                      {fitResult.match_percentage}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                    {advisorAdvice}
+                  </p>
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <span className="font-bold text-slate-900 text-xs block">
+                      {isEn ? 'Select Color & Size Below' : 'Chọn Màu & Size hoặc Quét 3D để AI gợi ý'}
+                    </span>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      {!isAuthenticated
+                        ? (isEn ? 'Sign in and scan 3D to unlock personalized size recommendations.' : 'Bạn đang ở chế độ xem (chưa đăng nhập). Hãy chọn thủ công bên dưới hoặc đăng nhập để AI gợi ý size.')
+                        : (isEn ? 'Scan your 3D body profile to see exact % fit scores.' : 'Quét số đo 3D hoặc cập nhật chiều cao/cân nặng để xem % vừa vặn cho từng size.')}
+                    </p>
+                  </div>
                 </div>
-                <span className="font-mono text-xl font-black text-emerald-700">
-                  {fitResult.match_percentage}%
-                </span>
-              </div>
-              <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                {advisorAdvice}
-              </p>
+              )}
             </div>
 
             {/* 3. Multi-Color Selector + Size Selector + AI 3D Scan CTA */}
@@ -502,7 +601,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {sizeOptions.map((v) => {
                     const isSelected = v.size_label === selectedVariant.size_label;
-                    const isRecommended = v.size_label === fitResult.recommended_size;
+                    const isRecommended = isAuthenticated && hasBodyProfile && v.size_label === fitResult.recommended_size;
                     return (
                       <button
                         key={v.id}
@@ -919,11 +1018,11 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   onAddToCart();
                   onClose();
                 }}
-                className="py-3 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-[#14171C] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-3 px-3.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <Plus size={15} />
+                <ShoppingCart size={16} className="text-blue-700 shrink-0" />
                 <span>
-                  {t('ecommerce.drawer.addToCartSize', 'Thêm vào giỏ ({size})').replace('{size}', selectedVariant.size_label)}
+                  {isEn ? `Add to Cart (${selectedVariant.size_label})` : `Thêm vào giỏ (${selectedVariant.size_label})`}
                 </span>
               </button>
               <button
@@ -936,8 +1035,9 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   }
                   onClose();
                 }}
-                className="py-3 px-3.5 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-3 px-3.5 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
+                <ShoppingBag size={15} className="shrink-0" />
                 <span>
                   {isEn ? `Buy Now (${selectedVariant.size_label})` : `Mua ngay (${selectedVariant.size_label})`}
                 </span>

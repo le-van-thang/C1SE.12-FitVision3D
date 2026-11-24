@@ -29,6 +29,8 @@ import {
   Wand2,
   KeyRound,
   Scissors,
+  ExternalLink,
+  Mail,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -203,6 +205,9 @@ export const ShopPortal: React.FC = () => {
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [profileAddress, setProfileAddress] = useState('');
+  const [profileCity, setProfileCity] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
+  const [profileDescription, setProfileDescription] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Product creation form + Multi-Color & Size Variants + Anti-Spam guard
@@ -277,6 +282,9 @@ export const ShopPortal: React.FC = () => {
         setProfileName(res.data.shop.shop_name || '');
         setProfilePhone(res.data.shop.phone_number || '');
         setProfileAddress(res.data.shop.shop_address || '');
+        setProfileCity(res.data.shop.city || '');
+        setProfileEmail(res.data.shop.contact_email || '');
+        setProfileDescription(res.data.shop.description || '');
       }
     } else if (res.error?.code === 'AUTH_UNAUTHORIZED') {
       setAuthNeedsRelogin(true);
@@ -303,6 +311,21 @@ export const ShopPortal: React.FC = () => {
     () => reviews.filter((r) => !r.shop_reply).length,
     [reviews]
   );
+
+  const shopAvgRating = useMemo(() => {
+    if (reviews.length > 0) {
+      const sum = reviews.reduce((s, r) => s + Number(r.rating || 5), 0);
+      return Number((sum / reviews.length).toFixed(1));
+    }
+    if (products.length > 0) {
+      const ratedProducts = products.filter((p) => Number(p.rating || 0) > 0);
+      if (ratedProducts.length > 0) {
+        const sum = ratedProducts.reduce((s, p) => s + Number(p.rating || 5), 0);
+        return Number((sum / ratedProducts.length).toFixed(1));
+      }
+    }
+    return 5.0;
+  }, [reviews, products]);
 
   const handleUpdateOrderStatus = async (orderId: string, nextStatus: Order['status']) => {
     const res = await commerceApi.updateOrderStatus(orderId, nextStatus);
@@ -337,6 +360,9 @@ export const ShopPortal: React.FC = () => {
       shopName: profileName.trim(),
       phoneNumber: profilePhone.trim(),
       shopAddress: profileAddress.trim(),
+      city: profileCity.trim(),
+      contactEmail: profileEmail.trim(),
+      description: profileDescription.trim(),
     });
     setIsSavingProfile(false);
     if (res.success && res.data) {
@@ -864,6 +890,16 @@ export const ShopPortal: React.FC = () => {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
+            {shop?.shop_name && (
+              <Link
+                to={`/?shop=${encodeURIComponent(shop.shop_name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <ExternalLink size={13} /> Xem Trang Thương Hiệu
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => void loadShopData()}
@@ -944,9 +980,17 @@ export const ShopPortal: React.FC = () => {
                       <p className="text-[11px] text-slate-500 mt-1">Đã trừ đơn hủy</p>
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-                      <p className="text-[11px] font-bold uppercase text-slate-400">Đánh giá chờ trả lời</p>
-                      <p className="text-2xl font-black text-amber-600 mt-2">{pendingReviewsCount}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Tổng {reviews.length} đánh giá</p>
+                      <p className="text-[11px] font-bold uppercase text-slate-400">Uy tín &amp; Đánh giá Shop</p>
+                      <div className="flex items-baseline gap-2 mt-2">
+                        <p className="text-2xl font-black text-amber-500 flex items-center gap-1">
+                          <Star size={20} className="fill-amber-400 text-amber-500" />
+                          {shopAvgRating.toFixed(1)}
+                        </p>
+                        <span className="text-xs font-bold text-slate-500">/ 5.0</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        {reviews.length} đánh giá • <span className="text-amber-600 font-bold">{pendingReviewsCount} chờ trả lời</span>
+                      </p>
                     </div>
                   </div>
 
@@ -984,12 +1028,24 @@ export const ShopPortal: React.FC = () => {
                       <div>
                         <h3 className="text-sm font-black text-slate-950">Hồ Sơ Thương Hiệu &amp; Liên Hệ Shop</h3>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Tên thương hiệu này sẽ gắn trực tiếp lên từng thẻ sản phẩm của bạn trên sàn thương mại.
+                          Tên thương hiệu, mô tả và đánh giá tổng hợp sẽ hiển thị tại Trang Thương Hiệu Riêng của Shop.
                         </p>
                       </div>
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                        Đã liên kết PostgreSQL • ID: {shop?.id?.slice(0, 8)}...
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {shop?.shop_name && (
+                          <Link
+                            to={`/?shop=${encodeURIComponent(shop.shop_name)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-full inline-flex items-center gap-1 transition-colors"
+                          >
+                            <ExternalLink size={11} /> Xem Trang Shop Công Khai
+                          </Link>
+                        )}
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                          Đã liên kết PostgreSQL • ID: {shop?.id?.slice(0, 8)}...
+                        </span>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1018,13 +1074,48 @@ export const ShopPortal: React.FC = () => {
                       </div>
                       <div>
                         <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
-                          <MapPin size={12} /> Địa Chỉ Kho / Cửa Hàng
+                          <Mail size={12} /> Email Liên Hệ Thương Hiệu
+                        </label>
+                        <input
+                          type="email"
+                          value={profileEmail}
+                          onChange={(e) => setProfileEmail(e.target.value)}
+                          placeholder="VD: cskh@torano.vn"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
+                          <MapPin size={12} /> Khu Vực / Thành Phố
+                        </label>
+                        <input
+                          value={profileCity}
+                          onChange={(e) => setProfileCity(e.target.value)}
+                          placeholder="VD: TP. Hồ Chí Minh"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
+                          <MapPin size={12} /> Địa Chỉ Kho / Showroom Chi Tiết
                         </label>
                         <input
                           value={profileAddress}
                           onChange={(e) => setProfileAddress(e.target.value)}
-                          placeholder="VD: Quận 1, TP. Hồ Chí Minh"
+                          placeholder="VD: 123 Lê Lợi, Quận 1, TP. Hồ Chí Minh"
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
+                        />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
+                          <Sparkles size={12} /> Giới Thiệu Thương Hiệu &amp; Chính Sách Đổi Trả
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={profileDescription}
+                          onChange={(e) => setProfileDescription(e.target.value)}
+                          placeholder="Mô tả phong cách thời trang, cam kết chất lượng vải và chính sách hỗ trợ đổi size cho khách mua sắm..."
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10 resize-y"
                         />
                       </div>
                     </div>
