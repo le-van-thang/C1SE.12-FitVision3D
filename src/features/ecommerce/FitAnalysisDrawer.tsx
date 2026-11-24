@@ -18,9 +18,6 @@ import {
   Video,
   Camera,
   Ruler,
-  Store,
-  Phone,
-  MapPin,
   ShoppingCart,
   ShoppingBag,
 } from 'lucide-react';
@@ -28,7 +25,7 @@ import type { FashionProduct, UserBodyProfile, FitMatchResult, ProductVariant } 
 import { MOCK_PRODUCTS } from './mockProducts';
 import { useI18n } from '@/i18n';
 import { useAuth } from '@/context/AuthContext';
-import { commerceApi, type DbProductReview, type PublicShopProfile } from '@/services/commerceApi';
+import { commerceApi, type DbProductReview } from '@/services/commerceApi';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
 interface FitAnalysisDrawerProps {
@@ -39,8 +36,6 @@ interface FitAnalysisDrawerProps {
   userBody: UserBodyProfile;
   fitResult: FitMatchResult | null;
   hasBodyProfile?: boolean;
-  shopProfile?: PublicShopProfile | null;
-  onViewShop?: (shopName: string) => void;
   onSelectSize: (variant: ProductVariant) => void;
   onAddToCart: () => void;
   onQuickBuy?: () => void;
@@ -57,8 +52,6 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   userBody,
   fitResult,
   hasBodyProfile = false,
-  shopProfile,
-  onViewShop,
   onSelectSize,
   onAddToCart,
   onQuickBuy,
@@ -426,77 +419,6 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                     <span>{isEn ? 'Try in 3D' : 'Thử đồ 3D'}</span>
                   </button>
                 )}
-              </div>
-            </div>
-
-            {/* 1.5 Shop Trust & Contact Banner (Shopee Store Card) */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#14171C] to-blue-900 text-white font-black text-sm flex items-center justify-center shrink-0 border border-slate-200">
-                    {product.brand_name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-extrabold text-sm text-slate-950 truncate">
-                        {shopProfile?.shop_name || product.brand_name}
-                      </span>
-                      {(product.is_mall || shopProfile?.is_mall) && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase">
-                          <BadgeCheck size={9} /> MALL
-                        </span>
-                      )}
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold">
-                        {isEn ? 'Verified' : 'Uy Tín'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-[11px] text-slate-600 mt-0.5 flex-wrap">
-                      <span className="inline-flex items-center gap-0.5 font-bold text-amber-600">
-                        <Star size={11} className="fill-amber-400 text-amber-400" />
-                        {(shopProfile?.avg_rating ?? (liveRating ?? product.rating)).toFixed(1)}/5.0
-                      </span>
-                      <span>·</span>
-                      <span>{shopProfile?.product_count ?? 1}+ {isEn ? 'products' : 'sản phẩm'}</span>
-                      <span>·</span>
-                      <span className="inline-flex items-center gap-0.5 truncate max-w-[160px]">
-                        <MapPin size={10} className="text-slate-400 shrink-0" />
-                        {shopProfile?.city || shopProfile?.shop_address || 'Việt Nam'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const phone = shopProfile?.phone_number || '1900 8559';
-                      navigator.clipboard?.writeText(phone).catch(() => undefined);
-                      showGlobalToast({
-                        type: 'info',
-                        title: `Liên hệ ${product.brand_name}`,
-                        message: `Hotline/Zalo Shop: ${phone} · ${shopProfile?.shop_address || 'Hỗ trợ tư vấn trực tiếp'} (đã sao chép SĐT).`,
-                      });
-                    }}
-                    className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    <Phone size={11} className="text-emerald-600" />
-                    <span className="hidden sm:inline">{isEn ? 'Contact' : 'Liên hệ'}</span>
-                  </button>
-                  {onViewShop && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onClose();
-                        onViewShop(shopProfile?.shop_name || product.brand_name);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <Store size={11} />
-                      <span>{isEn ? 'View Shop' : 'Xem Shop'}</span>
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
 

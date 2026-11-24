@@ -48,7 +48,6 @@ import {
   hydrateBodyProfileFromBackend,
 } from '@/utils/bodyProfileStorage';
 import { FitAnalysisDrawer } from './FitAnalysisDrawer';
-import { ShopStorefrontModal } from './ShopStorefrontModal';
 import { SmartCartDrawer } from './SmartCartDrawer';
 import { QuickBiometricModal } from './QuickBiometricModal';
 import { VellVirtualStudioModal } from './VellVirtualStudioModal';
@@ -64,7 +63,6 @@ import {
   syncPlatformConfigFromBackend,
   type PlatformConfig,
 } from '@/services/platformConfig';
-import type { PublicShopProfile } from '@/services/commerceApi';
 import type { FashionProduct, ProductVariant, UserBodyProfile, CartItem } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
@@ -224,7 +222,7 @@ export const FashionStoreHome: React.FC = () => {
     };
   }, [isAuthenticated, currentUser]);
 
-  // Open/close Virtual Fitting Room in sync with URL query (?openStudio=1) and ?shop=
+  // Open/close Virtual Fitting Room in sync with URL query (?openStudio=1) so browser Back works cleanly
   useEffect(() => {
     if (searchParams.get('openStudio') === '1') {
       const modeParam = searchParams.get('studioMode');
@@ -232,10 +230,6 @@ export const FashionStoreHome: React.FC = () => {
       setIsVellStudioOpen(true);
     } else {
       setIsVellStudioOpen(false);
-    }
-    const shopParam = searchParams.get('shop');
-    if (shopParam) {
-      setActiveShopBrandName(shopParam);
     }
   }, [searchParams]);
 
@@ -256,21 +250,16 @@ export const FashionStoreHome: React.FC = () => {
   const [previewColorMap, setPreviewColorMap] = useState<Record<string, { colorHex: string; imageUrl?: string }>>({});
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig>(() => loadPlatformConfig());
   const [dbProducts, setDbProducts] = useState<FashionProduct[]>(() => MOCK_PRODUCTS);
-  const [publicShops, setPublicShops] = useState<PublicShopProfile[]>([]);
-  const [activeShopBrandName, setActiveShopBrandName] = useState<string | null>(null);
 
   useEffect(() => {
     const syncConfig = () => setPlatformConfig(loadPlatformConfig());
     window.addEventListener('fv3d-platform-config-updated', syncConfig);
     window.addEventListener('storage', syncConfig);
 
-    // Hydrate live products, CMS banners, vouchers, and verified shops from PostgreSQL
+    // Hydrate live products, CMS banners, and vouchers from PostgreSQL
     syncPlatformConfigFromBackend(false).then((synced) => {
       if (synced?.products && synced.products.length > 0) {
         setDbProducts(synced.products);
-      }
-      if (synced?.shops && synced.shops.length > 0) {
-        setPublicShops(synced.shops);
       }
     });
 
@@ -279,16 +268,6 @@ export const FashionStoreHome: React.FC = () => {
       window.removeEventListener('storage', syncConfig);
     };
   }, []);
-
-  const findPublicShop = (brandName?: string | null, shopId?: string | null): PublicShopProfile | null => {
-    if (!brandName && !shopId) return null;
-    const lower = (brandName || '').trim().toLowerCase();
-    return (
-      publicShops.find(
-        (s) => (shopId && s.id === shopId) || s.shop_name.trim().toLowerCase() === lower
-      ) || null
-    );
-  };
 
   const availableColorFilters = useMemo(() => {
     const map = new Map<string, string>();
@@ -2491,31 +2470,22 @@ export const FashionStoreHome: React.FC = () => {
                         )}
 
                         {/* Brand & Official Mall / Bespoke Tag Top Left */}
-                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1 flex-wrap z-10">
+                        <div className="absolute top-2.5 left-2.5 pointer-events-none flex items-center gap-1 flex-wrap">
                           {product.is_mall && (
-                            <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs pointer-events-none">
+                            <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
                               MALL
                             </span>
                           )}
                           {(product.is_bespoke || product.category === 'tailored') && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-2xs pointer-events-none">
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-2xs">
                               BESPOKE
                             </span>
                           )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveShopBrandName(product.brand_name);
-                            }}
-                            title={`Xem thương hiệu & đánh giá ${product.brand_name}`}
-                            className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 hover:bg-blue-600 text-slate-900 hover:text-white shadow-2xs border border-slate-200/80 transition-colors cursor-pointer flex items-center gap-1"
-                          >
-                            <Store size={9} />
-                            <span>{product.brand_name}</span>
-                          </button>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-slate-900 shadow-2xs border border-slate-200/80">
+                            {product.brand_name}
+                          </span>
                           {product.video_url && (
-                            <span className="px-1.5 py-0.5 rounded bg-black/80 text-white text-[9px] font-bold shadow-2xs pointer-events-none">
+                            <span className="px-1.5 py-0.5 rounded bg-black/80 text-white text-[9px] font-bold shadow-2xs">
                               ▶ Video
                             </span>
                           )}
@@ -2744,8 +2714,8 @@ export const FashionStoreHome: React.FC = () => {
                             className="py-2 px-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shadow-2xs"
                             title={
                               locale === 'en'
-                                ? 'View product details, select color/size & check shop ratings'
-                                : 'Xem chi tiết áo, chọn màu/size & kiểm tra uy tín Shop'
+                                ? 'View product details, select color/size & buy'
+                                : 'Xem chi tiết áo, chọn màu/size & đặt mua'
                             }
                           >
                             <ShoppingBag size={13} className="text-white shrink-0" />
@@ -3221,8 +3191,6 @@ export const FashionStoreHome: React.FC = () => {
         selectedVariant={analysisVariant}
         userBody={userBody}
         hasBodyProfile={hasBodyProfile}
-        shopProfile={findPublicShop(analysisProduct?.brand_name, analysisProduct?.shop_id)}
-        onViewShop={(name) => setActiveShopBrandName(name)}
         fitResult={
           analysisProduct ? calculateProductFit(userBody, analysisProduct) : null
         }
@@ -3244,25 +3212,6 @@ export const FashionStoreHome: React.FC = () => {
         }}
         onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant, false, false)}
         onOpenVirtualStudio={handleOpenVirtualStudio}
-      />
-
-      <ShopStorefrontModal
-        isOpen={Boolean(activeShopBrandName)}
-        onClose={() => {
-          setActiveShopBrandName(null);
-          if (searchParams.get('shop')) {
-            const next = new URLSearchParams(searchParams);
-            next.delete('shop');
-            setSearchParams(next, { replace: true });
-          }
-        }}
-        shopName={activeShopBrandName || ''}
-        shopProfile={findPublicShop(activeShopBrandName)}
-        products={productsWithFit}
-        isAuthenticated={isAuthenticated}
-        hasBodyProfile={hasBodyProfile}
-        onOpenProduct={(prod) => handleOpenAnalysis(prod)}
-        onOpenVirtualStudio={(prod) => handleOpenVirtualStudio(prod)}
       />
 
       <SmartCartDrawer

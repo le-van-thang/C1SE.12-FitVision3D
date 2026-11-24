@@ -97,35 +97,11 @@ export interface DbShopProfile {
   id: string;
   owner_id: string;
   shop_name: string;
-  brand_slug?: string | null;
   phone_number: string;
   shop_address: string;
-  city?: string | null;
-  contact_email?: string | null;
-  logo_url?: string | null;
-  description?: string | null;
   status: string;
   is_verified: boolean;
   is_mall: boolean;
-}
-
-export interface PublicShopProfile {
-  id: string;
-  shop_name: string;
-  brand_slug?: string | null;
-  phone_number: string;
-  shop_address: string;
-  city?: string | null;
-  contact_email?: string | null;
-  logo_url?: string | null;
-  description?: string | null;
-  is_verified: boolean;
-  is_mall: boolean;
-  created_at?: string;
-  product_count: number;
-  bespoke_count: number;
-  avg_rating: number;
-  total_reviews: number;
 }
 
 export interface DbMembershipLog {
@@ -155,12 +131,7 @@ export const commerceApi = {
       settings: DbPlatformSettings | null;
       vouchers: DbVoucher[];
       products: DbProduct[];
-      shops?: PublicShopProfile[];
     }>(`/bootstrap${includeHidden ? '?includeHidden=1' : ''}`);
-  },
-
-  getPublicShops() {
-    return commerceRequest<PublicShopProfile[]>('/shops');
   },
 
   getOrders() {
@@ -266,14 +237,7 @@ export const commerceApi = {
     }>('/shop/dashboard');
   },
 
-  updateShopProfile(payload: {
-    shopName: string;
-    phoneNumber: string;
-    shopAddress: string;
-    city?: string;
-    contactEmail?: string;
-    description?: string;
-  }) {
+  updateShopProfile(payload: { shopName: string; phoneNumber: string; shopAddress: string }) {
     return commerceRequest<DbShopProfile>('/shop/profile', {
       method: 'PATCH',
       body: JSON.stringify(payload),

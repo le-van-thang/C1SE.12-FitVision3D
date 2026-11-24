@@ -7,22 +7,12 @@ export const commerceController = {
   async getBootstrap(req: Request, res: Response, next: NextFunction) {
     try {
       const includeHidden = req.query.includeHidden === '1';
-      const [settings, vouchers, products, shops] = await Promise.all([
+      const [settings, vouchers, products] = await Promise.all([
         commerceRepository.getSettings(),
         commerceRepository.listVouchers(),
         commerceRepository.listProducts(includeHidden),
-        commerceRepository.listPublicShops(),
       ]);
-      sendSuccess(res, { settings, vouchers, products, shops });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  async getPublicShops(_req: Request, res: Response, next: NextFunction) {
-    try {
-      const shops = await commerceRepository.listPublicShops();
-      sendSuccess(res, shops);
+      sendSuccess(res, { settings, vouchers, products });
     } catch (err) {
       next(err);
     }

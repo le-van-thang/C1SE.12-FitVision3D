@@ -18,9 +18,8 @@ function optionalAuth(req: any, _res: any, next: any) {
   next();
 }
 
-// Public Storefront Bootstrap (Settings + Vouchers + Pre-seeded Products + Public Shops)
+// Public Storefront Bootstrap (Settings + Vouchers + Pre-seeded Products)
 commerceRouter.get('/bootstrap', commerceController.getBootstrap);
-commerceRouter.get('/shops', commerceController.getPublicShops);
 
 // Orders (Strict Authenticated Isolation + Stock Control + Bespoke Snapshot)
 commerceRouter.get('/orders', requireAuth, commerceController.getOrders);
