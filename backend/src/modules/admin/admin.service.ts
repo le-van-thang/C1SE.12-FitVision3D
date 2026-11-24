@@ -144,5 +144,15 @@ export const adminService = {
     });
     return shop;
   },
+
+  async provisionShopForUser(targetUserId: string, payload: any, adminUserId?: string) {
+    const result = await adminRepository.provisionShopForUser(targetUserId, payload, adminUserId);
+    await adminRepository.logAction({
+      userId: adminUserId,
+      actionType: 'ADMIN_PROVISIONED_SHOP',
+      executionTimeMs: 18,
+    });
+    return result;
+  },
 };
 

@@ -34,6 +34,8 @@ import {
   Eye,
   EyeOff,
   ArrowLeft,
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -128,6 +130,27 @@ export const AdminPortal: React.FC = () => {
   });
   const [stores, setStores] = useState<AdminStoreItem[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
+
+  // Admin Provision Shop Modal (Cách A tách tài khoản Shop riêng + hiển thị mật khẩu / Cách B nâng cấp trực tiếp)
+  const [provisioningUser, setProvisioningUser] = useState<AdminUserItem | null>(null);
+  const [provMode, setProvMode] = useState<'SEPARATE_ACCOUNT' | 'PROMOTE_CURRENT'>('SEPARATE_ACCOUNT');
+  const [provEmail, setProvEmail] = useState('');
+  const [provPassword, setProvPassword] = useState('');
+  const [provShopName, setProvShopName] = useState('');
+  const [provPhone, setProvPhone] = useState('0909123456');
+  const [provAddress, setProvAddress] = useState('TP. Hồ Chí Minh, Việt Nam');
+  const [provEntityType, setProvEntityType] = useState<'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE'>('INDIVIDUAL');
+  const [provTaxCode, setProvTaxCode] = useState('');
+  const [provSubmitting, setProvSubmitting] = useState(false);
+  const [provisionedCreds, setProvisionedCreds] = useState<{
+    loginUrl: string;
+    shopEmail: string;
+    temporaryPassword: string;
+    originalUserEmail: string;
+    mode: string;
+    brandSlug: string;
+    shopName: string;
+  } | null>(null);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -324,6 +347,55 @@ export const AdminPortal: React.FC = () => {
       showToast('error', 'Lỗi kết nối khi cập nhật người dùng.');
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const openProvisionShopModal = (user: AdminUserItem) => {
+    const local = (user.email.split('@')[0] || 'partner').replace(/[^a-zA-Z0-9._-]/g, '').toLowerCase();
+    const randSuffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    setProvisionedCreds(null);
+    setProvisioningUser(user);
+    setProvMode('SEPARATE_ACCOUNT');
+    setProvEmail(`shop.${local}@fitvision3d.com`);
+    setProvPassword(`Shop@${randSuffix}26`);
+    setProvShopName(`${user.full_name || local} Atelier`);
+    setProvPhone(user.phone || '0909123456');
+    setProvAddress('TP. Hồ Chí Minh, Việt Nam');
+    setProvEntityType('INDIVIDUAL');
+    setProvTaxCode('');
+  };
+
+  const handleConfirmProvisionShop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!provisioningUser) return;
+    setProvSubmitting(true);
+    try {
+      const res = await adminApi.provisionShopForUser(provisioningUser.id, {
+        mode: provMode,
+        shopEmail: provMode === 'SEPARATE_ACCOUNT' ? provEmail.trim() : provisioningUser.email,
+        temporaryPassword: provPassword.trim(),
+        shopName: provShopName.trim(),
+        phoneNumber: provPhone.trim(),
+        shopAddress: provAddress.trim(),
+        entityType: provEntityType,
+        taxCode: provTaxCode.trim() || undefined,
+        autoApprove: true,
+      });
+      if (res.success && res.data?.credentials) {
+        setProvisionedCreds({
+          ...res.data.credentials,
+          shopName: res.data.shop.shop_name,
+        });
+        setProvisioningUser(null);
+        showToast('success', `Đã cấp gian hàng "${res.data.shop.shop_name}" thành công!`);
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Không thể cấp tài khoản Shop.');
+      }
+    } catch {
+      showToast('error', 'Lỗi hệ thống khi cấp tài khoản Shop.');
+    } finally {
+      setProvSubmitting(false);
     }
   };
 
@@ -1390,10 +1462,10 @@ export const AdminPortal: React.FC = () => {
                                   <button
                                     type="button"
                                     disabled={isBusy}
-                                    onClick={() => handleChangeUserRole(user, 'SHOP_OWNER')}
+                                    onClick={() => openProvisionShopModal(user)}
                                     className="px-2.5 py-1.5 rounded-lg bg-[#14171C] hover:bg-blue-600 text-white text-[11px] font-bold transition cursor-pointer disabled:opacity-50"
                                   >
-                                    Cấp quyền Shop
+                                    Cấp tài khoản Shop
                                   </button>
                                 ) : user.role === 'SHOP_OWNER' ? (
                                   <button
@@ -1490,6 +1562,231 @@ export const AdminPortal: React.FC = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Provision Shop Account for Existing User */}
+        {provisioningUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs">
+            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => setProvisioningUser(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
+                  <StoreIcon size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#14161A]">Cấp Tài Khoản &amp; Gian Hàng Shop</h3>
+                  <p className="text-xs text-slate-500">
+                    Từ User: <strong className="text-slate-800">{provisioningUser.full_name}</strong> ({provisioningUser.email})
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleConfirmProvisionShop} className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProvMode('SEPARATE_ACCOUNT')}
+                    className={`p-3 rounded-xl border text-left cursor-pointer ${
+                      provMode === 'SEPARATE_ACCOUNT'
+                        ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-600/15'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="font-black text-slate-900">Cách A: Tách acc Shop riêng (Khuyên dùng)</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Giữ nguyên acc {provisioningUser.email} để mua hàng; cấp Email + MK Shop mới.
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProvMode('PROMOTE_CURRENT')}
+                    className={`p-3 rounded-xl border text-left cursor-pointer ${
+                      provMode === 'PROMOTE_CURRENT'
+                        ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-600/15'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="font-black text-slate-900">Cách B: Chuyển thẳng acc này</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Đổi acc hiện tại sang SHOP_OWNER + đặt mật khẩu đăng nhập `/shop`.
+                    </div>
+                  </button>
+                </div>
+
+                {provMode === 'SEPARATE_ACCOUNT' && (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Email đăng nhập Shop *</label>
+                    <input
+                      type="email"
+                      required
+                      value={provEmail}
+                      onChange={(e) => setProvEmail(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none focus:border-slate-900"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Mật khẩu đăng nhập Shop (gửi cho Chủ Shop) *
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      required
+                      value={provPassword}
+                      onChange={(e) => setProvPassword(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none focus:border-slate-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setProvPassword(`Shop@${Math.random().toString(36).slice(2, 6).toUpperCase()}26`)}
+                      className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer"
+                    >
+                      Sinh ngẫu nhiên
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Tên Thương Hiệu / Shop *</label>
+                    <input
+                      required
+                      value={provShopName}
+                      onChange={(e) => setProvShopName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 outline-none focus:border-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Loại hình Kinh doanh</label>
+                    <select
+                      value={provEntityType}
+                      onChange={(e) => setProvEntityType(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold outline-none"
+                    >
+                      <option value="INDIVIDUAL">Cá nhân / Thợ may</option>
+                      <option value="HOUSEHOLD">Hộ kinh doanh</option>
+                      <option value="ENTERPRISE">Doanh nghiệp</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">SĐT Shop *</label>
+                    <input
+                      required
+                      value={provPhone}
+                      onChange={(e) => setProvPhone(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Mã số thuế (tùy chọn với Cá nhân)</label>
+                    <input
+                      value={provTaxCode}
+                      onChange={(e) => setProvTaxCode(e.target.value)}
+                      placeholder="VD: 0101248141 hoặc để trống"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Địa chỉ Shop *</label>
+                  <input
+                    required
+                    value={provAddress}
+                    onChange={(e) => setProvAddress(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 outline-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setProvisioningUser(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={provSubmitting}
+                    className="px-5 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white font-bold cursor-pointer disabled:opacity-60"
+                  >
+                    {provSubmitting ? 'Đang tạo Shop...' : 'Xác nhận Cấp Shop & Hiện MK'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Provisioned Shop Credentials Card (Shown once so Admin sees Email + Password clearly) */}
+        {provisionedCreds && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs">
+            <div className="w-full max-w-md rounded-2xl bg-white border border-emerald-200 p-6 shadow-2xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <KeyRound size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-950">Đã Cấp Tài Khoản Shop Thành Công</h3>
+                  <p className="text-xs text-slate-500">
+                    Gian hàng <b>{provisionedCreds.shopName}</b> đã ở trạng thái <b>APPROVED</b>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-sans">Trang đăng nhập:</span>
+                  <span className="font-bold text-blue-700">{provisionedCreds.loginUrl}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-sans">Email Shop:</span>
+                  <span className="font-bold text-slate-950">{provisionedCreds.shopEmail}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-sans">Mật khẩu tạm:</span>
+                  <span className="font-bold text-emerald-700">{provisionedCreds.temporaryPassword}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-sans">Link Gian hàng:</span>
+                  <span className="font-bold text-slate-700">/stores/{provisionedCreds.brandSlug}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const txt = `Tài khoản Shop FitVision 3D (${provisionedCreds.shopName})\nURL: http://localhost:5173${provisionedCreds.loginUrl}\nEmail: ${provisionedCreds.shopEmail}\nMật khẩu: ${provisionedCreds.temporaryPassword}`;
+                    navigator.clipboard?.writeText(txt);
+                    showToast('success', 'Đã sao chép Email & Mật khẩu Shop!');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Copy size={13} /> Sao chép thông tin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProvisionedCreds(null)}
+                  className="px-4 py-2 rounded-xl bg-[#14171C] text-white text-xs font-bold cursor-pointer"
+                >
+                  Đóng
+                </button>
               </div>
             </div>
           </div>

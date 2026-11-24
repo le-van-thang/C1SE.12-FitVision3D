@@ -244,6 +244,43 @@ export const adminApi = {
   },
 
   /**
+   * Admin cấp tài khoản & gian hàng Shop cho một User có sẵn (trả về Email + Mật khẩu đăng nhập Shop)
+   */
+  async provisionShopForUser(
+    userId: string,
+    payload: {
+      mode?: 'SEPARATE_ACCOUNT' | 'PROMOTE_CURRENT';
+      shopEmail?: string;
+      temporaryPassword?: string;
+      shopName?: string;
+      phoneNumber?: string;
+      shopAddress?: string;
+      entityType?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
+      taxCode?: string;
+      autoApprove?: boolean;
+    }
+  ): Promise<
+    AdminApiResponse<{
+      shop: AdminStoreItem;
+      ownerUserId: string;
+      credentials: {
+        loginUrl: string;
+        shopEmail: string;
+        temporaryPassword: string;
+        originalUserEmail: string;
+        mode: 'SEPARATE_ACCOUNT' | 'PROMOTE_CURRENT';
+        autoApproved: boolean;
+        brandSlug: string;
+      };
+    }>
+  > {
+    return await adminRequest(`/users/${userId}/provision-shop`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
    * Lấy nhật ký kiểm toán hệ thống
    */
   async getAuditLogs(limit = 50): Promise<AdminApiResponse<AdminAuditLogItem[]>> {

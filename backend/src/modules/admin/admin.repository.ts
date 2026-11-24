@@ -1,4 +1,6 @@
 import { query } from '../../config/database.js';
+import crypto from 'crypto';
+import { hashPassword } from '../../utils/password.js';
 import {
   compareVietnameseAccountNames,
   evaluateCccdQrConsistency,
@@ -607,6 +609,210 @@ export const adminRepository = {
     }
 
     return await this.getShopByOwnerId(ownerId) || shop;
+  },
+
+  /**
+   * Admin cấp tài khoản Shop & gian hàng từ một User có sẵn (Cách A: tách tài khoản SHOP_OWNER riêng + cấp mật khẩu, hoặc Cách B: nâng cấp trực tiếp)
+   */
+  async provisionShopForUser(
+    targetUserId: string,
+    payload: {
+      mode?: 'SEPARATE_ACCOUNT' | 'PROMOTE_CURRENT';
+      shopEmail?: string;
+      temporaryPassword?: string;
+      shopName?: string;
+      phoneNumber?: string;
+      shopAddress?: string;
+      entityType?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
+      taxCode?: string;
+      autoApprove?: boolean;
+    },
+    adminUserId?: string
+  ) {
+    const userRows = await query<{
+      id: string;
+      email: string;
+      full_name: string;
+      phone: string | null;
+      role: string;
+    }>('SELECT id, email, full_name, phone, role FROM users WHERE id = $1 LIMIT 1', [targetUserId]);
+    const targetUser = userRows[0];
+    if (!targetUser) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy người dùng mục tiêu.');
+    }
+
+    const mode = payload.mode === 'PROMOTE_CURRENT' ? 'PROMOTE_CURRENT' : 'SEPARATE_ACCOUNT';
+    const autoApprove = payload.autoApprove !== false;
+    const entityType = payload.entityType || 'INDIVIDUAL';
+    const cleanShopName = String(payload.shopName || `${targetUser.full_name} Atelier`).trim();
+    const cleanPhone = String(payload.phoneNumber || targetUser.phone || '0909000111').trim().slice(0, 15);
+    const cleanAddr = String(payload.shopAddress || 'TP. Hồ Chí Minh, Việt Nam').trim().slice(0, 255);
+
+    if (cleanShopName.length < 3) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Tên cửa hàng phải có tối thiểu 3 ký tự.');
+    }
+
+    let normalizedTaxCode: string | null = null;
+    if (payload.taxCode && payload.taxCode.trim()) {
+      const mstCheck = validateVietnamTaxCode(payload.taxCode);
+      if (!mstCheck.valid) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, mstCheck.reason || 'Mã số thuế không hợp lệ.');
+      }
+      normalizedTaxCode = mstCheck.normalized;
+      const dupTax = await query<{ id: string }>(
+        'SELECT id FROM shops WHERE UPPER(tax_code) = UPPER($1) LIMIT 1',
+        [normalizedTaxCode]
+      );
+      if (dupTax.length > 0) {
+        throw new AppError(409, ErrorCode.VALIDATION_FAILED, 'Mã số thuế này đã thuộc về một gian hàng khác.');
+      }
+    }
+
+    const dupName = await query<{ id: string }>(
+      'SELECT id FROM shops WHERE LOWER(shop_name) = LOWER($1) AND owner_id <> $2 LIMIT 1',
+      [cleanShopName, targetUserId]
+    );
+    if (dupName.length > 0) {
+      throw new AppError(409, ErrorCode.VALIDATION_FAILED, 'Tên thương hiệu cửa hàng này đã tồn tại.');
+    }
+
+    const localPart = targetUser.email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '').toLowerCase() || 'partner';
+    const shopEmail =
+      mode === 'SEPARATE_ACCOUNT'
+        ? String(payload.shopEmail || `shop.${localPart}@fitvision3d.com`).trim().toLowerCase()
+        : targetUser.email.toLowerCase();
+
+    const tempPassword =
+      payload.temporaryPassword && payload.temporaryPassword.trim().length >= 6
+        ? payload.temporaryPassword.trim()
+        : `Shop@${crypto.randomBytes(3).toString('hex')}!`;
+    const passwordHash = await hashPassword(tempPassword);
+
+    let ownerUserId = targetUser.id;
+    const userStatus = autoApprove ? 'ACTIVE' : 'PENDING_APPROVAL';
+
+    if (mode === 'SEPARATE_ACCOUNT') {
+      const existingShopUser = await query<{ id: string; role: string }>(
+        'SELECT id, role FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+        [shopEmail]
+      );
+      if (existingShopUser.length > 0) {
+        throw new AppError(
+          409,
+          ErrorCode.AUTH_EMAIL_ALREADY_EXISTS,
+          `Email Shop "${shopEmail}" đã tồn tại trên hệ thống. Vui lòng chọn email khác.`
+        );
+      }
+
+      const newOwnerId = crypto.randomUUID();
+      await query(
+        `INSERT INTO users (id, email, password_hash, full_name, phone, role, status, failed_login_attempts, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, 'SHOP_OWNER', $6, 0, NOW(), NOW())`,
+        [newOwnerId, shopEmail, passwordHash, targetUser.full_name, cleanPhone, userStatus]
+      );
+      ownerUserId = newOwnerId;
+    } else {
+      await query(
+        `UPDATE users
+         SET role = 'SHOP_OWNER', status = $2, password_hash = $3, updated_at = NOW()
+         WHERE id = $1`,
+        [targetUser.id, userStatus, passwordHash]
+      );
+    }
+
+    const slugBase = cleanShopName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+    const brandSlug = `${slugBase || 'shop'}-${ownerUserId.slice(0, 6)}`;
+    const shopStatus = autoApprove ? 'APPROVED' : 'PENDING';
+    const taxStatus = normalizedTaxCode
+      ? autoApprove
+        ? 'VERIFIED'
+        : 'PENDING_REVIEW'
+      : 'USING_NATIONAL_ID_TEMP';
+
+    const existingShop = await query<AdminShopEntity>(
+      'SELECT * FROM shops WHERE owner_id = $1 LIMIT 1',
+      [ownerUserId]
+    );
+    let shop: AdminShopEntity;
+    if (existingShop.length > 0) {
+      const rows = await query<AdminShopEntity>(
+        `UPDATE shops
+         SET shop_name = $2, phone_number = $3, shop_address = $4,
+             entity_type = $5, tax_code = COALESCE($6, tax_code), tax_status = $7,
+             legal_representative_name = $8, status = $9, is_verified = $10,
+             approved_at = CASE WHEN $10 THEN NOW() ELSE approved_at END,
+             reviewed_at = NOW(), reviewed_by = $11, updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
+        [
+          existingShop[0].id,
+          cleanShopName,
+          cleanPhone,
+          cleanAddr,
+          entityType,
+          normalizedTaxCode,
+          taxStatus,
+          targetUser.full_name,
+          shopStatus,
+          autoApprove,
+          adminUserId && adminUserId !== 'system' ? adminUserId : null,
+        ]
+      );
+      shop = rows[0];
+    } else {
+      const rows = await query<AdminShopEntity>(
+        `INSERT INTO shops (
+           owner_id, shop_name, brand_slug, phone_number, shop_address, contact_email,
+           entity_type, tax_code, tax_status, legal_representative_name,
+           status, is_verified, is_mall, operational_mode,
+           approved_at, reviewed_at, reviewed_by, created_at, updated_at
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6,
+           $7, $8, $9, $10,
+           $11, $12, FALSE, 'ACTIVE',
+           CASE WHEN $12 THEN NOW() ELSE NULL END, NOW(), $13, NOW(), NOW()
+         )
+         RETURNING *`,
+        [
+          ownerUserId,
+          cleanShopName,
+          brandSlug,
+          cleanPhone,
+          cleanAddr,
+          shopEmail,
+          entityType,
+          normalizedTaxCode,
+          taxStatus,
+          targetUser.full_name,
+          shopStatus,
+          autoApprove,
+          adminUserId && adminUserId !== 'system' ? adminUserId : null,
+        ]
+      );
+      shop = rows[0];
+    }
+
+    return {
+      shop,
+      ownerUserId,
+      credentials: {
+        loginUrl: '/shop',
+        shopEmail,
+        temporaryPassword: tempPassword,
+        originalUserEmail: targetUser.email,
+        mode,
+        autoApproved: autoApprove,
+        brandSlug: shop.brand_slug || brandSlug,
+      },
+    };
   },
 };
 

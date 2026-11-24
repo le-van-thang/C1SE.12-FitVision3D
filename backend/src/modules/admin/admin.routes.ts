@@ -31,6 +31,7 @@ adminRouter.get('/tax-lookup/:taxCode', adminController.lookupTaxCode);
 adminRouter.get('/users', requireAuth, requireRole('ADMIN'), adminController.getUsers);
 adminRouter.patch('/users/:id/status', requireAuth, requireRole('ADMIN'), adminController.updateUserStatus);
 adminRouter.patch('/users/:id/role', requireAuth, requireRole('ADMIN'), adminController.updateUserRole);
+adminRouter.post('/users/:id/provision-shop', requireAuth, requireRole('ADMIN'), adminController.provisionShopForUser);
 
 // 6. Nhật ký kiểm toán hệ thống
 adminRouter.get('/audit-logs', requireAuth, requireRole('ADMIN'), adminController.getAuditLogs);

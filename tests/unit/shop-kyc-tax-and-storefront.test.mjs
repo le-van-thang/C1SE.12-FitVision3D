@@ -89,5 +89,10 @@ test('TC-KYC-04: Security guards disable auto-approve in ensureShopForUser and e
   // App redirects authenticated store role away from Home/Dashboard to /shop and exposes /stores/:slug
   assert.match(appSrc, /path="\/stores\/:slug"/);
   assert.match(appSrc, /if \(isAuthenticated && userRole === 'store'\)/);
+
+  const adminRoutesSrc = readRepoFile('backend/src/modules/admin/admin.routes.ts');
+  const adminPortalSrc = readRepoFile('src/pages/AdminPortal.tsx');
+  assert.match(adminRoutesSrc, /\/users\/:id\/provision-shop'.*requireRole\('ADMIN'\)/);
+  assert.match(adminPortalSrc, /openProvisionShopModal/);
 });
 
