@@ -112,6 +112,37 @@ export const commerceController = {
     }
   },
 
+  async handleSePayWebhook(req: Request, res: Response, next: NextFunction) {
+    try {
+      const configuredSecret = process.env.SEPAY_WEBHOOK_SECRET || '';
+      if (configuredSecret) {
+        const authHeader = String(req.headers.authorization || '');
+        const customHeader = String(req.headers['x-sepay-secret'] || '');
+        const validAuth =
+          authHeader === `Apikey ${configuredSecret}` ||
+          authHeader === `Bearer ${configuredSecret}` ||
+          customHeader === configuredSecret;
+        if (!validAuth) {
+          throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chữ ký Webhook SePay không hợp lệ.');
+        }
+      }
+      const b = req.body || {};
+      const content = String(b.content || b.code || b.orderId || '');
+      const transferAmount = Number(b.transferAmount ?? b.amount ?? 0);
+      const result = await commerceRepository.confirmOrderPaidBySePayWebhook({
+        content,
+        transferAmount,
+        referenceCode: b.referenceCode ? String(b.referenceCode) : undefined,
+      });
+      if (!result.matched) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Không thể đối soát giao dịch SePay (${result.reason}).`);
+      }
+      sendSuccess(res, { acknowledged: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async saveSettings(req: Request, res: Response, next: NextFunction) {
     try {
       const b = req.body || {};

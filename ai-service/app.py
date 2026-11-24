@@ -6,6 +6,14 @@
 
 import os
 import sys
+
+os.environ["PYTHONUTF8"] = "1"
+os.environ["PYTHONIOENCODING"] = "utf-8"
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import time
 import base64
 import numpy as np
@@ -23,6 +31,7 @@ import json
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, CURRENT_DIR)
 sys.path.insert(0, os.path.join(CURRENT_DIR, 'main'))
+sys.path.insert(0, os.path.join(CURRENT_DIR, 'main', 'transformer_utils'))
 sys.path.insert(0, os.path.join(CURRENT_DIR, 'data'))
 sys.path.insert(0, os.path.join(CURRENT_DIR, 'common'))
 
@@ -47,7 +56,8 @@ app.add_middleware(
 MODELS = {
     "device": "cuda:0" if torch.cuda.is_available() else "cpu",
     "detector": None,
-    "demoer": None
+    "demoer": None,
+    "startup_error": None,
 }
 
 
@@ -63,8 +73,10 @@ def startup_event():
     try:
         MODELS["detector"] = load_detector(device)
         MODELS["demoer"] = load_smpler_x_model("smpler_x_s32", device)
+        MODELS["startup_error"] = None
         print("[✓] AI-Tailor Model Cache đã sẵn sàng tiếp nhận yêu cầu.")
     except Exception as e:
+        MODELS["startup_error"] = str(e)
         print(f"[!] Cảnh báo nạp mô hình lúc khởi động: {e}")
 
 
@@ -159,6 +171,11 @@ async def extract_measurements(
     """
     if MODELS["demoer"] is None:
         startup_event()
+    if MODELS["demoer"] is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Model SMPLer-X chưa sẵn sàng: {MODELS.get('startup_error') or 'Unknown startup error'}",
+        )
 
     start_time = time.time()
 
@@ -169,6 +186,8 @@ async def extract_measurements(
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
             raise HTTPException(status_code=400, detail="Không thể giải mã file ảnh gửi lên.")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Lỗi đọc file: {str(e)}")
 
@@ -176,20 +195,25 @@ async def extract_measurements(
     demoer = MODELS["demoer"]
     detector = MODELS["detector"]
 
-    # 1. Phát hiện người trong ảnh
-    box_xywh = detect_person(detector, img)
+    try:
+        # 1. Phát hiện người trong ảnh
+        box_xywh = detect_person(detector, img)
 
-    # 2. Cắt ảnh và hồi quy vector 3D betas
-    betas, _ = extract_3d_mesh(demoer, img, box_xywh, device)
+        # 2. Cắt ảnh và hồi quy vector 3D betas
+        betas, _ = extract_3d_mesh(demoer, img, box_xywh, device)
 
-    # 3. Tính toán toàn bộ 13 số đo may mặc ISO 8559-1
-    results = compute_measurements(
-        betas=betas,
-        height_cm_input=height_cm,
-        weight_kg_input=weight_kg,
-        gender=gender or "neutral",
-        device=device
-    )
+        # 3. Tính toán toàn bộ 13 số đo may mặc ISO 8559-1
+        results = compute_measurements(
+            betas=betas,
+            height_cm_input=height_cm,
+            weight_kg_input=weight_kg,
+            gender=gender or "neutral",
+            device=device
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi suy luận AI SMPLer-X: {str(e)}")
 
     elapsed_sec = round(time.time() - start_time, 2)
     garment_sizes = recommend_garment_sizes(results, gender=gender)

@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { MOCK_PRODUCTS, INITIAL_USER_BODY } from './mockProducts';
 import { calculateProductFit } from './fitCalculator';
+import { showGlobalToast } from '@/components/common/GlobalToastHost';
 import { recommendGarmentSizes } from '@/utils/garmentSizeCalculator';
 import {
   BODY_PROFILE_UPDATED_EVENT,
@@ -220,15 +221,16 @@ export const FashionStoreHome: React.FC = () => {
     };
   }, [isAuthenticated, currentUser]);
 
-  // Open Virtual Fitting Room directly when returning from 3D Scan / Dashboard / Navbar
+  // Open/close Virtual Fitting Room in sync with URL query (?openStudio=1) so browser Back works cleanly
   useEffect(() => {
     if (searchParams.get('openStudio') === '1') {
       const modeParam = searchParams.get('studioMode');
       setStudioInitialMode(modeParam === 'photo' ? 'photo' : 'avatar3d');
       setIsVellStudioOpen(true);
-      setSearchParams({}, { replace: true });
+    } else {
+      setIsVellStudioOpen(false);
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams]);
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -319,6 +321,11 @@ export const FashionStoreHome: React.FC = () => {
     }
   });
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [selectedCartIds, setSelectedCartIds] = useState<string[]>(() =>
+    cartItems.map((ci) => ci.id)
+  );
+  const [quickBuyItems, setQuickBuyItems] = useState<CartItem[] | null>(null);
+  const [selectedSizeByProduct, setSelectedSizeByProduct] = useState<Record<string, string>>({});
 
   useEffect(() => {
     try {
@@ -326,6 +333,10 @@ export const FashionStoreHome: React.FC = () => {
     } catch {
       // ignore storage quota errors
     }
+    setSelectedCartIds((prev) => {
+      const validIds = new Set(cartItems.map((ci) => ci.id));
+      return prev.filter((id) => validIds.has(id));
+    });
   }, [cartItems]);
 
   // Drawers & Modals
@@ -377,6 +388,18 @@ export const FashionStoreHome: React.FC = () => {
   };
 
   const handleOpenVirtualStudio = (maybeProduct?: FashionProduct | React.SyntheticEvent) => {
+    if (!isAuthenticated) {
+      showGlobalToast({
+        type: 'info',
+        title: locale === 'en' ? 'Sign in required' : 'Yêu cầu đăng nhập',
+        message:
+          locale === 'en'
+            ? 'Please sign in to use the 3D Virtual Try-On Studio.'
+            : 'Vui lòng đăng nhập để sử dụng Phòng Thử Đồ Ảo 3D.',
+      });
+      openSignIn();
+      return;
+    }
     setStudioInitialMode('avatar3d');
     if (maybeProduct && typeof maybeProduct === 'object' && 'variants' in maybeProduct) {
       setStudioInitialProduct(maybeProduct);
@@ -384,6 +407,16 @@ export const FashionStoreHome: React.FC = () => {
       setStudioInitialProduct(null);
     }
     setIsVellStudioOpen(true);
+    if (searchParams.get('openStudio') !== '1') {
+      setSearchParams({ openStudio: '1' });
+    }
+  };
+
+  const handleCloseVirtualStudio = () => {
+    setIsVellStudioOpen(false);
+    if (searchParams.get('openStudio') === '1') {
+      setSearchParams({});
+    }
   };
 
   // Helpers for bilingual product representation
@@ -508,34 +541,122 @@ export const FashionStoreHome: React.FC = () => {
     };
   }, [visibleCatalogProducts]);
 
-  // Cart Actions
-  const handleAddToCart = (product: FashionProduct, variant?: ProductVariant) => {
+  const requireAuthenticatedAction = (reasonVi: string, reasonEn: string): boolean => {
+    if (isAuthenticated) return true;
+    showGlobalToast({
+      type: 'info',
+      title: locale === 'en' ? 'Visitor Mode — Sign In Required' : 'Khách tham quan — Cần đăng nhập',
+      message: locale === 'en' ? reasonEn : reasonVi,
+    });
+    openSignIn();
+    return false;
+  };
+
+  // Cart Actions (newest added/updated item appears first at top of cart)
+  const handleAddToCart = (
+    product: FashionProduct,
+    variant?: ProductVariant,
+    bespokeOverride?: boolean,
+    openDrawer = false
+  ) => {
+    if (
+      !requireAuthenticatedAction(
+        'Vui lòng đăng nhập để lưu sản phẩm vào giỏ hàng của bạn.',
+        'Please sign in to save items to your cart.'
+      )
+    ) {
+      return;
+    }
     const targetVariant = variant || product.variants[0];
     const fit = calculateProductFit(userBody, product);
+    const effectiveProduct = bespokeOverride ? { ...product, is_bespoke: true } : product;
+    const newId = `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    let selectedIdToActivate = newId;
 
     setCartItems((prev) => {
       const existing = prev.find(
-        (ci) => ci.product.id === product.id && ci.variant.id === targetVariant.id
+        (ci) =>
+          ci.product.id === effectiveProduct.id &&
+          ci.variant.id === targetVariant.id &&
+          Boolean(ci.product.is_bespoke) === Boolean(effectiveProduct.is_bespoke)
       );
       if (existing) {
-        return prev.map((ci) =>
-          ci.id === existing.id ? { ...ci, quantity: ci.quantity + 1 } : ci
-        );
+        selectedIdToActivate = existing.id;
+        const updatedExisting = { ...existing, quantity: existing.quantity + 1 };
+        const others = prev.filter((ci) => ci.id !== existing.id);
+        return [updatedExisting, ...others];
       }
       return [
-        ...prev,
         {
-          id: `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          product,
+          id: newId,
+          product: effectiveProduct,
           variant: targetVariant,
           quantity: 1,
-          fit_score: fit.match_percentage,
-          is_ai_recommended: targetVariant.size_label === fit.recommended_size,
+          fit_score: bespokeOverride ? 100 : fit.match_percentage,
+          is_ai_recommended: bespokeOverride || targetVariant.size_label === fit.recommended_size,
         },
+        ...prev,
       ];
     });
 
-    setIsCartOpen(true);
+    setSelectedCartIds((prev) =>
+      prev.includes(selectedIdToActivate) ? prev : [selectedIdToActivate, ...prev]
+    );
+
+    if (openDrawer) {
+      setIsCartOpen(true);
+    } else {
+      showGlobalToast({
+        type: 'success',
+        title: locale === 'en' ? 'Saved to Cart' : 'Đã lưu vào giỏ hàng',
+        message: `${getProductName(product)} · ${bespokeOverride ? 'May đo 3D' : `Size ${targetVariant.size_label}`}`,
+      });
+    }
+  };
+
+  const handleQuickBuy = (
+    product: FashionProduct,
+    variant?: ProductVariant,
+    bespokeOverride?: boolean
+  ) => {
+    if (
+      !requireAuthenticatedAction(
+        'Vui lòng đăng nhập để mua nhanh và thanh toán đơn hàng.',
+        'Please sign in to proceed with Quick Checkout.'
+      )
+    ) {
+      return;
+    }
+    const targetVariant = variant || product.variants[0];
+    const fit = calculateProductFit(userBody, product);
+    const effectiveProduct = bespokeOverride ? { ...product, is_bespoke: true } : product;
+    const singleItem: CartItem = {
+      id: `quick-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      product: effectiveProduct,
+      variant: targetVariant,
+      quantity: 1,
+      fit_score: bespokeOverride ? 100 : fit.match_percentage,
+      is_ai_recommended: bespokeOverride || targetVariant.size_label === fit.recommended_size,
+    };
+    setQuickBuyItems([singleItem]);
+    setIsCartOpen(false);
+    setIsCheckoutModalOpen(true);
+  };
+
+  const handleOrderBespoke3D = (product: FashionProduct, variant?: ProductVariant) => {
+    if (
+      !requireAuthenticatedAction(
+        'Vui lòng đăng nhập để đặt may đo theo 13 số đo cơ thể 3D.',
+        'Please sign in to place a bespoke 3D tailored order.'
+      )
+    ) {
+      return;
+    }
+    if (!hasBodyProfile) {
+      setIsBiometricModalOpen(true);
+      return;
+    }
+    handleAddToCart(product, variant || product.variants[0], true, true);
   };
 
   const handleChangeCartVariant = (cartItemId: string, newVariantId: string) => {
@@ -556,6 +677,14 @@ export const FashionStoreHome: React.FC = () => {
   };
 
   const handleAddComboToCart = (productIds: string[]) => {
+    if (
+      !requireAuthenticatedAction(
+        'Vui lòng đăng nhập để thêm combo trang phục vào giỏ hàng.',
+        'Please sign in to add lookbook combos to your cart.'
+      )
+    ) {
+      return;
+    }
     const toAdd = MOCK_PRODUCTS.filter((p) => productIds.includes(p.id));
     if (toAdd.length === 0) return;
 
@@ -950,19 +1079,35 @@ export const FashionStoreHome: React.FC = () => {
                 <button
                   type="button"
                   onClick={openSignIn}
-                  className="flex flex-col items-center justify-center px-2.5 py-1 rounded-lg hover:bg-white/10 text-stone-200 hover:text-white transition-colors cursor-pointer"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-stone-100 hover:text-white transition-colors cursor-pointer"
+                  title={locale === 'en' ? 'Visitor Mode — Click to Sign In' : 'Chế độ Khách tham quan (Visitor) — Bấm để Đăng nhập'}
                 >
-                  <UserIcon size={17} />
-                  <span className="text-[10px] font-semibold mt-0.5 whitespace-nowrap">
-                    {t('ecommerce.topbar.login', 'Đăng Nhập')}
-                  </span>
+                  <UserIcon size={15} className="text-amber-300" />
+                  <div className="text-left leading-tight">
+                    <span className="text-[9px] font-mono uppercase tracking-wider text-amber-300 block">
+                      Visitor
+                    </span>
+                    <span className="text-[11px] font-bold whitespace-nowrap block">
+                      {t('ecommerce.topbar.login', 'Đăng Nhập')}
+                    </span>
+                  </div>
                 </button>
               )}
 
               {/* Giỏ Hàng */}
               <button
                 type="button"
-                onClick={() => setIsCartOpen(true)}
+                onClick={() => {
+                  if (
+                    !requireAuthenticatedAction(
+                      'Vui lòng đăng nhập để xem giỏ hàng và thanh toán.',
+                      'Please sign in to access your cart and checkout.'
+                    )
+                  ) {
+                    return;
+                  }
+                  setIsCartOpen(true);
+                }}
                 className="relative flex flex-col items-center justify-center px-2.5 py-1 rounded-lg hover:bg-white/10 text-stone-200 hover:text-white transition-colors cursor-pointer"
               >
                 <div className="relative">
@@ -2272,8 +2417,9 @@ export const FashionStoreHome: React.FC = () => {
                 {filteredProducts.map((product) => {
                   const fit = product.fitResult;
                   const isPerfect = fit.match_percentage >= 95;
+                  const activeColorHex = previewColorMap[product.id]?.colorHex;
 
-                  // Unique variants by size_label for Quick-Size hover buttons
+                  // Unique variants by size_label for always-visible Size Picker
                   const sizeVariants = product.variants.filter(
                     (v, idx, arr) => arr.findIndex((x) => x.size_label === v.size_label) === idx
                   );
@@ -2282,12 +2428,27 @@ export const FashionStoreHome: React.FC = () => {
                     (v, idx, arr) => arr.findIndex((x) => x.color_hex === v.color_hex) === idx
                   );
 
+                  const activeSizeLabel =
+                    selectedSizeByProduct[product.id] ||
+                    (isAuthenticated && hasBodyProfile
+                      ? product.recommendedVariant.size_label
+                      : sizeVariants[0]?.size_label);
+
+                  const cardActiveVariant =
+                    (activeColorHex &&
+                      product.variants.find(
+                        (v) => v.color_hex === activeColorHex && v.size_label === activeSizeLabel
+                      )) ||
+                    product.variants.find((v) => v.size_label === activeSizeLabel) ||
+                    product.recommendedVariant ||
+                    product.variants[0];
+
                   return (
                     <div
                       key={product.id}
                       className="group bg-white rounded-2xl border border-slate-200/90 hover:border-slate-300 overflow-hidden shadow-2xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
                     >
-                      {/* Top: Product Media (Dual-Image Hover Crossfade / Color Preview) + Quick-Size Strip */}
+                      {/* Top: Product Media */}
                       <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
                         <img
                           src={previewColorMap[product.id]?.imageUrl || product.image_url}
@@ -2306,11 +2467,16 @@ export const FashionStoreHome: React.FC = () => {
                           />
                         )}
 
-                        {/* Brand & Official Mall Tag Top Left */}
+                        {/* Brand & Official Mall / Bespoke Tag Top Left */}
                         <div className="absolute top-2.5 left-2.5 pointer-events-none flex items-center gap-1 flex-wrap">
                           {product.is_mall && (
                             <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-2xs">
                               MALL
+                            </span>
+                          )}
+                          {(product.is_bespoke || product.category === 'tailored') && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-2xs">
+                              BESPOKE
                             </span>
                           )}
                           <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/95 text-slate-900 shadow-2xs border border-slate-200/80">
@@ -2323,7 +2489,7 @@ export const FashionStoreHome: React.FC = () => {
                           )}
                         </div>
 
-                        {/* Fit Score Top Right (Authenticated + Biometrics only; ISO 8559 badge for guests) */}
+                        {/* Fit Score Top Right (Authenticated + Biometrics only; ISO 8559 badge for visitors) */}
                         <div className="absolute top-2.5 right-2.5 pointer-events-none">
                           {isAuthenticated && hasBodyProfile ? (
                             <div
@@ -2340,49 +2506,6 @@ export const FashionStoreHome: React.FC = () => {
                               <span>ISO 8559</span>
                             </div>
                           )}
-                        </div>
-
-                        {/* Torano-inspired Quick-Size Hover Bar */}
-                        <div className="absolute inset-x-2.5 bottom-2.5 p-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200">
-                          <div className="flex items-center justify-between mb-1.5 px-0.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                              {locale === 'en' ? 'Quick Add Size' : 'Chọn nhanh size'}
-                            </span>
-                            {isAuthenticated && hasBodyProfile && (
-                              <span className="text-[10px] font-mono font-bold text-blue-600">
-                                {locale === 'en' ? `Best: ${fit.recommended_size}` : `Gợi ý: ${fit.recommended_size}`}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {sizeVariants.slice(0, 6).map((variant) => {
-                              const isRec = isAuthenticated && hasBodyProfile && variant.size_label === fit.recommended_size;
-                              return (
-                                <button
-                                  key={variant.id}
-                                  type="button"
-                                  onClick={() => {
-                                    const activeColor = previewColorMap[product.id]?.colorHex;
-                                    const matchedVariant =
-                                      (activeColor &&
-                                        product.variants.find(
-                                          (v) => v.color_hex === activeColor && v.size_label === variant.size_label
-                                        )) ||
-                                      variant;
-                                    handleAddToCart(product, matchedVariant);
-                                  }}
-                                  className={`flex-1 min-w-[34px] py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer active:scale-95 ${
-                                    isRec
-                                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xs'
-                                      : 'bg-slate-100 text-slate-900 hover:bg-[#14171C] hover:text-white'
-                                  }`}
-                                  title={locale === 'en' ? `Add Size ${variant.size_label}` : `Thêm nhanh Size ${variant.size_label}`}
-                                >
-                                  {variant.size_label}
-                                </button>
-                              );
-                            })}
-                          </div>
                         </div>
                       </div>
 
@@ -2454,7 +2577,7 @@ export const FashionStoreHome: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Compact 1-line AI Fit Insight (Authenticated) or Auth Prompt */}
+                        {/* Compact 1-line AI Fit Insight + Free Size Picker */}
                         <div
                           onClick={() => handleOpenAnalysis(product)}
                           className="px-2.5 py-2 rounded-xl bg-slate-50 hover:bg-blue-50/70 border border-slate-200/80 hover:border-blue-200 text-[11px] transition-colors cursor-pointer flex items-center justify-between gap-2"
@@ -2463,7 +2586,9 @@ export const FashionStoreHome: React.FC = () => {
                           {isAuthenticated && hasBodyProfile ? (
                             <>
                               <span className="text-slate-700 font-medium truncate">
-                                <strong className="text-blue-700 font-mono">Size {fit.recommended_size}</strong>
+                                <strong className="text-blue-700 font-mono">
+                                  {locale === 'en' ? `Best: ${fit.recommended_size}` : `Gợi ý số đo: ${fit.recommended_size}`}
+                                </strong>
                                 {' · '}
                                 {locale === 'en' && fit.advisor_advice_en ? fit.advisor_advice_en : fit.advisor_advice_vi}
                               </span>
@@ -2481,7 +2606,55 @@ export const FashionStoreHome: React.FC = () => {
                           )}
                         </div>
 
-                        {/* Card Actions: Phân tích 3D + Thử 3D + Chọn Mua */}
+                        {/* Always-visible Size Picker: Suggested vs Manual Choice */}
+                        {sizeVariants.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="font-bold text-slate-500 uppercase tracking-wider">
+                                {locale === 'en' ? 'Size' : 'Chọn size'}
+                              </span>
+                              {isAuthenticated && hasBodyProfile && (
+                                <span className="font-semibold text-emerald-700">
+                                  ★ {locale === 'en' ? `AI fit: ${fit.recommended_size}` : `Hợp dáng: ${fit.recommended_size}`}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {sizeVariants.slice(0, 6).map((sv) => {
+                                const isChosen = sv.size_label === activeSizeLabel;
+                                const isRec = isAuthenticated && hasBodyProfile && sv.size_label === fit.recommended_size;
+                                return (
+                                  <button
+                                    key={sv.id}
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedSizeByProduct((prev) => ({
+                                        ...prev,
+                                        [product.id]: sv.size_label,
+                                      }))
+                                    }
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                                      isChosen
+                                        ? 'bg-[#14171C] text-white border-[#14171C] shadow-2xs'
+                                        : isRec
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-400 hover:border-emerald-600'
+                                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                                    }`}
+                                    title={
+                                      isRec
+                                        ? `Size ${sv.size_label} (Gợi ý từ số đo 3D của bạn)`
+                                        : `Chọn size ${sv.size_label}`
+                                    }
+                                  >
+                                    {sv.size_label}{isRec ? '★' : ''}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Card Actions: Phân tích 3D + Thử 3D + Lưu giỏ hàng + Mua ngay 1 SP */}
                         <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
                           <div className="flex items-center gap-1">
                             <button
@@ -2502,22 +2675,53 @@ export const FashionStoreHome: React.FC = () => {
                             </button>
                           </div>
 
+                          <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => handleAddToCart(product, cardActiveVariant, false, false)}
+                              className="py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-[#14171C] border border-slate-300 text-[11px] font-bold transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                              title={locale === 'en' ? `Save Size ${cardActiveVariant.size_label} to Cart` : `Lưu Size ${cardActiveVariant.size_label} vào Giỏ hàng`}
+                            >
+                              <Plus size={12} />
+                              <span>{locale === 'en' ? 'Cart' : 'Giỏ'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickBuy(product, cardActiveVariant)}
+                              className="flex-1 py-2 px-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-bold transition-all duration-200 flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                              title={locale === 'en' ? `Quick Buy Size ${cardActiveVariant.size_label}` : `Mua nhanh ngay Size ${cardActiveVariant.size_label}`}
+                            >
+                              <ShoppingBag size={12} className="text-white" />
+                              <span>
+                                {locale === 'en'
+                                  ? `Buy ${cardActiveVariant.size_label}`
+                                  : `Mua (${cardActiveVariant.size_label})`}
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {(product.is_bespoke || product.category === 'tailored') && (
                           <button
                             type="button"
-                            onClick={() => handleAddToCart(product, product.recommendedVariant)}
-                            className="flex-1 py-2 px-3 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-95 text-white text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
-                            title={isAuthenticated && hasBodyProfile
-                              ? t('ecommerce.catalog.buySizeTooltip', 'Chọn mua ngay Size {size}').replace('{size}', fit.recommended_size)
-                              : (locale === 'en' ? 'Add to Cart' : 'Thêm vào giỏ hàng')}
+                            onClick={() => handleOrderBespoke3D(product, cardActiveVariant)}
+                            className="w-full py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300/80 text-amber-900 text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                            title={
+                              hasBodyProfile
+                                ? 'Đặt may đo riêng theo 13 thông số cơ thể 3D của bạn'
+                                : 'Quét hoặc nhập số đo 3D để đặt may đo riêng'
+                            }
                           >
-                            <ShoppingBag size={13} className="text-white" />
+                            <Scissors size={12} className="text-amber-700" />
                             <span>
-                              {isAuthenticated && hasBodyProfile
-                                ? t('ecommerce.catalog.chooseSize', 'Chọn Size {size}').replace('{size}', fit.recommended_size)
-                                : (locale === 'en' ? 'Select & Buy' : 'Chọn Mua')}
+                              {locale === 'en'
+                                ? 'Tailor to my 13 3D measurements'
+                                : hasBodyProfile
+                                  ? 'May theo 13 số đo 3D của tôi'
+                                  : 'Đo 3D để May Đo Riêng'}
                             </span>
                           </button>
-                        </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2915,7 +3119,17 @@ export const FashionStoreHome: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setIsCartOpen(true)}
+          onClick={() => {
+            if (
+              !requireAuthenticatedAction(
+                'Vui lòng đăng nhập để xem giỏ hàng và thanh toán.',
+                'Please sign in to access your cart and checkout.'
+              )
+            ) {
+              return;
+            }
+            setIsCartOpen(true);
+          }}
           className="relative flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center bg-transparent border-0 cursor-pointer"
         >
           <ShoppingBag size={18} />
@@ -2960,10 +3174,20 @@ export const FashionStoreHome: React.FC = () => {
         onSelectSize={(v) => setAnalysisVariant(v)}
         onAddToCart={() => {
           if (analysisProduct && analysisVariant) {
-            handleAddToCart(analysisProduct, analysisVariant);
+            handleAddToCart(analysisProduct, analysisVariant, false, false);
           }
         }}
-        onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant)}
+        onQuickBuy={() => {
+          if (analysisProduct && analysisVariant) {
+            handleQuickBuy(analysisProduct, analysisVariant, false);
+          }
+        }}
+        onOrderBespoke3D={() => {
+          if (analysisProduct && analysisVariant) {
+            handleOrderBespoke3D(analysisProduct, analysisVariant);
+          }
+        }}
+        onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant, false, false)}
         onOpenVirtualStudio={handleOpenVirtualStudio}
       />
 
@@ -2971,6 +3195,17 @@ export const FashionStoreHome: React.FC = () => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         items={cartItems}
+        selectedIds={selectedCartIds}
+        onToggleSelectItem={(id) =>
+          setSelectedCartIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+          )
+        }
+        onToggleSelectAll={() =>
+          setSelectedCartIds((prev) =>
+            prev.length === cartItems.length ? [] : cartItems.map((ci) => ci.id)
+          )
+        }
         onRemoveItem={(id) => setCartItems((prev) => prev.filter((i) => i.id !== id))}
         onUpdateQuantity={(id, delta) => {
           setCartItems((prev) =>
@@ -2984,19 +3219,36 @@ export const FashionStoreHome: React.FC = () => {
           );
         }}
         onChangeVariant={handleChangeCartVariant}
-        onClearCart={() => setCartItems([])}
+        onClearCart={() => {
+          setCartItems([]);
+          setSelectedCartIds([]);
+        }}
         onCheckout={() => {
           setIsCartOpen(false);
+          setQuickBuyItems(null);
           setIsCheckoutModalOpen(true);
         }}
       />
 
-      {/* 3-Step E-Commerce Checkout Modal (Học hỏi theo luồng chuẩn đồ án: Giỏ hàng -> Thông tin giao hàng & VietQR -> Đặt hàng thành công) */}
+      {/* 3-Step E-Commerce Checkout Modal (Hỗ trợ cả Giỏ hàng lẫn Mua ngay 1 sản phẩm) */}
       <CheckoutModal
         isOpen={isCheckoutModalOpen}
-        onClose={() => setIsCheckoutModalOpen(false)}
-        items={cartItems}
-        onClearCart={() => setCartItems([])}
+        onClose={() => {
+          setIsCheckoutModalOpen(false);
+          setQuickBuyItems(null);
+        }}
+        items={
+          quickBuyItems ??
+          cartItems.filter((ci) => selectedCartIds.includes(ci.id))
+        }
+        onClearCart={() => {
+          if (quickBuyItems) {
+            setQuickBuyItems(null);
+          } else {
+            setCartItems((prev) => prev.filter((ci) => !selectedCartIds.includes(ci.id)));
+            setSelectedCartIds([]);
+          }
+        }}
         userBody={userBody}
         onOpenMyOrders={() => {
           setIsCheckoutModalOpen(false);
@@ -3024,7 +3276,7 @@ export const FashionStoreHome: React.FC = () => {
       {/* VELL Virtual 3D Styling Studio (Auth Gated — Never Shows Mock Measurements to Guests) */}
       <VellVirtualStudioModal
         isOpen={isVellStudioOpen}
-        onClose={() => setIsVellStudioOpen(false)}
+        onClose={handleCloseVirtualStudio}
         userBody={userBody}
         isAuthenticated={isAuthenticated}
         hasBodyProfile={hasBodyProfile}

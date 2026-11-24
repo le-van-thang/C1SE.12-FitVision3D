@@ -30,6 +30,7 @@ commerceRouter.patch(
   commerceController.updateOrderStatus
 );
 commerceRouter.patch('/orders/:id/pay', requireAuth, commerceController.markOrderPaid);
+commerceRouter.post('/payments/sepay-webhook', commerceController.handleSePayWebhook);
 
 // Real PostgreSQL Membership Endpoints (Authenticated user)
 commerceRouter.get('/membership', requireAuth, commerceController.getMembership);

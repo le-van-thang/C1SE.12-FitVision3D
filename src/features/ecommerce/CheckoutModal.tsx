@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   ShoppingBag,
@@ -23,6 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
 import { useI18n } from '@/i18n';
 import { loadPlatformConfig } from '@/services/platformConfig';
+import { commerceApi } from '@/services/commerceApi';
 import { loadFullScanSnapshot } from '@/utils/bodyProfileStorage';
 
 interface CheckoutModalProps {
@@ -68,6 +69,37 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Copy states
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [hasConfirmedTransfer, setHasConfirmedTransfer] = useState(false);
+
+  // Real-time SePay Webhook polling when awaiting VietQR payment
+  useEffect(() => {
+    if (
+      !isOpen ||
+      step !== 'success' ||
+      !createdOrder ||
+      createdOrder.payment_method !== 'vietqr_sepay' ||
+      createdOrder.payment_status === 'paid' ||
+      hasConfirmedTransfer
+    ) {
+      return;
+    }
+
+    let active = true;
+    const timer = setInterval(async () => {
+      const res = await commerceApi.getOrders();
+      if (!active || !res.success || !Array.isArray(res.data)) return;
+      const fresh = res.data.find((o) => o.id === createdOrder.id);
+      if (fresh && fresh.payment_status === 'paid') {
+        setCreatedOrder(fresh);
+        setHasConfirmedTransfer(true);
+        markPaymentCompleted(fresh.id);
+      }
+    }, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [isOpen, step, createdOrder, hasConfirmedTransfer, markPaymentCompleted]);
 
   if (!isOpen) return null;
 
@@ -757,7 +789,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           ) : (
                             <>
                               <QrCode size={14} />
-                              <span>{t('ecommerce.checkout.confirmPaid', 'Xác Nhận Tôi Đã Chuyển Khoản')}</span>
+                              <span>{t('ecommerce.checkout.confirmPaid', 'Xác Nhận Đã Chuyển Khoản (Chờ SePay)')}</span>
                             </>
                           )}
                         </button>

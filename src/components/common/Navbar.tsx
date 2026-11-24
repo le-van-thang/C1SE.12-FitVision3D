@@ -45,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
 
   return (
     <>
-      <header className="h-16 px-4 sm:px-8 border-b border-white/10 bg-[#14171C] text-white shadow-sm sticky top-0 z-40 flex items-center justify-between no-print select-none" id="app-navbar">
+      <header className="h-16 px-4 sm:px-8 border-b border-white/10 bg-[#14171C] text-white shadow-sm sticky top-0 z-50 flex items-center justify-between no-print select-none" id="app-navbar">
         {/* Left: Brand Logo (Admin stays inside /admin; others go to storefront) */}
         <div className="flex items-center gap-3">
           <Link to={isAdmin ? '/admin' : '/'} className="flex items-center gap-2.5" id="brand-link">
@@ -120,20 +120,35 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
             </>
           )}
 
-          {/* Chỉ hiển thị cho đối tác Nhà May đã được duyệt */}
+          {/* Chỉ hiển thị cho đối tác Chủ Shop / Nhà May đã được duyệt */}
           {isAuthenticated && isStore && (
-            <Link
-              to="/tailor"
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
-                pathname === '/tailor'
-                  ? 'bg-amber-400 text-[#14171C] shadow-xs'
-                  : 'text-amber-200 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-300/30'
-              }`}
-              id="nav-tailor"
-            >
-              <Scissors size={15} strokeWidth={2} />
-              <span>{t('app.nav.tailor', 'Studio Nhà May')}</span>
-            </Link>
+            <>
+              <Link
+                to="/shop"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                  pathname === '/shop'
+                    ? 'bg-emerald-400 text-[#14171C] shadow-xs'
+                    : 'text-emerald-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30'
+                }`}
+                id="nav-shop"
+              >
+                <StoreIcon size={15} strokeWidth={2} />
+                <span>{t('app.nav.shop', 'Kênh Người Bán')}</span>
+              </Link>
+
+              <Link
+                to="/tailor"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
+                  pathname === '/tailor'
+                    ? 'bg-amber-400 text-[#14171C] shadow-xs'
+                    : 'text-amber-200 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-300/30'
+                }`}
+                id="nav-tailor"
+              >
+                <Scissors size={15} strokeWidth={2} />
+                <span>{t('app.nav.tailor', 'Studio Nhà May')}</span>
+              </Link>
+            </>
           )}
 
           {/* Chỉ hiển thị cho Admin */}
@@ -158,25 +173,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
           )}
         </nav>
 
-        {/* Right: Quick Demo Data Loader, Language Switcher & Auth */}
+        {/* Right: Language Switcher & Auth */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* Nút nạp dữ liệu mẫu */}
-          {onDemoMode && (
-            <button
-              id="btn-demo-mode"
-              type="button"
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                isDemoMode
-                  ? 'bg-emerald-500 text-white shadow-sm'
-                  : 'bg-white/10 hover:bg-white/15 text-amber-200 border border-amber-300/30 shadow-2xs'
-              }`}
-              onClick={onDemoMode}
-            >
-              <Sparkles size={14} className={isDemoMode ? 'text-white' : 'text-amber-300'} />
-              <span>{isDemoMode ? t('app.nav.demoLoaded', 'Đã nạp mẫu') : t('app.nav.loadDemo', 'Tải dữ liệu mẫu')}</span>
-            </button>
-          )}
-
           <LanguageSwitcher compact variant="dark" />
 
           {isAuthenticated ? (
