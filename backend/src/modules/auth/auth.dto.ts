@@ -241,3 +241,22 @@ export const GoogleAuthDto = z.object({
 
 export type GoogleAuthDtoType = z.infer<typeof GoogleAuthDto>;
 
+// 9. DTO Đổi / Tạo Mật Khẩu (Change Password - cho tài khoản đã đăng nhập)
+export const ChangePasswordDto = z
+  .object({
+    currentPassword: z.string().optional().default(''),
+    newPassword: z
+      .string({ required_error: 'Vui lòng nhập mật khẩu mới.' })
+      .min(6, 'Mật khẩu mới phải từ 6 đến 32 ký tự.')
+      .max(32, 'Mật khẩu mới tối đa 32 ký tự.')
+      .regex(PASSWORD_REGEX, 'Mật khẩu mới cần từ 6 đến 32 ký tự và chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...).'),
+    confirmNewPassword: z.string({ required_error: 'Vui lòng xác nhận mật khẩu mới.' }),
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: 'Mật khẩu xác nhận không khớp.',
+    path: ['confirmNewPassword'],
+  });
+
+export type ChangePasswordDtoType = z.infer<typeof ChangePasswordDto>;
+
+

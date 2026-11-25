@@ -692,5 +692,24 @@ export const authRepository = {
     }
     saveStore();
   },
+
+  async revokeAllUserTokens(userId: string): Promise<number> {
+    if (await isDbAvailable()) {
+      const rows = await query<{ id: string }>(
+        'UPDATE refresh_tokens SET is_revoked = TRUE WHERE user_id = $1 AND is_revoked = FALSE RETURNING id',
+        [userId]
+      );
+      return rows.length;
+    }
+    let count = 0;
+    for (const t of memTokens.values()) {
+      if (t.user_id === userId && !t.is_revoked) {
+        t.is_revoked = true;
+        count += 1;
+      }
+    }
+    saveStore();
+    return count;
+  },
 };
 

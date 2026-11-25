@@ -284,5 +284,24 @@ export const authApi = {
     }
     return res;
   },
+
+  // 11. Đổi / Tạo mật khẩu cho tài khoản đang đăng nhập
+  async changePassword(data: { currentPassword?: string; newPassword: string; confirmNewPassword: string }) {
+    return request<{ message: string }>('/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // 12. Đăng xuất khỏi tất cả thiết bị
+  async logoutAll() {
+    const res = await request<{ revokedSessions: number; message: string }>('/logout-all', {
+      method: 'POST',
+    });
+    if (res.success) {
+      setAccessToken(null);
+    }
+    return res;
+  },
 };
 

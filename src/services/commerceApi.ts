@@ -107,7 +107,11 @@ export interface DbShopProfile {
   shop_name: string;
   brand_slug?: string | null;
   phone_number: string;
+  contact_email?: string | null;
   shop_address: string;
+  pickup_address?: string | null;
+  return_address?: string | null;
+  return_same_as_pickup?: boolean;
   entity_type?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
   tax_code?: string | null;
   tax_status?: string | null;
@@ -121,11 +125,26 @@ export interface DbShopProfile {
   operational_mode?: 'ACTIVE' | 'VACATION';
   vacation_note?: string | null;
   vacation_until?: string | null;
+  prep_time_days?: string | null;
   banner_url?: string | null;
   logo_url?: string | null;
   tagline?: string | null;
   description?: string | null;
+  quick_reply_template?: string | null;
+  notify_new_order_email?: boolean;
+  notify_low_stock_email?: boolean;
+  size_specs?: Record<string, any[]> | null;
   created_at?: string;
+}
+
+export interface DbShopBankAccount {
+  id: string;
+  bank_code: string;
+  bank_name: string;
+  account_number: string;
+  account_holder_name: string;
+  name_match_score: number;
+  verification_status: string;
 }
 
 export interface PublicStorefrontResponse {
@@ -296,18 +315,40 @@ export const commerceApi = {
   },
 
   updateShopProfile(payload: {
-    shopName: string;
-    phoneNumber: string;
-    shopAddress: string;
+    shopName?: string;
+    phoneNumber?: string;
+    contactEmail?: string | null;
+    shopAddress?: string;
+    pickupAddress?: string;
+    returnAddress?: string;
+    returnSameAsPickup?: boolean;
     tagline?: string;
     description?: string;
-    bannerUrl?: string;
-    logoUrl?: string;
+    bannerUrl?: string | null;
+    logoUrl?: string | null;
     operationalMode?: 'ACTIVE' | 'VACATION';
     vacationNote?: string;
     vacationUntil?: string | null;
+    prepTimeDays?: string;
+    quickReplyTemplate?: string | null;
+    notifyNewOrderEmail?: boolean;
+    notifyLowStockEmail?: boolean;
+    sizeSpecs?: Record<string, any[]> | null;
   }) {
     return commerceRequest<DbShopProfile>('/shop/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateShopBankAccount(payload: {
+    bankCode: string;
+    bankName: string;
+    accountNumber: string;
+    accountHolderName: string;
+    currentPassword: string;
+  }) {
+    return commerceRequest<DbShopBankAccount>('/shop/bank-account', {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
@@ -354,7 +395,26 @@ export const commerceApi = {
     });
   },
 
-  updateShopProduct(id: string, patch: { isHidden?: boolean; salePrice?: number | null }) {
+  updateShopProduct(
+    id: string,
+    patch: {
+      isHidden?: boolean;
+      salePrice?: number | null;
+      name?: string;
+      category?: 'shirt' | 'polo' | 'pants' | 'dress' | 'tailored';
+      genderTarget?: 'male' | 'female' | 'unisex';
+      price?: number;
+      isBespoke?: boolean;
+      fabricMaterial?: string;
+      stretchType?: string;
+      imageUrl?: string;
+      videoUrl?: string | null;
+      description?: string;
+      colorVariants?: { colorName: string; colorHex: string; imageUrl?: string }[];
+      sizes?: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[];
+      stockMap?: Record<string, number>;
+    }
+  ) {
     return commerceRequest<DbProduct>(`/shop/products/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
