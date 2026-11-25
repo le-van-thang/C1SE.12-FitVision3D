@@ -1378,7 +1378,10 @@
     "stockUnit": "pcs",
     "stockTotalPrefix": "Total:",
     "stockPerColorSuffix": "/ color",
-    "stockApplyAllLabel": "Set all:"
+    "stockApplyAllLabel": "Set all:",
+    "productEdit": "Details / Edit",
+    "editModalTitle": "Product Details & Edit",
+    "saveProductChangesBtn": "Save Changes"
   },
   "shopSettings": {
     "title": "Shop Settings",

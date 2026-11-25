@@ -37,12 +37,14 @@ import {
   PauseCircle,
   ExternalLink,
   Settings,
+  Pencil,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import { ShopSettingsTab } from '@/components/shop/ShopSettingsTab';
+import { ShopProductEditModal } from '@/components/shop/ShopProductEditModal';
 import {
   commerceApi,
   type DbProduct,
@@ -218,6 +220,7 @@ export const ShopPortal: React.FC = () => {
   const [reviews, setReviews] = useState<DbShopReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<DbProduct | null>(null);
 
   // Shop profile & operational mode editable state
   const [profileName, setProfileName] = useState('');
@@ -325,6 +328,12 @@ export const ShopPortal: React.FC = () => {
         setResubmitEntityType((s.entity_type as ShopEntityType) || 'INDIVIDUAL');
         setResubmitTaxCode(s.tax_code || '');
         setResubmitLicenseNo(s.business_license_no || '');
+        if (s.size_specs && typeof s.size_specs === 'object') {
+          setSizeSpecs((prev) => ({
+            ...prev,
+            ...(s.size_specs as Record<GarmentCategoryKey, SizeSpecRow[]>),
+          }));
+        }
       }
       if (res.data.bankAccount) {
         setResubmitBankCode(res.data.bankAccount.bank_code || 'VCB');
@@ -831,16 +840,30 @@ export const ShopPortal: React.FC = () => {
     }));
   };
 
-  const handleSaveSizeSpecs = () => {
+  const handleSaveSizeSpecs = async () => {
     try {
       localStorage.setItem(SIZE_SPECS_STORAGE_KEY, JSON.stringify(sizeSpecs));
+    } catch {
+      // ignore localStorage quota error
+    }
+    const res = await commerceApi.updateShopProfile({ sizeSpecs });
+    if (res.success && res.data) {
+      setShop(res.data);
       showGlobalToast({
         type: 'success',
-        title: 'Đã lưu Bảng Size Chuẩn 3D!',
-        message: 'Thuật toán AI Fit sẽ đối chiếu thông số S/M/L/XL này với vóc dáng khách mua.',
+        title: locale === 'en' ? '3D Size Chart saved to database!' : 'Đã lưu Bảng Size Chuẩn 3D vào hệ thống!',
+        message:
+          locale === 'en'
+            ? 'All shop products now use these specs for AI 3D size matching.'
+            : 'Toàn bộ sản phẩm của Shop đã được đồng bộ thông số S/M/L/XL này cho hệ thống AI chọn size.',
       });
-    } catch {
-      showGlobalToast({ type: 'error', title: 'Lỗi lưu trình duyệt', message: 'Không thể ghi localStorage.' });
+      void loadShopData();
+    } else {
+      showGlobalToast({
+        type: 'error',
+        title: locale === 'en' ? 'Could not save size chart' : 'Không thể lưu Bảng Size',
+        message: res.error?.message || (locale === 'en' ? 'Please try again.' : 'Vui lòng thử lại.'),
+      });
     }
   };
 
@@ -2084,7 +2107,8 @@ export const ShopPortal: React.FC = () => {
                         return (
                         <div
                           key={p.id}
-                          className={`bg-white rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-opacity ${
+                          onClick={() => setEditingProduct(p)}
+                          className={`bg-white rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all cursor-pointer hover:border-slate-400 hover:shadow-sm ${
                             p.is_hidden ? 'border-slate-200 opacity-60' : 'border-slate-200'
                           }`}
                         >
@@ -2154,11 +2178,21 @@ export const ShopPortal: React.FC = () => {
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
+                          <div
+                            className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setEditingProduct(p)}
+                              className="flex-1 py-1.5 rounded-lg bg-[#14171C] hover:bg-slate-800 text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Pencil size={12} /> {t('shopPortal.productEdit')}
+                            </button>
                             <button
                               type="button"
                               onClick={() => void handleToggleHide(p)}
-                              className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer"
                             >
                               {p.is_hidden ? (
                                 <>
@@ -2173,9 +2207,9 @@ export const ShopPortal: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => void handleDeleteProduct(p)}
-                              className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-bold flex items-center gap-1 hover:bg-rose-50 cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-bold flex items-center gap-1 hover:bg-rose-50 cursor-pointer"
                             >
-                              <Trash2 size={12} /> {t('shopPortal.productDelete')}
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </div>
@@ -2561,6 +2595,13 @@ export const ShopPortal: React.FC = () => {
         </main>
       </div>
       <AuthModal />
+      <ShopProductEditModal
+        product={editingProduct}
+        onClose={() => setEditingProduct(null)}
+        onUpdated={(updated) => {
+          setProducts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        }}
+      />
       {isAuthenticated && userRole === 'store' && (
         <GeminiAssistantWidget
           botId="shop"

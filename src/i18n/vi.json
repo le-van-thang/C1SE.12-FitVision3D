@@ -1378,7 +1378,10 @@
     "stockUnit": "chiếc",
     "stockTotalPrefix": "Tổng:",
     "stockPerColorSuffix": "/ màu",
-    "stockApplyAllLabel": "Đặt nhanh tất cả:"
+    "stockApplyAllLabel": "Đặt nhanh tất cả:",
+    "productEdit": "Chi tiết / Sửa",
+    "editModalTitle": "Chi Tiết & Chỉnh Sửa Sản Phẩm",
+    "saveProductChangesBtn": "Lưu Thay Đổi"
   },
   "shopSettings": {
     "title": "Cài Đặt Gian Hàng",

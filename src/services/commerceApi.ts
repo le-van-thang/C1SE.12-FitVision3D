@@ -133,6 +133,7 @@ export interface DbShopProfile {
   quick_reply_template?: string | null;
   notify_new_order_email?: boolean;
   notify_low_stock_email?: boolean;
+  size_specs?: Record<string, any[]> | null;
   created_at?: string;
 }
 
@@ -332,6 +333,7 @@ export const commerceApi = {
     quickReplyTemplate?: string | null;
     notifyNewOrderEmail?: boolean;
     notifyLowStockEmail?: boolean;
+    sizeSpecs?: Record<string, any[]> | null;
   }) {
     return commerceRequest<DbShopProfile>('/shop/profile', {
       method: 'PATCH',
@@ -393,7 +395,26 @@ export const commerceApi = {
     });
   },
 
-  updateShopProduct(id: string, patch: { isHidden?: boolean; salePrice?: number | null }) {
+  updateShopProduct(
+    id: string,
+    patch: {
+      isHidden?: boolean;
+      salePrice?: number | null;
+      name?: string;
+      category?: 'shirt' | 'polo' | 'pants' | 'dress' | 'tailored';
+      genderTarget?: 'male' | 'female' | 'unisex';
+      price?: number;
+      isBespoke?: boolean;
+      fabricMaterial?: string;
+      stretchType?: string;
+      imageUrl?: string;
+      videoUrl?: string | null;
+      description?: string;
+      colorVariants?: { colorName: string; colorHex: string; imageUrl?: string }[];
+      sizes?: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[];
+      stockMap?: Record<string, number>;
+    }
+  ) {
     return commerceRequest<DbProduct>(`/shop/products/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),

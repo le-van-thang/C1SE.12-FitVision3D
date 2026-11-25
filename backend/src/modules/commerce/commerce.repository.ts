@@ -61,6 +61,40 @@ export function assertShopAntiSpam(userId: string): void {
   shopPostTimestamps.set(userId, prev);
 }
 
+function resolveShopSizeSpec(
+  shopSizeSpecs: Record<string, any[]> | null | undefined,
+  category: string,
+  sizeLabel: string,
+  fallbackSpec: Record<string, any>
+): Record<string, any> {
+  if (!shopSizeSpecs || typeof shopSizeSpecs !== 'object') return fallbackSpec;
+  const catKey =
+    category === 'tailored' ? 'shirt' : ['shirt', 'polo', 'pants', 'dress'].includes(category) ? category : 'shirt';
+  const rows = shopSizeSpecs[catKey];
+  if (!Array.isArray(rows)) return fallbackSpec;
+  const matched = rows.find((r: any) => String(r?.size || '').toUpperCase() === sizeLabel.toUpperCase());
+  if (!matched) return fallbackSpec;
+
+  const isPants = catKey === 'pants';
+  const chestAvg =
+    !isPants && matched.chest_min && matched.chest_max
+      ? Math.round((Number(matched.chest_min) + Number(matched.chest_max)) / 2)
+      : fallbackSpec.chest_cm;
+  const waistAvg =
+    matched.waist_min && matched.waist_max
+      ? Math.round((Number(matched.waist_min) + Number(matched.waist_max)) / 2)
+      : fallbackSpec.waist_cm;
+
+  return {
+    ...fallbackSpec,
+    chest_cm: isPants ? 0 : Number(chestAvg) || fallbackSpec.chest_cm,
+    waist_cm: Number(waistAvg) || fallbackSpec.waist_cm,
+    shoulder_cm: isPants ? 0 : Number(matched.shoulder) || fallbackSpec.shoulder_cm,
+    hip_cm: Number(matched.hip_max) || fallbackSpec.hip_cm,
+    length_cm: Number(matched.length) || fallbackSpec.length_cm,
+  };
+}
+
 export const commerceRepository = {
   async getSettings() {
     await ensureCommerceTablesAndSeed();
@@ -1000,6 +1034,7 @@ export const commerceRepository = {
               quick_reply_template,
               COALESCE(notify_new_order_email, TRUE) AS notify_new_order_email,
               COALESCE(notify_low_stock_email, TRUE) AS notify_low_stock_email,
+              size_specs,
               approved_at, created_at
        FROM shops
        WHERE owner_id = $1
@@ -1078,11 +1113,12 @@ export const commerceRepository = {
     await ensureCommerceTablesAndSeed();
     const target = String(slugOrBrand || '').trim();
     const shops = await query<any>(
-      `SELECT id, shop_name, brand_slug, phone_number, shop_address, contact_email, city, entity_type,
+      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address, contact_email, city, entity_type,
               COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
               vacation_note, vacation_until, banner_url, logo_url, tagline, description,
               COALESCE(prep_time_days, '1–2 ngày làm việc') AS prep_time_days,
+              size_specs,
               created_at
        FROM shops
        WHERE status = 'APPROVED'
@@ -1172,6 +1208,7 @@ export const commerceRepository = {
       quickReplyTemplate?: string | null;
       notifyNewOrderEmail?: boolean;
       notifyLowStockEmail?: boolean;
+      sizeSpecs?: Record<string, any[]> | null;
     }
   ) {
     const shop = await this.ensureShopForUser(userId);
@@ -1231,6 +1268,8 @@ export const commerceRepository = {
       payload.notifyLowStockEmail !== undefined
         ? Boolean(payload.notifyLowStockEmail)
         : Boolean(shop.notify_low_stock_email ?? true);
+    const nextSizeSpecs =
+      payload.sizeSpecs !== undefined ? payload.sizeSpecs : shop.size_specs || null;
 
     if (cleanName.length < 2) throw new Error('Tên Shop phải có tối thiểu 2 ký tự.');
     if (cleanPhone.length < 8) throw new Error('Số điện thoại Shop không hợp lệ.');
@@ -1246,6 +1285,7 @@ export const commerceRepository = {
            operational_mode = $13, vacation_note = $14, vacation_until = $15,
            prep_time_days = $16, quick_reply_template = $17,
            notify_new_order_email = $18, notify_low_stock_email = $19,
+           size_specs = $20::jsonb,
            updated_at = NOW()
        WHERE id = $1
        RETURNING id, owner_id, shop_name, brand_slug, phone_number, contact_email, shop_address,
@@ -1255,7 +1295,7 @@ export const commerceRepository = {
                  status, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
                  COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
                  vacation_note, vacation_until, banner_url, logo_url, tagline, description,
-                 prep_time_days, quick_reply_template, notify_new_order_email, notify_low_stock_email`,
+                 prep_time_days, quick_reply_template, notify_new_order_email, notify_low_stock_email, size_specs`,
       [
         shop.id,
         cleanName,
@@ -1276,8 +1316,25 @@ export const commerceRepository = {
         quickReply || null,
         notifyNewOrder,
         notifyLowStock,
+        nextSizeSpecs ? JSON.stringify(nextSizeSpecs) : null,
       ]
     );
+    if (payload.sizeSpecs && typeof payload.sizeSpecs === 'object') {
+      const shopProducts = await query<any>(
+        `SELECT id, category, variants FROM products WHERE shop_id = $1 OR LOWER(brand_name) = LOWER($2)`,
+        [shop.id, cleanName]
+      );
+      for (const prod of shopProducts) {
+        const syncedVariants = (prod.variants || []).map((v: any) => ({
+          ...v,
+          spec: resolveShopSizeSpec(payload.sizeSpecs, prod.category, v.size_label, v.spec || {}),
+        }));
+        await query(`UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`, [
+          prod.id,
+          JSON.stringify(syncedVariants),
+        ]).catch(() => undefined);
+      }
+    }
     if (cleanName !== shop.shop_name) {
       await query(
         `UPDATE products SET brand_name = $2, updated_at = NOW() WHERE shop_id = $1`,
@@ -1577,7 +1634,12 @@ export const commerceRepository = {
         image_url: c.imageUrl || fallbackImg,
         sku: `${id.toUpperCase()}-C${colorIdx + 1}-${sz}`,
         stock: Number(stockMap[sz]) || 20,
-        spec: isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz],
+        spec: resolveShopSizeSpec(
+          shop.size_specs,
+          category,
+          sz,
+          isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz]
+        ),
       }))
     );
 
@@ -1660,37 +1722,185 @@ export const commerceRepository = {
 
   async updateShopProduct(userId: string, isAdmin: boolean, productId: string, patch: any) {
     await ensureCommerceTablesAndSeed();
-    const shopRows = await query('SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
+    const shopRows = await query('SELECT id, shop_name, size_specs FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
     const shop = shopRows[0];
     if (!shop && !isAdmin) return null;
 
-    const ownerFilter = isAdmin ? 'TRUE' : '(shop_id = $5 OR LOWER(brand_name) = LOWER($6))';
-    const hasSale = patch.salePrice !== undefined;
-    const params: any[] = [
-      productId,
-      typeof patch.isHidden === 'boolean' ? patch.isHidden : null,
-      hasSale,
-      hasSale ? (patch.salePrice ? Number(patch.salePrice) : null) : null,
-    ];
-    if (!isAdmin) {
-      params.push(shop.id, shop.shop_name);
+    const ownerFilter = isAdmin ? 'TRUE' : '(shop_id = $2 OR LOWER(brand_name) = LOWER($3))';
+    const lookupParams: any[] = isAdmin ? [productId] : [productId, shop.id, shop.shop_name];
+    const existingRows = await query<any>(
+      `SELECT * FROM products WHERE id = $1 AND ${ownerFilter} LIMIT 1`,
+      lookupParams
+    );
+    const existing = existingRows[0];
+    if (!existing) return null;
+
+    const nextName =
+      patch.name !== undefined ? String(patch.name).trim() : existing.name;
+    if (nextName.length < 3) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Tên sản phẩm phải có tối thiểu 3 ký tự.');
+    }
+
+    const nextCategory =
+      ['shirt', 'polo', 'pants', 'dress', 'tailored'].includes(patch.category)
+        ? patch.category
+        : existing.category;
+    const nextGender =
+      ['male', 'female', 'unisex'].includes(patch.genderTarget)
+        ? patch.genderTarget
+        : existing.gender_target;
+    const nextPrice =
+      patch.price !== undefined ? Math.max(1000, Number(patch.price) || existing.price) : existing.price;
+    const nextSalePrice =
+      patch.salePrice !== undefined
+        ? patch.salePrice !== null && Number(patch.salePrice) >= 1000 && Number(patch.salePrice) < nextPrice
+          ? Number(patch.salePrice)
+          : null
+        : existing.sale_price;
+    const nextHidden =
+      typeof patch.isHidden === 'boolean' ? patch.isHidden : Boolean(existing.is_hidden);
+    const nextBespoke =
+      typeof patch.isBespoke === 'boolean' ? patch.isBespoke : Boolean(existing.is_bespoke);
+    const nextFabric =
+      patch.fabricMaterial !== undefined
+        ? String(patch.fabricMaterial).trim() || existing.fabric_material
+        : existing.fabric_material;
+    const nextStretch =
+      patch.stretchType !== undefined
+        ? String(patch.stretchType).trim() || existing.stretch_type
+        : existing.stretch_type;
+    const nextDesc =
+      patch.description !== undefined ? String(patch.description).trim() : existing.description;
+    const nextVideoUrl =
+      patch.videoUrl !== undefined ? (String(patch.videoUrl || '').trim() || null) : existing.video_url;
+
+    let nextVariants = existing.variants || [];
+    let nextImageUrl =
+      patch.imageUrl !== undefined
+        ? String(patch.imageUrl || '').trim() || existing.image_url
+        : existing.image_url;
+    let nextSecondaryImageUrl = existing.secondary_image_url;
+
+    const hasVariantRebuild =
+      Array.isArray(patch.colorVariants) ||
+      Array.isArray(patch.sizes) ||
+      (patch.stockMap && typeof patch.stockMap === 'object');
+
+    if (hasVariantRebuild) {
+      const isPants = nextCategory === 'pants';
+      const defaultTopSpecs: Record<string, any> = {
+        XS: { chest_cm: 92, waist_cm: 78, shoulder_cm: 40.5, length_cm: 68, ease_min_cm: 3, ease_max_cm: 6 },
+        S: { chest_cm: 96, waist_cm: 82, shoulder_cm: 42, length_cm: 70, ease_min_cm: 3, ease_max_cm: 7 },
+        M: { chest_cm: 100, waist_cm: 86, shoulder_cm: 43.5, length_cm: 72, ease_min_cm: 4, ease_max_cm: 8 },
+        L: { chest_cm: 104, waist_cm: 90, shoulder_cm: 45, length_cm: 74, ease_min_cm: 4, ease_max_cm: 8 },
+        XL: { chest_cm: 108, waist_cm: 94, shoulder_cm: 46.5, length_cm: 76, ease_min_cm: 5, ease_max_cm: 9 },
+        XXL: { chest_cm: 114, waist_cm: 100, shoulder_cm: 48.5, length_cm: 78, ease_min_cm: 5, ease_max_cm: 10 },
+      };
+      const defaultPantSpecs: Record<string, any> = {
+        XS: { chest_cm: 0, waist_cm: 72, hip_cm: 90, shoulder_cm: 0, length_cm: 94, ease_min_cm: 1, ease_max_cm: 4 },
+        S: { chest_cm: 0, waist_cm: 76, hip_cm: 94, shoulder_cm: 0, length_cm: 96, ease_min_cm: 1, ease_max_cm: 4 },
+        M: { chest_cm: 0, waist_cm: 80, hip_cm: 98, shoulder_cm: 0, length_cm: 98, ease_min_cm: 1, ease_max_cm: 4 },
+        L: { chest_cm: 0, waist_cm: 84, hip_cm: 102, shoulder_cm: 0, length_cm: 100, ease_min_cm: 2, ease_max_cm: 5 },
+        XL: { chest_cm: 0, waist_cm: 88, hip_cm: 106, shoulder_cm: 0, length_cm: 102, ease_min_cm: 2, ease_max_cm: 5 },
+        XXL: { chest_cm: 0, waist_cm: 94, hip_cm: 112, shoulder_cm: 0, length_cm: 104, ease_min_cm: 2, ease_max_cm: 5 },
+      };
+
+      const rawColors =
+        Array.isArray(patch.colorVariants) && patch.colorVariants.length > 0
+          ? patch.colorVariants.slice(0, 6).map((c: any) => ({
+              colorName: String(c?.colorName || 'Mặc định').trim(),
+              colorHex: String(c?.colorHex || '#14171C').trim(),
+              imageUrl: String(c?.imageUrl || nextImageUrl).trim(),
+            }))
+          : Array.from(
+              new Map(
+                (existing.variants || []).map((v: any) => [
+                  `${v.color_hex}|${v.color_name}`,
+                  {
+                    colorName: v.color_name || 'Mặc định',
+                    colorHex: v.color_hex || '#14171C',
+                    imageUrl: v.image_url || nextImageUrl,
+                  },
+                ])
+              ).values()
+            );
+
+      const validSizes: string[] =
+        Array.isArray(patch.sizes) && patch.sizes.length > 0
+          ? patch.sizes.filter((s: string) => ['XS', 'S', 'M', 'L', 'XL', 'XXL'].includes(s))
+          : Array.from(new Set((existing.variants || []).map((v: any) => v.size_label).filter(Boolean)));
+      const finalSizes = validSizes.length > 0 ? validSizes : ['S', 'M', 'L', 'XL'];
+      const stockMap: Record<string, number> = patch.stockMap || {};
+
+      nextVariants = rawColors.flatMap((c: any, colorIdx: number) =>
+        finalSizes.map((sz) => ({
+          id: `${productId}-c${colorIdx}-${sz.toLowerCase()}`,
+          size_label: sz,
+          color_name: c.colorName,
+          color_hex: c.colorHex,
+          image_url: c.imageUrl || nextImageUrl,
+          sku: `${productId.toUpperCase()}-C${colorIdx + 1}-${sz}`,
+          stock: Math.max(1, Number(stockMap[sz]) || 20),
+          spec: resolveShopSizeSpec(
+            shop?.size_specs,
+            nextCategory,
+            sz,
+            isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz]
+          ),
+        }))
+      );
+
+      if (rawColors[1]?.imageUrl && rawColors[1].imageUrl !== nextImageUrl) {
+        nextSecondaryImageUrl = rawColors[1].imageUrl;
+      }
     }
 
     const rows = await query(
       `UPDATE products SET
-         is_hidden = COALESCE($2, is_hidden),
-         sale_price = CASE WHEN $3 THEN $4::integer ELSE sale_price END,
+         name = $2,
+         name_en = $2,
+         category = $3,
+         gender_target = $4,
+         price = $5,
+         sale_price = $6,
+         is_hidden = $7,
+         is_bespoke = $8,
+         fabric_material = $9,
+         fabric_material_en = $9,
+         stretch_type = $10,
+         image_url = $11,
+         secondary_image_url = $12,
+         video_url = $13,
+         description = $14,
+         description_en = $14,
+         variants = $15::jsonb,
          updated_at = NOW()
-       WHERE id = $1 AND ${ownerFilter}
+       WHERE id = $1
        RETURNING *, rating::float`,
-      params
+      [
+        productId,
+        nextName,
+        nextCategory,
+        nextGender,
+        nextPrice,
+        nextSalePrice,
+        nextHidden,
+        nextBespoke,
+        nextFabric,
+        nextStretch,
+        nextImageUrl,
+        nextSecondaryImageUrl,
+        nextVideoUrl,
+        nextDesc,
+        JSON.stringify(nextVariants),
+      ]
     );
     return rows[0] || null;
   },
 
   async deleteShopProduct(userId: string, isAdmin: boolean, productId: string) {
     await ensureCommerceTablesAndSeed();
-    const shopRows = await query('SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
+    const shopRows = await query('SELECT id, shop_name, size_specs FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
     const shop = shopRows[0];
     if (!shop && !isAdmin) return false;
 

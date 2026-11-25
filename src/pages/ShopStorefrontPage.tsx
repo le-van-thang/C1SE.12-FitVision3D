@@ -14,9 +14,14 @@ import {
   Sparkles,
   Star,
   Store,
+  X,
+  ExternalLink,
+  Ruler,
+  Pencil,
 } from 'lucide-react';
-import { commerceApi, type PublicStorefrontResponse } from '@/services/commerceApi';
+import { commerceApi, type DbProduct, type PublicStorefrontResponse } from '@/services/commerceApi';
 import { useI18n } from '@/i18n';
+import { useAuth } from '@/context/AuthContext';
 
 const TIER_BADGES: Record<'MALL' | 'PREFERRED' | 'REGULAR', { key: string; cls: string }> = {
   MALL: {
@@ -35,11 +40,22 @@ const TIER_BADGES: Record<'MALL' | 'PREFERRED' | 'REGULAR', { key: string; cls: 
 
 export const ShopStorefrontPage: React.FC = () => {
   const { t, locale, setLocale } = useI18n();
+  const { currentUser, currentStore } = useAuth();
   const { slug } = useParams<{ slug: string }>();
   const [data, setData] = useState<PublicStorefrontResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<'ALL' | 'BESPOKE' | 'READY'>('ALL');
+  const [selectedProduct, setSelectedProduct] = useState<DbProduct | null>(null);
+  const [selectedColorHex, setSelectedColorHex] = useState<string>('');
+  const [selectedSize, setSelectedSize] = useState<string>('');
+
+  const openProductDetail = (p: DbProduct) => {
+    setSelectedProduct(p);
+    const firstVar = (p.variants || [])[0];
+    setSelectedColorHex(firstVar?.color_hex || '');
+    setSelectedSize(firstVar?.size_label || '');
+  };
 
   useEffect(() => {
     let active = true;
@@ -317,10 +333,11 @@ export const ShopStorefrontPage: React.FC = () => {
                   ).values()
                 );
                 return (
-                <Link
+                <button
                   key={p.id}
-                  to={`/?product=${encodeURIComponent(p.id)}`}
-                  className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition group flex flex-col"
+                  type="button"
+                  onClick={() => openProductDetail(p)}
+                  className="text-left bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md hover:border-slate-300 transition group flex flex-col cursor-pointer"
                 >
                   <div className="aspect-[4/5] bg-slate-100 relative overflow-hidden">
                     <img
@@ -380,7 +397,7 @@ export const ShopStorefrontPage: React.FC = () => {
                       )}
                     </div>
                   </div>
-                </Link>
+                </button>
                 );
               })}
             </div>
@@ -415,6 +432,256 @@ export const ShopStorefrontPage: React.FC = () => {
           </section>
         )}
       </main>
+
+      {/* In-Page Product Detail Modal */}
+      {selectedProduct && (() => {
+        const variants = selectedProduct.variants || [];
+        const uniqueColors = Array.from(
+          new Map(
+            variants
+              .filter((v) => v.color_name || v.color_hex)
+              .map((v) => [
+                `${(v.color_hex || '').toLowerCase()}|${(v.color_name || '').toLowerCase()}`,
+                {
+                  name: v.color_name || (locale === 'en' ? 'Default' : 'Mặc định'),
+                  hex: v.color_hex || '#14171C',
+                  imageUrl: (v as any).image_url || selectedProduct.image_url,
+                },
+              ])
+          ).values()
+        );
+        const activeColor =
+          uniqueColors.find((c) => c.hex.toLowerCase() === selectedColorHex.toLowerCase()) ||
+          uniqueColors[0];
+        const uniqueSizes = Array.from(new Set(variants.map((v) => v.size_label).filter(Boolean)));
+        const activeVariant = variants.find(
+          (v) =>
+            (!activeColor || (v.color_hex || '').toLowerCase() === activeColor.hex.toLowerCase()) &&
+            (!selectedSize || v.size_label === selectedSize)
+        );
+        const displayImg = activeColor?.imageUrl || selectedProduct.image_url;
+
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/55 flex items-center justify-center p-4"
+            onClick={() => setSelectedProduct(null)}
+          >
+            <div
+              className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-slate-100 relative min-h-[280px]">
+                <img
+                  src={displayImg}
+                  alt={selectedProduct.name}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSelectedProduct(null)}
+                  className="md:hidden absolute top-3 right-3 p-2 rounded-full bg-white/90 text-slate-800 shadow cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-6 flex flex-col justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        {shop.shop_name} • {selectedProduct.category}
+                      </span>
+                      <h3 className="text-lg font-black text-slate-950 mt-0.5">{selectedProduct.name}</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProduct(null)}
+                      className="hidden md:flex p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl font-black font-mono text-slate-950">
+                      {Number(selectedProduct.sale_price || selectedProduct.price).toLocaleString('vi-VN')} ₫
+                    </span>
+                    {selectedProduct.sale_price && (
+                      <span className="text-xs font-mono text-slate-400 line-through">
+                        {Number(selectedProduct.price).toLocaleString('vi-VN')} ₫
+                      </span>
+                    )}
+                    <span className="ml-auto inline-flex items-center gap-1 text-xs font-mono text-slate-600">
+                      <Star
+                        size={12}
+                        className={(selectedProduct.reviews_count || 0) > 0 ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}
+                      />
+                      {(selectedProduct.reviews_count || 0) > 0
+                        ? Number(selectedProduct.rating ?? 0).toFixed(1)
+                        : '0.0'}{' '}
+                      ({selectedProduct.reviews_count || 0})
+                    </span>
+                  </div>
+
+                  {uniqueColors.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                      <p className="text-xs font-bold text-slate-800">
+                        {locale === 'en' ? 'Color' : 'Màu sắc'}:{' '}
+                        <span className="font-semibold text-slate-600">{activeColor?.name}</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {uniqueColors.map((col, idx) => {
+                          const isSelected = activeColor?.hex.toLowerCase() === col.hex.toLowerCase();
+                          return (
+                            <button
+                              key={`${col.hex}-${idx}`}
+                              type="button"
+                              onClick={() => setSelectedColorHex(col.hex)}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold border cursor-pointer ${
+                                isSelected
+                                  ? 'bg-[#14171C] text-white border-[#14171C]'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:border-slate-900'
+                              }`}
+                            >
+                              <span
+                                className="w-3 h-3 rounded-full border border-slate-300"
+                                style={{ backgroundColor: col.hex }}
+                              />
+                              {col.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {uniqueSizes.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-800">Size</span>
+                        {activeVariant && (
+                          <span className="text-[11px] font-mono text-emerald-700 font-semibold">
+                            {locale === 'en' ? `In stock: ${activeVariant.stock}` : `Còn hàng: ${activeVariant.stock} chiếc`}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {uniqueSizes.map((sz) => (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => setSelectedSize(sz)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold border cursor-pointer ${
+                              selectedSize === sz
+                                ? 'bg-[#14171C] text-white border-[#14171C]'
+                                : 'bg-white text-slate-700 border-slate-300 hover:border-slate-900'
+                            }`}
+                          >
+                            {sz}
+                          </button>
+                        ))}
+                      </div>
+                      {activeVariant?.spec && (
+                        <div className="mt-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                          <p className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                            <Ruler size={11} />
+                            {locale === 'en'
+                              ? `Garment Specs — Size ${activeVariant.size_label}`
+                              : `Thông số kích cỡ Size ${activeVariant.size_label} của Shop`}
+                          </p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-mono text-slate-800">
+                            {Number(activeVariant.spec.chest_cm) > 0 && (
+                              <span>
+                                {locale === 'en' ? 'Chest' : 'Ngực'}: <b>{activeVariant.spec.chest_cm}cm</b>
+                              </span>
+                            )}
+                            {Number(activeVariant.spec.waist_cm) > 0 && (
+                              <span>
+                                {locale === 'en' ? 'Waist' : 'Eo'}: <b>{activeVariant.spec.waist_cm}cm</b>
+                              </span>
+                            )}
+                            {Number(activeVariant.spec.shoulder_cm) > 0 && (
+                              <span>
+                                {locale === 'en' ? 'Shoulder' : 'Vai'}: <b>{activeVariant.spec.shoulder_cm}cm</b>
+                              </span>
+                            )}
+                            {Number((activeVariant.spec as any).hip_cm) > 0 && (
+                              <span>
+                                {locale === 'en' ? 'Hip' : 'Hông'}: <b>{(activeVariant.spec as any).hip_cm}cm</b>
+                              </span>
+                            )}
+                            {Number(activeVariant.spec.length_cm) > 0 && (
+                              <span>
+                                {locale === 'en' ? 'Length' : 'Dài'}: <b>{activeVariant.spec.length_cm}cm</b>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedProduct.fabric_material && (
+                    <p className="text-xs text-slate-600">
+                      <b>{locale === 'en' ? 'Fabric' : 'Chất liệu'}:</b> {selectedProduct.fabric_material}
+                    </p>
+                  )}
+
+                  {selectedProduct.description && (
+                    <p className="text-xs text-slate-600 leading-relaxed pt-1 border-t border-slate-100">
+                      {selectedProduct.description}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 pt-3 border-t border-slate-100">
+                  {Boolean(
+                    (currentUser && shop.owner_id && currentUser.id === shop.owner_id) ||
+                      (currentStore &&
+                        (currentStore.id === shop.id ||
+                          currentStore.brand_name?.toLowerCase() === shop.shop_name?.toLowerCase()))
+                  ) ? (
+                    <>
+                      <Link
+                        to="/shop"
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#14171C] hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Pencil size={13} />
+                        {locale === 'en'
+                          ? 'Manage / Edit Product in Seller Center'
+                          : 'Quản Lý & Chỉnh Sửa tại Kênh Người Bán'}
+                      </Link>
+                      <p className="text-[10px] text-center text-slate-400">
+                        {locale === 'en'
+                          ? 'You are previewing your own shop storefront.'
+                          : 'Bạn đang xem trước gian hàng công khai của chính mình.'}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to={`/?product=${encodeURIComponent(selectedProduct.id)}`}
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#14171C] hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <ExternalLink size={13} />
+                        {locale === 'en'
+                          ? 'Match Size with 3D Profile & Order'
+                          : 'So Khớp Size Theo Số Đo 3D & Đặt Mua'}
+                      </Link>
+                      <p className="text-[10px] text-center text-slate-400">
+                        {locale === 'en'
+                          ? 'Compares these garment specs against your 3D body measurements on the marketplace.'
+                          : 'Đối chiếu trực tiếp thông số áo ở trên với hồ sơ 3D của bạn tại Sàn.'}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
