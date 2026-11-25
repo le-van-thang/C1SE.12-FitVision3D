@@ -206,7 +206,7 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
 export const ShopPortal: React.FC = () => {
-  const { currentUser, isAuthenticated, userRole, isAuthModalOpen, openSignIn, openOnboarding, signOut } = useAuth();
+  const { currentUser, isAuthenticated, userRole, authProvider, isAuthModalOpen, openSignIn, openOnboarding, signOut } = useAuth();
   const { locale, setLocale, t } = useI18n();
   const [activeTab, setActiveTab] = useState<ShopTab>('OVERVIEW');
   const [shop, setShop] = useState<DbShopProfile | null>(null);
@@ -249,9 +249,13 @@ export const ShopPortal: React.FC = () => {
   const [newFabric, setNewFabric] = useState('100% Cotton Cao Cấp');
   const [newStretch, setNewStretch] = useState('Co giãn nhẹ (2-3%)');
   const [newIsBespoke, setNewIsBespoke] = useState(false);
+  const [primaryProductImage, setPrimaryProductImage] = useState(DEFAULT_SAMPLE_IMG);
   const [colorVariants, setColorVariants] = useState<{ colorName: string; colorHex: string; imageUrl: string }[]>([
-    { colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: DEFAULT_SAMPLE_IMG },
+    { colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: '' },
   ]);
+  const [showCustomColorForm, setShowCustomColorForm] = useState(false);
+  const [customColorHex, setCustomColorHex] = useState('#1E3A8A');
+  const [customColorName, setCustomColorName] = useState('Xanh Navy');
   const [selectedSizes, setSelectedSizes] = useState<('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[]>(['S', 'M', 'L', 'XL']);
   const [sizeStockMap, setSizeStockMap] = useState<Record<string, number>>({
     XS: 10,
@@ -510,9 +514,51 @@ export const ShopPortal: React.FC = () => {
     });
   };
 
+  const handleToggleQuickColor = (preset: { name: string; hex: string }) => {
+    setColorVariants((prev) => {
+      const existsIdx = prev.findIndex(
+        (c) => c.colorHex.toLowerCase() === preset.hex.toLowerCase() || c.colorName.toLowerCase() === preset.name.toLowerCase()
+      );
+      if (existsIdx >= 0) {
+        if (prev.length === 1) return prev; // Keep at least 1 color
+        return prev.filter((_, i) => i !== existsIdx);
+      }
+      if (prev.length >= 6) {
+        showGlobalToast({
+          type: 'warning',
+          title: t('shopPortal.maxColorsToast'),
+          message: '',
+        });
+        return prev;
+      }
+      return [...prev, { colorName: preset.name, colorHex: preset.hex, imageUrl: '' }];
+    });
+  };
+
+  const handlePrimaryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showGlobalToast({ type: 'error', title: 'Invalid image', message: 'JPG / PNG / WebP only.' });
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      showGlobalToast({ type: 'warning', title: 'Max 2MB', message: 'Image must be <= 2MB.' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setPrimaryProductImage(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const handleSuggestDescription = async () => {
     setIsGeneratingDesc(true);
-    const primaryImg = colorVariants[0]?.imageUrl || DEFAULT_SAMPLE_IMG;
+    const primaryImg = primaryProductImage || colorVariants[0]?.imageUrl || DEFAULT_SAMPLE_IMG;
     const tone = await analyzeImageVisualTone(primaryImg);
 
     const res = await commerceApi.suggestShopProductDescription({
@@ -668,10 +714,11 @@ export const ShopPortal: React.FC = () => {
       return;
     }
 
+    const resolvedPrimaryImg = primaryProductImage.trim() || DEFAULT_SAMPLE_IMG;
     const cleanColors = colorVariants.map((c) => ({
       colorName: c.colorName.trim() || detectNearestColorName(c.colorHex),
       colorHex: c.colorHex,
-      imageUrl: c.imageUrl.trim() || DEFAULT_SAMPLE_IMG,
+      imageUrl: c.imageUrl.trim() || resolvedPrimaryImg,
     }));
 
     setIsCreating(true);
@@ -684,7 +731,7 @@ export const ShopPortal: React.FC = () => {
       isBespoke: newIsBespoke || newCategory === 'tailored',
       fabricMaterial: newFabric.trim() || 'Cotton Cao Cấp',
       stretchType: newStretch,
-      imageUrl: cleanColors[0].imageUrl,
+      imageUrl: resolvedPrimaryImg,
       videoUrl: newVideoUrl.trim() || undefined,
       description:
         newDescription.trim() ||
@@ -707,7 +754,8 @@ export const ShopPortal: React.FC = () => {
       setNewVideoUrl('');
       setNewVideoFileName('');
       setNewIsBespoke(false);
-      setColorVariants([{ colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: DEFAULT_SAMPLE_IMG }]);
+      setPrimaryProductImage(DEFAULT_SAMPLE_IMG);
+      setColorVariants([{ colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: '' }]);
       setSelectedSizes(['S', 'M', 'L', 'XL']);
       showGlobalToast({
         type: 'success',
@@ -1587,7 +1635,9 @@ export const ShopPortal: React.FC = () => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Chất Liệu Vải</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">
+                            {t('shopPortal.fabricLabel')}
+                          </label>
                           <input
                             value={newFabric}
                             onChange={(e) => setNewFabric(e.target.value)}
@@ -1599,7 +1649,7 @@ export const ShopPortal: React.FC = () => {
                         {/* All Garment Sizes Selection (XS -> XXL) */}
                         <div>
                           <label className="text-[11px] font-bold text-slate-800 block mb-1">
-                            Kích Cỡ Mở Bán (Chọn nhiều size) *
+                            {t('shopPortal.sizesLabel')}
                           </label>
                           <div className="flex flex-wrap gap-1.5">
                             {ALL_GARMENT_SIZES.map((sz) => {
@@ -1643,146 +1693,199 @@ export const ShopPortal: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Multi-Color Variants + Per-Color Image Upload & Instant Clickable Thumbnail Preview */}
-                      <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-300 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <label className="text-[11px] font-bold text-slate-950 flex items-center gap-1.5">
-                              <Palette size={14} className="text-blue-600" />
-                              Màu Sắc &amp; Ảnh Theo Từng Màu ({colorVariants.length}/6 màu)
-                            </label>
-                            <p className="text-[10px] text-slate-600 mt-0.5">
-                              Chọn màu từ bảng màu sẽ tự đồng bộ tên màu. Bấm trực tiếp vào <b>ảnh mẫu</b> hoặc nút <b>Ảnh</b> để tải ảnh cho từng màu.
-                            </p>
-                          </div>
-                          {colorVariants.length < 6 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setColorVariants((prev) => [
-                                  ...prev,
-                                  {
-                                    colorName: FASHION_COLOR_PALETTE[(prev.length * 3) % FASHION_COLOR_PALETTE.length].name,
-                                    colorHex: FASHION_COLOR_PALETTE[(prev.length * 3) % FASHION_COLOR_PALETTE.length].hex,
-                                    imageUrl: prev[0]?.imageUrl || DEFAULT_SAMPLE_IMG,
-                                  },
-                                ])
-                              }
-                              className="px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
-                            >
-                              <Plus size={12} /> Thêm màu khác
-                            </button>
-                          )}
+                      {/* 2-Layer Multi-Select Colors + Main Image + Optional Per-Color Thumbnails */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                        <div>
+                          <label className="text-xs font-black text-slate-950 flex items-center gap-1.5">
+                            <Palette size={14} className="text-blue-600" />
+                            {t('shopPortal.colorsSectionTitle')} ({colorVariants.length}/6)
+                          </label>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            {t('shopPortal.colorsQuickHint')}
+                          </p>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                          {colorVariants.map((cv, idx) => (
-                            <div
-                              key={idx}
-                              className="bg-white rounded-2xl border border-slate-300 p-3 flex gap-3 items-start shadow-xs"
-                            >
-                              {/* Clickable Instant Thumbnail Preview */}
-                              <label
-                                className="relative flex-shrink-0 cursor-pointer group"
-                                title="Bấm vào ảnh này để chọn ảnh sản phẩm từ máy"
-                              >
-                                <img
-                                  src={cv.imageUrl || DEFAULT_SAMPLE_IMG}
-                                  alt={cv.colorName}
-                                  className="w-20 h-24 rounded-xl object-cover border-2 border-slate-300 group-hover:border-blue-600 bg-slate-100 transition-colors"
-                                />
-                                <span className="absolute inset-x-1 bottom-1 py-0.5 rounded-md bg-black/70 text-white text-[9px] font-bold text-center opacity-85 group-hover:opacity-100 transition-opacity">
-                                  Đổi ảnh
-                                </span>
-                                {idx === 0 && (
-                                  <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded bg-[#14171C] text-white text-[9px] font-bold shadow-xs">
-                                    Ảnh chính
-                                  </span>
-                                )}
+                        {/* Main Product Image (Required Cover — auto-inherited by colors without custom photo) */}
+                        <div className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3.5">
+                          <label className="relative flex-shrink-0 cursor-pointer group self-start">
+                            <img
+                              src={primaryProductImage || DEFAULT_SAMPLE_IMG}
+                              alt="Main product"
+                              className="w-20 h-24 rounded-xl object-cover border border-slate-300 group-hover:border-slate-950 bg-slate-100 transition-colors"
+                            />
+                            <span className="absolute inset-x-1 bottom-1 py-0.5 rounded bg-black/75 text-white text-[9px] font-bold text-center">
+                              {t('shopPortal.changeImageBtn')}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePrimaryImageUpload}
+                              className="hidden"
+                            />
+                          </label>
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <p className="text-xs font-bold text-slate-900">{t('shopPortal.mainImageLabel')}</p>
+                            <p className="text-[11px] text-slate-500">{t('shopPortal.mainImageHint')}</p>
+                            <div className="flex gap-2 pt-0.5">
+                              <input
+                                value={primaryProductImage.startsWith('data:image') ? '' : primaryProductImage}
+                                onChange={(e) => setPrimaryProductImage(e.target.value)}
+                                placeholder={
+                                  primaryProductImage.startsWith('data:image')
+                                    ? '✓ Local photo selected'
+                                    : t('shopPortal.pasteImageUrl')
+                                }
+                                className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-[11px] text-slate-900 outline-none focus:border-slate-950"
+                              />
+                              <label className="px-3 py-1.5 rounded-lg bg-[#14171C] hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0">
+                                <Upload size={12} /> {t('shopPortal.changeImageBtn')}
                                 <input
                                   type="file"
                                   accept="image/*"
-                                  onChange={(e) => handleVariantImageUpload(idx, e)}
+                                  onChange={handlePrimaryImageUpload}
                                   className="hidden"
                                 />
                               </label>
+                            </div>
+                          </div>
+                        </div>
 
-                              <div className="flex-1 min-w-0 space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="color"
-                                    value={cv.colorHex}
-                                    onChange={(e) => {
-                                      const nextHex = e.target.value;
-                                      const autoName = detectNearestColorName(nextHex);
-                                      setColorVariants((prev) =>
-                                        prev.map((item, i) =>
-                                          i === idx ? { ...item, colorHex: nextHex, colorName: autoName } : item
-                                        )
-                                      );
-                                    }}
-                                    className="w-8 h-8 rounded-lg border border-slate-400 cursor-pointer flex-shrink-0"
-                                    title="Bấm để chọn màu — Tự nhận diện tên màu"
+                        {/* Layer 1: 1-Click Multi-Select Color Chips (just like Size pills) */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-[11px] font-bold text-slate-800">
+                              {t('shopPortal.quickColorsLabel')}
+                            </span>
+                            {colorVariants.length < 6 && (
+                              <button
+                                type="button"
+                                onClick={() => setShowCustomColorForm((v) => !v)}
+                                className="text-[11px] font-bold text-blue-700 hover:underline cursor-pointer"
+                              >
+                                {t('shopPortal.customColorBtn')}
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              FASHION_COLOR_PALETTE[0],  // Đen Tuyền
+                              FASHION_COLOR_PALETTE[1],  // Trắng Tinh
+                              FASHION_COLOR_PALETTE[2],  // Trắng Kem
+                              FASHION_COLOR_PALETTE[3],  // Be Sữa
+                              FASHION_COLOR_PALETTE[19], // Xám Nhạt
+                              FASHION_COLOR_PALETTE[20], // Xám Khói
+                              FASHION_COLOR_PALETTE[13], // Xanh Navy
+                              FASHION_COLOR_PALETTE[15], // Xanh Da Trời
+                              FASHION_COLOR_PALETTE[18], // Xanh Rêu
+                              FASHION_COLOR_PALETTE[21], // Nâu Bò
+                              FASHION_COLOR_PALETTE[8],  // Đỏ Đô
+                              FASHION_COLOR_PALETTE[9],  // Hồng Phấn
+                            ].map((preset) => {
+                              const active = colorVariants.some(
+                                (c) =>
+                                  c.colorHex.toLowerCase() === preset.hex.toLowerCase() ||
+                                  c.colorName.toLowerCase() === preset.name.toLowerCase()
+                              );
+                              return (
+                                <button
+                                  key={preset.hex}
+                                  type="button"
+                                  onClick={() => handleToggleQuickColor(preset)}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                                    active
+                                      ? 'bg-[#14171C] text-white border-[#14171C] shadow-2xs'
+                                      : 'bg-white text-slate-700 border-slate-300 hover:border-slate-900'
+                                  }`}
+                                >
+                                  <span
+                                    className="w-3 h-3 rounded-full border border-slate-300 shrink-0"
+                                    style={{ backgroundColor: preset.hex }}
                                   />
-                                  <input
-                                    value={cv.colorName}
-                                    onChange={(e) => {
-                                      const nextName = e.target.value;
-                                      setColorVariants((prev) =>
-                                        prev.map((item, i) => (i === idx ? { ...item, colorName: nextName } : item))
-                                      );
-                                    }}
-                                    placeholder="Tên màu (VD: Xanh Navy)"
-                                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-400 bg-white text-xs font-bold text-slate-950 outline-none focus:border-slate-950"
-                                  />
+                                  <span>{preset.name}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Optional Custom Color Picker */}
+                          {showCustomColorForm && colorVariants.length < 6 && (
+                            <div className="p-2.5 rounded-xl bg-white border border-slate-300 flex flex-wrap items-center gap-2">
+                              <input
+                                type="color"
+                                value={customColorHex}
+                                onChange={(e) => {
+                                  const hx = e.target.value;
+                                  setCustomColorHex(hx);
+                                  setCustomColorName(detectNearestColorName(hx));
+                                }}
+                                className="w-8 h-8 rounded-lg border border-slate-300 cursor-pointer shrink-0"
+                              />
+                              <input
+                                value={customColorName}
+                                onChange={(e) => setCustomColorName(e.target.value)}
+                                placeholder={t('shopPortal.customColorNamePlaceholder')}
+                                className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs outline-none focus:border-slate-950"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const cleanName = customColorName.trim() || detectNearestColorName(customColorHex);
+                                  handleToggleQuickColor({ name: cleanName, hex: customColorHex });
+                                  setShowCustomColorForm(false);
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-[#14171C] text-white text-xs font-bold cursor-pointer"
+                              >
+                                {t('shopPortal.addCustomColorBtn')}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Layer 2: Compact Optional Per-Color Thumbnail Strip */}
+                        <div className="space-y-2 pt-2 border-t border-slate-200">
+                          <span className="text-[11px] font-bold text-slate-700 block">
+                            {t('shopPortal.perColorImagesLabel')}
+                          </span>
+                          <div className="flex flex-wrap gap-2.5">
+                            {colorVariants.map((cv, idx) => {
+                              const hasCustomImg = Boolean(cv.imageUrl && cv.imageUrl.trim());
+                              const displayImg = hasCustomImg ? cv.imageUrl : primaryProductImage || DEFAULT_SAMPLE_IMG;
+                              return (
+                                <div
+                                  key={`${cv.colorHex}-${idx}`}
+                                  className="w-24 bg-white rounded-xl border border-slate-200 p-2 flex flex-col items-center gap-1.5 relative"
+                                >
                                   {colorVariants.length > 1 && (
                                     <button
                                       type="button"
                                       onClick={() =>
                                         setColorVariants((prev) => prev.filter((_, i) => i !== idx))
                                       }
-                                      className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer"
-                                      title="Xóa màu này"
+                                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-slate-300 text-slate-500 hover:text-rose-600 hover:border-rose-300 flex items-center justify-center cursor-pointer shadow-2xs"
+                                      title={t('shopPortal.productDelete')}
                                     >
-                                      <Trash2 size={13} />
+                                      <X size={11} />
                                     </button>
                                   )}
-                                </div>
 
-                                {/* Quick color swatches */}
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  {FASHION_COLOR_PALETTE.slice(0, 7).map((preset) => (
-                                    <button
-                                      key={preset.hex}
-                                      type="button"
-                                      onClick={() =>
-                                        setColorVariants((prev) =>
-                                          prev.map((item, i) =>
-                                            i === idx ? { ...item, colorHex: preset.hex, colorName: preset.name } : item
-                                          )
-                                        )
-                                      }
-                                      className="w-4 h-4 rounded-full border border-slate-400 cursor-pointer hover:scale-110 transition-transform"
-                                      style={{ backgroundColor: preset.hex }}
-                                      title={preset.name}
+                                  <label className="relative w-16 h-20 rounded-lg overflow-hidden border border-slate-200 cursor-pointer group">
+                                    <img
+                                      src={displayImg}
+                                      alt={cv.colorName}
+                                      className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                                     />
-                                  ))}
-                                </div>
-
-                                <div className="flex gap-1.5">
-                                  <input
-                                    value={cv.imageUrl.startsWith('data:image') ? '✓ Đã chọn ảnh từ máy (bấm ảnh trái để đổi)' : cv.imageUrl}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setColorVariants((prev) =>
-                                        prev.map((item, i) => (i === idx ? { ...item, imageUrl: val } : item))
-                                      );
-                                    }}
-                                    placeholder="Dán link ảnh URL..."
-                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-slate-400 bg-white text-[11px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-950"
-                                  />
-                                  <label className="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-900 border border-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer flex-shrink-0">
-                                    <Upload size={12} /> Ảnh
+                                    <span
+                                      className={`absolute inset-x-0.5 bottom-0.5 py-0.5 rounded text-[8px] font-bold text-center ${
+                                        hasCustomImg
+                                          ? 'bg-emerald-600/90 text-white'
+                                          : 'bg-black/65 text-white'
+                                      }`}
+                                    >
+                                      {hasCustomImg
+                                        ? t('shopPortal.customImageBadge')
+                                        : t('shopPortal.sharedImageBadge')}
+                                    </span>
                                     <input
                                       type="file"
                                       accept="image/*"
@@ -1790,10 +1893,34 @@ export const ShopPortal: React.FC = () => {
                                       className="hidden"
                                     />
                                   </label>
+
+                                  <div className="flex items-center gap-1 w-full justify-center">
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0"
+                                      style={{ backgroundColor: cv.colorHex }}
+                                    />
+                                    <span className="text-[10px] font-bold text-slate-800 truncate" title={cv.colorName}>
+                                      {cv.colorName}
+                                    </span>
+                                  </div>
+
+                                  {hasCustomImg && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setColorVariants((prev) =>
+                                          prev.map((item, i) => (i === idx ? { ...item, imageUrl: '' } : item))
+                                        )
+                                      }
+                                      className="text-[9px] font-semibold text-slate-400 hover:text-slate-700 cursor-pointer"
+                                    >
+                                      {t('shopPortal.resetToMainImage')}
+                                    </button>
+                                  )}
                                 </div>
-                              </div>
-                            </div>
-                          ))}
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
@@ -2327,6 +2454,7 @@ export const ShopPortal: React.FC = () => {
                   bankAccount={bankAccount}
                   reputation={reputation}
                   userEmail={currentUser?.email}
+                  authProvider={authProvider}
                   onShopUpdated={(updated) => setShop(updated)}
                   onBankUpdated={(updated) => setBankAccount(updated)}
                   onReloadDashboard={loadShopData}

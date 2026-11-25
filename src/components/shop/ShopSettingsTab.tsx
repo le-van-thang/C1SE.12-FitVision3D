@@ -49,6 +49,7 @@ interface ShopSettingsTabProps {
   bankAccount: DbShopBankAccount | null;
   reputation: ShopReputationSummary | null;
   userEmail?: string;
+  authProvider?: 'google' | 'password';
   onShopUpdated: (updated: DbShopProfile) => void;
   onBankUpdated: (updated: DbShopBankAccount) => void;
   onReloadDashboard: () => Promise<void> | void;
@@ -114,6 +115,7 @@ export const ShopSettingsTab: React.FC<ShopSettingsTabProps> = ({
   bankAccount,
   reputation,
   userEmail,
+  authProvider = 'password',
   onShopUpdated,
   onBankUpdated,
   onReloadDashboard,
@@ -121,6 +123,7 @@ export const ShopSettingsTab: React.FC<ShopSettingsTabProps> = ({
 }) => {
   const { t, locale } = useI18n();
   const isEn = locale === 'en';
+  const isGoogleAccount = authProvider === 'google';
   const [section, setSection] = useState<SettingsSection>('profile');
 
   const [shopName, setShopName] = useState(shop.shop_name || '');
@@ -1065,7 +1068,13 @@ export const ShopSettingsTab: React.FC<ShopSettingsTabProps> = ({
           {section === 'security' && (
             <div className="space-y-5">
               <form
-                onSubmit={handleChangePassword}
+                onSubmit={(e) => {
+                  if (isGoogleAccount) {
+                    e.preventDefault();
+                    return;
+                  }
+                  void handleChangePassword(e);
+                }}
                 className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5"
               >
                 <div className="border-b border-slate-100 pb-3.5">
@@ -1075,18 +1084,31 @@ export const ShopSettingsTab: React.FC<ShopSettingsTabProps> = ({
                   <p className="text-xs text-slate-500 mt-0.5">{t('shopSettings.sec5PassDesc')}</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {isGoogleAccount && (
+                  <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200 flex items-start gap-2.5 text-xs text-blue-950">
+                    <ShieldCheck size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed font-medium">{t('shopSettings.googlePassDisabledNotice')}</p>
+                  </div>
+                )}
+
+                <div
+                  className={`grid grid-cols-1 md:grid-cols-3 gap-4 transition-opacity ${
+                    isGoogleAccount ? 'opacity-45 pointer-events-none select-none' : ''
+                  }`}
+                >
                   <div>
                     <label className="text-xs font-bold text-slate-800 block mb-1.5">
                       {t('shopSettings.curPassLabel')}
                     </label>
                     <input
+                      required={!isGoogleAccount}
+                      disabled={isGoogleAccount}
                       type="password"
                       autoComplete="current-password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder={t('shopSettings.curPassPlaceholder')}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-950 outline-none focus:border-slate-950"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white disabled:bg-slate-100 text-xs text-slate-950 outline-none focus:border-slate-950"
                     />
                   </div>
                   <div>
@@ -1094,13 +1116,14 @@ export const ShopSettingsTab: React.FC<ShopSettingsTabProps> = ({
                       {t('shopSettings.newPassLabel')}
                     </label>
                     <input
-                      required
+                      required={!isGoogleAccount}
+                      disabled={isGoogleAccount}
                       type="password"
                       autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder={t('shopSettings.newPassPlaceholder')}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-950 outline-none focus:border-slate-950"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white disabled:bg-slate-100 text-xs text-slate-950 outline-none focus:border-slate-950"
                     />
                   </div>
                   <div>
@@ -1108,22 +1131,27 @@ export const ShopSettingsTab: React.FC<ShopSettingsTabProps> = ({
                       {t('shopSettings.confirmPassLabel')}
                     </label>
                     <input
-                      required
+                      required={!isGoogleAccount}
+                      disabled={isGoogleAccount}
                       type="password"
                       autoComplete="new-password"
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
                       placeholder={t('shopSettings.confirmPassPlaceholder')}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-950 outline-none focus:border-slate-950"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white disabled:bg-slate-100 text-xs text-slate-950 outline-none focus:border-slate-950"
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2 border-t border-slate-100">
+                <div
+                  className={`flex justify-end pt-2 border-t border-slate-100 ${
+                    isGoogleAccount ? 'opacity-45 pointer-events-none select-none' : ''
+                  }`}
+                >
                   <button
                     type="submit"
-                    disabled={isChangingPassword}
-                    className="px-5 py-2.5 rounded-xl bg-[#14171C] hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                    disabled={isChangingPassword || isGoogleAccount}
+                    className="px-5 py-2.5 rounded-xl bg-[#14171C] hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed transition-colors"
                   >
                     <Lock size={14} /> {isChangingPassword ? t('shopSettings.updatingPassBtn') : t('shopSettings.updatePassBtn')}
                   </button>
