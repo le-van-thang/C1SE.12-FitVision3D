@@ -32,7 +32,9 @@ interface CheckoutModalProps {
   items: CartItem[];
   onClearCart: () => void;
   userBody?: UserBodyProfile;
+  hasBodyProfile?: boolean;
   onOpenMyOrders?: () => void;
+  onBackToCart?: () => void;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -41,7 +43,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   items,
   onClearCart,
   userBody,
+  hasBodyProfile = false,
   onOpenMyOrders,
+  onBackToCart,
 }) => {
   const { currentUser, isAuthenticated, getUserProfileDetails, openSignIn } = useAuth();
   const { createOrder, markPaymentCompleted } = useOrders();
@@ -59,6 +63,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [address, setAddress] = useState(savedDetails?.address || '');
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr_sepay');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [qrImgFailed, setQrImgFailed] = useState(false);
 
   // Coupon code
   const [couponCode, setCouponCode] = useState('');
@@ -69,6 +76,51 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Copy states
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [hasConfirmedTransfer, setHasConfirmedTransfer] = useState(false);
+
+  // Sync recipient PII strictly per signed-in user & clear stale voucher/discount when opening or closing
+  useEffect(() => {
+    if (isOpen) {
+      const details = getUserProfileDetails(currentUser?.id);
+      setFullName(currentUser?.full_name || '');
+      setPhone(details?.phone || '');
+      setCity(details?.city || '');
+      setAddress(details?.address || '');
+      setNote('');
+      setFormError(null);
+      setCouponCode('');
+      setAppliedDiscount(0);
+      setCouponError(null);
+      setCouponSuccess(null);
+      setStep('checkout');
+      setCreatedOrder(null);
+      setHasConfirmedTransfer(false);
+      setIsSubmitting(false);
+      setQrImgFailed(false);
+    } else {
+      setCouponCode('');
+      setAppliedDiscount(0);
+      setCouponError(null);
+      setCouponSuccess(null);
+      setFormError(null);
+      setStep('checkout');
+      setCreatedOrder(null);
+      setHasConfirmedTransfer(false);
+      setIsSubmitting(false);
+      setQrImgFailed(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, currentUser?.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
 
   // Real-time SePay Webhook polling when awaiting VietQR payment
   useEffect(() => {
@@ -166,14 +218,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleSubmitOrder = (e: React.FormEvent) => {
+  const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setFormError(null);
+
     if (!isAuthenticated || !currentUser?.id) {
       openSignIn();
       return;
     }
+    if (items.length === 0) {
+      setFormError(
+        locale === 'en'
+          ? 'No products selected for checkout.'
+          : 'Không có sản phẩm nào được chọn để thanh toán.'
+      );
+      return;
+    }
     if (!fullName.trim() || !phone.trim() || !address.trim() || !city.trim()) {
-      alert('Vui lòng điền đầy đủ họ tên, số điện thoại và địa chỉ nhận hàng!');
+      setFormError(
+        locale === 'en'
+          ? 'Please enter full recipient name, phone number, city, and delivery address.'
+          : 'Vui lòng điền đầy đủ họ tên, số điện thoại, tỉnh/thành phố và địa chỉ nhận hàng.'
+      );
       return;
     }
 
@@ -201,7 +268,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         source: 'scan',
         captured_at: fullScan.updatedAt,
       };
-    } else if (userBody && userBody.height_cm > 0 && userBody.chest_cm > 0) {
+    } else if (hasBodyProfile && userBody && userBody.height_cm > 0 && userBody.chest_cm > 0) {
       const hM = userBody.height_cm / 100;
       measurementSnapshot = {
         stature_cm: userBody.height_cm,
@@ -219,7 +286,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       };
     }
 
-    const order = createOrder({
+    setIsSubmitting(true);
+    const result = await createOrder({
       customer_id: currentUser.id,
       customer_name: fullName.trim(),
       recipient: {
@@ -237,12 +305,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       payment_method: paymentMethod,
       store_name: items[0]?.product.brand_name || 'FitVision Atelier',
       has_bespoke_items: hasBespoke,
-      measurement_snapshot: hasBespoke || measurementSnapshot ? measurementSnapshot : null,
+      measurement_snapshot: measurementSnapshot,
     });
+    setIsSubmitting(false);
 
-    setCreatedOrder(order);
-    onClearCart();
-    setStep('success');
+    if (result.success && result.order) {
+      setCreatedOrder(result.order);
+      onClearCart();
+      setStep('success');
+    } else {
+      setFormError(
+        result.error ||
+          (locale === 'en'
+            ? 'Could not place order. Please review stock availability and try again.'
+            : 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại tồn kho hoặc kết nối.')
+      );
+    }
   };
 
   const handleConfirmTransfer = () => {
@@ -256,6 +334,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setStep('checkout');
     setCreatedOrder(null);
     setHasConfirmedTransfer(false);
+    setCouponCode('');
+    setAppliedDiscount(0);
+    setCouponError(null);
+    setCouponSuccess(null);
+    setFormError(null);
     onClose();
   };
 
@@ -600,27 +683,43 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               </div>
 
+              {formError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700 text-left">
+                  {formError}
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={handleCloseAll}
+                  onClick={() => {
+                    handleCloseAll();
+                    if (onBackToCart) onBackToCart();
+                  }}
                   className="flex-1 py-3 px-4 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-black text-xs transition-colors cursor-pointer"
                 >
                   {t('ecommerce.checkout.backToCart', 'Quay Lại Giỏ Hàng')}
                 </button>
                 <button
                   type="submit"
-                  className="flex-2 py-3 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
+                  disabled={isSubmitting || items.length === 0}
+                  className="flex-2 py-3 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
                 >
-                  <span>{t('ecommerce.checkout.confirmOrder', 'Xác Nhận Đặt Hàng Ngay')}</span>
+                  <span>
+                    {isSubmitting
+                      ? locale === 'en'
+                        ? 'Processing Order...'
+                        : 'Đang Tạo Đơn Hàng...'
+                      : t('ecommerce.checkout.confirmOrder', 'Xác Nhận Đặt Hàng Ngay')}
+                  </span>
                   <ArrowRight size={16} />
                 </button>
               </div>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium">
                 <ShieldCheck size={13} className="text-emerald-600" />
-                <span>{t('ecommerce.checkout.guarantee', 'Bảo chứng độ vừa vặn AI 100% · Đổi trả miễn phí trong 7 ngày')}</span>
+                <span>{t('ecommerce.checkout.guarantee', 'Bảo chứng độ vừa vặn AI 100% · Đổi trả miễn phí trong 14 ngày')}</span>
               </div>
             </form>
           )}
@@ -712,15 +811,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                     {/* QR Code */}
                     <div className="bg-white p-3 rounded-2xl border-2 border-blue-200 text-center shadow-xs flex flex-col items-center">
-                      <img
-                        src={`https://img.vietqr.io/image/MB-33822222622222-compact2.png?amount=${createdOrder.total_amount}&addInfo=${encodeURIComponent(bankAccount.transferContent)}&accountName=LE%20VAN%20THANG`}
-                        alt={t('ecommerce.checkout.vietqrScanTitle', 'Mã QR Chuyển Khoản Ngân Hàng VietQR')}
-                        className="w-48 h-48 object-contain rounded-xl border border-slate-100"
-                        onError={(e) => {
-                          // Fallback if image fails to load
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
+                      {qrImgFailed ? (
+                        <div className="w-48 h-48 rounded-xl border border-amber-200 bg-amber-50 flex flex-col items-center justify-center p-3 text-center gap-1.5">
+                          <QrCode size={28} className="text-amber-600" />
+                          <span className="text-[11px] font-bold text-amber-900">
+                            {locale === 'en' ? 'Could not load VietQR image' : 'Không tải được ảnh VietQR'}
+                          </span>
+                          <span className="text-[10px] text-amber-700">
+                            {locale === 'en'
+                              ? 'Please copy the account number & transfer memo on the right.'
+                              : 'Vui lòng sao chép STK & nội dung chuyển khoản bên cạnh.'}
+                          </span>
+                        </div>
+                      ) : (
+                        <img
+                          src={`https://img.vietqr.io/image/MB-${encodeURIComponent(bankAccount.accountNumber)}-compact2.png?amount=${createdOrder.total_amount}&addInfo=${encodeURIComponent(bankAccount.transferContent)}&accountName=${encodeURIComponent(bankAccount.accountHolder)}`}
+                          alt={t('ecommerce.checkout.vietqrScanTitle', 'Mã QR Chuyển Khoản Ngân Hàng VietQR')}
+                          className="w-48 h-48 object-contain rounded-xl border border-slate-100"
+                          onError={() => setQrImgFailed(true)}
+                        />
+                      )}
                       <span className="text-[10px] text-slate-500 font-mono mt-2 block">
                         {t('ecommerce.checkout.vietqrScanInstruction', 'Quét bằng app ngân hàng bất kỳ (Vietcombank, MB, Techcombank...)')}
                       </span>

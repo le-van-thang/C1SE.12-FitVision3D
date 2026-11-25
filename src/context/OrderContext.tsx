@@ -6,7 +6,7 @@ import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
 interface OrderContextType {
   orders: Order[];
-  createOrder: (input: CreateOrderInput) => Order;
+  createOrder: (input: CreateOrderInput) => Promise<{ success: boolean; order?: Order; error?: string }>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   cancelOrder: (orderId: string) => void;
   markPaymentCompleted: (orderId: string) => void;
@@ -63,7 +63,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [orders, isAuthenticated, currentUser?.id]);
 
   const createOrder = useCallback(
-    (input: CreateOrderInput): Order => {
+    async (input: CreateOrderInput): Promise<{ success: boolean; order?: Order; error?: string }> => {
       const randomNum = Math.floor(10000 + Math.random() * 90000);
       const orderId = `FV3D-${randomNum}`;
       const hasBespoke =
@@ -89,51 +89,73 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         estimated_delivery: new Date(Date.now() + 4 * 24 * 3600 * 1000).toLocaleDateString('vi-VN'),
       };
 
-      setOrders((prev) => [newOrder, ...prev]);
+      const res = await commerceApi.createOrder(newOrder);
+      if (res.success && res.data) {
+        const persisted = res.data;
+        setOrders((prev) => [persisted, ...prev]);
+        showGlobalToast({
+          type: 'success',
+          title: `Đặt đơn hàng ${persisted.id} thành công!`,
+          message: `Tổng thanh toán ${persisted.total_amount.toLocaleString('vi-VN')}₫.`,
+        });
+        window.dispatchEvent(new Event('fv3d-membership-updated'));
+        return { success: true, order: persisted };
+      }
 
-      commerceApi.createOrder(newOrder).then((res) => {
-        if (res.success && res.data) {
-          setOrders((prev) => prev.map((o) => (o.id === orderId ? res.data! : o)));
-          showGlobalToast({
-            type: 'success',
-            title: `Đặt đơn hàng ${orderId} thành công!`,
-            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫.`,
-          });
-          window.dispatchEvent(new Event('fv3d-membership-updated'));
-        } else if (res.error && res.error.code !== 'NETWORK_ERROR') {
-          setOrders((prev) => prev.filter((o) => o.id !== orderId));
-          showGlobalToast({
-            type: 'error',
-            title: 'Không thể tạo đơn hàng',
-            message: res.error.message || 'Vui lòng kiểm tra lại tồn kho sản phẩm.',
-          });
-        } else {
-          showGlobalToast({
-            type: 'success',
-            title: `Đặt đơn hàng ${orderId} thành công!`,
-            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫.`,
-          });
-        }
+      const errorMsg =
+        res.error?.code === 'NETWORK_ERROR'
+          ? 'Không thể kết nối máy chủ đặt hàng. Giỏ hàng của bạn vẫn được giữ nguyên, vui lòng thử lại.'
+          : res.error?.message || 'Vui lòng kiểm tra lại tồn kho sản phẩm.';
+      showGlobalToast({
+        type: 'error',
+        title: 'Không thể tạo đơn hàng',
+        message: errorMsg,
       });
-      return newOrder;
+      return { success: false, error: errorMsg };
     },
     [currentUser?.id]
   );
 
   const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
+    let prevStatus: OrderStatus | undefined;
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      prev.map((o) => {
+        if (o.id === orderId) {
+          prevStatus = o.status;
+          return { ...o, status };
+        }
+        return o;
+      })
     );
     commerceApi.updateOrderStatus(orderId, status).then((res) => {
       if (res.success) {
         window.dispatchEvent(new Event('fv3d-membership-updated'));
+      } else {
+        if (prevStatus) {
+          const rollbackStatus = prevStatus;
+          setOrders((prev) =>
+            prev.map((o) => (o.id === orderId ? { ...o, status: rollbackStatus } : o))
+          );
+        }
+        showGlobalToast({
+          type: 'error',
+          title: 'Không thể cập nhật trạng thái đơn',
+          message: res.error?.message || 'Vui lòng thử lại sau.',
+        });
       }
     });
   }, []);
 
   const cancelOrder = useCallback((orderId: string) => {
+    let prevStatus: OrderStatus | undefined;
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: 'cancelled' } : o))
+      prev.map((o) => {
+        if (o.id === orderId) {
+          prevStatus = o.status;
+          return { ...o, status: 'cancelled' };
+        }
+        return o;
+      })
     );
     commerceApi.updateOrderStatus(orderId, 'cancelled').then((res) => {
       if (res.success) {
@@ -143,11 +165,17 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           message: 'Đã hoàn trả số lượng tồn kho và cập nhật trạng thái đơn.',
         });
         window.dispatchEvent(new Event('fv3d-membership-updated'));
-      } else if (res.error && res.error.code !== 'NETWORK_ERROR') {
+      } else {
+        if (prevStatus) {
+          const rollbackStatus = prevStatus;
+          setOrders((prev) =>
+            prev.map((o) => (o.id === orderId ? { ...o, status: rollbackStatus } : o))
+          );
+        }
         showGlobalToast({
           type: 'error',
           title: 'Không thể hủy đơn hàng',
-          message: res.error.message || 'Đơn hàng đã chuyển sang trạng thái không thể hủy.',
+          message: res.error?.message || 'Đơn hàng đã chuyển sang trạng thái không thể hủy.',
         });
       }
     });
