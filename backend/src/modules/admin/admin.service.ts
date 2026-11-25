@@ -84,21 +84,51 @@ export const adminService = {
   },
 
   async updateUserStatus(userId: string, status: string, adminUserId?: string) {
-    // Bảo vệ Super Admin không bị khóa
-    const all = await adminRepository.getAllUsers();
-    const target = all.find((u) => u.id === userId);
-    if (target?.email === 'levanthang0166@gmail.com' && (status === 'LOCKED' || status === 'BANNED')) {
-      throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Không thể khóa tài khoản Super Administrator.');
+    const normalizedStatus = String(status || '').trim().toUpperCase();
+    const allowedStatuses = new Set(['ACTIVE', 'LOCKED', 'BANNED', 'PENDING_APPROVAL']);
+    if (!allowedStatuses.has(normalizedStatus)) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Trạng thái người dùng không hợp lệ.');
     }
 
-    const updated = await adminRepository.updateUserStatus(userId, status);
+    const all = await adminRepository.getAllUsers();
+    const target = all.find((u) => u.id === userId);
+    if (!target) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy người dùng.');
+    }
+
+    const isRestrictedStatus = normalizedStatus === 'LOCKED' || normalizedStatus === 'BANNED';
+    if (target.email === 'levanthang0166@gmail.com' && isRestrictedStatus) {
+      throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Không thể khóa tài khoản Super Administrator.');
+    }
+    if (adminUserId && target.id === adminUserId && isRestrictedStatus) {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Không thể tự khóa hoặc đình chỉ chính tài khoản quản trị đang đăng nhập.'
+      );
+    }
+
+    const activeAdminsCount = all.filter((u) => u.role === 'ADMIN' && u.status === 'ACTIVE').length;
+    if (target.role === 'ADMIN' && target.status === 'ACTIVE' && normalizedStatus !== 'ACTIVE' && activeAdminsCount <= 1) {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Không thể khóa hoặc vô hiệu hóa quản trị viên hoạt động cuối cùng của hệ thống.'
+      );
+    }
+
+    const updated = await adminRepository.updateUserStatus(userId, normalizedStatus);
     if (!updated) {
       throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy người dùng.');
     }
 
+    if (isRestrictedStatus) {
+      await adminRepository.revokeUserRefreshTokens(userId);
+    }
+
     await adminRepository.logAction({
       userId: adminUserId,
-      actionType: `USER_STATUS_${status}`,
+      actionType: `USER_STATUS_${normalizedStatus}`,
       executionTimeMs: 8,
     });
 
@@ -106,21 +136,46 @@ export const adminService = {
   },
 
   async updateUserRole(userId: string, role: string, adminUserId?: string) {
-    // Bảo vệ Super Admin không bị hạ quyền
-    const all = await adminRepository.getAllUsers();
-    const target = all.find((u) => u.id === userId);
-    if (target?.email === 'levanthang0166@gmail.com' && role !== 'ADMIN') {
-      throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Không thể thay đổi quyền Super Administrator.');
+    const normalizedRole = String(role || '').trim().toUpperCase();
+    const allowedRoles = new Set(['USER', 'SHOP_OWNER', 'ADMIN']);
+    if (!allowedRoles.has(normalizedRole)) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Vai trò người dùng không hợp lệ.');
     }
 
-    const updated = await adminRepository.updateUserRole(userId, role);
+    const all = await adminRepository.getAllUsers();
+    const target = all.find((u) => u.id === userId);
+    if (!target) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy người dùng.');
+    }
+
+    if (target.email === 'levanthang0166@gmail.com' && normalizedRole !== 'ADMIN') {
+      throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Không thể thay đổi quyền Super Administrator.');
+    }
+    if (adminUserId && target.id === adminUserId && normalizedRole !== 'ADMIN') {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Không thể tự hạ quyền tài khoản quản trị đang đăng nhập.'
+      );
+    }
+
+    const activeAdminsCount = all.filter((u) => u.role === 'ADMIN' && u.status === 'ACTIVE').length;
+    if (target.role === 'ADMIN' && target.status === 'ACTIVE' && normalizedRole !== 'ADMIN' && activeAdminsCount <= 1) {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Không thể hạ quyền quản trị viên hoạt động cuối cùng của hệ thống.'
+      );
+    }
+
+    const updated = await adminRepository.updateUserRole(userId, normalizedRole);
     if (!updated) {
       throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy người dùng.');
     }
 
     await adminRepository.logAction({
       userId: adminUserId,
-      actionType: `USER_ROLE_${role}`,
+      actionType: `USER_ROLE_${normalizedRole}`,
       executionTimeMs: 9,
     });
 

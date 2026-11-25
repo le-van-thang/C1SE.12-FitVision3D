@@ -379,6 +379,14 @@ export const authService = {
       );
     }
 
+    if (user.status === 'LOCKED') {
+      throw new AppError(
+        403,
+        ErrorCode.AUTH_ACCOUNT_LOCKED,
+        'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.'
+      );
+    }
+
     // Cấp phát JWT Access Token (15 phút)
     const accessToken = generateAccessToken({
       sub: user.id,
@@ -455,8 +463,14 @@ export const authService = {
 
     // Kiểm tra User
     const user = await authRepository.findUserById(storedToken.user_id);
-    if (!user || user.status === 'BANNED') {
+    if (!user) {
       throw new AppError(403, ErrorCode.AUTH_ACCOUNT_BANNED, 'Tài khoản không hợp lệ.');
+    }
+    if (user.status === 'BANNED') {
+      throw new AppError(403, ErrorCode.AUTH_ACCOUNT_BANNED, 'Tài khoản đã bị đình chỉ do vi phạm quy định.');
+    }
+    if (user.status === 'LOCKED') {
+      throw new AppError(403, ErrorCode.AUTH_ACCOUNT_LOCKED, 'Tài khoản đã bị khóa.');
     }
 
     // Tạo Access Token mới
@@ -699,6 +713,14 @@ export const authService = {
 
     if (user.status === 'BANNED') {
       throw new AppError(403, ErrorCode.AUTH_ACCOUNT_BANNED, 'Tài khoản Google này đã bị khóa do vi phạm.');
+    }
+
+    if (user.status === 'LOCKED') {
+      throw new AppError(
+        403,
+        ErrorCode.AUTH_ACCOUNT_LOCKED,
+        'Tài khoản Google này đã bị khóa. Vui lòng liên hệ quản trị viên.'
+      );
     }
 
     // Cấp phát JWT Access Token (15 phút)
