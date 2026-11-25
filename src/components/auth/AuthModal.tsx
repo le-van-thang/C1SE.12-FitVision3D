@@ -52,9 +52,11 @@ export const AuthModal: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Forgot password & Verify states
+  // Forgot password & Verify & Admin 2FA states
   const [forgotStep, setForgotStep] = useState<'request' | 'reset'>('request');
   const [otpCode, setOtpCode] = useState('');
+  const [adminOtpRequired, setAdminOtpRequired] = useState(false);
+  const [adminOtp, setAdminOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
@@ -65,9 +67,13 @@ export const AuthModal: React.FC = () => {
   // Track form submit attempts for empty required fields
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const pendingSuccessBannerRef = useRef<string | null>(null);
+  const prevTabRef = useRef<string | null>(null);
 
-  // Reset inputs and unlock flags whenever the modal opens or tab switches
+  // Reset all credential inputs and unlock flags whenever modal closes or switches tab (Sign In / Register / Forgot)
   useEffect(() => {
+    const prevTab = prevTabRef.current;
+    prevTabRef.current = authModalTab;
+
     setErrorMessage(null);
     if (pendingSuccessBannerRef.current) {
       setSuccessMessage(pendingSuccessBannerRef.current);
@@ -78,11 +84,39 @@ export const AuthModal: React.FC = () => {
     setEmailUnlocked(false);
     setPasswordUnlocked(false);
     setSubmitAttempted(false);
-    if (authModalTab === 'signin' || authModalTab === 'register') {
+    setShowPassword(false);
+    setWebsiteTrap('');
+
+    if (!isAuthModalOpen) {
+      setEmail('');
+      setPassword('');
+      setFullName('');
+      setConfirmPassword('');
       setForgotStep('request');
       setOtpCode('');
+      setAdminOtpRequired(false);
+      setAdminOtp('');
       setNewPassword('');
       setConfirmNewPassword('');
+      return;
+    }
+
+    if (authModalTab === 'signin' || authModalTab === 'register' || authModalTab === 'forgot') {
+      setEmail('');
+      setPassword('');
+      setFullName('');
+      setConfirmPassword('');
+      setForgotStep('request');
+      setOtpCode('');
+      setAdminOtpRequired(false);
+      setAdminOtp('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } else if (authModalTab === 'verify' && prevTab !== 'register' && prevTab !== 'signin') {
+      setPassword('');
+      setFullName('');
+      setConfirmPassword('');
+      setOtpCode('');
     }
   }, [authModalTab, isAuthModalOpen]);
 
@@ -109,7 +143,7 @@ export const AuthModal: React.FC = () => {
       if (lower.includes('chưa được kích hoạt')) {
         return t('app.authErrors.AUTH_EMAIL_NOT_VERIFIED');
       }
-      if (lower.includes('đã được đăng ký') || lower.includes('đã được sử dụng')) {
+      if (lower.includes('đã được đăng ký') || lower.includes('đã được sử dụng') || lower.includes('đã tồn tại')) {
         return t('app.authErrors.AUTH_EMAIL_ALREADY_EXISTS');
       }
       if (lower.includes('tạm thời') || lower.includes('rác') || lower.includes('disposable')) {
@@ -271,12 +305,29 @@ export const AuthModal: React.FC = () => {
     if (!emailValidation.valid || password.length === 0) {
       return;
     }
+    if (adminOtpRequired && adminOtp.trim().length < 6) {
+      setErrorMessage('Vui lòng nhập đầy đủ mã OTP 6 số xác thực 2 lớp Admin.');
+      return;
+    }
 
+    const otpToSubmit = adminOtpRequired ? adminOtp.trim() : undefined;
     setLoading(true);
-    const res = await signIn(email, password, websiteTrap);
+    const res = await signIn(email, password, websiteTrap, otpToSubmit);
     setLoading(false);
 
-    if (!res.success) {
+    if (res.success) {
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setShowPassword(false);
+      setAdminOtpRequired(false);
+      setAdminOtp('');
+      setWebsiteTrap('');
+    } else if ((res as any).requiresAdmin2fa) {
+      setAdminOtpRequired(true);
+      setSuccessMessage((res as any).message || 'Vui lòng nhập mã OTP 6 số vừa gửi về Email Quản trị viên.');
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
       if (res.errorCode === 'AUTH_EMAIL_NOT_VERIFIED') {
         setErrorMessage(getLocalizedErrorMessage('AUTH_EMAIL_NOT_VERIFIED', res.error));
         formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -316,6 +367,11 @@ export const AuthModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
+      setPassword('');
+      setConfirmPassword('');
+      setFullName('');
+      setShowPassword(false);
+      setWebsiteTrap('');
       setSuccessMessage(t('app.auth.successRegister', 'Đăng ký thành công! Vui lòng nhập mã OTP gửi về email.'));
       setOtpCode('');
       openVerifyEmail(email);
@@ -330,9 +386,17 @@ export const AuthModal: React.FC = () => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
-    setLoading(true);
 
-    const res = await verifyEmail(email, otpCode || '123456');
+    const cleanOtp = otpCode.trim();
+    if (cleanOtp.length !== 6) {
+      setErrorMessage(
+        getLocalizedErrorMessage('AUTH_OTP_INVALID', 'Vui lòng nhập đầy đủ mã OTP gồm 6 chữ số.')
+      );
+      return;
+    }
+
+    setLoading(true);
+    const res = await verifyEmail(email, cleanOtp);
     setLoading(false);
 
     if (res.success) {
@@ -478,18 +542,26 @@ export const AuthModal: React.FC = () => {
                 return;
               }
 
-              // Gửi accessToken từ Google về Backend để máy chủ xác thực trực tiếp với Google + chặn tài khoản Admin
+              // Gửi accessToken từ Google về Backend để máy chủ xác thực trực tiếp với Google + chặn tài khoản Admin + phân biệt Đăng ký / Đăng nhập
               const res = await signInWithGoogle({
                 accessToken: tokenResponse.access_token,
                 email: googleUser.email,
                 fullName: googleUser.name || googleUser.email.split('@')[0],
                 avatarUrl: googleUser.picture,
                 googleId: googleUser.sub,
+                mode: authModalTab === 'register' ? 'register' : 'signin',
               });
 
               setLoading(false);
               if (!res.success) {
-                setErrorMessage(res.errorCode === 'FORBIDDEN_INSUFFICIENT_PERMISSIONS' ? (res.error || '') : getLocalizedErrorMessage('GOOGLE_LOGIN_FAILED', res.error));
+                if (res.errorCode === 'FORBIDDEN_INSUFFICIENT_PERMISSIONS') {
+                  setErrorMessage(res.error || '');
+                } else if (res.errorCode === 'AUTH_EMAIL_ALREADY_EXISTS') {
+                  setErrorMessage(getLocalizedErrorMessage('AUTH_EMAIL_ALREADY_EXISTS', res.error));
+                } else {
+                  setErrorMessage(getLocalizedErrorMessage(res.errorCode || 'GOOGLE_LOGIN_FAILED', res.error));
+                }
+                formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
               }
             } catch (err: any) {
               setLoading(false);
@@ -620,7 +692,7 @@ export const AuthModal: React.FC = () => {
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-0">
                 {authModalTab === 'signin'
-                  ? t('app.auth.signinDesc', 'Truy cập hồ sơ số đo vóc dáng 3D & phòng thử đồ ảo')
+                  ? t('app.auth.signinDesc', 'Đăng nhập chung cho Khách hàng, Chủ Shop & Quản trị viên')
                   : authModalTab === 'register'
                   ? t('app.auth.registerDesc', 'Tạo tài khoản để lưu số đo vóc dáng 3D cá nhân')
                   : authModalTab === 'forgot'
@@ -786,6 +858,24 @@ export const AuthModal: React.FC = () => {
                     </p>
                   )}
                 </div>
+
+                {/* Admin 2FA OTP Input (shown when backend requires 2-step Admin verification) */}
+                {adminOtpRequired && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-900">
+                      Mã Xác Thực 2 Lớp Admin (OTP 6 số)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={adminOtp}
+                      onChange={(e) => setAdminOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Nhập 6 chữ số OTP..."
+                      className="w-full h-10 px-3.5 rounded-xl border border-amber-300 bg-white text-sm font-mono font-bold tracking-[0.25em] text-[#14171C] outline-none focus:border-blue-600"
+                    />
+                  </div>
+                )}
 
                 {/* Remember & Forgot */}
                 <div className="flex items-center justify-between text-xs">

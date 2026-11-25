@@ -92,6 +92,22 @@ export const AdminOverviewSection: React.FC<OverviewProps> = ({
   }, [validOrders]);
 
   const activeVouchersCount = config.vouchers.filter((v) => v.active).length;
+  const [liveProductCount, setLiveProductCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    commerceApi.getBootstrap(true).then((res) => {
+      if (active && res.success && Array.isArray(res.data?.products)) {
+        setLiveProductCount(res.data.products.length);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const totalCatalogProducts = liveProductCount ?? MOCK_PRODUCTS.length;
+  const visibleCatalogCount = Math.max(0, totalCatalogProducts - config.hiddenProductIds.length);
 
   return (
     <div className="space-y-6">
@@ -172,7 +188,7 @@ export const AdminOverviewSection: React.FC<OverviewProps> = ({
             </div>
           </div>
           <div className="mt-2.5 text-2xl font-black font-mono text-[#14161A]">
-            {MOCK_PRODUCTS.length - config.hiddenProductIds.length}/{MOCK_PRODUCTS.length} SP
+            {visibleCatalogCount}/{totalCatalogProducts} SP
           </div>
           <p className="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
             <span>{activeVouchersCount} mã giảm giá đang bật</span>
@@ -302,9 +318,9 @@ export const AdminOrdersSection: React.FC<OrdersProps> = ({
       const q = search.toLowerCase();
       return (
         o.id.toLowerCase().includes(q) ||
-        o.customer_name.toLowerCase().includes(q) ||
+        (o.customer_name || '').toLowerCase().includes(q) ||
         (o.store_name || '').toLowerCase().includes(q) ||
-        o.recipient.phone.toLowerCase().includes(q)
+        (o.recipient?.phone || '').toLowerCase().includes(q)
       );
     });
   }, [orders, statusFilter, search]);
@@ -457,15 +473,32 @@ export const AdminCatalogSection: React.FC<CatalogProps> = ({
   const [catFilter, setCatFilter] = useState<string>('all');
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [priceDraft, setPriceDraft] = useState<string>('');
+  const [catalogProducts, setCatalogProducts] = useState(MOCK_PRODUCTS);
+
+  useEffect(() => {
+    let active = true;
+    commerceApi.getBootstrap(true).then((res) => {
+      if (active && res.success && Array.isArray(res.data?.products) && res.data.products.length > 0) {
+        const normalized = res.data.products.map((p) => ({
+          ...p,
+          variants: Array.isArray(p.variants) ? p.variants : [],
+        })) as typeof MOCK_PRODUCTS;
+        setCatalogProducts(normalized);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredProducts = useMemo(() => {
-    return MOCK_PRODUCTS.filter((p) => {
+    return catalogProducts.filter((p) => {
       if (catFilter !== 'all' && p.category !== catFilter) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       return p.name.toLowerCase().includes(q) || p.brand_name.toLowerCase().includes(q);
     });
-  }, [search, catFilter]);
+  }, [catalogProducts, search, catFilter]);
 
   const toggleProductVisibility = async (prodId: string, prodName: string) => {
     const isHidden = config.hiddenProductIds.includes(prodId);
@@ -702,6 +735,10 @@ export const AdminCmsSection: React.FC<CmsProps> = ({
     const val = Number(newValue);
     if (cleanCode.length < 3 || !Number.isFinite(val) || val <= 0) {
       onToast('error', 'Mã voucher tối thiểu 3 ký tự chữ/số và giá trị > 0.');
+      return;
+    }
+    if (newType === 'percent' && val > 100) {
+      onToast('error', 'Voucher giảm theo phần trăm không được vượt quá 100%.');
       return;
     }
     if (config.vouchers.some((v) => v.code === cleanCode)) {

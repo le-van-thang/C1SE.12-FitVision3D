@@ -34,6 +34,7 @@ interface CustomerProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userBody: UserBodyProfile;
+  hasBodyProfile?: boolean;
   onOpenBiometrics: () => void;
   initialTab?: 'profile' | 'membership' | 'measurements' | 'orders' | 'merchant';
 }
@@ -42,6 +43,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   isOpen,
   onClose,
   userBody,
+  hasBodyProfile = true,
   onOpenBiometrics,
   initialTab = 'profile',
 }) => {
@@ -63,6 +65,17 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   const [easePref, setEasePref] = useState<'slim' | 'standard' | 'loose'>('standard');
   const [orderFilter, setOrderFilter] = useState<string>('all');
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setConfirmCancelId(null);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   // Edit Profile Form State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -690,36 +703,50 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           {/* TAB 2: HỒ SƠ SỐ ĐO 3D */}
           {activeTab === 'measurements' && (
             <div className="space-y-3.5">
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sky-500" />
-                    {t('ecommerce.sidebar.height', 'CHIỀU CAO')}
-                  </span>
-                  <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.height_cm} cm</span>
+              {!hasBodyProfile ? (
+                <div className="p-6 rounded-2xl bg-amber-50 border border-amber-300 text-center space-y-2.5">
+                  <Sparkles size={26} className="text-amber-600 mx-auto" />
+                  <h4 className="text-sm font-black text-amber-950">
+                    {isEn ? 'No 3D Body Measurements Recorded' : 'Bạn chưa có hồ sơ số đo 3D'}
+                  </h4>
+                  <p className="text-xs text-amber-900 leading-relaxed">
+                    {isEn
+                      ? 'Scan 1 photo in the 3D Lab or enter your measurements manually to personalize size recommendations.'
+                      : 'Hãy quét 1 ảnh ở Phòng Đo 3D hoặc nhập số đo cá nhân để AI tư vấn size chuẩn cho bạn.'}
+                  </p>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-violet-500" />
-                    {t('ecommerce.sidebar.weight', 'CÂN NẶNG')}
-                  </span>
-                  <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.weight_kg} kg</span>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-sky-500" />
+                      {t('ecommerce.sidebar.height', 'CHIỀU CAO')}
+                    </span>
+                    <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.height_cm} cm</span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-violet-500" />
+                      {t('ecommerce.sidebar.weight', 'CÂN NẶNG')}
+                    </span>
+                    <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.weight_kg} kg</span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      {t('ecommerce.sidebar.chest', 'VÒNG NGỰC')}
+                    </span>
+                    <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.chest_cm} cm</span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      {t('ecommerce.sidebar.waist', 'VÒNG EO')}
+                    </span>
+                    <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.waist_cm} cm</span>
+                  </div>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    {t('ecommerce.sidebar.chest', 'VÒNG NGỰC')}
-                  </span>
-                  <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.chest_cm} cm</span>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 shadow-2xs">
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    {t('ecommerce.sidebar.waist', 'VÒNG EO')}
-                  </span>
-                  <span className="text-xl font-black font-mono text-slate-950 block mt-1">{userBody.waist_cm} cm</span>
-                </div>
-              </div>
+              )}
 
               <div className="p-3.5 rounded-2xl bg-white border-[1.5px] border-slate-300/85 space-y-2 shadow-2xs">
                 <span className="text-[11px] font-extrabold text-slate-900 block">
@@ -778,9 +805,11 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                 {[
                   { id: 'all', label: t('ecommerce.orders.filterAll', 'Tất cả') },
                   { id: 'pending', label: t('ecommerce.orders.filterPending', 'Chờ duyệt') },
+                  { id: 'confirmed', label: t('ecommerce.orders.filterConfirmed', 'Đã xác nhận') },
                   { id: 'tailoring', label: t('ecommerce.orders.filterTailoring', 'Đang may đo') },
                   { id: 'shipping', label: t('ecommerce.orders.filterShipping', 'Đang giao') },
                   { id: 'completed', label: t('ecommerce.orders.filterCompleted', 'Hoàn thành') },
+                  { id: 'cancelled', label: t('ecommerce.orders.filterCancelled', 'Đã hủy') },
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -850,9 +879,22 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                               </span>
                             </div>
 
-                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${badge.cls}`}>
-                              {badge.label}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                  order.payment_status === 'paid'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                                }`}
+                              >
+                                {order.payment_status === 'paid'
+                                  ? (isEn ? 'Paid' : 'Đã thanh toán')
+                                  : (isEn ? 'Unpaid' : 'Chưa thanh toán')}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${badge.cls}`}>
+                                {badge.label}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Items Preview */}
@@ -922,18 +964,47 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                             </div>
 
                             <div className="flex gap-2">
-                              {order.status === 'pending' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (confirm(t('ecommerce.orders.confirmCancel', 'Bạn có chắc muốn hủy đơn hàng này không?'))) {
-                                      cancelOrder(order.id);
-                                    }
-                                  }}
-                                  className="px-2.5 py-1 rounded-lg border border-rose-300 text-rose-600 hover:bg-rose-50 text-[11px] font-bold cursor-pointer"
-                                >
-                                  {t('ecommerce.orders.cancelOrder', 'Hủy Đơn')}
-                                </button>
+                              {order.payment_method === 'vietqr_sepay' &&
+                                order.payment_status !== 'paid' &&
+                                order.status !== 'cancelled' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedOrderDetails(order.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-[11px] font-bold cursor-pointer"
+                                  >
+                                    Xem QR TT
+                                  </button>
+                                )}
+                              {(order.status === 'pending' || order.status === 'confirmed') && (
+                                confirmCancelId === order.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        cancelOrder(order.id);
+                                        setConfirmCancelId(null);
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold cursor-pointer"
+                                    >
+                                      {isEn ? 'Confirm' : 'Xác nhận hủy'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmCancelId(null)}
+                                      className="px-2 py-1 rounded-lg bg-stone-100 text-stone-700 text-[11px] font-bold cursor-pointer"
+                                    >
+                                      {isEn ? 'Keep' : 'Không'}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmCancelId(order.id)}
+                                    className="px-2.5 py-1 rounded-lg border border-rose-300 text-rose-600 hover:bg-rose-50 text-[11px] font-bold cursor-pointer"
+                                  >
+                                    {t('ecommerce.orders.cancelOrder', 'Hủy Đơn')}
+                                  </button>
+                                )
                               )}
 
                               <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield,
   Search,
@@ -28,12 +28,12 @@ import {
   Tag,
   Megaphone,
   LogOut,
+  LogIn,
   Menu,
   Scissors,
-  Mail,
-  Eye,
-  EyeOff,
   ArrowLeft,
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -72,15 +72,9 @@ type StoreFilterTab = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 type UserFilterRole = 'ALL' | 'ADMIN' | 'SHOP_OWNER' | 'USER';
 
 export const AdminPortal: React.FC = () => {
-  const { currentUser, isAuthenticated, userRole, signIn, signOut, openForgotPassword } = useAuth();
+  const navigate = useNavigate();
+  const { currentUser, isAuthenticated, userRole, signOut, openSignIn } = useAuth();
   const { orders, updateOrderStatus } = useOrders();
-
-  // Standalone Admin Login form state (used when opening /admin directly)
-  const [adminLoginEmail, setAdminLoginEmail] = useState('');
-  const [adminLoginPassword, setAdminLoginPassword] = useState('');
-  const [showAdminPassword, setShowAdminPassword] = useState(false);
-  const [adminLoginError, setAdminLoginError] = useState<string | null>(null);
-  const [isAdminSigningIn, setIsAdminSigningIn] = useState(false);
 
   // Navigation tabs & Responsive Sidebar Drawer
   const [mainTab, setMainTab] = useState<AdminMainTab>('OVERVIEW');
@@ -96,21 +90,7 @@ export const AdminPortal: React.FC = () => {
 
   const handleAdminSignOut = async () => {
     await signOut();
-  };
-
-  const handleDirectAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAdminLoginError(null);
-    if (!adminLoginEmail.trim() || !adminLoginPassword) {
-      setAdminLoginError('Vui lòng nhập đầy đủ Email và Mật khẩu Quản trị viên.');
-      return;
-    }
-    setIsAdminSigningIn(true);
-    const res = await signIn(adminLoginEmail.trim(), adminLoginPassword);
-    setIsAdminSigningIn(false);
-    if (!res.success) {
-      setAdminLoginError(res.error || 'Email hoặc mật khẩu Quản trị viên không chính xác.');
-    }
+    navigate('/', { replace: true });
   };
 
   // Search queries
@@ -128,6 +108,27 @@ export const AdminPortal: React.FC = () => {
   });
   const [stores, setStores] = useState<AdminStoreItem[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
+
+  // Admin Provision Shop Modal (Cách A tách tài khoản Shop riêng + hiển thị mật khẩu / Cách B nâng cấp trực tiếp)
+  const [provisioningUser, setProvisioningUser] = useState<AdminUserItem | null>(null);
+  const [provMode, setProvMode] = useState<'SEPARATE_ACCOUNT' | 'PROMOTE_CURRENT'>('SEPARATE_ACCOUNT');
+  const [provEmail, setProvEmail] = useState('');
+  const [provPassword, setProvPassword] = useState('');
+  const [provShopName, setProvShopName] = useState('');
+  const [provPhone, setProvPhone] = useState('0909123456');
+  const [provAddress, setProvAddress] = useState('TP. Hồ Chí Minh, Việt Nam');
+  const [provEntityType, setProvEntityType] = useState<'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE'>('INDIVIDUAL');
+  const [provTaxCode, setProvTaxCode] = useState('');
+  const [provSubmitting, setProvSubmitting] = useState(false);
+  const [provisionedCreds, setProvisionedCreds] = useState<{
+    loginUrl: string;
+    shopEmail: string;
+    temporaryPassword: string;
+    originalUserEmail: string;
+    mode: string;
+    brandSlug: string;
+    shopName: string;
+  } | null>(null);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -261,6 +262,49 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
+  // Handle Suspend Store
+  const handleSuspendStore = async (store: AdminStoreItem) => {
+    const reason = window.prompt(
+      `Nhập lý do tạm đình chỉ gian hàng "${store.shop_name}" (sản phẩm sẽ bị ẩn ngay):`,
+      'Vi phạm quy định KYC / Thuế hoặc chậm xử lý đơn hàng'
+    );
+    if (!reason || !reason.trim()) return;
+    setActionLoadingId(store.id);
+    try {
+      const res = await adminApi.suspendStore(store.id, reason.trim());
+      if (res.success) {
+        showToast('success', `Đã tạm đình chỉ gian hàng "${store.shop_name}".`);
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Không thể tạm đình chỉ cửa hàng.');
+      }
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Live MST Lookup inside Admin review table
+  const handleQuickTaxLookup = async (store: AdminStoreItem) => {
+    if (!store.tax_code) {
+      showToast('error', 'Shop chưa cung cấp Mã số thuế (đang dùng CCCD tạm thời).');
+      return;
+    }
+    setActionLoadingId(store.id);
+    try {
+      const res = await adminApi.lookupTaxCode(store.tax_code, store.entity_type || 'ENTERPRISE');
+      if (res.success && res.data) {
+        showToast(
+          res.data.checksumValid ? 'success' : 'error',
+          `${res.data.taxCode}: ${res.data.message}`
+        );
+      } else {
+        showToast('error', res.error?.message || 'Không thể tra cứu MST.');
+      }
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   // Handle Toggle User Status (Lock/Unlock)
   const handleToggleUserStatus = async (user: AdminUserItem) => {
     if (user.email === 'levanthang0166@gmail.com') {
@@ -281,6 +325,55 @@ export const AdminPortal: React.FC = () => {
       showToast('error', 'Lỗi kết nối khi cập nhật người dùng.');
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const openProvisionShopModal = (user: AdminUserItem) => {
+    const local = (user.email.split('@')[0] || 'partner').replace(/[^a-zA-Z0-9._-]/g, '').toLowerCase();
+    const randSuffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    setProvisionedCreds(null);
+    setProvisioningUser(user);
+    setProvMode('SEPARATE_ACCOUNT');
+    setProvEmail(`shop.${local}@fitvision3d.com`);
+    setProvPassword(`Shop@${randSuffix}26`);
+    setProvShopName(`${user.full_name || local} Atelier`);
+    setProvPhone(user.phone || '0909123456');
+    setProvAddress('TP. Hồ Chí Minh, Việt Nam');
+    setProvEntityType('INDIVIDUAL');
+    setProvTaxCode('');
+  };
+
+  const handleConfirmProvisionShop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!provisioningUser) return;
+    setProvSubmitting(true);
+    try {
+      const res = await adminApi.provisionShopForUser(provisioningUser.id, {
+        mode: provMode,
+        shopEmail: provMode === 'SEPARATE_ACCOUNT' ? provEmail.trim() : provisioningUser.email,
+        temporaryPassword: provPassword.trim(),
+        shopName: provShopName.trim(),
+        phoneNumber: provPhone.trim(),
+        shopAddress: provAddress.trim(),
+        entityType: provEntityType,
+        taxCode: provTaxCode.trim() || undefined,
+        autoApprove: true,
+      });
+      if (res.success && res.data?.credentials) {
+        setProvisionedCreds({
+          ...res.data.credentials,
+          shopName: res.data.shop.shop_name,
+        });
+        setProvisioningUser(null);
+        showToast('success', `Đã cấp gian hàng "${res.data.shop.shop_name}" thành công!`);
+        fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Không thể cấp tài khoản Shop.');
+      }
+    } catch {
+      showToast('error', 'Lỗi hệ thống khi cấp tài khoản Shop.');
+    } finally {
+      setProvSubmitting(false);
     }
   };
 
@@ -550,7 +643,7 @@ export const AdminPortal: React.FC = () => {
                 ATELIER ADMIN CONTROL
               </span>
               <h1 className="text-lg font-black text-slate-950 mt-1">
-                Cổng Đăng Nhập Quản Trị Viên
+                Khu Vực Quản Trị Hệ Thống
               </h1>
             </div>
           </div>
@@ -569,7 +662,7 @@ export const AdminPortal: React.FC = () => {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => void signOut()}
+                  onClick={() => void handleAdminSignOut()}
                   className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold cursor-pointer"
                 >
                   Đăng xuất
@@ -577,81 +670,26 @@ export const AdminPortal: React.FC = () => {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleDirectAdminLogin} className="space-y-4">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Đăng nhập trực tiếp bằng Email &amp; Mật khẩu Quản trị để vào bảng điều khiển (không đi qua trang mua sắm và không dùng nút Google).
+            <div className="space-y-4">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                FitVision 3D sử dụng <b>một cổng đăng nhập chung</b> cho Khách hàng, Chủ Shop và Quản trị viên. Vui lòng đăng nhập bằng tài khoản Quản trị (ADMIN) để tiếp tục.
               </p>
-
-              {adminLoginError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
-                  {adminLoginError}
-                </div>
-              )}
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
-                  Email Quản Trị Viên
-                </label>
-                <div className="relative flex items-center">
-                  <Mail size={15} className="absolute left-3.5 text-slate-400 pointer-events-none" />
-                  <input
-                    type="email"
-                    required
-                    value={adminLoginEmail}
-                    onChange={(e) => setAdminLoginEmail(e.target.value)}
-                    placeholder="levanthang0166@gmail.com"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                    Mật Khẩu Admin
-                  </label>
-                  <button
-                    type="button"
-                    onClick={openForgotPassword}
-                    className="text-[11px] font-bold text-blue-600 hover:underline bg-transparent border-0 cursor-pointer p-0"
-                  >
-                    Quên mật khẩu?
-                  </button>
-                </div>
-                <div className="relative flex items-center">
-                  <Lock size={15} className="absolute left-3.5 text-slate-400 pointer-events-none" />
-                  <input
-                    type={showAdminPassword ? 'text' : 'password'}
-                    required
-                    value={adminLoginPassword}
-                    onChange={(e) => setAdminLoginPassword(e.target.value)}
-                    placeholder="Nhập mật khẩu quản trị..."
-                    className="w-full h-11 pl-10 pr-10 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAdminPassword(!showAdminPassword)}
-                    className="absolute right-3 text-slate-500 hover:text-slate-900 bg-transparent border-0 cursor-pointer"
-                  >
-                    {showAdminPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isAdminSigningIn}
-                className="w-full h-11 rounded-xl bg-[#14171C] hover:bg-blue-600 disabled:opacity-60 text-white text-xs font-bold cursor-pointer transition-colors"
-              >
-                {isAdminSigningIn ? 'Đang xác thực...' : 'Vào Cổng Quản Trị Admin'}
-              </button>
-
-              <div className="pt-2 border-t border-slate-100 text-center">
-                <Link to="/" className="text-[11px] font-bold text-slate-500 hover:text-slate-900 inline-flex items-center gap-1">
-                  <ArrowLeft size={12} /> Về trang mua sắm công khai
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={openSignIn}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <LogIn size={14} /> Đăng Nhập Tài Khoản
+                </button>
+                <Link
+                  to="/"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center justify-center gap-1"
+                >
+                  <ArrowLeft size={13} /> Trang chủ
                 </Link>
               </div>
-            </form>
+            </div>
           )}
         </div>
         <AuthModal />
@@ -985,12 +1023,62 @@ export const AdminPortal: React.FC = () => {
                                         <span>Xem ảnh minh chứng</span>
                                       </button>
                                     )}
-                                    {!textPart && !imagePart && (
-                                      <span className="text-xs text-slate-400">Đang cập nhật</span>
+                                    {!textPart && !imagePart && (!store.documents || store.documents.length === 0) && (
+                                      <span className="text-xs text-slate-400">Chưa có GPKD</span>
                                     )}
+                                    <div className="flex flex-wrap items-center gap-1">
+                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[9px] font-bold text-slate-700">
+                                        {store.entity_type || 'INDIVIDUAL'}
+                                      </span>
+                                      {store.national_id_last4 && (
+                                        <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-[9px] font-mono font-bold text-blue-800">
+                                          CCCD: ••••{store.national_id_last4}
+                                        </span>
+                                      )}
+                                      {store.tax_status && (
+                                        <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[9px] font-bold text-emerald-800">
+                                          Thuế: {store.tax_status}
+                                        </span>
+                                      )}
+                                    </div>
                                     {store.tax_code && (
-                                      <div className="text-[10px] font-mono text-slate-500">
-                                        Mã số thuế: {store.tax_code}
+                                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-700">
+                                        <span>MST: <b>{store.tax_code}</b></span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleQuickTaxLookup(store)}
+                                          className="text-[10px] font-sans font-bold text-blue-600 hover:underline cursor-pointer bg-transparent border-0 p-0"
+                                        >
+                                          [Tra cứu]
+                                        </button>
+                                      </div>
+                                    )}
+                                    {Array.isArray(store.documents) && store.documents.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {store.documents.map((doc: any) => (
+                                          <button
+                                            key={doc.id || doc.doc_type}
+                                            type="button"
+                                            onClick={() =>
+                                              setViewProofImage({
+                                                brand: `${store.shop_name} (${doc.doc_type})`,
+                                                url: doc.file_url,
+                                              })
+                                            }
+                                            className="px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[10px] font-bold text-amber-900 cursor-pointer"
+                                          >
+                                            {doc.doc_type}
+                                            {doc.verification_status === 'VERIFIED' ? ' ✓' : ''}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {store.bankAccount && (
+                                      <div className="text-[10px] text-slate-600">
+                                        Bank: <b>{store.bankAccount.bank_name}</b> • {store.bankAccount.account_number} ({store.bankAccount.account_holder_name} ·{' '}
+                                        <span className={store.bankAccount.verification_status === 'MATCHED' ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
+                                          {store.bankAccount.verification_status}
+                                        </span>)
                                       </div>
                                     )}
                                   </div>
@@ -1024,6 +1112,18 @@ export const AdminPortal: React.FC = () => {
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
                                     <XCircle size={12} />
                                     <span>Từ chối</span>
+                                  </span>
+                                  {store.rejection_reason && (
+                                    <p className="text-[10px] text-rose-600 mt-1 max-w-[160px] line-clamp-2" title={store.rejection_reason}>
+                                      Lý do: {store.rejection_reason}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                              {store.status === 'SUSPENDED' && (
+                                <div>
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-800 border border-slate-300 whitespace-nowrap">
+                                    <span>Tạm đình chỉ</span>
                                   </span>
                                   {store.rejection_reason && (
                                     <p className="text-[10px] text-rose-600 mt-1 max-w-[160px] line-clamp-2" title={store.rejection_reason}>
@@ -1073,21 +1173,29 @@ export const AdminPortal: React.FC = () => {
                                         ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
                                         : 'bg-white text-slate-700 border-slate-300 hover:border-rose-400 hover:text-rose-700'
                                     }`}
-                                    title="Cấp hoặc gỡ chứng nhận Mall chính hãng"
+                                    title="Cấp hoặc gỡ chứng nhận Mall chính hãng (chỉ Doanh nghiệp)"
                                   >
                                     <span>{store.is_mall ? '✓ FitVision Mall' : '+ Cấp Mall'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleSuspendStore(store)}
+                                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-700 hover:text-rose-700 text-[11px] font-bold cursor-pointer"
+                                  >
+                                    Đình chỉ
                                   </button>
                                 </div>
                               )}
 
-                              {isRejected && (
+                              {(isRejected || store.status === 'SUSPENDED') && (
                                 <button
                                   type="button"
                                   disabled={isBusy}
                                   onClick={() => handleApproveStore(store)}
                                   className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer whitespace-nowrap"
                                 >
-                                  Xét duyệt lại
+                                  {store.status === 'SUSPENDED' ? 'Mở khóa lại' : 'Xét duyệt lại'}
                                 </button>
                               )}
                             </td>
@@ -1277,10 +1385,10 @@ export const AdminPortal: React.FC = () => {
                                   <button
                                     type="button"
                                     disabled={isBusy}
-                                    onClick={() => handleChangeUserRole(user, 'SHOP_OWNER')}
+                                    onClick={() => openProvisionShopModal(user)}
                                     className="px-2.5 py-1.5 rounded-lg bg-[#14171C] hover:bg-blue-600 text-white text-[11px] font-bold transition cursor-pointer disabled:opacity-50"
                                   >
-                                    Cấp quyền Shop
+                                    Cấp tài khoản Shop
                                   </button>
                                 ) : user.role === 'SHOP_OWNER' ? (
                                   <button
@@ -1377,6 +1485,231 @@ export const AdminPortal: React.FC = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Provision Shop Account for Existing User */}
+        {provisioningUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs">
+            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => setProvisioningUser(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
+                  <StoreIcon size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#14161A]">Cấp Tài Khoản &amp; Gian Hàng Shop</h3>
+                  <p className="text-xs text-slate-500">
+                    Từ User: <strong className="text-slate-800">{provisioningUser.full_name}</strong> ({provisioningUser.email})
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleConfirmProvisionShop} className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProvMode('SEPARATE_ACCOUNT')}
+                    className={`p-3 rounded-xl border text-left cursor-pointer ${
+                      provMode === 'SEPARATE_ACCOUNT'
+                        ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-600/15'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="font-black text-slate-900">Cách A: Tách acc Shop riêng (Khuyên dùng)</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Giữ nguyên acc {provisioningUser.email} để mua hàng; cấp Email + MK Shop mới.
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProvMode('PROMOTE_CURRENT')}
+                    className={`p-3 rounded-xl border text-left cursor-pointer ${
+                      provMode === 'PROMOTE_CURRENT'
+                        ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-600/15'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="font-black text-slate-900">Cách B: Chuyển thẳng acc này</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Đổi acc hiện tại sang SHOP_OWNER + đặt mật khẩu đăng nhập `/shop`.
+                    </div>
+                  </button>
+                </div>
+
+                {provMode === 'SEPARATE_ACCOUNT' && (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Email đăng nhập Shop *</label>
+                    <input
+                      type="email"
+                      required
+                      value={provEmail}
+                      onChange={(e) => setProvEmail(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none focus:border-slate-900"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Mật khẩu đăng nhập Shop (gửi cho Chủ Shop) *
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      required
+                      value={provPassword}
+                      onChange={(e) => setProvPassword(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none focus:border-slate-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setProvPassword(`Shop@${Math.random().toString(36).slice(2, 6).toUpperCase()}26`)}
+                      className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer"
+                    >
+                      Sinh ngẫu nhiên
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Tên Thương Hiệu / Shop *</label>
+                    <input
+                      required
+                      value={provShopName}
+                      onChange={(e) => setProvShopName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 outline-none focus:border-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Loại hình Kinh doanh</label>
+                    <select
+                      value={provEntityType}
+                      onChange={(e) => setProvEntityType(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold outline-none"
+                    >
+                      <option value="INDIVIDUAL">Cá nhân / Thợ may</option>
+                      <option value="HOUSEHOLD">Hộ kinh doanh</option>
+                      <option value="ENTERPRISE">Doanh nghiệp</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">SĐT Shop *</label>
+                    <input
+                      required
+                      value={provPhone}
+                      onChange={(e) => setProvPhone(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Mã số thuế (tùy chọn với Cá nhân)</label>
+                    <input
+                      value={provTaxCode}
+                      onChange={(e) => setProvTaxCode(e.target.value)}
+                      placeholder="VD: 0101248141 hoặc để trống"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Địa chỉ Shop *</label>
+                  <input
+                    required
+                    value={provAddress}
+                    onChange={(e) => setProvAddress(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 outline-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setProvisioningUser(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={provSubmitting}
+                    className="px-5 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white font-bold cursor-pointer disabled:opacity-60"
+                  >
+                    {provSubmitting ? 'Đang tạo Shop...' : 'Xác nhận Cấp Shop & Hiện MK'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Provisioned Shop Credentials Card (Shown once so Admin sees Email + Password clearly) */}
+        {provisionedCreds && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs">
+            <div className="w-full max-w-md rounded-2xl bg-white border border-emerald-200 p-6 shadow-2xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <KeyRound size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-950">Đã Cấp Tài Khoản Shop Thành Công</h3>
+                  <p className="text-xs text-slate-500">
+                    Gian hàng <b>{provisionedCreds.shopName}</b> đã ở trạng thái <b>APPROVED</b>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-sans">Trang đăng nhập:</span>
+                  <span className="font-bold text-blue-700">{provisionedCreds.loginUrl}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-sans">Email Shop:</span>
+                  <span className="font-bold text-slate-950">{provisionedCreds.shopEmail}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-sans">Mật khẩu tạm:</span>
+                  <span className="font-bold text-emerald-700">{provisionedCreds.temporaryPassword}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-sans">Link Gian hàng:</span>
+                  <span className="font-bold text-slate-700">/stores/{provisionedCreds.brandSlug}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const txt = `Tài khoản Shop FitVision 3D (${provisionedCreds.shopName})\nURL: http://localhost:5173${provisionedCreds.loginUrl}\nEmail: ${provisionedCreds.shopEmail}\nMật khẩu: ${provisionedCreds.temporaryPassword}`;
+                    navigator.clipboard?.writeText(txt);
+                    showToast('success', 'Đã sao chép Email & Mật khẩu Shop!');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Copy size={13} /> Sao chép thông tin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProvisionedCreds(null)}
+                  className="px-4 py-2 rounded-xl bg-[#14171C] text-white text-xs font-bold cursor-pointer"
+                >
+                  Đóng
+                </button>
               </div>
             </div>
           </div>

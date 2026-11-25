@@ -12,6 +12,7 @@ import {
 import { authApi } from '@/services/authApi';
 import { adminApi } from '@/services/adminApi';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
+import { clearTransientStudioPrivacyState } from '@/utils/bodyProfileStorage';
 
 const STORAGE_KEY_PROFILES = 'fv3d_auth_profiles_v1';
 const STORAGE_KEY_STORES = 'fv3d_auth_stores_v1';
@@ -78,7 +79,7 @@ export interface AuthContextType {
   verifyEmail: (email: string, otp: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string; message?: string; devOtp?: string }>;
   resetPassword: (payload: { email: string; otp: string; newPassword: string; confirmPassword?: string }) => Promise<{ success: boolean; error?: string; message?: string }>;
-  signInWithGoogle: (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
+  signInWithGoogle: (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string; mode?: 'signin' | 'register' }) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
 
   // Profile Management
   updateUserProfile: (data: { full_name?: string; avatar_url?: string } & UserProfileDetails) => Promise<{ success: boolean; error?: string }>;
@@ -177,6 +178,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: dbShop.phone_number,
           address: dbShop.shop_address,
           verification_doc: dbShop.business_license_no || '',
+          entity_type: dbShop.entity_type,
+          tax_code: dbShop.tax_code,
+          tax_status: dbShop.tax_status,
           status: dbShop.status,
           is_approved: dbShop.status === 'APPROVED',
           rejection_reason: dbShop.rejection_reason || null,
@@ -185,26 +189,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setStores((prev) => [mapped, ...prev.filter((s) => s.user_id !== userId && s.id !== mapped.id)]);
         return;
-      }
-
-      // If DB has no shop yet, auto-push any unsynced local pending shop (e.g., submitted before schema fix)
-      if (myRes.success && myRes.data === null) {
-        const savedRaw = localStorage.getItem(STORAGE_KEY_STORES);
-        const savedStores: Store[] = savedRaw ? JSON.parse(savedRaw) : [];
-        const localPending = savedStores.find((s) => s.user_id === userId && s.status === 'PENDING');
-        if (localPending) {
-          const replayRes = await adminApi.applyStore({
-            shopName: localPending.brand_name,
-            phoneNumber: localPending.phone,
-            shopAddress: localPending.address,
-            businessLicenseNo: localPending.verification_doc,
-          });
-          if (replayRes.success && replayRes.data) {
-            setStores((prev) =>
-              prev.map((s) => (s.id === localPending.id ? { ...s, id: replayRes.data!.id } : s))
-            );
-          }
-        }
       }
     } catch {
       // ignore offline
@@ -361,6 +345,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         if (profile.role === 'admin') {
           navigate('/admin', { replace: true });
+        } else if (profile.role === 'store') {
+          navigate('/shop', { replace: true });
         }
         return { success: true };
       }
@@ -373,37 +359,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // Hỗ trợ chế độ Offline khi Backend (cổng 5000) chưa bật: Tự động cho phép đăng nhập thử nghiệm
-      if (res.error?.message?.includes('5000') || res.error?.code === 'FETCH_ERROR' || res.error?.code === 'NETWORK_ERROR') {
-        const found = Object.values(TEST_USERS).find((u) => u.email.toLowerCase() === email.toLowerCase());
-        const offlineProfile: Profile = found || {
-          id: 'usr-thang-le',
-          full_name: email.includes('@') ? (email.split('@')[0] === 'thang' ? 'Thắng Lê' : email.split('@')[0]) : 'Thắng Lê',
-          email: email || 'thang.le@fitvision3d.com',
-          role: 'user',
-          avatar_url: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        setProfiles((prev) => {
-          const filtered = prev.filter((p) => p.id !== offlineProfile.id);
-          return [offlineProfile, ...filtered];
-        });
-        setCurrentUserId(offlineProfile.id);
-        setIsAuthModalOpen(false);
-        showGlobalToast({
-          type: 'success',
-          title: 'Đăng nhập thành công!',
-          message: `Chào mừng ${offlineProfile.full_name} đến với FitVision 3D.`,
-        });
-        return { success: true };
-      }
-
       return {
         success: false,
-        errorCode: res.error?.code,
-        error: res.error?.message || 'Email hoặc mật khẩu không chính xác.',
+        errorCode: res.error?.code || 'NETWORK_ERROR',
+        error:
+          res.error?.message ||
+          'Không thể kết nối máy chủ xác thực. Vui lòng kiểm tra kết nối và thử lại.',
       };
     },
     []
@@ -462,6 +423,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         success: false,
+        errorCode: res.error?.code,
         error: res.error?.message || 'Đăng ký thất bại. Vui lòng thử lại.',
       };
     },
@@ -543,7 +505,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // 6. Sign In With Google (Thực tế với xác thực token Google tại backend + khóa tài khoản ADMIN)
   const signInWithGoogle = useCallback(
-    async (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string }) => {
+    async (data: { accessToken?: string; email?: string; fullName?: string; credential?: string; avatarUrl?: string; googleId?: string; mode?: 'signin' | 'register' }) => {
       const res = await authApi.googleLogin(data);
       if (res.success && res.data?.user) {
         const prof = mapBackendUserToProfile(res.data.user);
@@ -556,7 +518,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         syncMyStoreFromBackend(prof.id);
         showGlobalToast({
           type: 'success',
-          title: 'Đăng nhập Google thành công!',
+          title: data.mode === 'register' ? 'Đăng ký Google thành công!' : 'Đăng nhập Google thành công!',
           message: `Xin chào ${prof.full_name} · Chúc bạn trải nghiệm FitVision 3D.`,
         });
         if (prof.role === 'admin') {
@@ -576,6 +538,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 7. Sign Out
   const signOut = useCallback(async () => {
     setCurrentUserId(null);
+    clearTransientStudioPrivacyState();
     try {
       localStorage.setItem(STORAGE_KEY_USER_ID, 'guest');
     } catch {}

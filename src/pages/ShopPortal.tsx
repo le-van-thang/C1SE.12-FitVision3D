@@ -29,6 +29,13 @@ import {
   Wand2,
   KeyRound,
   Scissors,
+  ShieldCheck,
+  Clock,
+  AlertTriangle,
+  Building2,
+  CreditCard,
+  PauseCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -39,7 +46,15 @@ import {
   type DbProduct,
   type DbShopProfile,
   type DbShopReview,
+  type ShopReputationSummary,
 } from '@/services/commerceApi';
+import { adminApi } from '@/services/adminApi';
+import {
+  VIETNAM_BANKS,
+  validateVietnamCCCD,
+  validateVietnamTaxCode,
+  type ShopEntityType,
+} from '@/utils/shopKycValidation';
 import type { Order } from '@/features/ecommerce/types';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
@@ -189,21 +204,38 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
 export const ShopPortal: React.FC = () => {
-  const { currentUser, isAuthenticated, userRole, isAuthModalOpen, openSignIn, signOut } = useAuth();
+  const { currentUser, isAuthenticated, userRole, isAuthModalOpen, openSignIn, openOnboarding, signOut } = useAuth();
   const { locale, setLocale } = useI18n();
   const [activeTab, setActiveTab] = useState<ShopTab>('OVERVIEW');
   const [shop, setShop] = useState<DbShopProfile | null>(null);
+  const [kycDocuments, setKycDocuments] = useState<any[]>([]);
+  const [bankAccount, setBankAccount] = useState<any | null>(null);
+  const [reputation, setReputation] = useState<ShopReputationSummary | null>(null);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<DbShopReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Shop profile editable state
+  // Shop profile & operational mode editable state
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [profileAddress, setProfileAddress] = useState('');
+  const [profileTagline, setProfileTagline] = useState('');
+  const [operationalMode, setOperationalMode] = useState<'ACTIVE' | 'VACATION'>('ACTIVE');
+  const [vacationNote, setVacationNote] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // KYC Resubmission state (when shop status is PENDING or REJECTED)
+  const [resubmitEntityType, setResubmitEntityType] = useState<ShopEntityType>('INDIVIDUAL');
+  const [resubmitTaxCode, setResubmitTaxCode] = useState('');
+  const [resubmitNationalId, setResubmitNationalId] = useState('');
+  const [resubmitLicenseNo, setResubmitLicenseNo] = useState('');
+  const [resubmitBankCode, setResubmitBankCode] = useState('VCB');
+  const [resubmitBankName, setResubmitBankName] = useState('Vietcombank');
+  const [resubmitBankAcc, setResubmitBankAcc] = useState('');
+  const [resubmitBankHolder, setResubmitBankHolder] = useState('');
+  const [isResubmittingKyc, setIsResubmittingKyc] = useState(false);
 
   // Product creation form + Multi-Color & Size Variants + Anti-Spam guard
   const [newName, setNewName] = useState('');
@@ -270,13 +302,29 @@ export const ShopPortal: React.FC = () => {
     if (res.success && res.data) {
       setAuthNeedsRelogin(false);
       setShop(res.data.shop);
+      setKycDocuments(res.data.documents || []);
+      setBankAccount(res.data.bankAccount || null);
+      setReputation(res.data.reputation || null);
       setProducts(res.data.products || []);
       setOrders(res.data.orders || []);
       setReviews(res.data.reviews || []);
       if (res.data.shop) {
-        setProfileName(res.data.shop.shop_name || '');
-        setProfilePhone(res.data.shop.phone_number || '');
-        setProfileAddress(res.data.shop.shop_address || '');
+        const s = res.data.shop;
+        setProfileName(s.shop_name || '');
+        setProfilePhone(s.phone_number || '');
+        setProfileAddress(s.shop_address || '');
+        setProfileTagline(s.tagline || '');
+        setOperationalMode(s.operational_mode === 'VACATION' ? 'VACATION' : 'ACTIVE');
+        setVacationNote(s.vacation_note || '');
+        setResubmitEntityType((s.entity_type as ShopEntityType) || 'INDIVIDUAL');
+        setResubmitTaxCode(s.tax_code || '');
+        setResubmitLicenseNo(s.business_license_no || '');
+      }
+      if (res.data.bankAccount) {
+        setResubmitBankCode(res.data.bankAccount.bank_code || 'VCB');
+        setResubmitBankName(res.data.bankAccount.bank_name || 'Vietcombank');
+        setResubmitBankAcc(res.data.bankAccount.account_number || '');
+        setResubmitBankHolder(res.data.bankAccount.account_holder_name || '');
       }
     } else if (res.error?.code === 'AUTH_UNAUTHORIZED') {
       setAuthNeedsRelogin(true);
@@ -337,6 +385,9 @@ export const ShopPortal: React.FC = () => {
       shopName: profileName.trim(),
       phoneNumber: profilePhone.trim(),
       shopAddress: profileAddress.trim(),
+      tagline: profileTagline.trim(),
+      operationalMode,
+      vacationNote: operationalMode === 'VACATION' ? vacationNote.trim() : '',
     });
     setIsSavingProfile(false);
     if (res.success && res.data) {
@@ -352,6 +403,54 @@ export const ShopPortal: React.FC = () => {
         type: 'error',
         title: 'Cập nhật thất bại',
         message: res.error?.message || 'Không thể lưu thông tin Shop.',
+      });
+    }
+  };
+
+  const handleResubmitKyc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resubmitNationalId.trim()) {
+      const cccdCheck = validateVietnamCCCD(resubmitNationalId);
+      if (!cccdCheck.valid) {
+        showGlobalToast({ type: 'error', title: 'CCCD không hợp lệ', message: cccdCheck.reason || '' });
+        return;
+      }
+    }
+    if (resubmitTaxCode.trim()) {
+      const mstCheck = validateVietnamTaxCode(resubmitTaxCode);
+      if (!mstCheck.valid) {
+        showGlobalToast({ type: 'error', title: 'Mã số thuế không hợp lệ', message: mstCheck.reason || '' });
+        return;
+      }
+    }
+    setIsResubmittingKyc(true);
+    const res = await adminApi.applyStore({
+      shopName: profileName.trim() || shop?.shop_name || 'Gian hàng FitVision',
+      phoneNumber: profilePhone.trim() || shop?.phone_number || '0901234567',
+      shopAddress: profileAddress.trim() || shop?.shop_address || 'Việt Nam',
+      entityType: resubmitEntityType,
+      taxCode: resubmitTaxCode.trim() || undefined,
+      nationalId: resubmitNationalId.trim() || undefined,
+      legalRepresentativeName: shop?.legal_representative_name || currentUser?.full_name,
+      businessLicenseNo: resubmitLicenseNo.trim() || undefined,
+      bankCode: resubmitBankCode,
+      bankName: resubmitBankName,
+      bankAccountNumber: resubmitBankAcc.trim() || undefined,
+      bankAccountHolder: resubmitBankHolder.trim() || undefined,
+    });
+    setIsResubmittingKyc(false);
+    if (res.success) {
+      showGlobalToast({
+        type: 'success',
+        title: 'Đã cập nhật & gửi lại hồ sơ KYC!',
+        message: 'Ban quản trị sẽ thẩm định lại hồ sơ thuế & định danh của bạn.',
+      });
+      void loadShopData();
+    } else {
+      showGlobalToast({
+        type: 'error',
+        title: 'Không thể nộp lại hồ sơ',
+        message: res.error?.message || 'Vui lòng kiểm tra lại các trường thông tin.',
       });
     }
   };
@@ -710,13 +809,22 @@ export const ShopPortal: React.FC = () => {
           </div>
           <div className="flex flex-col gap-2.5">
             {!isAuthenticated && (
-              <button
-                type="button"
-                onClick={openSignIn}
-                className="w-full py-3 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold cursor-pointer transition-colors"
-              >
-                Đăng nhập tài khoản Shop
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={openSignIn}
+                  className="w-full py-3 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Đăng nhập tài khoản Shop
+                </button>
+                <button
+                  type="button"
+                  onClick={openOnboarding}
+                  className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Đăng ký Mở Tài Khoản Chủ Shop (KYC &amp; Thuế)
+                </button>
+              </>
             )}
             <a
               href="/"
@@ -922,6 +1030,190 @@ export const ShopPortal: React.FC = () => {
             <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-sm text-slate-500">
               Đang tải dữ liệu gian hàng từ PostgreSQL...
             </div>
+          ) : shop && shop.status !== 'APPROVED' ? (
+            <div className="space-y-6">
+              <div
+                className={`rounded-3xl border-2 p-6 space-y-4 ${
+                  shop.status === 'REJECTED' || shop.status === 'SUSPENDED'
+                    ? 'bg-rose-50/70 border-rose-200'
+                    : 'bg-amber-50/70 border-amber-200'
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                        shop.status === 'REJECTED' || shop.status === 'SUSPENDED'
+                          ? 'bg-rose-100 text-rose-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {shop.status === 'PENDING' ? <Clock size={24} /> : <AlertTriangle size={24} />}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white border border-slate-200 text-slate-800">
+                        Trạng thái KYC Shop: {shop.status}
+                      </span>
+                      <h2 className="text-lg font-black text-slate-950 mt-1.5">
+                        {shop.status === 'PENDING'
+                          ? 'Hồ sơ KYC & Thuế đang chờ Quản trị viên thẩm định'
+                          : shop.status === 'SUSPENDED'
+                            ? 'Gian hàng hiện đang bị Tạm đình chỉ hoạt động'
+                            : 'Hồ sơ KYC cần chỉnh sửa và nộp lại'}
+                      </h2>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        Tính năng đăng sản phẩm &amp; xử lý đơn sẽ tự động mở khóa ngay sau khi Admin phê duyệt hồ sơ của bạn.
+                      </p>
+                      {shop.rejection_reason && (
+                        <div className="mt-2.5 px-3.5 py-2.5 rounded-xl bg-white border border-rose-200 text-xs text-rose-800 font-semibold">
+                          Lý do từ Admin: {shop.rejection_reason}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs bg-white rounded-2xl border border-slate-200 p-4">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Loại hình &amp; Đại diện</div>
+                    <div className="font-bold text-slate-900 mt-1">{shop.entity_type || 'INDIVIDUAL'}</div>
+                    <div className="text-slate-600">CCCD: •••• •••• {shop.national_id_last4 || 'Chưa cập nhật'}</div>
+                    <div className="text-slate-600">Tài liệu đã nộp: {kycDocuments.length} tệp</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Thông tin Thuế &amp; GPKD</div>
+                    <div className="font-mono font-bold text-slate-900 mt-1">
+                      MST: {shop.tax_code || 'Dùng CCCD tạm thời'}
+                    </div>
+                    <div className="text-slate-600">Trạng thái thuế: {shop.tax_status || 'PENDING_REVIEW'}</div>
+                    {shop.business_license_no && <div className="text-slate-600">GPKD: {shop.business_license_no}</div>}
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Tài khoản Ngân hàng</div>
+                    {bankAccount ? (
+                      <>
+                        <div className="font-bold text-slate-900 mt-1">{bankAccount.bank_name}</div>
+                        <div className="font-mono text-slate-700">{bankAccount.account_number}</div>
+                        <div className="text-slate-600">
+                          {bankAccount.account_holder_name} ({bankAccount.verification_status})
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-slate-400 mt-1">Chưa liên kết ngân hàng</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {shop.status !== 'SUSPENDED' && (
+                <form
+                  onSubmit={handleResubmitKyc}
+                  className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs"
+                >
+                  <div className="border-b border-slate-100 pb-3">
+                    <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                      <ShieldCheck size={16} className="text-blue-600" /> Bổ Sung / Cập Nhật Lại Hồ Sơ KYC &amp; Thuế
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Cập nhật các thông tin còn thiếu hoặc sai sót để gửi lại cho Quản trị viên duyệt.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        <Building2 size={11} className="inline mr-1" /> Loại hình kinh doanh
+                      </label>
+                      <select
+                        value={resubmitEntityType}
+                        onChange={(e) => setResubmitEntityType(e.target.value as ShopEntityType)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold"
+                      >
+                        <option value="INDIVIDUAL">Cá nhân / Thợ may</option>
+                        <option value="HOUSEHOLD">Hộ kinh doanh</option>
+                        <option value="ENTERPRISE">Doanh nghiệp (Mall)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Mã số thuế (10 / 12 / -888)</label>
+                      <input
+                        value={resubmitTaxCode}
+                        onChange={(e) => setResubmitTaxCode(e.target.value)}
+                        placeholder="0108928374 hoặc 0108928374-888"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Cập nhật Số CCCD (12 số)</label>
+                      <input
+                        value={resubmitNationalId}
+                        onChange={(e) => setResubmitNationalId(e.target.value)}
+                        placeholder="Để trống nếu giữ CCCD cũ"
+                        maxLength={12}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Số GPKD (Hộ KD / DN)</label>
+                      <input
+                        value={resubmitLicenseNo}
+                        onChange={(e) => setResubmitLicenseNo(e.target.value)}
+                        placeholder="VD: 0108928374"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        <CreditCard size={11} className="inline mr-1" /> Ngân hàng &amp; STK
+                      </label>
+                      <div className="flex gap-1.5">
+                        <select
+                          value={resubmitBankCode}
+                          onChange={(e) => {
+                            const code = e.target.value;
+                            setResubmitBankCode(code);
+                            setResubmitBankName(VIETNAM_BANKS.find((b) => b.code === code)?.name || code);
+                          }}
+                          className="w-24 px-2 py-2 rounded-xl border border-slate-300 text-xs font-bold"
+                        >
+                          {VIETNAM_BANKS.map((b) => (
+                            <option key={b.code} value={b.code}>{b.code}</option>
+                          ))}
+                        </select>
+                        <input
+                          value={resubmitBankAcc}
+                          onChange={(e) => setResubmitBankAcc(e.target.value)}
+                          placeholder="Số tài khoản"
+                          className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Tên Chủ TK Ngân hàng</label>
+                      <input
+                        value={resubmitBankHolder}
+                        onChange={(e) => setResubmitBankHolder(e.target.value)}
+                        placeholder="NGUYEN VAN AN"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs uppercase"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isResubmittingKyc}
+                      className="px-5 py-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold cursor-pointer disabled:opacity-60"
+                    >
+                      {isResubmittingKyc ? 'Đang gửi lại hồ sơ...' : 'Lưu & Gửi Lại Admin Duyệt'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           ) : (
             <>
               {/* TAB 1: OVERVIEW & EDIT SHOP PROFILE */}
@@ -982,14 +1274,26 @@ export const ShopPortal: React.FC = () => {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
                       <div>
-                        <h3 className="text-sm font-black text-slate-950">Hồ Sơ Thương Hiệu &amp; Liên Hệ Shop</h3>
+                        <h3 className="text-sm font-black text-slate-950">Hồ Sơ Thương Hiệu, Đánh Giá Tổng Quan &amp; Chế Độ Hoạt Động</h3>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Tên thương hiệu này sẽ gắn trực tiếp lên từng thẻ sản phẩm của bạn trên sàn thương mại.
+                          Quản lý trang thương hiệu riêng, chỉ số sao trung bình trên toàn sàn và chế độ Tạm nghỉ (Vacation Mode).
                         </p>
                       </div>
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                        Đã liên kết PostgreSQL • ID: {shop?.id?.slice(0, 8)}...
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {reputation && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+                            ★ {reputation.ratingAvg.toFixed(1)}/5 ({reputation.ratingCount}) • Phản hồi {reputation.responseRate}% • {reputation.tier}
+                          </span>
+                        )}
+                        {shop && (
+                          <Link
+                            to={`/stores/${encodeURIComponent(shop.brand_slug || shop.shop_name)}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1 rounded-full"
+                          >
+                            <ExternalLink size={12} /> Xem Gian Hàng Công Khai
+                          </Link>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1028,6 +1332,64 @@ export const ShopPortal: React.FC = () => {
                         />
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-800 block mb-1.5">
+                          Khẩu hiệu Thương hiệu (Tagline)
+                        </label>
+                        <input
+                          value={profileTagline}
+                          onChange={(e) => setProfileTagline(e.target.value)}
+                          placeholder="VD: May đo Vest & Sơ mi AI 3D chuẩn số đo"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
+                          <PauseCircle size={12} /> Trạng thái Gian hàng (Shopee/Lazada)
+                        </label>
+                        <select
+                          value={operationalMode}
+                          onChange={(e) => setOperationalMode(e.target.value as 'ACTIVE' | 'VACATION')}
+                          className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-bold outline-none ${
+                            operationalMode === 'VACATION'
+                              ? 'border-amber-400 bg-amber-50 text-amber-900'
+                              : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                          }`}
+                        >
+                          <option value="ACTIVE">Đang hoạt động (Nhận đơn bình thường)</option>
+                          <option value="VACATION">Chế độ Tạm nghỉ (Tạm ngừng nhận đơn mới)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-800 block mb-1.5">
+                          Thông báo Tạm nghỉ (nếu bật Vacation)
+                        </label>
+                        <input
+                          disabled={operationalMode !== 'VACATION'}
+                          value={vacationNote}
+                          onChange={(e) => setVacationNote(e.target.value)}
+                          placeholder="VD: Xưởng nghỉ kiểm kê đến thứ 2"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 disabled:bg-slate-100 text-xs outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {shop && (
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                        <span>
+                          Pháp lý Thuế: <b>{shop.entity_type || 'INDIVIDUAL'}</b> • MST:{' '}
+                          <b className="font-mono text-slate-900">{shop.tax_code || 'CCCD tạm thời'}</b> ({shop.tax_status})
+                        </span>
+                        {bankAccount && (
+                          <span>
+                            Ngân hàng chi trả: <b>{bankAccount.bank_name}</b> •{' '}
+                            <b className="font-mono">{bankAccount.account_number}</b> ({bankAccount.verification_status})
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex justify-end">
                       <button

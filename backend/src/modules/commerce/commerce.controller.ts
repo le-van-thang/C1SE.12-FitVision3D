@@ -38,6 +38,13 @@ export const commerceController = {
       if (!req.user) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập để đặt hàng.');
       }
+      if (req.user.role === 'SHOP_OWNER') {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Tài khoản Chủ Shop không dùng để đặt hàng cá nhân. Vui lòng sử dụng tài khoản Khách hàng (USER) để tách bạch thuế & chống tự mua.'
+        );
+      }
       const body = req.body || {};
       const orderId = body.id || `FV3D-${Math.floor(10000 + Math.random() * 90000)}`;
       const customerId = req.user.sub;
@@ -52,13 +59,17 @@ export const commerceController = {
         customer_name: body.customer_name || body.recipient?.full_name || 'Khách FitVision 3D',
         recipient: body.recipient || {},
         items: Array.isArray(body.items) ? body.items : [],
+        coupon_code:
+          body.coupon_code || body.voucherCode
+            ? String(body.coupon_code || body.voucherCode).trim().toUpperCase()
+            : undefined,
         subtotal: Number(body.subtotal) || 0,
         shipping_fee: Number(body.shipping_fee) || 0,
         discount_amount: Number(body.discount_amount) || 0,
         total_amount: Number(body.total_amount) || 0,
-        payment_method: body.payment_method || 'cod',
-        payment_status: body.payment_status || 'unpaid',
-        status: body.status || 'pending',
+        payment_method: body.payment_method === 'vietqr_sepay' ? 'vietqr_sepay' : 'cod',
+        payment_status: 'unpaid',
+        status: 'pending',
         store_name: body.store_name || '',
         estimated_delivery: body.estimated_delivery || '',
         measurement_snapshot: body.measurement_snapshot ?? null,
@@ -73,6 +84,16 @@ export const commerceController = {
     try {
       if (!req.user) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chưa xác thực danh tính.');
+      }
+      if (req.user.role === 'SHOP_OWNER') {
+        const shop = await commerceRepository.ensureShopForUser(req.user.sub);
+        if (!shop || shop.status !== 'APPROVED') {
+          throw new AppError(
+            403,
+            ErrorCode.AUTH_SHOP_PENDING_APPROVAL,
+            'Gian hàng cần được Quản trị viên phê duyệt trước khi xử lý đơn hàng.'
+          );
+        }
       }
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { status } = req.body || {};
@@ -98,6 +119,23 @@ export const commerceController = {
       if (!req.user) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chưa xác thực danh tính.');
       }
+      if (req.user.role === 'USER') {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Khách hàng không thể tự đánh dấu đã thanh toán. Trạng thái sẽ tự cập nhật qua SePay Webhook hoặc xác nhận từ Shop/Admin.'
+        );
+      }
+      if (req.user.role === 'SHOP_OWNER') {
+        const shop = await commerceRepository.ensureShopForUser(req.user.sub);
+        if (!shop || shop.status !== 'APPROVED') {
+          throw new AppError(
+            403,
+            ErrorCode.AUTH_SHOP_PENDING_APPROVAL,
+            'Gian hàng cần được Quản trị viên phê duyệt trước khi xử lý đơn hàng.'
+          );
+        }
+      }
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const updated = await commerceRepository.markOrderPaid(id, {
         sub: req.user.sub,
@@ -115,6 +153,9 @@ export const commerceController = {
   async handleSePayWebhook(req: Request, res: Response, next: NextFunction) {
     try {
       const configuredSecret = process.env.SEPAY_WEBHOOK_SECRET || '';
+      if (process.env.NODE_ENV === 'production' && !configuredSecret) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'SEPAY_WEBHOOK_SECRET chưa được cấu hình ở môi trường Production.');
+      }
       if (configuredSecret) {
         const authHeader = String(req.headers.authorization || '');
         const customHeader = String(req.headers['x-sepay-secret'] || '');
@@ -363,6 +404,28 @@ export const commerceController = {
     }
   },
 
+  async listPublicStores(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const stores = await commerceRepository.listPublicStores();
+      sendSuccess(res, stores);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getPublicStorefront(req: Request, res: Response, next: NextFunction) {
+    try {
+      const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+      const storefront = await commerceRepository.getPublicStorefrontBySlug(slug);
+      if (!storefront) {
+        throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy gian hàng.');
+      }
+      sendSuccess(res, storefront);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async listProductReviews(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -378,6 +441,13 @@ export const commerceController = {
       const userId = req.user?.sub;
       if (!userId) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập để gửi đánh giá.');
+      }
+      if (req.user?.role === 'SHOP_OWNER') {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Tài khoản Chủ Shop không được tự gửi đánh giá sản phẩm.'
+        );
       }
       const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const { rating, comment, userName } = req.body || {};

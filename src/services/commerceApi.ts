@@ -93,15 +93,46 @@ export interface DbShopReview extends DbProductReview {
   product_name?: string;
 }
 
+export interface ShopReputationSummary {
+  ratingAvg: number;
+  ratingCount: number;
+  responseRate: number;
+  activeProductsCount: number;
+  tier: 'MALL' | 'PREFERRED' | 'REGULAR';
+}
+
 export interface DbShopProfile {
   id: string;
   owner_id: string;
   shop_name: string;
+  brand_slug?: string | null;
   phone_number: string;
   shop_address: string;
-  status: string;
+  entity_type?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
+  tax_code?: string | null;
+  tax_status?: string | null;
+  legal_representative_name?: string | null;
+  national_id_last4?: string | null;
+  business_license_no?: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | string;
+  rejection_reason?: string | null;
   is_verified: boolean;
   is_mall: boolean;
+  operational_mode?: 'ACTIVE' | 'VACATION';
+  vacation_note?: string | null;
+  vacation_until?: string | null;
+  banner_url?: string | null;
+  logo_url?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  created_at?: string;
+}
+
+export interface PublicStorefrontResponse {
+  shop: DbShopProfile;
+  reputation: ShopReputationSummary;
+  products: DbProduct[];
+  reviews: DbShopReview[];
 }
 
 export interface DbMembershipLog {
@@ -228,16 +259,54 @@ export const commerceApi = {
     );
   },
 
+  getPublicStores() {
+    return commerceRequest<Array<DbShopProfile & { reputation: ShopReputationSummary }>>('/stores');
+  },
+
+  getPublicStorefront(slug: string) {
+    return commerceRequest<PublicStorefrontResponse>(`/stores/${encodeURIComponent(slug)}`);
+  },
+
   getShopDashboard() {
     return commerceRequest<{
       shop: DbShopProfile | null;
+      documents?: Array<{
+        id: string;
+        doc_type: string;
+        file_url: string;
+        file_name?: string;
+        qr_parsed_payload?: any;
+        verification_status: string;
+        reviewer_note?: string;
+      }>;
+      bankAccount?: {
+        id: string;
+        bank_code: string;
+        bank_name: string;
+        account_number: string;
+        account_holder_name: string;
+        name_match_score: number;
+        verification_status: string;
+      } | null;
+      reputation?: ShopReputationSummary | null;
       products: DbProduct[];
       orders: Order[];
       reviews?: DbShopReview[];
     }>('/shop/dashboard');
   },
 
-  updateShopProfile(payload: { shopName: string; phoneNumber: string; shopAddress: string }) {
+  updateShopProfile(payload: {
+    shopName: string;
+    phoneNumber: string;
+    shopAddress: string;
+    tagline?: string;
+    description?: string;
+    bannerUrl?: string;
+    logoUrl?: string;
+    operationalMode?: 'ACTIVE' | 'VACATION';
+    vacationNote?: string;
+    vacationUntil?: string | null;
+  }) {
     return commerceRequest<DbShopProfile>('/shop/profile', {
       method: 'PATCH',
       body: JSON.stringify(payload),

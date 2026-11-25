@@ -1,6 +1,7 @@
 import { adminRepository } from './admin.repository.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
+import { cassoTaxAndLocalKycProvider, type ShopEntityType } from '../shop/kycVerification.js';
 
 export const adminService = {
   async getDashboardStats() {
@@ -12,7 +13,7 @@ export const adminService = {
   },
 
   async approveStore(storeId: string, adminUserId?: string) {
-    const shop = await adminRepository.approveShop(storeId);
+    const shop = await adminRepository.approveShop(storeId, adminUserId);
     if (!shop) {
       throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy hồ sơ cửa hàng để duyệt.');
     }
@@ -31,7 +32,7 @@ export const adminService = {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Vui lòng cung cấp lý do từ chối hồ sơ.');
     }
 
-    const shop = await adminRepository.rejectShop(storeId, reason.trim());
+    const shop = await adminRepository.rejectShop(storeId, reason.trim(), adminUserId);
     if (!shop) {
       throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy hồ sơ cửa hàng để từ chối.');
     }
@@ -43,6 +44,26 @@ export const adminService = {
     });
 
     return shop;
+  },
+
+  async suspendStore(storeId: string, reason: string, adminUserId?: string) {
+    if (!reason || reason.trim().length === 0) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Vui lòng cung cấp lý do tạm đình chỉ cửa hàng.');
+    }
+    const shop = await adminRepository.suspendShop(storeId, reason.trim(), adminUserId);
+    if (!shop) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy cửa hàng để tạm đình chỉ.');
+    }
+    await adminRepository.logAction({
+      userId: adminUserId,
+      actionType: 'STORE_SUSPENDED',
+      executionTimeMs: 15,
+    });
+    return shop;
+  },
+
+  async lookupTaxCode(taxCode: string, entityType?: ShopEntityType) {
+    return await cassoTaxAndLocalKycProvider.lookupTaxCode(taxCode, entityType || 'ENTERPRISE');
   },
 
   async toggleShopMall(shopId: string, isMall: boolean, adminUserId?: string) {
@@ -114,19 +135,24 @@ export const adminService = {
     return await adminRepository.getShopByOwnerId(ownerId);
   },
 
-  async applyShop(ownerId: string, data: {
-    shopName: string;
-    phoneNumber: string;
-    shopAddress: string;
-    businessLicenseNo?: string;
-  }) {
+  async applyShop(ownerId: string, data: any) {
     const shop = await adminRepository.applyShop(ownerId, data);
     await adminRepository.logAction({
       userId: ownerId,
-      actionType: 'STORE_APPLICATION_SUBMITTED',
+      actionType: 'STORE_KYC_RESUBMITTED',
       executionTimeMs: 14,
     });
     return shop;
+  },
+
+  async provisionShopForUser(targetUserId: string, payload: any, adminUserId?: string) {
+    const result = await adminRepository.provisionShopForUser(targetUserId, payload, adminUserId);
+    await adminRepository.logAction({
+      userId: adminUserId,
+      actionType: 'ADMIN_PROVISIONED_SHOP',
+      executionTimeMs: 18,
+    });
+    return result;
   },
 };
 

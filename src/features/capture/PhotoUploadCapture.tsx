@@ -123,16 +123,44 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 
   const frontInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    return () => {
+      if (frontImage?.url && frontImage.url.startsWith("blob:")) {
+        URL.revokeObjectURL(frontImage.url);
+      }
+    };
+  }, [frontImage?.url]);
+
   const handleFrontFile = (file: File) => {
     if (!file.type.startsWith("image/")) return;
     const url = URL.createObjectURL(file);
-    setFrontImage({ file, url, name: file.name });
+    setFrontImage((prev) => {
+      if (prev?.url && prev.url.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.url);
+      }
+      return { file, url, name: file.name };
+    });
   };
+
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleStartScan = () => {
     if (!frontImage) return;
-    const finalHeight = parseFloat(height) || initialHeight || 172;
+    setValidationError(null);
+    let finalHeight = parseFloat(height) || initialHeight || 172;
+    if (finalHeight > 0 && finalHeight < 3.0) {
+      finalHeight = Math.round(finalHeight * 100 * 10) / 10;
+      setHeight(String(finalHeight));
+    }
     const finalWeight = parseFloat(weight) || initialWeight || 70;
+    if (finalHeight < 100 || finalHeight > 250) {
+      setValidationError('Chiều cao hợp lệ phải từ 100 cm đến 250 cm (nếu nhập mét như 1.72 sẽ tự đổi sang 172 cm).');
+      return;
+    }
+    if (finalWeight < 30 || finalWeight > 250) {
+      setValidationError('Cân nặng hợp lệ phải từ 30 kg đến 250 kg.');
+      return;
+    }
     onScan({
       frontFile: frontImage.file,
       height_cm: finalHeight,
@@ -143,6 +171,11 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 
   return (
     <div className="photo-upload-studio" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {validationError && (
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
+          {validationError}
+        </div>
+      )}
       {/* Upload Zone: Single Front A-Pose (SMPLer-X Standard) */}
       <div>
         <div className="flex items-center justify-between">
@@ -293,7 +326,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           <p className="text-[11px] leading-snug text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1.5 font-medium">
             {t(
               "cap.calibNudge",
-              "Gợi ý: Nhập chiều cao & cân nặng để AI đo chuẩn dáng bạn hơn (có thể bỏ trống — tự dùng mức 172 cm · 68 kg)."
+              "Gợi ý: Nhập chiều cao & cân nặng để AI đo chuẩn dáng bạn hơn (có thể bỏ trống — tự dùng mức 172 cm · 70 kg)."
             )}
           </p>
         )}

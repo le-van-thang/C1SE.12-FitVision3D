@@ -149,6 +149,7 @@ export interface CreateOrderInput {
   customer_name: string;
   recipient: OrderRecipient;
   items: CartItem[];
+  coupon_code?: string;
   subtotal: number;
   shipping_fee: number;
   discount_amount: number;

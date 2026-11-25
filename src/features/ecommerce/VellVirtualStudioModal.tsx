@@ -7,7 +7,6 @@ import {
   RotateCcw,
   Undo2,
   Redo2,
-  Bookmark,
   ShoppingBag,
   Check,
   Ruler,
@@ -355,7 +354,6 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [history, setHistory] = useState<string[]>([]);
   const [historyPointer, setHistoryPointer] = useState<number>(-1);
-  const [savedToLibrary, setSavedToLibrary] = useState<boolean>(false);
 
   // Personal photo cutout state (preserved across round-trips to /dashboard scan)
   const [userPhotoName, setUserPhotoName] = useState<string>(() => getStudioCutoutCache()?.fileName || 'studio-photo.jpg');
@@ -1165,39 +1163,31 @@ export const VellVirtualStudioModal: React.FC<VellVirtualStudioModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSavedToLibrary(true);
-                    setTimeout(() => setSavedToLibrary(false), 2000);
-                  }}
-                  className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white border border-white/15 transition-colors cursor-pointer"
-                  title="Lưu vào tủ đồ"
-                >
-                  {savedToLibrary ? <Check size={16} className="text-emerald-400" /> : <Bookmark size={16} />}
-                </button>
+                <span className="px-2 py-1 rounded-lg bg-amber-400/20 border border-amber-300/40 text-amber-200 text-[10px] font-black uppercase tracking-wider">
+                  BETA 3D
+                </span>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onAddToCart) {
-                      const prod: any = currentLook.sourceProduct || {
-                        id: currentLook.key,
-                        name: currentLook.name,
-                        price: currentLook.price,
-                        image_url: currentLook.img,
-                        brand_name: currentLook.shopName,
-                        fabric_material: currentLook.fabric,
-                        category: currentLook.category,
-                      };
-                      onAddToCart(prod, activeSize);
-                    }
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/30 transition-all cursor-pointer"
-                >
-                  <ShoppingBag size={14} />
-                  <span>{hasBodyProfile ? `Mua Size ${activeSize}` : 'Chọn Mua'}</span>
-                </button>
+                {currentLook.sourceProduct ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onAddToCart && currentLook.sourceProduct) {
+                        onAddToCart(currentLook.sourceProduct, activeSize);
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/30 transition-all cursor-pointer"
+                  >
+                    <ShoppingBag size={14} />
+                    <span>{hasBodyProfile ? `Mua Size ${activeSize}` : 'Chọn Mua'}</span>
+                  </button>
+                ) : (
+                  <span
+                    className="px-3 py-2 rounded-xl bg-white/10 text-stone-300 border border-white/15 font-bold text-[11px] cursor-default"
+                    title="Mẫu trình diễn thử nghiệm 3D (chưa mở bán)"
+                  >
+                    Mẫu Thử Nghiệm Beta
+                  </span>
+                )}
               </div>
             </div>
           </div>

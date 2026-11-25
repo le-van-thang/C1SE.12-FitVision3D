@@ -30,7 +30,10 @@ export interface Store {
   phone: string;                // varchar(20) NOT NULL UNIQUE
   address: string;              // text NOT NULL
   verification_doc: string;     // text NOT NULL (Business license ID or Partner Website/Fanpage URL)
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  entity_type?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
+  tax_code?: string | null;
+  tax_status?: string | null;
   is_approved?: boolean;        // boolean flag (true when status === 'APPROVED')
   is_mall?: boolean;            // Official FitVision Mall verification badge
   rejection_reason?: string | null; // text (mandatory when status === 'REJECTED')

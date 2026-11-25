@@ -110,7 +110,7 @@ export const authApi = {
     });
   },
 
-  // 2. Đăng ký Chủ Shop
+  // 2. Đăng ký Chủ Shop (SHOP_OWNER - tài khoản độc lập kèm KYC, Thuế & Ngân hàng)
   async registerShop(data: {
     shopName: string;
     phoneNumber: string;
@@ -118,13 +118,41 @@ export const authApi = {
     fullName: string;
     email: string;
     password: string;
+    confirmPassword?: string;
+    entityType?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
+    nationalId?: string;
     taxCode?: string;
+    businessLicenseNo?: string;
+    bankCode?: string;
+    bankName?: string;
+    bankAccountNumber?: string;
+    bankAccountHolder?: string;
+    tagline?: string;
+    kycDocuments?: Array<{
+      docType: 'CCCD_FRONT' | 'CCCD_BACK' | 'BUSINESS_LICENSE' | 'TAX_REGISTRATION' | 'BRAND_AUTHORIZATION';
+      fileUrl: string;
+      fileName?: string;
+      qrParsedPayload?: Record<string, any> | null;
+    }>;
   }) {
-    return request('/register-shop', {
+    return request<{
+      userId: string;
+      shopId: string;
+      brandSlug: string;
+      email: string;
+      role: string;
+      status: string;
+      shopStatus: string;
+      taxStatus: string;
+      bankVerificationStatus: string;
+      qrConsistency?: { status: string; notes: string };
+      taxLookup?: any;
+      message: string;
+    }>('/register-shop', {
       method: 'POST',
       body: JSON.stringify({
         ...data,
-        confirmPassword: data.password,
+        confirmPassword: data.confirmPassword || data.password,
         termsAgreed: true,
         extraNotes: '',
       }),
@@ -227,7 +255,15 @@ export const authApi = {
   },
 
   // 10. Đăng nhập với Google
-  async googleLogin(data: { accessToken?: string; email?: string; fullName?: string; credential?: string; googleId?: string; avatarUrl?: string }) {
+  async googleLogin(data: {
+    accessToken?: string;
+    email?: string;
+    fullName?: string;
+    credential?: string;
+    googleId?: string;
+    avatarUrl?: string;
+    mode?: 'signin' | 'register';
+  }) {
     const res = await request<{
       accessToken: string;
       expiresIn: number;

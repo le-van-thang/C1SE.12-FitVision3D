@@ -20,6 +20,14 @@ import {
   generateRefreshTokenString,
   hashToken,
 } from '../../utils/jwt.js';
+import {
+  cassoTaxAndLocalKycProvider,
+  compareVietnameseAccountNames,
+  evaluateCccdQrConsistency,
+  hashNationalId,
+  validateVietnamCCCD,
+  validateVietnamTaxCode,
+} from '../shop/kycVerification.js';
 
 export const authService = {
   /**
@@ -55,8 +63,8 @@ export const authService = {
       );
     }
 
-    // 3. Kiểm tra Trùng lặp Email
-    const existing = await authRepository.findUserByEmail(dto.email);
+    // 3. Kiểm tra Trùng lặp Email (bao gồm biến thể dấu chấm / +alias của Gmail)
+    const existing = await authRepository.findUserByEmailOrCanonical(dto.email);
     if (existing) {
       throw new AppError(
         409,
@@ -126,8 +134,8 @@ export const authService = {
       );
     }
 
-    // 3. Email duplication check
-    const existing = await authRepository.findUserByEmail(dto.email);
+    // 3. Email duplication check (bao gồm biến thể dấu chấm / +alias của Gmail)
+    const existing = await authRepository.findUserByEmailOrCanonical(dto.email);
     if (existing) {
       throw new AppError(
         409,
@@ -136,10 +144,97 @@ export const authService = {
       );
     }
 
+    // 3b. Kiểm tra Tầng 1-3: CCCD, Mã số thuế, trùng lặp pháp lý & Tài khoản ngân hàng
+    const cleanNationalId = (dto.nationalId || '').replace(/\s+/g, '');
+    const nationalIdHash = cleanNationalId ? hashNationalId(cleanNationalId) : undefined;
+    const taxValidation = dto.taxCode ? validateVietnamTaxCode(dto.taxCode) : null;
+    const normalizedTaxCode = taxValidation?.normalized || '';
+
+    if (cleanNationalId) {
+      const cccdCheck = validateVietnamCCCD(cleanNationalId);
+      if (!cccdCheck.valid) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, cccdCheck.reason || 'Số CCCD không hợp lệ.');
+      }
+    }
+
+    const dupShop = await authRepository.findShopDuplicate({
+      taxCode: normalizedTaxCode || undefined,
+      nationalIdHash,
+      shopName: dto.shopName,
+      phoneNumber: dto.phoneNumber,
+    });
+    if (dupShop) {
+      const dupLabels: Record<string, string> = {
+        taxCode: 'Mã số thuế này đã được đăng ký cho một cửa hàng khác.',
+        nationalId: 'Số CCCD này đã liên kết với một cửa hàng khác trên hệ thống.',
+        shopName: 'Tên thương hiệu cửa hàng đã tồn tại. Vui lòng chọn tên khác.',
+        phoneNumber: 'Số điện thoại kinh doanh này đã được sử dụng cho cửa hàng khác.',
+      };
+      throw new AppError(
+        409,
+        ErrorCode.VALIDATION_FAILED,
+        dupLabels[dupShop.field] || 'Thông tin cửa hàng bị trùng lặp trên hệ thống.'
+      );
+    }
+
+    // Tier 2: Check CCCD Front QR payload consistency if provided
+    const frontDoc = (dto.kycDocuments || []).find((d) => d.docType === 'CCCD_FRONT');
+    const qrConsistency = cleanNationalId
+      ? evaluateCccdQrConsistency(cleanNationalId, dto.fullName, (frontDoc?.qrParsedPayload as any) || null)
+      : { status: 'NOT_DETECTED' as const, notes: '' };
+
+    const kycDocumentsPrepared = (dto.kycDocuments || []).map((doc) =>
+      doc.docType === 'CCCD_FRONT'
+        ? {
+            ...doc,
+            verificationStatus: qrConsistency.status === 'MATCHED' ? 'VERIFIED' : 'PENDING',
+            reviewerNote: qrConsistency.notes,
+          }
+        : { ...doc, verificationStatus: 'PENDING' }
+    );
+
+    // Tier 3: Tax Code lookup via Casso Open Platform (if configured)
+    const taxLookup =
+      normalizedTaxCode
+        ? await cassoTaxAndLocalKycProvider.lookupTaxCode(normalizedTaxCode, dto.entityType)
+        : null;
+
+    const taxStatus =
+      dto.entityType === 'INDIVIDUAL' && !normalizedTaxCode
+        ? 'USING_NATIONAL_ID_TEMP'
+        : taxLookup?.lookupStatus === 'FOUND'
+          ? 'VERIFIED'
+          : 'PENDING_REVIEW';
+
+    // Bank Holder name match check
+    let bankPrepared: {
+      bankCode: string;
+      bankName: string;
+      accountNumber: string;
+      accountHolderName: string;
+      nameMatchScore: number;
+      verificationStatus: string;
+    } | null = null;
+    if (dto.bankAccountNumber && dto.bankName && dto.bankAccountHolder) {
+      const expectedLegalName =
+        dto.entityType === 'ENTERPRISE' && taxLookup?.businessName
+          ? taxLookup.businessName
+          : dto.fullName;
+      const bankCompare = compareVietnameseAccountNames(dto.bankAccountHolder, expectedLegalName);
+      bankPrepared = {
+        bankCode: dto.bankCode || 'BANK',
+        bankName: dto.bankName,
+        accountNumber: dto.bankAccountNumber.replace(/\s+/g, ''),
+        accountHolderName: dto.bankAccountHolder.trim(),
+        nameMatchScore: bankCompare.score,
+        verificationStatus: bankCompare.matched ? 'MATCHED' : 'MISMATCHED',
+      };
+    }
+
     // 4. Hash password
     const passwordHash = await hashPassword(dto.password);
 
-    // 5. Tạo user với role = 'SHOP_OWNER', status = 'PENDING_APPROVAL'
+    // 5. Tạo tài khoản SHOP_OWNER độc lập (status = 'PENDING_APPROVAL')
     const user = await authRepository.createUser({
       email: dto.email,
       passwordHash,
@@ -148,21 +243,38 @@ export const authService = {
       status: 'PENDING_APPROVAL',
     });
 
-    // 6. Tạo hồ sơ cửa hàng liên kết 1-1
-    await authRepository.createShop({
+    // 6. Tạo hồ sơ cửa hàng + tài liệu KYC + tài khoản ngân hàng liên kết 1-1
+    const shop = await authRepository.createShop({
       ownerId: user.id,
       shopName: dto.shopName,
       phoneNumber: dto.phoneNumber,
       shopAddress: dto.shopAddress,
-      taxCode: dto.taxCode,
+      entityType: dto.entityType,
+      taxCode: normalizedTaxCode || undefined,
+      taxStatus,
+      businessLicenseNo: dto.businessLicenseNo || undefined,
+      legalRepresentativeName: dto.fullName,
+      nationalIdLast4: cleanNationalId ? cleanNationalId.slice(-4) : undefined,
+      nationalIdHash,
+      tagline: dto.tagline || undefined,
+      taxLookupSnapshot: taxLookup || undefined,
+      kycDocuments: kycDocumentsPrepared,
+      bankAccount: bankPrepared,
     });
 
     return {
       userId: user.id,
+      shopId: shop.id,
+      brandSlug: shop.brand_slug,
       email: user.email,
       role: user.role,
       status: user.status,
-      message: 'Đăng ký thành công! Hồ sơ cửa hàng đang chờ quản trị viên xét duyệt.',
+      shopStatus: shop.status || 'PENDING',
+      taxStatus,
+      qrConsistency,
+      taxLookup,
+      bankVerificationStatus: bankPrepared?.verificationStatus || 'PENDING',
+      message: 'Đăng ký tài khoản Chủ Shop thành công! Hồ sơ KYC & Thuế đang chờ Quản trị viên thẩm định.',
     };
   },
 
@@ -172,8 +284,16 @@ export const authService = {
   async login(dto: LoginDtoType) {
     const user = await authRepository.findUserByEmail(dto.email);
 
-    // Chống Account Enumeration: Nếu không tìm thấy user, vẫn trả về thông báo chung
+    // Chống Account Enumeration + Timing Attack: luôn chạy verifyPassword giả định khi không tìm thấy user
     if (!user) {
+      try {
+        await verifyPassword(
+          dto.password,
+          '$2b$12$C6UzMDM.H6dfI/f/IKxGhu3pP6u6Q2x6nC9s2mK8q4wZ6x9Y5rW6K'
+        );
+      } catch {
+        // Ignore hash check error; uniform delay goal
+      }
       throw new AppError(
         401,
         ErrorCode.AUTH_INVALID_CREDENTIALS,
@@ -240,7 +360,10 @@ export const authService = {
       );
     }
 
-    if (user.status === 'PENDING_APPROVAL') {
+    const shopRecord =
+      user.role === 'SHOP_OWNER' ? await authRepository.findShopByOwnerId(user.id) : null;
+
+    if (user.status === 'PENDING_APPROVAL' && user.role !== 'SHOP_OWNER') {
       throw new AppError(
         403,
         ErrorCode.AUTH_SHOP_PENDING_APPROVAL,
@@ -291,6 +414,8 @@ export const authService = {
         fullName: user.full_name,
         role: user.role,
         status: user.status,
+        shopStatus: shopRecord?.status || (user.role === 'SHOP_OWNER' ? 'PENDING' : undefined),
+        rejectionReason: shopRecord?.rejection_reason || null,
       },
     };
   },
@@ -379,7 +504,11 @@ export const authService = {
   async verifyEmail(dto: { email: string; otp?: string; verificationToken?: string }) {
     const user = await authRepository.findUserByEmail(dto.email);
     if (!user) {
-      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản người dùng.');
+      throw new AppError(
+        400,
+        ErrorCode.AUTH_OTP_INVALID,
+        'Mã OTP không chính xác hoặc đã hết hạn (15 phút). Vui lòng kiểm tra lại Gmail.'
+      );
     }
 
     if (user.status === 'ACTIVE') {
@@ -433,12 +562,16 @@ export const authService = {
     if (!user) {
       throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy người dùng.');
     }
+    const shopRecord =
+      user.role === 'SHOP_OWNER' ? await authRepository.findShopByOwnerId(user.id) : null;
     return {
       id: user.id,
       email: user.email,
       fullName: user.full_name,
       role: user.role,
       status: user.status,
+      shopStatus: shopRecord?.status || (user.role === 'SHOP_OWNER' ? 'PENDING' : undefined),
+      rejectionReason: shopRecord?.rejection_reason || null,
       createdAt: user.created_at,
     };
   },
@@ -467,7 +600,11 @@ export const authService = {
     const cleanEmail = dto.email.toLowerCase().trim();
     const user = await authRepository.findUserByEmail(cleanEmail);
     if (!user) {
-      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản người dùng.');
+      throw new AppError(
+        400,
+        ErrorCode.AUTH_OTP_INVALID,
+        'Mã OTP không chính xác hoặc đã hết hạn.'
+      );
     }
 
     // Kiểm tra OTP qua emailService
@@ -527,7 +664,10 @@ export const authService = {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const existingAccount = await authRepository.findUserByEmail(cleanEmail);
+    const existingAccount =
+      dto.mode === 'register'
+        ? await authRepository.findUserByEmailOrCanonical(cleanEmail)
+        : await authRepository.findUserByEmail(cleanEmail);
     const isProtectedAdminEmail =
       existingAccount?.role === 'ADMIN' ||
       cleanEmail === 'levanthang0166@gmail.com' ||
@@ -539,6 +679,15 @@ export const authService = {
         403,
         ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
         'Tài khoản Quản trị viên (Admin) bị khóa đăng nhập qua nút Google để bảo mật hệ thống. Vui lòng tự nhập Email và Mật khẩu.'
+      );
+    }
+
+    // Bảo mật đăng ký: Không tự động đăng nhập nếu người dùng đang ở tab Đăng ký mà email Google đã tồn tại
+    if (existingAccount && dto.mode === 'register') {
+      throw new AppError(
+        409,
+        ErrorCode.AUTH_EMAIL_ALREADY_EXISTS,
+        'Email Google này đã được sử dụng cho một tài khoản trên hệ thống. Vui lòng chuyển sang tab Đăng nhập.'
       );
     }
 
