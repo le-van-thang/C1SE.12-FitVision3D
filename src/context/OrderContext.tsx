@@ -229,7 +229,7 @@ export const useOrders = (): OrderContextType => {
   if (!context) {
     return {
       orders: [],
-      createOrder: () => ({} as Order),
+      createOrder: async () => ({ success: false }),
       updateOrderStatus: () => {},
       cancelOrder: () => {},
       markPaymentCompleted: () => {},
