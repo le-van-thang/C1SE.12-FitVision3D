@@ -1,6 +1,28 @@
-import { Router } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { adminController } from './admin.controller.js';
 import { requireAuth, requireRole } from '../../middlewares/authGuard.js';
+import { createAiRateLimiterStore } from '../../middlewares/aiRateLimiter.js';
+import { AppError } from '../../utils/responseEnvelope.js';
+import { ErrorCode } from '../../constants/errorCodes.js';
+
+const taxLookupLimiterStore = createAiRateLimiterStore();
+
+const taxLookupRateLimiter = (req: Request, res: Response, next: NextFunction): void => {
+  const clientKey = req.ip || req.socket?.remoteAddress || 'unknown';
+  const rate = taxLookupLimiterStore.check(`tax-lookup:${clientKey}`, 15, 60_000);
+  if (!rate.allowed) {
+    res.setHeader('Retry-After', String(rate.retryAfterSeconds));
+    next(
+      new AppError(
+        429,
+        ErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
+        'Bạn thao tác tra cứu mã số thuế quá nhanh. Vui lòng thử lại sau ít phút.'
+      )
+    );
+    return;
+  }
+  next();
+};
 
 export const adminRouter = Router();
 
@@ -25,7 +47,7 @@ adminRouter.post('/stores/:id/suspend', requireAuth, requireRole('ADMIN'), admin
 adminRouter.patch('/stores/:id/mall', requireAuth, requireRole('ADMIN'), adminController.toggleStoreMall);
 
 // 4c. Tra cứu & Kiểm tra Mã số thuế (Casso Open Platform + Mod-11)
-adminRouter.get('/tax-lookup/:taxCode', adminController.lookupTaxCode);
+adminRouter.get('/tax-lookup/:taxCode', taxLookupRateLimiter, adminController.lookupTaxCode);
 
 // 5. Quản lý người dùng
 adminRouter.get('/users', requireAuth, requireRole('ADMIN'), adminController.getUsers);
@@ -40,6 +62,6 @@ adminRouter.get('/audit-logs', requireAuth, requireRole('ADMIN'), adminControlle
 // SHOP KYC / TAX STATUS & RESUBMISSION (Tài khoản SHOP_OWNER xem trạng thái & nộp lại hồ sơ)
 // =============================================================================
 adminRouter.get('/stores/my-shop', requireAuth, adminController.getMyShop);
-adminRouter.post('/stores/apply', requireAuth, adminController.applyShop);
-adminRouter.put('/stores/my-shop/resubmit', requireAuth, adminController.applyShop);
+adminRouter.post('/stores/apply', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), adminController.applyShop);
+adminRouter.put('/stores/my-shop/resubmit', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), adminController.applyShop);
 

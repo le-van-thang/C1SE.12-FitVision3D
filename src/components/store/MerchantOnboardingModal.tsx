@@ -93,7 +93,38 @@ export const MerchantOnboardingModal: React.FC = () => {
       setStep(1);
       setErrorMessage(null);
       setSubmittedResult(null);
+      return;
     }
+    // Clear sensitive onboarding & KYC fields when modal closes
+    setStep(1);
+    setBusinessEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setFullName('');
+    setBrandName('');
+    setPhone('');
+    setAddress('');
+    setTagline('');
+    setEntityType('INDIVIDUAL');
+    setNationalId('');
+    setTaxCode('');
+    setBusinessLicenseNo('');
+    setCccdFrontUrl('');
+    setCccdFrontName('');
+    setCccdFrontQr(null);
+    setCccdBackUrl('');
+    setCccdBackName('');
+    setLicenseDocUrl('');
+    setLicenseDocName('');
+    setTaxLookupResult(null);
+    setLookingUpTax(false);
+    setBankCode('VCB');
+    setBankName('Vietcombank');
+    setBankAccountNumber('');
+    setBankAccountHolder('');
+    setErrorMessage(null);
+    setLoading(false);
+    setSubmittedResult(null);
   }, [isOnboardingModalOpen]);
 
   const cccdValidation = useMemo(

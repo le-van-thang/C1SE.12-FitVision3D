@@ -43,6 +43,10 @@ export const env = {
   CASSO_OPENAPI_URL: process.env.CASSO_OPENAPI_URL || 'https://openapi.casso.vn',
   CASSO_API_KEY: process.env.CASSO_API_KEY || '',
   EKYC_PROVIDER: process.env.EKYC_PROVIDER || 'local_qr_casso',
+  KYC_HASH_PEPPER:
+    process.env.KYC_HASH_PEPPER ||
+    process.env.JWT_ACCESS_SECRET ||
+    'dev-kyc-pepper-change-in-prod',
 
   isProduction: process.env.NODE_ENV === 'production',
 };

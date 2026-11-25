@@ -11,7 +11,7 @@ export * from './kycRules.js';
 export function hashNationalId(cccd: string): string {
   return crypto
     .createHash('sha256')
-    .update(`fv3d_nid:${cccd.trim()}:${env.JWT_ACCESS_SECRET.slice(0, 12)}`)
+    .update(`fv3d_nid:${cccd.trim()}:${env.KYC_HASH_PEPPER}`)
     .digest('hex');
 }
 

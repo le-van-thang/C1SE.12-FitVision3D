@@ -1683,7 +1683,7 @@ export const AdminPortal: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-sans">Mật khẩu tạm:</span>
-                  <span className="font-bold text-emerald-700">{provisionedCreds.temporaryPassword}</span>
+                  <span className="font-bold text-emerald-700">{provisionedCreds.temporaryPassword || '(Giữ nguyên mật khẩu hiện tại)'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-sans">Link Gian hàng:</span>
@@ -1695,7 +1695,10 @@ export const AdminPortal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const txt = `Tài khoản Shop FitVision 3D (${provisionedCreds.shopName})\nURL: http://localhost:5173${provisionedCreds.loginUrl}\nEmail: ${provisionedCreds.shopEmail}\nMật khẩu: ${provisionedCreds.temporaryPassword}`;
+                    const pwdLine = provisionedCreds.temporaryPassword
+                      ? `Mật khẩu: ${provisionedCreds.temporaryPassword}`
+                      : 'Mật khẩu: (Giữ nguyên mật khẩu hiện tại)';
+                    const txt = `Tài khoản Shop FitVision 3D (${provisionedCreds.shopName})\nURL: http://localhost:5173${provisionedCreds.loginUrl}\nEmail: ${provisionedCreds.shopEmail}\n${pwdLine}`;
                     navigator.clipboard?.writeText(txt);
                     showToast('success', 'Đã sao chép Email & Mật khẩu Shop!');
                   }}

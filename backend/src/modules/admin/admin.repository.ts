@@ -13,6 +13,20 @@ import {
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
 
+function buildBrandSlug(shopName: string, ownerUserId: string): string {
+  const slugBase = String(shopName || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return `${slugBase || 'shop'}-${ownerUserId.slice(0, 6)}`;
+}
+
 export interface AdminShopEntity {
   id: string;
   owner_id: string;
@@ -470,6 +484,34 @@ export const adminRepository = {
 
     const normalizedTaxCode = taxValidation?.normalized || null;
     const nationalIdHash = cleanNationalId ? hashNationalId(cleanNationalId) : null;
+    const cleanShopName = String(data.shopName || '').trim();
+
+    const dupShopName = await query<{ id: string }>(
+      'SELECT id FROM shops WHERE LOWER(shop_name) = LOWER($1) AND owner_id <> $2 LIMIT 1',
+      [cleanShopName, ownerId]
+    );
+    if (dupShopName.length > 0) {
+      throw new AppError(409, ErrorCode.VALIDATION_FAILED, 'Tên thương hiệu cửa hàng này đã tồn tại.');
+    }
+    if (normalizedTaxCode) {
+      const dupTax = await query<{ id: string }>(
+        'SELECT id FROM shops WHERE tax_code = $1 AND owner_id <> $2 LIMIT 1',
+        [normalizedTaxCode, ownerId]
+      );
+      if (dupTax.length > 0) {
+        throw new AppError(409, ErrorCode.VALIDATION_FAILED, 'Mã số thuế này đã được đăng ký bởi một cửa hàng khác.');
+      }
+    }
+    if (nationalIdHash) {
+      const dupNid = await query<{ id: string }>(
+        'SELECT id FROM shops WHERE national_id_hash = $1 AND owner_id <> $2 LIMIT 1',
+        [nationalIdHash, ownerId]
+      );
+      if (dupNid.length > 0) {
+        throw new AppError(409, ErrorCode.VALIDATION_FAILED, 'Số CCCD này đã được sử dụng để đăng ký cửa hàng khác.');
+      }
+    }
+
     const taxLookup = normalizedTaxCode
       ? await cassoTaxAndLocalKycProvider.lookupTaxCode(normalizedTaxCode, entityType)
       : null;
@@ -488,6 +530,21 @@ export const adminRepository = {
     let shop: AdminShopEntity;
     if (existing.length > 0) {
       const current = existing[0];
+      if (current.status === 'SUSPENDED') {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Gian hàng đang bị tạm ngưng hoạt động, không thể tự nộp lại hồ sơ.'
+        );
+      }
+      if (current.status === 'APPROVED') {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_FAILED,
+          'Gian hàng đã được duyệt. Vui lòng cập nhật hồ sơ gian hàng thay vì nộp lại KYC.'
+        );
+      }
+
       const rows = await query<AdminShopEntity>(
         `UPDATE shops 
          SET shop_name = $2, 
@@ -509,7 +566,7 @@ export const adminRepository = {
          RETURNING *`,
         [
           current.id,
-          data.shopName,
+          cleanShopName,
           data.phoneNumber,
           data.shopAddress,
           data.businessLicenseNo || null,
@@ -524,20 +581,22 @@ export const adminRepository = {
       );
       shop = rows[0];
     } else {
+      const brandSlug = buildBrandSlug(cleanShopName, ownerId);
       const rows = await query<AdminShopEntity>(
         `INSERT INTO shops (
-           owner_id, shop_name, phone_number, shop_address, business_license_no,
+           owner_id, shop_name, brand_slug, phone_number, shop_address, business_license_no,
            entity_type, tax_code, tax_status, legal_representative_name, national_id_last4, national_id_hash,
            tax_lookup_snapshot, is_verified, status, operational_mode, created_at, updated_at
          ) VALUES (
-           $1, $2, $3, $4, $5,
-           $6, $7, $8, $9, $10, $11,
-           $12::jsonb, false, 'PENDING', 'ACTIVE', NOW(), NOW()
+           $1, $2, $3, $4, $5, $6,
+           $7, $8, $9, $10, $11, $12,
+           $13::jsonb, false, 'PENDING', 'ACTIVE', NOW(), NOW()
          )
          RETURNING *`,
         [
           ownerId,
-          data.shopName,
+          cleanShopName,
+          brandSlug,
           data.phoneNumber,
           data.shopAddress,
           data.businessLicenseNo || null,
@@ -690,16 +749,19 @@ export const adminRepository = {
         ? String(payload.shopEmail || `shop.${localPart}@fitvision3d.com`).trim().toLowerCase()
         : targetUser.email.toLowerCase();
 
-    const tempPassword =
-      payload.temporaryPassword && payload.temporaryPassword.trim().length >= 6
-        ? payload.temporaryPassword.trim()
-        : `Shop@${crypto.randomBytes(3).toString('hex')}!`;
-    const passwordHash = await hashPassword(tempPassword);
+    const providedPassword =
+      typeof payload.temporaryPassword === 'string' ? payload.temporaryPassword.trim() : '';
+    if (providedPassword && providedPassword.length < 6) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mật khẩu tạm phải có tối thiểu 6 ký tự.');
+    }
 
     let ownerUserId = targetUser.id;
     const userStatus = autoApprove ? 'ACTIVE' : 'PENDING_APPROVAL';
+    let tempPassword = '';
 
     if (mode === 'SEPARATE_ACCOUNT') {
+      tempPassword = providedPassword || `Shop@${crypto.randomBytes(3).toString('hex')}!`;
+      const passwordHash = await hashPassword(tempPassword);
       const existingShopUser = await query<{ id: string; role: string }>(
         'SELECT id, role FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
         [shopEmail]
@@ -719,25 +781,30 @@ export const adminRepository = {
         [newOwnerId, shopEmail, passwordHash, targetUser.full_name, cleanPhone, userStatus]
       );
       ownerUserId = newOwnerId;
-    } else {
+    } else if (providedPassword) {
+      tempPassword = providedPassword;
+      const passwordHash = await hashPassword(tempPassword);
       await query(
         `UPDATE users
-         SET role = 'SHOP_OWNER', status = $2, password_hash = $3, updated_at = NOW()
+         SET role = CASE WHEN role = 'ADMIN' THEN 'ADMIN' ELSE 'SHOP_OWNER' END,
+             status = $2,
+             password_hash = $3,
+             updated_at = NOW()
          WHERE id = $1`,
         [targetUser.id, userStatus, passwordHash]
       );
+    } else {
+      await query(
+        `UPDATE users
+         SET role = CASE WHEN role = 'ADMIN' THEN 'ADMIN' ELSE 'SHOP_OWNER' END,
+             status = $2,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [targetUser.id, userStatus]
+      );
     }
 
-    const slugBase = cleanShopName
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd')
-      .replace(/Đ/g, 'D')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60);
-    const brandSlug = `${slugBase || 'shop'}-${ownerUserId.slice(0, 6)}`;
+    const brandSlug = buildBrandSlug(cleanShopName, ownerUserId);
     const shopStatus = autoApprove ? 'APPROVED' : 'PENDING';
     const taxStatus = normalizedTaxCode
       ? autoApprove
