@@ -1,6 +1,7 @@
 import { query } from '../../config/database.js';
 import crypto from 'crypto';
 import { hashPassword } from '../../utils/password.js';
+import { authRepository } from '../auth/auth.repository.js';
 import {
   compareVietnameseAccountNames,
   evaluateCccdQrConsistency,
@@ -207,10 +208,10 @@ export const adminRepository = {
       [shopId]
     ).catch(() => undefined);
 
-    // Cập nhật người dùng tương ứng thành SHOP_OWNER & ACTIVE
+    // Cập nhật người dùng tương ứng thành SHOP_OWNER & ACTIVE (giữ nguyên quyền ADMIN nếu là quản trị viên)
     await query(
       `UPDATE users 
-       SET role = 'SHOP_OWNER', 
+       SET role = CASE WHEN role = 'ADMIN' THEN 'ADMIN' ELSE 'SHOP_OWNER' END, 
            status = 'ACTIVE', 
            updated_at = NOW() 
        WHERE id = $1`,
@@ -346,6 +347,13 @@ export const adminRepository = {
       [userId, role]
     );
     return rows[0] || null;
+  },
+
+  /**
+   * Thu hồi toàn bộ refresh token của người dùng khi tài khoản bị khóa / đình chỉ
+   */
+  async revokeUserRefreshTokens(userId: string): Promise<void> {
+    await authRepository.revokeUserTokens(userId);
   },
 
   /**
