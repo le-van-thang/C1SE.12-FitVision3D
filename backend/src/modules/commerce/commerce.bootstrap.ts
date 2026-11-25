@@ -438,6 +438,7 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
         ALTER TABLE products ADD COLUMN IF NOT EXISTS shop_id UUID;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS is_mall BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS video_url TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS hidden_by_admin BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS shop_id UUID;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS has_bespoke_items BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS measurement_snapshot JSONB;
