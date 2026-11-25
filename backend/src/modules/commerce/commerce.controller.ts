@@ -59,13 +59,17 @@ export const commerceController = {
         customer_name: body.customer_name || body.recipient?.full_name || 'Khách FitVision 3D',
         recipient: body.recipient || {},
         items: Array.isArray(body.items) ? body.items : [],
+        coupon_code:
+          body.coupon_code || body.voucherCode
+            ? String(body.coupon_code || body.voucherCode).trim().toUpperCase()
+            : undefined,
         subtotal: Number(body.subtotal) || 0,
         shipping_fee: Number(body.shipping_fee) || 0,
         discount_amount: Number(body.discount_amount) || 0,
         total_amount: Number(body.total_amount) || 0,
-        payment_method: body.payment_method || 'cod',
-        payment_status: body.payment_status || 'unpaid',
-        status: body.status || 'pending',
+        payment_method: body.payment_method === 'vietqr_sepay' ? 'vietqr_sepay' : 'cod',
+        payment_status: 'unpaid',
+        status: 'pending',
         store_name: body.store_name || '',
         estimated_delivery: body.estimated_delivery || '',
         measurement_snapshot: body.measurement_snapshot ?? null,
@@ -115,6 +119,13 @@ export const commerceController = {
       if (!req.user) {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chưa xác thực danh tính.');
       }
+      if (req.user.role === 'USER') {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Khách hàng không thể tự đánh dấu đã thanh toán. Trạng thái sẽ tự cập nhật qua SePay Webhook hoặc xác nhận từ Shop/Admin.'
+        );
+      }
       if (req.user.role === 'SHOP_OWNER') {
         const shop = await commerceRepository.ensureShopForUser(req.user.sub);
         if (!shop || shop.status !== 'APPROVED') {
@@ -142,6 +153,9 @@ export const commerceController = {
   async handleSePayWebhook(req: Request, res: Response, next: NextFunction) {
     try {
       const configuredSecret = process.env.SEPAY_WEBHOOK_SECRET || '';
+      if (process.env.NODE_ENV === 'production' && !configuredSecret) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'SEPAY_WEBHOOK_SECRET chưa được cấu hình ở môi trường Production.');
+      }
       if (configuredSecret) {
         const authHeader = String(req.headers.authorization || '');
         const customHeader = String(req.headers['x-sepay-secret'] || '');

@@ -778,9 +778,11 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                 {[
                   { id: 'all', label: t('ecommerce.orders.filterAll', 'Tất cả') },
                   { id: 'pending', label: t('ecommerce.orders.filterPending', 'Chờ duyệt') },
+                  { id: 'confirmed', label: t('ecommerce.orders.filterConfirmed', 'Đã xác nhận') },
                   { id: 'tailoring', label: t('ecommerce.orders.filterTailoring', 'Đang may đo') },
                   { id: 'shipping', label: t('ecommerce.orders.filterShipping', 'Đang giao') },
                   { id: 'completed', label: t('ecommerce.orders.filterCompleted', 'Hoàn thành') },
+                  { id: 'cancelled', label: t('ecommerce.orders.filterCancelled', 'Đã hủy') },
                 ].map((f) => (
                   <button
                     key={f.id}
@@ -850,9 +852,20 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                               </span>
                             </div>
 
-                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${badge.cls}`}>
-                              {badge.label}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                  order.payment_status === 'paid'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                                }`}
+                              >
+                                {order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${badge.cls}`}>
+                                {badge.label}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Items Preview */}
@@ -922,7 +935,18 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                             </div>
 
                             <div className="flex gap-2">
-                              {order.status === 'pending' && (
+                              {order.payment_method === 'vietqr_sepay' &&
+                                order.payment_status !== 'paid' &&
+                                order.status !== 'cancelled' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedOrderDetails(order.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-[11px] font-bold cursor-pointer"
+                                  >
+                                    Xem QR TT
+                                  </button>
+                                )}
+                              {(order.status === 'pending' || order.status === 'confirmed') && (
                                 <button
                                   type="button"
                                   onClick={() => {

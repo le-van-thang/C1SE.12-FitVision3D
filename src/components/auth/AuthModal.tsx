@@ -52,9 +52,11 @@ export const AuthModal: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Forgot password & Verify states
+  // Forgot password & Verify & Admin 2FA states
   const [forgotStep, setForgotStep] = useState<'request' | 'reset'>('request');
   const [otpCode, setOtpCode] = useState('');
+  const [adminOtpRequired, setAdminOtpRequired] = useState(false);
+  const [adminOtp, setAdminOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
@@ -92,6 +94,8 @@ export const AuthModal: React.FC = () => {
       setConfirmPassword('');
       setForgotStep('request');
       setOtpCode('');
+      setAdminOtpRequired(false);
+      setAdminOtp('');
       setNewPassword('');
       setConfirmNewPassword('');
       return;
@@ -104,6 +108,8 @@ export const AuthModal: React.FC = () => {
       setConfirmPassword('');
       setForgotStep('request');
       setOtpCode('');
+      setAdminOtpRequired(false);
+      setAdminOtp('');
       setNewPassword('');
       setConfirmNewPassword('');
     } else if (authModalTab === 'verify' && prevTab !== 'register' && prevTab !== 'signin') {
@@ -299,9 +305,13 @@ export const AuthModal: React.FC = () => {
     if (!emailValidation.valid || password.length === 0) {
       return;
     }
+    if (adminOtpRequired && adminOtp.trim().length < 6) {
+      setErrorMessage('Vui lòng nhập đầy đủ mã OTP 6 số xác thực 2 lớp Admin.');
+      return;
+    }
 
     setLoading(true);
-    const res = await signIn(email, password, websiteTrap);
+    const res = await signIn(email, password, websiteTrap, adminOtpRequired ? adminOtp.trim() : undefined);
     setLoading(false);
 
     if (res.success) {
@@ -309,7 +319,13 @@ export const AuthModal: React.FC = () => {
       setPassword('');
       setConfirmPassword('');
       setShowPassword(false);
+      setAdminOtpRequired(false);
+      setAdminOtp('');
       setWebsiteTrap('');
+    } else if ((res as any).requiresAdmin2fa) {
+      setAdminOtpRequired(true);
+      setSuccessMessage((res as any).message || 'Vui lòng nhập mã OTP 6 số vừa gửi về Email Quản trị viên.');
+      formPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       if (res.errorCode === 'AUTH_EMAIL_NOT_VERIFIED') {
         setErrorMessage(getLocalizedErrorMessage('AUTH_EMAIL_NOT_VERIFIED', res.error));
@@ -675,7 +691,7 @@ export const AuthModal: React.FC = () => {
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 mb-0">
                 {authModalTab === 'signin'
-                  ? t('app.auth.signinDesc', 'Truy cập hồ sơ số đo vóc dáng 3D & phòng thử đồ ảo')
+                  ? t('app.auth.signinDesc', 'Đăng nhập chung cho Khách hàng, Chủ Shop & Quản trị viên')
                   : authModalTab === 'register'
                   ? t('app.auth.registerDesc', 'Tạo tài khoản để lưu số đo vóc dáng 3D cá nhân')
                   : authModalTab === 'forgot'
@@ -841,6 +857,24 @@ export const AuthModal: React.FC = () => {
                     </p>
                   )}
                 </div>
+
+                {/* Admin 2FA OTP Input (shown when backend requires 2-step Admin verification) */}
+                {adminOtpRequired && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-900">
+                      Mã Xác Thực 2 Lớp Admin (OTP 6 số)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={adminOtp}
+                      onChange={(e) => setAdminOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Nhập 6 chữ số OTP..."
+                      className="w-full h-10 px-3.5 rounded-xl border border-amber-300 bg-white text-sm font-mono font-bold tracking-[0.25em] text-[#14171C] outline-none focus:border-blue-600"
+                    />
+                  </div>
+                )}
 
                 {/* Remember & Forgot */}
                 <div className="flex items-center justify-between text-xs">

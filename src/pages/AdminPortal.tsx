@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield,
   Search,
@@ -28,11 +28,9 @@ import {
   Tag,
   Megaphone,
   LogOut,
+  LogIn,
   Menu,
   Scissors,
-  Mail,
-  Eye,
-  EyeOff,
   ArrowLeft,
   KeyRound,
   Copy,
@@ -74,15 +72,9 @@ type StoreFilterTab = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 type UserFilterRole = 'ALL' | 'ADMIN' | 'SHOP_OWNER' | 'USER';
 
 export const AdminPortal: React.FC = () => {
-  const { currentUser, isAuthenticated, userRole, signIn, signOut, openForgotPassword } = useAuth();
+  const navigate = useNavigate();
+  const { currentUser, isAuthenticated, userRole, signOut, openSignIn } = useAuth();
   const { orders, updateOrderStatus } = useOrders();
-
-  // Standalone Admin Login form state (used when opening /admin directly)
-  const [adminLoginEmail, setAdminLoginEmail] = useState('');
-  const [adminLoginPassword, setAdminLoginPassword] = useState('');
-  const [showAdminPassword, setShowAdminPassword] = useState(false);
-  const [adminLoginError, setAdminLoginError] = useState<string | null>(null);
-  const [isAdminSigningIn, setIsAdminSigningIn] = useState(false);
 
   // Navigation tabs & Responsive Sidebar Drawer
   const [mainTab, setMainTab] = useState<AdminMainTab>('OVERVIEW');
@@ -98,21 +90,7 @@ export const AdminPortal: React.FC = () => {
 
   const handleAdminSignOut = async () => {
     await signOut();
-  };
-
-  const handleDirectAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAdminLoginError(null);
-    if (!adminLoginEmail.trim() || !adminLoginPassword) {
-      setAdminLoginError('Vui lòng nhập đầy đủ Email và Mật khẩu Quản trị viên.');
-      return;
-    }
-    setIsAdminSigningIn(true);
-    const res = await signIn(adminLoginEmail.trim(), adminLoginPassword);
-    setIsAdminSigningIn(false);
-    if (!res.success) {
-      setAdminLoginError(res.error || 'Email hoặc mật khẩu Quản trị viên không chính xác.');
-    }
+    navigate('/', { replace: true });
   };
 
   // Search queries
@@ -665,7 +643,7 @@ export const AdminPortal: React.FC = () => {
                 ATELIER ADMIN CONTROL
               </span>
               <h1 className="text-lg font-black text-slate-950 mt-1">
-                Cổng Đăng Nhập Quản Trị Viên
+                Khu Vực Quản Trị Hệ Thống
               </h1>
             </div>
           </div>
@@ -684,7 +662,7 @@ export const AdminPortal: React.FC = () => {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => void signOut()}
+                  onClick={() => void handleAdminSignOut()}
                   className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold cursor-pointer"
                 >
                   Đăng xuất
@@ -692,81 +670,26 @@ export const AdminPortal: React.FC = () => {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleDirectAdminLogin} className="space-y-4">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Đăng nhập trực tiếp bằng Email &amp; Mật khẩu Quản trị để vào bảng điều khiển (không đi qua trang mua sắm và không dùng nút Google).
+            <div className="space-y-4">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                FitVision 3D sử dụng <b>một cổng đăng nhập chung</b> cho Khách hàng, Chủ Shop và Quản trị viên. Vui lòng đăng nhập bằng tài khoản Quản trị (ADMIN) để tiếp tục.
               </p>
-
-              {adminLoginError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
-                  {adminLoginError}
-                </div>
-              )}
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
-                  Email Quản Trị Viên
-                </label>
-                <div className="relative flex items-center">
-                  <Mail size={15} className="absolute left-3.5 text-slate-400 pointer-events-none" />
-                  <input
-                    type="email"
-                    required
-                    value={adminLoginEmail}
-                    onChange={(e) => setAdminLoginEmail(e.target.value)}
-                    placeholder="levanthang0166@gmail.com"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                    Mật Khẩu Admin
-                  </label>
-                  <button
-                    type="button"
-                    onClick={openForgotPassword}
-                    className="text-[11px] font-bold text-blue-600 hover:underline bg-transparent border-0 cursor-pointer p-0"
-                  >
-                    Quên mật khẩu?
-                  </button>
-                </div>
-                <div className="relative flex items-center">
-                  <Lock size={15} className="absolute left-3.5 text-slate-400 pointer-events-none" />
-                  <input
-                    type={showAdminPassword ? 'text' : 'password'}
-                    required
-                    value={adminLoginPassword}
-                    onChange={(e) => setAdminLoginPassword(e.target.value)}
-                    placeholder="Nhập mật khẩu quản trị..."
-                    className="w-full h-11 pl-10 pr-10 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAdminPassword(!showAdminPassword)}
-                    className="absolute right-3 text-slate-500 hover:text-slate-900 bg-transparent border-0 cursor-pointer"
-                  >
-                    {showAdminPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isAdminSigningIn}
-                className="w-full h-11 rounded-xl bg-[#14171C] hover:bg-blue-600 disabled:opacity-60 text-white text-xs font-bold cursor-pointer transition-colors"
-              >
-                {isAdminSigningIn ? 'Đang xác thực...' : 'Vào Cổng Quản Trị Admin'}
-              </button>
-
-              <div className="pt-2 border-t border-slate-100 text-center">
-                <Link to="/" className="text-[11px] font-bold text-slate-500 hover:text-slate-900 inline-flex items-center gap-1">
-                  <ArrowLeft size={12} /> Về trang mua sắm công khai
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={openSignIn}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <LogIn size={14} /> Đăng Nhập Tài Khoản
+                </button>
+                <Link
+                  to="/"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center justify-center gap-1"
+                >
+                  <ArrowLeft size={13} /> Trang chủ
                 </Link>
               </div>
-            </form>
+            </div>
           )}
         </div>
         <AuthModal />

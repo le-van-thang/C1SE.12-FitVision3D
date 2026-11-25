@@ -6,14 +6,15 @@ import path from 'node:path';
 const REPO_ROOT = process.cwd();
 
 describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Security Contracts', () => {
-  it('TC-COM-01: FashionStoreHome persists and restores cartItems via localStorage safely', () => {
+  it('TC-COM-01: FashionStoreHome persists and isolates cartItems per userId via localStorage safely', () => {
     const storeHomeSrc = fs.readFileSync(
       path.join(REPO_ROOT, 'src', 'features', 'ecommerce', 'FashionStoreHome.tsx'),
       'utf8'
     );
-    assert.match(storeHomeSrc, /fv3d_smart_cart_v1/);
-    assert.match(storeHomeSrc, /localStorage\.getItem\('fv3d_smart_cart_v1'\)/);
-    assert.match(storeHomeSrc, /localStorage\.setItem\('fv3d_smart_cart_v1'/);
+    assert.match(storeHomeSrc, /fv3d_smart_cart_v1_/);
+    assert.match(storeHomeSrc, /getCartStorageKey/);
+    assert.match(storeHomeSrc, /localStorage\.getItem\(getCartStorageKey\(currentUser\.id\)\)/);
+    assert.match(storeHomeSrc, /localStorage\.setItem\(getCartStorageKey\(currentUser\.id\)/);
     assert.match(storeHomeSrc, /Array\.isArray\(parsed\)/);
   });
 
@@ -39,7 +40,7 @@ describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Securit
     assert.match(profileSrc, /notes:\s*details\.notes\s*\|\|\s*''/);
   });
 
-  it('TC-COM-04: markOrderPaid preserves Developer baseline owner check pending team lead review', () => {
+  it('TC-COM-04: markOrderPaid blocks USER self-payment and server recomputes order pricing/transitions', () => {
     const repoSrc = fs.readFileSync(
       path.join(REPO_ROOT, 'backend', 'src', 'modules', 'commerce', 'commerce.repository.ts'),
       'utf8'
@@ -48,8 +49,11 @@ describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Securit
     const fnEnd = repoSrc.indexOf('async ensureMembershipRow(', fnStart);
     const markOrderPaidBody = repoSrc.slice(fnStart, fnEnd);
 
-    assert.match(markOrderPaidBody, /actor\.role === 'USER' && existing\.customer_id !== actor\.sub/);
-    assert.match(markOrderPaidBody, /throw new AppError\(403,/);
+    assert.match(markOrderPaidBody, /actor\.role === 'USER'/);
+    assert.match(markOrderPaidBody, /throw new AppError\(\s*403,/);
+    assert.match(repoSrc, /ALLOWED_ORDER_TRANSITIONS/);
+    assert.match(repoSrc, /authoritativePrice/);
+    assert.match(repoSrc, /ownerShop\.status !== 'APPROVED'/);
   });
 
   it('TC-COM-05: replyProductReview verifies shop ownership before updating product_reviews (anti-IDOR)', () => {
@@ -94,5 +98,29 @@ describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Securit
     assert.match(cartDrawerSrc, /selectedItems/);
     assert.match(cartDrawerSrc, /onToggleSelectItem/);
     assert.match(cartDrawerSrc, /onToggleSelectAll/);
+  });
+
+  it('TC-COM-07: User privacy cleanup, async checkout confirmation, 14-day swap copy, and ?product= deep-link work cleanly', () => {
+    const dashSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'pages', 'Dashboard.tsx'), 'utf8');
+    const authSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'context', 'AuthContext.tsx'), 'utf8');
+    const checkoutSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'features', 'ecommerce', 'CheckoutModal.tsx'), 'utf8');
+    const captureSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'features', 'capture', 'PhotoUploadCapture.tsx'), 'utf8');
+    const storeHomeSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'features', 'ecommerce', 'FashionStoreHome.tsx'), 'utf8');
+    const appSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'App.tsx'), 'utf8');
+
+    assert.match(dashSrc, /resetScanState/);
+    assert.match(authSrc, /clearTransientStudioPrivacyState/);
+    assert.match(checkoutSrc, /await createOrder\(/);
+    assert.match(checkoutSrc, /14 ngày/);
+    assert.doesNotMatch(checkoutSrc, /trong 7 ngày/);
+    assert.match(captureSrc, /finalHeight < 3\.0/);
+    assert.match(storeHomeSrc, /searchParams\.get\('product'\)/);
+    assert.match(appSrc, /path="\/size-charts" element=\{<RequireStore>/);
+
+    const adminSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'pages', 'AdminPortal.tsx'), 'utf8');
+    const authModalSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'components', 'auth', 'AuthModal.tsx'), 'utf8');
+    assert.doesNotMatch(adminSrc, /Cổng Đăng Nhập Quản Trị Viên/);
+    assert.match(adminSrc, /onClick=\{openSignIn\}/);
+    assert.match(authModalSrc, /adminOtpRequired/);
   });
 });

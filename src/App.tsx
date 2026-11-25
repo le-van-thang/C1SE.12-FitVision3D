@@ -18,15 +18,15 @@ import "./index.css";
 /** Guests can only use the Dashboard; other studio pages need a signed-in account. */
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/dashboard" replace />;
+  return isAuthenticated ? children : <Navigate to="/" replace />;
 };
 
 /** Tailor & Size chart studio only accessible to Approved Store Partners or Admin */
 const RequireStore: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthenticated, userRole } = useAuth();
-  if (!isAuthenticated) return <Navigate to="/dashboard" replace />;
+  if (!isAuthenticated) return <Navigate to="/" replace />;
   if (userRole !== 'store' && userRole !== 'tailor' && userRole !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
   return children;
 };
@@ -67,7 +67,7 @@ const RoleFallbackRoute: React.FC = () => {
   if (isAuthenticated && userRole === 'store') {
     return <Navigate to="/shop" replace />;
   }
-  return <Navigate to="/dashboard" replace />;
+  return <Navigate to="/" replace />;
 };
 
 export const App: React.FC = () => (
@@ -84,7 +84,7 @@ export const App: React.FC = () => (
             <Route path="/dashboard" element={<DashboardRoute />} />
             <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />
             <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
-            <Route path="/size-charts" element={<RequireAuth><SizeChartManager /></RequireAuth>} />
+            <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
             <Route path="/admin" element={<AdminRoute />} />
             <Route path="*" element={<RoleFallbackRoute />} />
           </Routes>

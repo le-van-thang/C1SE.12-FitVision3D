@@ -19,6 +19,18 @@ function computeTierFromSpend(totalSpend: number): MembershipTierId {
   return 'member';
 }
 
+const ALLOWED_ORDER_TRANSITIONS: Record<string, string[]> = {
+  pending: ['confirmed', 'tailoring', 'shipping', 'completed', 'cancelled'],
+  confirmed: ['tailoring', 'shipping', 'completed', 'cancelled'],
+  tailoring: ['shipping', 'completed', 'cancelled'],
+  shipping: ['completed', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
+
+const FREESHIP_THRESHOLD_VND = 1_000_000;
+const STANDARD_SHIPPING_FEE_VND = 30_000;
+
 const SHOP_BURST_WINDOW_MS = 3_000;
 const SHOP_MAX_BURST_POSTS = 4;
 const SHOP_PRODUCT_WINDOW_MS = 60_000;
@@ -262,6 +274,7 @@ export const commerceRepository = {
     customer_name: string;
     recipient: any;
     items: any[];
+    coupon_code?: string;
     subtotal: number;
     shipping_fee: number;
     discount_amount: number;
@@ -282,25 +295,33 @@ export const commerceRepository = {
     let hasBespoke = false;
     let resolvedShopId: string | null = null;
     let resolvedStoreName = order.store_name || 'FitVision Atelier';
+    let computedSubtotal = 0;
+    const distinctShopKeys = new Set<string>();
+    const normalizedItems: any[] = [];
 
     try {
       await client.query('BEGIN');
 
-      // 1. Validate & deduct variant stock atomically for every item
+      // 1. Validate & deduct variant stock atomically for every item, recomputing authoritative price
       for (const item of order.items) {
         const productId = item?.product?.id;
         const qty = Math.max(1, Math.floor(Number(item?.quantity) || 1));
-        if (!productId) continue;
+        if (!productId) {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Thiếu mã sản phẩm trong đơn hàng.');
+        }
 
         const prodRes = await client.query<{
           id: string;
           name: string;
+          price: number;
+          sale_price: number | null;
           variants: any[];
           is_bespoke: boolean;
+          is_hidden: boolean;
           shop_id: string | null;
           brand_name: string;
         }>(
-          `SELECT id, name, variants, is_bespoke, shop_id, brand_name
+          `SELECT id, name, price, sale_price, variants, is_bespoke, is_hidden, shop_id, brand_name
            FROM products
            WHERE id = $1
            FOR UPDATE`,
@@ -315,6 +336,23 @@ export const commerceRepository = {
             `Sản phẩm "${item?.product?.name || productId}" không tồn tại trong hệ thống.`
           );
         }
+        if (dbProd.is_hidden) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Sản phẩm "${dbProd.name}" hiện đang tạm ẩn hoặc ngừng kinh doanh.`
+          );
+        }
+
+        const shopKey = dbProd.shop_id ? `id:${dbProd.shop_id}` : `brand:${String(dbProd.brand_name || '').trim().toLowerCase()}`;
+        distinctShopKeys.add(shopKey);
+        if (distinctShopKeys.size > 1) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            'Mỗi đơn hàng chỉ áp dụng cho sản phẩm thuộc cùng một gian hàng. Vui lòng tách đơn riêng cho từng Shop.'
+          );
+        }
 
         if (dbProd.is_bespoke || item?.product?.is_bespoke) {
           hasBespoke = true;
@@ -322,7 +360,7 @@ export const commerceRepository = {
         if (!resolvedShopId && dbProd.shop_id) {
           resolvedShopId = dbProd.shop_id;
         }
-        if (!order.store_name && dbProd.brand_name) {
+        if (dbProd.brand_name) {
           resolvedStoreName = dbProd.brand_name;
         }
 
@@ -342,11 +380,19 @@ export const commerceRepository = {
         );
         const ownerShop = shopCheck.rows[0];
         if (ownerShop) {
+          if (!resolvedShopId) resolvedShopId = ownerShop.id;
           if (ownerShop.status === 'SUSPENDED') {
             throw new AppError(
               400,
               ErrorCode.VALIDATION_FAILED,
               `Gian hàng "${ownerShop.shop_name}" hiện đang tạm ngưng hoạt động.`
+            );
+          }
+          if (ownerShop.status !== 'APPROVED') {
+            throw new AppError(
+              400,
+              ErrorCode.VALIDATION_FAILED,
+              `Gian hàng "${ownerShop.shop_name}" chưa hoàn tất phê duyệt để nhận đơn mới.`
             );
           }
           if (ownerShop.operational_mode === 'VACATION') {
@@ -372,6 +418,15 @@ export const commerceRepository = {
             (targetSize && v.size_label === targetSize)
         );
 
+        if (variants.length > 0 && vIdx < 0) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Biến thể/size của sản phẩm "${dbProd.name}" không hợp lệ.`
+          );
+        }
+
+        let matchedVariant = item?.variant || {};
         if (vIdx >= 0) {
           const currentStock = Number(variants[vIdx].stock ?? 0);
           if (currentStock < qty) {
@@ -385,14 +440,83 @@ export const commerceRepository = {
             ...variants[vIdx],
             stock: currentStock - qty,
           };
+          matchedVariant = variants[vIdx];
           await client.query(
             `UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`,
             [dbProd.id, JSON.stringify(variants)]
           );
         }
+
+        const authoritativePrice = Number(dbProd.sale_price ?? dbProd.price ?? 0);
+        computedSubtotal += authoritativePrice * qty;
+        normalizedItems.push({
+          ...item,
+          quantity: qty,
+          variant: matchedVariant,
+          product: {
+            ...(item?.product || {}),
+            id: dbProd.id,
+            name: dbProd.name,
+            brand_name: dbProd.brand_name,
+            shop_id: dbProd.shop_id ?? item?.product?.shop_id ?? null,
+            price: Number(dbProd.price),
+            sale_price: dbProd.sale_price != null ? Number(dbProd.sale_price) : undefined,
+            is_bespoke: Boolean(dbProd.is_bespoke || item?.product?.is_bespoke),
+          },
+        });
       }
 
-      // 2. Auto-attach latest 13-metric 3D snapshot from PostgreSQL when placing bespoke order
+      // 2. Recompute voucher discount & shipping fee strictly on server
+      const wallet = await this.getMembershipWallet(order.customer_id);
+      const cleanCoupon = order.coupon_code ? order.coupon_code.trim().toUpperCase() : '';
+      let computedDiscount = 0;
+
+      if (cleanCoupon) {
+        const voucherRes = await client.query<{
+          code: string;
+          discount_type: 'fixed' | 'percent';
+          discount_value: number;
+          is_active: boolean;
+        }>(
+          `SELECT code, discount_type, discount_value, is_active
+           FROM vouchers
+           WHERE UPPER(code) = UPPER($1)
+           LIMIT 1`,
+          [cleanCoupon]
+        );
+        const voucher = voucherRes.rows[0];
+        if (!voucher || !voucher.is_active) {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Mã giảm giá "${cleanCoupon}" không hợp lệ hoặc đã hết hạn.`);
+        }
+        if (OFFER_COST_MAP[cleanCoupon] && !wallet.unlockedCodes.includes(cleanCoupon)) {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Mã ${cleanCoupon} cần đổi bằng FitPoints trong mục Hội Viên trước khi sử dụng.`);
+        }
+        if (cleanCoupon === 'FITSILVER5' && wallet.tierId === 'member') {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã FITSILVER5 chỉ áp dụng từ hạng Hội Viên Bạc trở lên.');
+        }
+        if (cleanCoupon === 'FITVISION50' && computedSubtotal < 600_000) {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã FITVISION50 yêu cầu đơn hàng tối thiểu 600.000₫.');
+        }
+        if (cleanCoupon === 'TAILOR100' && !hasBespoke) {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã TAILOR100 chỉ áp dụng cho đơn có sản phẩm May đo Bespoke.');
+        }
+
+        const val = Number(voucher.discount_value || 0);
+        computedDiscount =
+          voucher.discount_type === 'percent'
+            ? Math.min(computedSubtotal, Math.round((computedSubtotal * Math.min(100, Math.max(0, val))) / 100))
+            : Math.min(computedSubtotal, Math.max(0, val));
+      }
+
+      const isFreeShipping =
+        computedSubtotal >= FREESHIP_THRESHOLD_VND ||
+        wallet.tierId === 'gold' ||
+        wallet.tierId === 'vip' ||
+        cleanCoupon === 'FREESHIP3D';
+      const computedShippingFee = isFreeShipping ? 0 : STANDARD_SHIPPING_FEE_VND;
+      const computedTotal = Math.max(0, computedSubtotal - computedDiscount + computedShippingFee);
+
+      // 3. Auto-attach latest 13-metric 3D snapshot from PostgreSQL when placing bespoke order
       let finalSnapshot = order.measurement_snapshot ?? null;
       if (hasBespoke && !finalSnapshot) {
         const snapRes = await client.query(
@@ -440,21 +564,19 @@ export const commerceRepository = {
            subtotal, shipping_fee, discount_amount, total_amount,
            payment_method, payment_status, status, store_name, shop_id,
            has_bespoke_items, measurement_snapshot, estimated_delivery
-         ) VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17)
+         ) VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7,$8,$9,$10,'unpaid','pending',$11,$12,$13,$14::jsonb,$15)
          RETURNING *`,
         [
           order.id,
           order.customer_id,
           order.customer_name,
           JSON.stringify(order.recipient),
-          JSON.stringify(order.items),
-          order.subtotal,
-          order.shipping_fee,
-          order.discount_amount,
-          order.total_amount,
+          JSON.stringify(normalizedItems),
+          computedSubtotal,
+          computedShippingFee,
+          computedDiscount,
+          computedTotal,
           order.payment_method,
-          order.payment_status,
-          order.status,
           resolvedStoreName,
           resolvedShopId,
           hasBespoke,
@@ -464,21 +586,6 @@ export const commerceRepository = {
       );
 
       await client.query('COMMIT');
-
-      const earnedPts = Math.floor((order.total_amount || 0) / 10_000);
-      await this.syncMembershipSpend(order.customer_id);
-      if (earnedPts > 0) {
-        await query(
-          `INSERT INTO membership_point_logs (user_id, action_type, points_delta, description)
-           VALUES ($1, 'ORDER_EARN', $2, $3)`,
-          [
-            order.customer_id,
-            earnedPts,
-            `Tích điểm đơn hàng ${order.id} (${order.total_amount.toLocaleString('vi-VN')}₫)`,
-          ]
-        );
-      }
-
       return rows.rows[0];
     } catch (err) {
       await client.query('ROLLBACK');
@@ -534,6 +641,18 @@ export const commerceRepository = {
         }
       }
 
+      // Enforce forward-only order state machine
+      if (existing.status !== nextStatus) {
+        const allowed = ALLOWED_ORDER_TRANSITIONS[existing.status] || [];
+        if (!allowed.includes(nextStatus)) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Không thể chuyển trạng thái đơn từ "${existing.status}" sang "${nextStatus}".`
+          );
+        }
+      }
+
       // Restore variant stock when transitioning into 'cancelled'
       if (nextStatus === 'cancelled' && existing.status !== 'cancelled' && Array.isArray(existing.items)) {
         for (const item of existing.items) {
@@ -582,6 +701,11 @@ export const commerceRepository = {
       await client.query('COMMIT');
       const updated = updRes.rows[0];
       if (updated?.customer_id) {
+        if (nextStatus === 'completed') {
+          await this.awardOrderEarnPointsIfNeeded(updated);
+        } else if (nextStatus === 'cancelled') {
+          await this.reconcileCancelledOrderPoints(updated);
+        }
         await this.syncMembershipSpend(updated.customer_id);
       }
       return updated || null;
@@ -591,6 +715,53 @@ export const commerceRepository = {
     } finally {
       client.release();
     }
+  },
+
+  async awardOrderEarnPointsIfNeeded(order: { id: string; customer_id: string; total_amount: number }) {
+    const earnedPts = Math.floor((Number(order.total_amount) || 0) / 10_000);
+    if (earnedPts <= 0 || !order.customer_id) return;
+    const tag = `đơn hàng ${order.id} `;
+    const existingLog = await query<{ id: number }>(
+      `SELECT id FROM membership_point_logs
+       WHERE user_id = $1 AND action_type = 'ORDER_EARN' AND description LIKE $2
+       LIMIT 1`,
+      [order.customer_id, `%${tag}%`]
+    );
+    if (existingLog.length > 0) return;
+
+    await query(
+      `INSERT INTO membership_point_logs (user_id, action_type, points_delta, description)
+       VALUES ($1, 'ORDER_EARN', $2, $3)`,
+      [
+        order.customer_id,
+        earnedPts,
+        `Tích điểm đơn hàng ${order.id} (${Number(order.total_amount).toLocaleString('vi-VN')}₫)`,
+      ]
+    );
+  },
+
+  async reconcileCancelledOrderPoints(order: { id: string; customer_id: string; total_amount: number }) {
+    const earnedPts = Math.floor((Number(order.total_amount) || 0) / 10_000);
+    if (earnedPts <= 0 || !order.customer_id) return;
+    const earned = await query<{ id: number }>(
+      `SELECT id FROM membership_point_logs
+       WHERE user_id = $1 AND action_type = 'ORDER_EARN' AND description LIKE $2
+       LIMIT 1`,
+      [order.customer_id, `%đơn hàng ${order.id} %`]
+    );
+    if (earned.length === 0) return;
+    const deducted = await query<{ id: number }>(
+      `SELECT id FROM membership_point_logs
+       WHERE user_id = $1 AND action_type = 'ORDER_CANCEL_DEDUCT' AND description LIKE $2
+       LIMIT 1`,
+      [order.customer_id, `%${order.id}%`]
+    );
+    if (deducted.length > 0) return;
+    await query(
+      `INSERT INTO membership_point_logs (user_id, action_type, points_delta, description)
+       VALUES ($1, 'ORDER_CANCEL_DEDUCT', $2, $3)`,
+      [order.customer_id, -earnedPts, `Hoàn điểm do hủy đơn hàng ${order.id}`]
+    );
   },
 
   async confirmOrderPaidBySePayWebhook(params: {
@@ -627,24 +798,52 @@ export const commerceRepository = {
       `UPDATE orders SET payment_status = 'paid', updated_at = NOW() WHERE id = $1 RETURNING *`,
       [normalizedOrderId]
     );
-    return { matched: true as const, alreadyPaid: false, order: rows[0] || existing };
+    const updated = rows[0] || existing;
+    if (updated?.customer_id && updated?.status !== 'cancelled') {
+      await this.awardOrderEarnPointsIfNeeded(updated);
+      await this.syncMembershipSpend(updated.customer_id);
+    }
+    return { matched: true as const, alreadyPaid: false, order: updated };
   },
 
   async markOrderPaid(orderId: string, actor: { sub: string; role: string }) {
     await ensureCommerceTablesAndSeed();
+    if (actor.role === 'USER') {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Khách hàng không thể tự xác nhận thanh toán đơn hàng.'
+      );
+    }
     const existingRows = await query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [orderId]);
     const existing = existingRows[0];
     if (!existing) return null;
 
-    if (actor.role === 'USER' && existing.customer_id !== actor.sub) {
-      throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Bạn không có quyền xác nhận thanh toán đơn hàng này.');
+    if (actor.role === 'SHOP_OWNER') {
+      const shopRows = await query<{ id: string; shop_name: string }>(
+        'SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1',
+        [actor.sub]
+      );
+      const shop = shopRows[0];
+      const ownsOrder =
+        shop &&
+        (existing.shop_id === shop.id ||
+          String(existing.store_name || '').toLowerCase() === shop.shop_name.toLowerCase());
+      if (!ownsOrder) {
+        throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Bạn không có quyền xác nhận thanh toán đơn hàng của gian hàng khác.');
+      }
     }
 
     const rows = await query(
       `UPDATE orders SET payment_status = 'paid', updated_at = NOW() WHERE id = $1 RETURNING *`,
       [orderId]
     );
-    return rows[0] || null;
+    const updated = rows[0] || null;
+    if (updated?.customer_id && updated?.status !== 'cancelled') {
+      await this.awardOrderEarnPointsIfNeeded(updated);
+      await this.syncMembershipSpend(updated.customer_id);
+    }
+    return updated;
   },
 
   async ensureMembershipRow(userId: string) {
@@ -676,7 +875,7 @@ export const commerceRepository = {
     const spendRows = await query<{ total_spend: string }>(
       `SELECT COALESCE(SUM(total_amount), 0)::bigint AS total_spend
        FROM orders
-       WHERE customer_id = $1 AND status <> 'cancelled'`,
+       WHERE customer_id = $1 AND status <> 'cancelled' AND (payment_status = 'paid' OR status = 'completed')`,
       [userId]
     );
     const totalSpend = parseInt(spendRows[0]?.total_spend || '0', 10);
@@ -1368,7 +1567,7 @@ export const commerceRepository = {
     const purchased = await query<{ cnt: string }>(
       `SELECT COUNT(*)::text AS cnt
        FROM orders
-       WHERE customer_id = $1 AND status <> 'cancelled'
+       WHERE customer_id = $1 AND status <> 'cancelled' AND (status = 'completed' OR payment_status = 'paid')
          AND EXISTS (
            SELECT 1 FROM jsonb_array_elements(items) AS el
            WHERE el->'product'->>'id' = $2
@@ -1376,6 +1575,21 @@ export const commerceRepository = {
       [input.userId, input.productId]
     );
     const isVerifiedPurchase = parseInt(purchased[0]?.cnt || '0', 10) > 0;
+    if (!isVerifiedPurchase) {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Bạn cần mua và thanh toán hoặc hoàn tất đơn hàng chứa sản phẩm này trước khi gửi đánh giá.'
+      );
+    }
+
+    const dupReview = await query<{ id: number }>(
+      `SELECT id FROM product_reviews WHERE product_id = $1 AND user_id = $2 LIMIT 1`,
+      [input.productId, input.userId]
+    );
+    if (dupReview.length > 0) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Bạn đã đánh giá sản phẩm này rồi.');
+    }
 
     const inserted = await query(
       `INSERT INTO product_reviews (product_id, user_id, user_name, rating, comment, is_verified_purchase)

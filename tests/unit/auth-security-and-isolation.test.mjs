@@ -20,7 +20,7 @@ test('TC-AUTH-01: AuthModal resets credential state across close/logout/tab swit
     /if \(authModalTab === 'signin' \|\| authModalTab === 'register' \|\| authModalTab === 'forgot'\)\s*\{\s*setEmail\(''\);\s*setPassword\(''\);/
   );
   // Clears password immediately on successful login & registration
-  assert.match(modalSrc, /const res = await signIn\(email, password, websiteTrap\);[\s\S]*if \(res\.success\)\s*\{[\s\S]*setEmail\(''\);[\s\S]*setPassword\(''\);/);
+  assert.match(modalSrc, /const res = await signIn\(email, password, websiteTrap[^)]*\);[\s\S]*if \(res\.success\)\s*\{[\s\S]*setEmail\(''\);[\s\S]*setPassword\(''\);/);
   assert.match(modalSrc, /const res = await register\([\s\S]*if \(res\.success\)\s*\{[\s\S]*setPassword\(''\);[\s\S]*setConfirmPassword\(''\);/);
 
   // No silent fallback OTP '123456' on verification submit

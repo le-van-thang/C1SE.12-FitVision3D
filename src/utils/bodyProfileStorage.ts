@@ -314,3 +314,12 @@ export function setStudioCutoutCache(
 export function getStudioCutoutCache() {
   return studioCutoutCache;
 }
+
+/** Wipes transient uploaded/cutout photos and estimator drafts when signing out or switching users. */
+export function clearTransientStudioPrivacyState(): void {
+  pendingStudioPhoto = null;
+  studioCutoutCache = null;
+  try {
+    sessionStorage.removeItem('fv3d_estimator');
+  } catch {}
+}

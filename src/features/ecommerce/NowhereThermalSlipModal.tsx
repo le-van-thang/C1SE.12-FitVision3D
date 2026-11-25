@@ -13,7 +13,7 @@ export const NowhereThermalSlipModal: React.FC<NowhereThermalSlipModalProps> = (
   isOpen,
   onClose,
   userBody,
-  userName = 'Thắng Lê',
+  userName = 'Khách FitVision 3D',
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
 

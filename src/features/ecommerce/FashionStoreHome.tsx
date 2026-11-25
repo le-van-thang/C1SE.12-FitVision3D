@@ -221,7 +221,7 @@ export const FashionStoreHome: React.FC = () => {
     };
   }, [isAuthenticated, currentUser]);
 
-  // Open/close Virtual Fitting Room in sync with URL query (?openStudio=1) so browser Back works cleanly
+  // Open/close Virtual Fitting Room (?openStudio=1) or Product Fit Analysis Drawer (?product=<id>) from URL query
   useEffect(() => {
     if (searchParams.get('openStudio') === '1') {
       const modeParam = searchParams.get('studioMode');
@@ -231,6 +231,8 @@ export const FashionStoreHome: React.FC = () => {
       setIsVellStudioOpen(false);
     }
   }, [searchParams]);
+
+  const productParamId = searchParams.get('product');
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -267,6 +269,21 @@ export const FashionStoreHome: React.FC = () => {
       window.removeEventListener('storage', syncConfig);
     };
   }, []);
+
+  // Open FitAnalysisDrawer automatically when arriving from /stores/:slug via /?product=<id>
+  useEffect(() => {
+    if (!productParamId || dbProducts.length === 0) return;
+    const matched = dbProducts.find(
+      (p) => p.id === productParamId || p.slug === productParamId
+    );
+    if (matched) {
+      setAnalysisProduct(matched);
+      setAnalysisVariant(
+        matched.variants.find((v) => Number(v.stock ?? 0) > 0) || matched.variants[0] || null
+      );
+      setIsAnalysisOpen(true);
+    }
+  }, [productParamId, dbProducts]);
 
   const availableColorFilters = useMemo(() => {
     const map = new Map<string, string>();
@@ -310,10 +327,15 @@ export const FashionStoreHome: React.FC = () => {
     setTimeout(() => setCopiedVoucherCode(null), 2000);
   };
 
-  // Cart (persisted to localStorage so reload/F5 preserves items)
+  // Cart (strictly scoped per authenticated userId so logout/account-switch never leaks items)
+  const getCartStorageKey = (userId?: string | null) =>
+    userId ? `fv3d_smart_cart_v1_${userId}` : 'fv3d_smart_cart_v1_guest';
+
+  const activeCartKey = getCartStorageKey(isAuthenticated ? currentUser?.id : null);
+
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
-      const raw = localStorage.getItem('fv3d_smart_cart_v1');
+      const raw = localStorage.getItem(activeCartKey);
       const parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch {
@@ -327,9 +349,35 @@ export const FashionStoreHome: React.FC = () => {
   const [quickBuyItems, setQuickBuyItems] = useState<CartItem[] | null>(null);
   const [selectedSizeByProduct, setSelectedSizeByProduct] = useState<Record<string, string>>({});
 
+  // Reload/clear cart whenever authenticated account changes or signs out
   useEffect(() => {
     try {
-      localStorage.setItem('fv3d_smart_cart_v1', JSON.stringify(cartItems));
+      localStorage.removeItem('fv3d_smart_cart_v1');
+    } catch {}
+    setQuickBuyItems(null);
+    setIsCheckoutModalOpen(false);
+    if (!isAuthenticated || !currentUser?.id) {
+      setCartItems([]);
+      setSelectedCartIds([]);
+      setIsCartOpen(false);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(getCartStorageKey(currentUser.id));
+      const parsed = raw ? JSON.parse(raw) : [];
+      const loaded: CartItem[] = Array.isArray(parsed) ? parsed : [];
+      setCartItems(loaded);
+      setSelectedCartIds(loaded.map((ci) => ci.id));
+    } catch {
+      setCartItems([]);
+      setSelectedCartIds([]);
+    }
+  }, [isAuthenticated, currentUser?.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) return;
+    try {
+      localStorage.setItem(getCartStorageKey(currentUser.id), JSON.stringify(cartItems));
     } catch {
       // ignore storage quota errors
     }
@@ -337,7 +385,7 @@ export const FashionStoreHome: React.FC = () => {
       const validIds = new Set(cartItems.map((ci) => ci.id));
       return prev.filter((id) => validIds.has(id));
     });
-  }, [cartItems]);
+  }, [cartItems, isAuthenticated, currentUser?.id]);
 
   // Drawers & Modals
   const [analysisProduct, setAnalysisProduct] = useState<FashionProduct | null>(null);
@@ -568,10 +616,43 @@ export const FashionStoreHome: React.FC = () => {
       return;
     }
     const targetVariant = variant || product.variants[0];
-    const fit = calculateProductFit(userBody, product);
+    if (!targetVariant || Number(targetVariant.stock ?? 0) <= 0) {
+      showGlobalToast({
+        type: 'error',
+        title: locale === 'en' ? 'Out of stock' : 'Sản phẩm đã hết hàng',
+        message: `${getProductName(product)}${targetVariant ? ` (Size ${targetVariant.size_label})` : ''} hiện đang hết tồn kho.`,
+      });
+      return;
+    }
     const effectiveProduct = bespokeOverride ? { ...product, is_bespoke: true } : product;
+    if (effectiveProduct.is_bespoke && !hasBodyProfile) {
+      showGlobalToast({
+        type: 'info',
+        title: locale === 'en' ? '3D measurements required' : 'Cần số đo cơ thể 3D',
+        message: 'Sản phẩm may đo Bespoke cần chiều cao/cân nặng/số đo của bạn trước khi đặt hàng.',
+      });
+      setIsBiometricModalOpen(true);
+      return;
+    }
+
+    const existingItem = cartItems.find(
+      (ci) =>
+        ci.product.id === effectiveProduct.id &&
+        ci.variant.id === targetVariant.id &&
+        Boolean(ci.product.is_bespoke) === Boolean(effectiveProduct.is_bespoke)
+    );
+    if (existingItem && existingItem.quantity >= Number(targetVariant.stock ?? 0)) {
+      showGlobalToast({
+        type: 'warning',
+        title: locale === 'en' ? 'Stock limit reached' : 'Đạt giới hạn tồn kho',
+        message: `Size ${targetVariant.size_label} chỉ còn ${targetVariant.stock} sản phẩm trong kho.`,
+      });
+      return;
+    }
+
+    const fit = calculateProductFit(userBody, product);
     const newId = `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-    let selectedIdToActivate = newId;
+    let selectedIdToActivate = existingItem ? existingItem.id : newId;
 
     setCartItems((prev) => {
       const existing = prev.find(
@@ -582,7 +663,8 @@ export const FashionStoreHome: React.FC = () => {
       );
       if (existing) {
         selectedIdToActivate = existing.id;
-        const updatedExisting = { ...existing, quantity: existing.quantity + 1 };
+        const maxStock = Number(targetVariant.stock ?? 99);
+        const updatedExisting = { ...existing, quantity: Math.min(maxStock, existing.quantity + 1) };
         const others = prev.filter((ci) => ci.id !== existing.id);
         return [updatedExisting, ...others];
       }
@@ -628,8 +710,25 @@ export const FashionStoreHome: React.FC = () => {
       return;
     }
     const targetVariant = variant || product.variants[0];
-    const fit = calculateProductFit(userBody, product);
+    if (!targetVariant || Number(targetVariant.stock ?? 0) <= 0) {
+      showGlobalToast({
+        type: 'error',
+        title: locale === 'en' ? 'Out of stock' : 'Sản phẩm đã hết hàng',
+        message: `${getProductName(product)} hiện đang hết hàng ở size đã chọn.`,
+      });
+      return;
+    }
     const effectiveProduct = bespokeOverride ? { ...product, is_bespoke: true } : product;
+    if (effectiveProduct.is_bespoke && !hasBodyProfile) {
+      showGlobalToast({
+        type: 'info',
+        title: locale === 'en' ? '3D measurements required' : 'Cần số đo cơ thể 3D',
+        message: 'Sản phẩm may đo Bespoke cần bạn cung cấp hoặc quét số đo 3D trước.',
+      });
+      setIsBiometricModalOpen(true);
+      return;
+    }
+    const fit = calculateProductFit(userBody, product);
     const singleItem: CartItem = {
       id: `quick-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       product: effectiveProduct,
@@ -685,32 +784,46 @@ export const FashionStoreHome: React.FC = () => {
     ) {
       return;
     }
-    const toAdd = MOCK_PRODUCTS.filter((p) => productIds.includes(p.id));
+    const toAdd = visibleCatalogProducts.filter((p) => productIds.includes(p.id));
     if (toAdd.length === 0) return;
 
+    const addedIds: string[] = [];
     setCartItems((prev) => {
-      let next = [...prev];
+      const next = [...prev];
       toAdd.forEach((product) => {
         const fit = calculateProductFit(userBody, product);
-        const recVariant = product.variants.find((v) => v.size_label === fit.recommended_size) || product.variants[0];
+        const recVariant =
+          product.variants.find((v) => v.size_label === fit.recommended_size && Number(v.stock ?? 0) > 0) ||
+          product.variants.find((v) => Number(v.stock ?? 0) > 0);
+        if (!recVariant) return;
         const existingIdx = next.findIndex(
           (ci) => ci.product.id === product.id && ci.variant.id === recVariant.id
         );
         if (existingIdx >= 0) {
-          next[existingIdx] = { ...next[existingIdx], quantity: next[existingIdx].quantity + 1 };
+          const maxStock = Number(recVariant.stock ?? 99);
+          next[existingIdx] = {
+            ...next[existingIdx],
+            quantity: Math.min(maxStock, next[existingIdx].quantity + 1),
+          };
+          addedIds.push(next[existingIdx].id);
         } else {
-          next.push({
-            id: `cart-${Date.now()}-${product.id}-${Math.random().toString(36).substr(2, 4)}`,
+          const createdId = `cart-${Date.now()}-${product.id}-${Math.random().toString(36).substr(2, 4)}`;
+          next.unshift({
+            id: createdId,
             product,
             variant: recVariant,
             quantity: 1,
             fit_score: fit.match_percentage,
             is_ai_recommended: recVariant.size_label === fit.recommended_size,
           });
+          addedIds.push(createdId);
         }
       });
       return next;
     });
+    if (addedIds.length > 0) {
+      setSelectedCartIds((prev) => Array.from(new Set([...addedIds, ...prev])));
+    }
     setIsCartOpen(true);
   };
 
@@ -3147,13 +3260,17 @@ export const FashionStoreHome: React.FC = () => {
         </button>
 
         {isAuthenticated ? (
-          <a
-            href="/dashboard"
-            className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center"
+          <button
+            type="button"
+            onClick={() => {
+              setProfileModalTab('profile');
+              setIsProfileModalOpen(true);
+            }}
+            className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center bg-transparent border-0 cursor-pointer"
           >
             <UserIcon size={18} />
             <span>{t('ecommerce.mobileNav.profile', 'Hồ sơ')}</span>
-          </a>
+          </button>
         ) : (
           <button
             type="button"
@@ -3169,10 +3286,18 @@ export const FashionStoreHome: React.FC = () => {
       {/* ── DRAWERS & MODALS ── */}
       <FitAnalysisDrawer
         isOpen={isAnalysisOpen}
-        onClose={() => setIsAnalysisOpen(false)}
+        onClose={() => {
+          setIsAnalysisOpen(false);
+          if (searchParams.get('product')) {
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete('product');
+            setSearchParams(nextParams, { replace: true });
+          }
+        }}
         product={analysisProduct}
         selectedVariant={analysisVariant}
         userBody={userBody}
+        hasBodyProfile={hasBodyProfile}
         fitResult={
           analysisProduct ? calculateProductFit(userBody, analysisProduct) : null
         }
@@ -3193,7 +3318,7 @@ export const FashionStoreHome: React.FC = () => {
           }
         }}
         onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant, false, false)}
-        onOpenVirtualStudio={handleOpenVirtualStudio}
+        onOpenVirtualStudio={() => handleOpenVirtualStudio(analysisProduct || undefined)}
       />
 
       <SmartCartDrawer
@@ -3216,7 +3341,8 @@ export const FashionStoreHome: React.FC = () => {
           setCartItems((prev) =>
             prev.map((i) => {
               if (i.id === id) {
-                const nextQ = i.quantity + delta;
+                const maxStock = Number(i.variant?.stock ?? 99);
+                const nextQ = Math.min(maxStock, i.quantity + delta);
                 return nextQ > 0 ? { ...i, quantity: nextQ } : i;
               }
               return i;
@@ -3293,24 +3419,20 @@ export const FashionStoreHome: React.FC = () => {
         }}
         onOpenSignIn={openSignIn}
         onOpenBiometrics={handleOpenBiometrics}
-        onAddToCart={(fakeProduct, size) => {
-          const fakeVariant: ProductVariant = {
-            id: `var-${fakeProduct.id}-${size}`,
-            size_label: (['XS', 'S', 'M', 'L', 'XL', 'XXL'].includes(size) ? size : 'M') as ProductVariant['size_label'],
-            color_name: 'Couture Edition',
-            color_hex: '#1E293B',
-            sku: `${fakeProduct.id}-${size}`,
-            stock: 12,
-            spec: {
-              chest_cm: userBody.chest_cm + 5,
-              waist_cm: userBody.waist_cm + 5,
-              shoulder_cm: 44,
-              length_cm: 72,
-              ease_min_cm: 4,
-              ease_max_cm: 8,
-            },
-          };
-          handleAddToCart(fakeProduct, fakeVariant);
+        onAddToCart={(realProduct, size) => {
+          const matchedVariant =
+            realProduct.variants?.find((v) => v.size_label === size && Number(v.stock ?? 0) > 0) ||
+            realProduct.variants?.find((v) => Number(v.stock ?? 0) > 0) ||
+            realProduct.variants?.[0];
+          if (!matchedVariant) {
+            showGlobalToast({
+              type: 'error',
+              title: 'Không thể thêm vào giỏ',
+              message: 'Sản phẩm hiện không còn biến thể khả dụng.',
+            });
+            return;
+          }
+          handleAddToCart(realProduct, matchedVariant);
           setIsVellStudioOpen(false);
           setIsCartOpen(true);
         }}
@@ -3365,7 +3487,7 @@ export const FashionStoreHome: React.FC = () => {
         isOpen={isThermalSlipOpen}
         onClose={() => setIsThermalSlipOpen(false)}
         userBody={userBody}
-        userName={isAuthenticated ? 'Thắng Lê' : 'Khách Thử Nghiệm'}
+        userName={isAuthenticated ? (currentUser?.full_name || currentUser?.email || 'Khách FitVision 3D') : 'Khách Thử Nghiệm'}
       />
 
       {/* Quick Admin Management Modal (Dành riêng cho Quản Trị Viên) */}
@@ -3397,7 +3519,7 @@ export const FashionStoreHome: React.FC = () => {
         userBody={userBody}
         hasBodyProfile={hasBodyProfile}
         userRole={userRole}
-        userName={currentUser?.full_name || currentUser?.email || 'Thắng Lê'}
+        userName={currentUser?.full_name || currentUser?.email || 'Khách FitVision 3D'}
         avatarUrl={currentUser?.avatar_url || undefined}
         onOpenVellStudio={handleOpenVirtualStudio}
         onOpenMaisonRunway={handleOpenVirtualStudio}

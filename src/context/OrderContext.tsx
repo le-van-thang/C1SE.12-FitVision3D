@@ -4,9 +4,16 @@ import { commerceApi } from '@/services/commerceApi';
 import { useAuth } from '@/context/AuthContext';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
+export interface CreateOrderResult {
+  success: boolean;
+  order?: Order;
+  error?: string;
+}
+
 interface OrderContextType {
   orders: Order[];
-  createOrder: (input: CreateOrderInput) => Order;
+  createOrder: (input: CreateOrderInput) => Promise<CreateOrderResult>;
+  refreshOrders: () => Promise<Order[]>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   cancelOrder: (orderId: string) => void;
   markPaymentCompleted: (orderId: string) => void;
@@ -62,19 +69,30 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [orders, isAuthenticated, currentUser?.id]);
 
+  const refreshOrders = useCallback(async (): Promise<Order[]> => {
+    if (!isAuthenticated || !currentUser?.id) return [];
+    const res = await commerceApi.getOrders();
+    if (res.success && Array.isArray(res.data)) {
+      setOrders(res.data);
+      return res.data;
+    }
+    return [];
+  }, [isAuthenticated, currentUser?.id]);
+
   const createOrder = useCallback(
-    (input: CreateOrderInput): Order => {
+    async (input: CreateOrderInput): Promise<CreateOrderResult> => {
       const randomNum = Math.floor(10000 + Math.random() * 90000);
       const orderId = `FV3D-${randomNum}`;
       const hasBespoke =
         input.has_bespoke_items ?? input.items.some((it) => Boolean(it.product?.is_bespoke));
 
-      const newOrder: Order = {
+      const draftOrder: Order & { coupon_code?: string } = {
         id: orderId,
         customer_id: currentUser?.id || input.customer_id,
         customer_name: input.customer_name,
         recipient: input.recipient,
         items: input.items,
+        coupon_code: input.coupon_code,
         subtotal: input.subtotal,
         shipping_fee: input.shipping_fee,
         discount_amount: input.discount_amount,
@@ -89,65 +107,92 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         estimated_delivery: new Date(Date.now() + 4 * 24 * 3600 * 1000).toLocaleDateString('vi-VN'),
       };
 
-      setOrders((prev) => [newOrder, ...prev]);
+      const res = await commerceApi.createOrder(draftOrder);
+      if (res.success && res.data) {
+        const persisted = res.data;
+        setOrders((prev) => [persisted, ...prev.filter((o) => o.id !== persisted.id)]);
+        showGlobalToast({
+          type: 'success',
+          title: `Đặt đơn hàng ${persisted.id} thành công!`,
+          message: `Tổng thanh toán ${Number(persisted.total_amount || 0).toLocaleString('vi-VN')}₫.`,
+        });
+        window.dispatchEvent(new Event('fv3d-membership-updated'));
+        return { success: true, order: persisted };
+      }
 
-      commerceApi.createOrder(newOrder).then((res) => {
-        if (res.success && res.data) {
-          setOrders((prev) => prev.map((o) => (o.id === orderId ? res.data! : o)));
-          showGlobalToast({
-            type: 'success',
-            title: `Đặt đơn hàng ${orderId} thành công!`,
-            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫.`,
-          });
-          window.dispatchEvent(new Event('fv3d-membership-updated'));
-        } else if (res.error && res.error.code !== 'NETWORK_ERROR') {
-          setOrders((prev) => prev.filter((o) => o.id !== orderId));
-          showGlobalToast({
-            type: 'error',
-            title: 'Không thể tạo đơn hàng',
-            message: res.error.message || 'Vui lòng kiểm tra lại tồn kho sản phẩm.',
-          });
-        } else {
-          showGlobalToast({
-            type: 'success',
-            title: `Đặt đơn hàng ${orderId} thành công!`,
-            message: `Tổng thanh toán ${newOrder.total_amount.toLocaleString('vi-VN')}₫.`,
-          });
-        }
+      const errMsg = res.error?.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra tồn kho hoặc kết nối máy chủ.';
+      showGlobalToast({
+        type: 'error',
+        title: 'Không thể tạo đơn hàng',
+        message: errMsg,
       });
-      return newOrder;
+      return { success: false, error: errMsg };
     },
     [currentUser?.id]
   );
 
   const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
+    let previousStatus: OrderStatus | undefined;
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      prev.map((o) => {
+        if (o.id === orderId) {
+          previousStatus = o.status;
+          return { ...o, status };
+        }
+        return o;
+      })
     );
     commerceApi.updateOrderStatus(orderId, status).then((res) => {
-      if (res.success) {
+      if (res.success && res.data) {
+        setOrders((prev) => prev.map((o) => (o.id === orderId ? res.data! : o)));
         window.dispatchEvent(new Event('fv3d-membership-updated'));
+      } else {
+        if (previousStatus) {
+          setOrders((prev) =>
+            prev.map((o) => (o.id === orderId ? { ...o, status: previousStatus! } : o))
+          );
+        }
+        showGlobalToast({
+          type: 'error',
+          title: 'Không thể cập nhật trạng thái đơn',
+          message: res.error?.message || 'Thao tác không hợp lệ.',
+        });
       }
     });
   }, []);
 
   const cancelOrder = useCallback((orderId: string) => {
+    let previousStatus: OrderStatus | undefined;
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: 'cancelled' } : o))
+      prev.map((o) => {
+        if (o.id === orderId) {
+          previousStatus = o.status;
+          return { ...o, status: 'cancelled' };
+        }
+        return o;
+      })
     );
     commerceApi.updateOrderStatus(orderId, 'cancelled').then((res) => {
       if (res.success) {
+        if (res.data) {
+          setOrders((prev) => prev.map((o) => (o.id === orderId ? res.data! : o)));
+        }
         showGlobalToast({
           type: 'warning',
           title: `Đã hủy đơn hàng ${orderId}`,
           message: 'Đã hoàn trả số lượng tồn kho và cập nhật trạng thái đơn.',
         });
         window.dispatchEvent(new Event('fv3d-membership-updated'));
-      } else if (res.error && res.error.code !== 'NETWORK_ERROR') {
+      } else {
+        if (previousStatus) {
+          setOrders((prev) =>
+            prev.map((o) => (o.id === orderId ? { ...o, status: previousStatus! } : o))
+          );
+        }
         showGlobalToast({
           type: 'error',
           title: 'Không thể hủy đơn hàng',
-          message: res.error.message || 'Đơn hàng đã chuyển sang trạng thái không thể hủy.',
+          message: res.error?.message || 'Đơn hàng đã chuyển sang trạng thái không thể hủy.',
         });
       }
     });
@@ -157,7 +202,6 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, payment_status: 'paid' } : o))
     );
-    commerceApi.markOrderPaid(orderId);
   }, []);
 
   const getUserOrders = useCallback(
@@ -184,6 +228,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         orders,
         createOrder,
+        refreshOrders,
         updateOrderStatus,
         cancelOrder,
         markPaymentCompleted,
@@ -201,7 +246,8 @@ export const useOrders = (): OrderContextType => {
   if (!context) {
     return {
       orders: [],
-      createOrder: () => ({} as Order),
+      createOrder: async () => ({ success: false, error: 'OrderProvider missing' }),
+      refreshOrders: async () => [],
       updateOrderStatus: () => {},
       cancelOrder: () => {},
       markPaymentCompleted: () => {},

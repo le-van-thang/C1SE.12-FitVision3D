@@ -12,6 +12,7 @@ import {
 import { authApi } from '@/services/authApi';
 import { adminApi } from '@/services/adminApi';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
+import { clearTransientStudioPrivacyState } from '@/utils/bodyProfileStorage';
 
 const STORAGE_KEY_PROFILES = 'fv3d_auth_profiles_v1';
 const STORAGE_KEY_STORES = 'fv3d_auth_stores_v1';
@@ -537,6 +538,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 7. Sign Out
   const signOut = useCallback(async () => {
     setCurrentUserId(null);
+    clearTransientStudioPrivacyState();
     try {
       localStorage.setItem(STORAGE_KEY_USER_ID, 'guest');
     } catch {}

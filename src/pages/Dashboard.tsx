@@ -78,11 +78,28 @@ export const Dashboard: React.FC = () => {
   const [tab, setTab] = useState<Tab>("capture");
   const [activeMetric, setActiveMetric] = useState<MetricKey>("chest_circ_cm");
 
-  // Restore last saved scan snapshot for this authenticated account when returning to Dashboard
+  // Restore last saved scan snapshot for this authenticated account, and wipe state on logout or switch
   useEffect(() => {
-    if (!isAuthenticated || !currentUser?.id) return;
+    const resetScanState = () => {
+      setMeasurement(null);
+      setBiometric(null);
+      setMesh(null);
+      setGarmentRec(null);
+      setAudit(null);
+      setIsLiveBackend(false);
+      setExecutionTime(0);
+    };
+
+    if (!isAuthenticated || !currentUser?.id) {
+      resetScanState();
+      return;
+    }
+
     const applySnapshot = (saved: ReturnType<typeof loadFullScanSnapshot>) => {
-      if (!saved) return;
+      if (!saved) {
+        resetScanState();
+        return;
+      }
       setMeasurement(saved.measurement);
       setBiometric(saved.biometric);
       setMesh(saved.mesh);
@@ -92,9 +109,13 @@ export const Dashboard: React.FC = () => {
     };
 
     applySnapshot(loadFullScanSnapshot(currentUser.id));
+    let active = true;
     void hydrateBodyProfileFromBackend(currentUser.id).then((remote) => {
-      if (remote) applySnapshot(remote);
+      if (active && remote) applySnapshot(remote);
     });
+    return () => {
+      active = false;
+    };
   }, [isAuthenticated, currentUser?.id]);
 
   // Handle Photo Scan from Phone / Disk (Single Front A-Pose Image)
@@ -105,21 +126,32 @@ export const Dashboard: React.FC = () => {
       weight_kg: number;
       gender: "male" | "female" | "neutral";
     }) => {
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !currentUser?.id) {
         setLockedFeature(t("app.dash.featMeasure", "Đo 3D với Model AI SMPLer-X"));
         return;
       }
+      let normalizedHeight = Number(params.height_cm) || 172;
+      if (normalizedHeight > 0 && normalizedHeight < 3.0) {
+        normalizedHeight = Math.round(normalizedHeight * 100.0 * 10) / 10;
+      }
+      const normalizedWeight = Number(params.weight_kg) || 70;
+      const sanitizedParams = {
+        ...params,
+        height_cm: Math.min(250, Math.max(100, normalizedHeight)),
+        weight_kg: Math.min(250, Math.max(30, normalizedWeight)),
+      };
+
       const t0 = performance.now();
       setProcessing(true);
 
       try {
-        const res = await runAiMeasurement(params);
+        const res = await runAiMeasurement(sanitizedParams);
         const elapsed = (performance.now() - t0) / 1000;
 
         const meas = res.iso_8559_measurements;
-        let h = params.height_cm || meas.chieu_cao_cm || 172;
+        let h = sanitizedParams.height_cm || meas.chieu_cao_cm || 172;
         if (h > 0 && h < 3.0) h = Math.round(h * 100.0 * 10) / 10;
-        const w = params.weight_kg || meas.can_nang_kg || 70;
+        const w = sanitizedParams.weight_kg || meas.can_nang_kg || 70;
         const calcBmi = bmi(w, h);
 
         // Anthropometric scaling for 3D Mannequin
@@ -158,7 +190,7 @@ export const Dashboard: React.FC = () => {
 
         const newMeasurement: Measurement = {
           id: `meas-${Date.now()}`,
-          user_id: "usr-current",
+          user_id: currentUser.id,
           input_id: `inp-${Date.now()}`,
           chest_circ_cm: meas.vong_nguc_cm,
           waist_circ_cm: meas.vong_eo_cm,
@@ -177,7 +209,7 @@ export const Dashboard: React.FC = () => {
 
         const newBiometric: BiometricInput = {
           id: `bio-${Date.now()}`,
-          user_id: "usr-current",
+          user_id: currentUser.id,
           stature_cm: h,
           weight_kg: w,
           gender: params.gender === "male" ? "male" : params.gender === "female" ? "female" : "other",

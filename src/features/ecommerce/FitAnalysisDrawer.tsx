@@ -32,6 +32,7 @@ interface FitAnalysisDrawerProps {
   product: FashionProduct | null;
   selectedVariant: ProductVariant | null;
   userBody: UserBodyProfile;
+  hasBodyProfile?: boolean;
   fitResult: FitMatchResult | null;
   onSelectSize: (variant: ProductVariant) => void;
   onAddToCart: () => void;
@@ -47,6 +48,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   product,
   selectedVariant,
   userBody,
+  hasBodyProfile = false,
   fitResult,
   onSelectSize,
   onAddToCart,
@@ -424,20 +426,40 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
 
             {/* 2. Match Score Card */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white border border-emerald-500/25 shadow-2xs">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-emerald-600" />
-                  <span className="font-bold text-emerald-900 text-sm">
-                    {verdictLabel}
-                  </span>
+              {hasBodyProfile ? (
+                <>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={18} className="text-emerald-600" />
+                      <span className="font-bold text-emerald-900 text-sm">
+                        {verdictLabel}
+                      </span>
+                    </div>
+                    <span className="font-mono text-xl font-black text-emerald-700">
+                      {fitResult.match_percentage}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                    {advisorAdvice}
+                  </p>
+                </>
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-amber-600" />
+                    <span className="font-bold text-slate-900 text-xs">
+                      {isEn
+                        ? 'No personal 3D measurements saved yet'
+                        : 'Bạn chưa có số đo 3D cá nhân'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {isEn
+                      ? 'Scan 1 photo or enter your height/weight to get an accurate ISO 8559 size fit score instead of generic reference dimensions.'
+                      : 'Hãy quét 1 ảnh 3D hoặc nhập số đo cá nhân để hệ thống tính chính xác độ vừa vặn cho cơ thể thật của bạn.'}
+                  </p>
                 </div>
-                <span className="font-mono text-xl font-black text-emerald-700">
-                  {fitResult.match_percentage}%
-                </span>
-              </div>
-              <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                {advisorAdvice}
-              </p>
+              )}
             </div>
 
             {/* 3. Multi-Color Selector + Size Selector + AI 3D Scan CTA */}
@@ -499,23 +521,31 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
                     {t('ecommerce.drawer.selectSize', 'Chọn kích cỡ (Size):')}
                   </label>
-                  <span className="text-[11px] font-semibold text-emerald-700">
-                    Còn {selectedVariant.stock} sản phẩm
+                  <span
+                    className={`text-[11px] font-semibold ${
+                      selectedVariant.stock > 0 ? 'text-emerald-700' : 'text-rose-600'
+                    }`}
+                  >
+                    {selectedVariant.stock > 0 ? `Còn ${selectedVariant.stock} sản phẩm` : 'Hết hàng'}
                   </span>
                 </div>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {sizeOptions.map((v) => {
                     const isSelected = v.size_label === selectedVariant.size_label;
-                    const isRecommended = v.size_label === fitResult.recommended_size;
+                    const isRecommended = hasBodyProfile && v.size_label === fitResult.recommended_size;
+                    const isOutOfStock = Number(v.stock ?? 0) <= 0;
                     return (
                       <button
                         key={v.id}
                         type="button"
+                        disabled={isOutOfStock}
                         onClick={() => onSelectSize(v)}
-                        className={`relative py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#14171C] text-white border-[#14171C] shadow-sm'
-                            : 'bg-white text-slate-800 border-slate-200 hover:border-blue-400 hover:text-blue-700'
+                        className={`relative py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                          isOutOfStock
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 line-through cursor-not-allowed opacity-60'
+                            : isSelected
+                              ? 'bg-[#14171C] text-white border-[#14171C] shadow-sm cursor-pointer'
+                              : 'bg-white text-slate-800 border-slate-200 hover:border-blue-400 hover:text-blue-700 cursor-pointer'
                         }`}
                       >
                         {v.size_label}
@@ -919,19 +949,23 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
+                disabled={Number(selectedVariant.stock ?? 0) <= 0}
                 onClick={() => {
                   onAddToCart();
                   onClose();
                 }}
-                className="py-3 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-[#14171C] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-3 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-300 text-[#14171C] font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <Plus size={15} />
                 <span>
-                  {t('ecommerce.drawer.addToCartSize', 'Thêm vào giỏ ({size})').replace('{size}', selectedVariant.size_label)}
+                  {Number(selectedVariant.stock ?? 0) <= 0
+                    ? 'Hết hàng'
+                    : t('ecommerce.drawer.addToCartSize', 'Thêm vào giỏ ({size})').replace('{size}', selectedVariant.size_label)}
                 </span>
               </button>
               <button
                 type="button"
+                disabled={Number(selectedVariant.stock ?? 0) <= 0}
                 onClick={() => {
                   if (onQuickBuy) {
                     onQuickBuy();
@@ -940,10 +974,14 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   }
                   onClose();
                 }}
-                className="py-3 px-3.5 rounded-xl bg-[#14171C] hover:bg-blue-600 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-3 px-3.5 rounded-xl bg-[#14171C] hover:bg-blue-600 disabled:bg-slate-300 disabled:cursor-not-allowed active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <span>
-                  {isEn ? `Buy Now (${selectedVariant.size_label})` : `Mua ngay (${selectedVariant.size_label})`}
+                  {Number(selectedVariant.stock ?? 0) <= 0
+                    ? 'Tạm hết hàng'
+                    : isEn
+                      ? `Buy Now (${selectedVariant.size_label})`
+                      : `Mua ngay (${selectedVariant.size_label})`}
                 </span>
                 <ChevronRight size={16} />
               </button>

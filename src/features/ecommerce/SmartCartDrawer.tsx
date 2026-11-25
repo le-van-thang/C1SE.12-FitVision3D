@@ -242,8 +242,9 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                       <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
                         <button
                           type="button"
+                          disabled={item.quantity <= 1}
                           onClick={() => onUpdateQuantity(item.id, -1)}
-                          className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                          className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                           -
                         </button>
@@ -252,8 +253,14 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                         </span>
                         <button
                           type="button"
+                          disabled={typeof item.variant.stock === 'number' && item.quantity >= item.variant.stock}
                           onClick={() => onUpdateQuantity(item.id, 1)}
-                          className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                          title={
+                            typeof item.variant.stock === 'number' && item.quantity >= item.variant.stock
+                              ? `Tối đa ${item.variant.stock} sản phẩm trong kho`
+                              : undefined
+                          }
+                          className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                           +
                         </button>
@@ -288,15 +295,17 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                 </div>
                 <div className="flex justify-between text-slate-500">
                   <span>{t('ecommerce.drawer.shipping', 'Phí giao hàng toàn quốc:')}</span>
-                  <span className="text-emerald-700 font-bold">
+                  <span className={remainingForFreeship === 0 ? 'text-emerald-700 font-bold' : 'font-semibold text-slate-800'}>
                     {remainingForFreeship === 0
-                      ? t('ecommerce.drawer.free', 'Miễn phí (Ưu đãi FitVision)')
-                      : (isEn ? 'Standard 0 ₫ (ISO Bonus)' : '0 ₫ (Ưu đãi ISO 8559)')}
+                      ? t('ecommerce.drawer.free', 'Miễn phí (Đạt ngưỡng Freeship)')
+                      : (isEn ? '30,000 ₫ (Free from 1,000,000 ₫)' : '30.000 ₫ (Freeship từ 1.000.000₫)')}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-black text-slate-950 pt-2 border-t border-slate-200">
                   <span>{t('ecommerce.drawer.totalAmount', 'Tổng thanh toán:')}</span>
-                  <span className="text-base text-rose-600">{totalAmount.toLocaleString('vi-VN')} ₫</span>
+                  <span className="text-base text-rose-600">
+                    {(totalAmount + (selectedItems.length > 0 && remainingForFreeship > 0 ? 30_000 : 0)).toLocaleString('vi-VN')} ₫
+                  </span>
                 </div>
               </div>
 
