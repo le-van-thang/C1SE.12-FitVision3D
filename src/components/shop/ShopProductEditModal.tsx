@@ -12,6 +12,7 @@ import {
 import { commerceApi, type DbProduct } from '@/services/commerceApi';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 import { useI18n } from '@/i18n';
+import { addCustomColorWithoutToggle } from './settings/shopSettingsHelpers';
 
 const ALL_SIZES: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
@@ -569,7 +570,30 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    handleToggleColor({ name: customName.trim() || customHex, hex: customHex });
+                    const result = addCustomColorWithoutToggle(colorVariants, {
+                      name: customName.trim() || customHex,
+                      hex: customHex,
+                    });
+                    if (result.status === 'duplicate') {
+                      showGlobalToast({
+                        type: 'warning',
+                        title: isEn
+                          ? 'This color name or hex code already exists.'
+                          : 'Màu hoặc mã màu này đã tồn tại trong danh sách.',
+                        message: '',
+                      });
+                      return;
+                    }
+                    if (result.status === 'max_reached') {
+                      showGlobalToast({
+                        type: 'warning',
+                        title: t('shopPortal.maxColorsToast'),
+                        message: '',
+                      });
+                      return;
+                    }
+                    setColorVariants(result.variants);
+                    setCustomName('');
                     setShowCustomColor(false);
                   }}
                   className="px-3 py-1.5 rounded-lg bg-[#14171C] text-white text-xs font-bold cursor-pointer"

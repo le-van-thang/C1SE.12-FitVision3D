@@ -173,6 +173,7 @@ export const authApi = {
         fullName: string;
         role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
         status: string;
+        authProvider?: 'google' | 'password';
       };
     }>('/login', {
       method: 'POST',
@@ -229,6 +230,7 @@ export const authApi = {
       fullName: string;
       role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
       status: string;
+      authProvider?: 'google' | 'password';
       createdAt: string;
     }>('/me', { method: 'GET' });
   },
@@ -273,6 +275,7 @@ export const authApi = {
         fullName: string;
         role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
         status: string;
+        authProvider?: 'google' | 'password';
       };
     }>('/google', {
       method: 'POST',

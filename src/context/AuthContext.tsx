@@ -17,7 +17,6 @@ import { clearTransientStudioPrivacyState } from '@/utils/bodyProfileStorage';
 const STORAGE_KEY_PROFILES = 'fv3d_auth_profiles_v1';
 const STORAGE_KEY_STORES = 'fv3d_auth_stores_v1';
 const STORAGE_KEY_USER_ID = 'fv3d_auth_current_user_id_v1';
-const STORAGE_KEY_AUTH_PROVIDER = 'fv3d_auth_provider_v1';
 
 export interface RegisterPayload {
   fullName: string;
@@ -161,13 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profiles, setProfiles] = useState<Profile[]>(initProfiles);
   const [stores, setStores] = useState<Store[]>(initStores);
   const [currentUserId, setCurrentUserId] = useState<string | null>(initCurrentUserId);
-  const [authProvider, setAuthProvider] = useState<'google' | 'password'>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY_AUTH_PROVIDER) === 'google' ? 'google' : 'password';
-    } catch {
-      return 'password';
-    }
-  });
+  const [authProvider, setAuthProvider] = useState<'google' | 'password'>('password');
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -212,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const res = await authApi.getProfile();
         if (res.success && res.data && isMounted) {
           const prof = mapBackendUserToProfile(res.data);
+          setAuthProvider(res.data.authProvider === 'google' ? 'google' : 'password');
           setProfiles((prev) => {
             const exists = prev.some((p) => p.id === prof.id);
             return exists ? prev.map((p) => (p.id === prof.id ? prof : p)) : [prof, ...prev];
@@ -518,12 +512,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await authApi.googleLogin(data);
       if (res.success && res.data?.user) {
         const prof = mapBackendUserToProfile(res.data.user);
-        try {
-          localStorage.setItem(STORAGE_KEY_AUTH_PROVIDER, 'google');
-        } catch {
-          // ignore
-        }
-        setAuthProvider('google');
+        setAuthProvider(res.data.user.authProvider === 'google' ? 'google' : 'password');
         setProfiles((prev) => {
           const filtered = prev.filter((p) => p.id !== prof.id);
           return [prof, ...filtered];
@@ -557,7 +546,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearTransientStudioPrivacyState();
     try {
       localStorage.setItem(STORAGE_KEY_USER_ID, 'guest');
-      localStorage.removeItem(STORAGE_KEY_AUTH_PROVIDER);
     } catch {}
     showGlobalToast({
       type: 'info',

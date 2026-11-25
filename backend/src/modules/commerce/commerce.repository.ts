@@ -2,7 +2,7 @@ import { pool, query } from '../../config/database.js';
 import { ensureCommerceTablesAndSeed } from './commerce.bootstrap.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
-import { verifyPassword } from '../../utils/password.js';
+import { verifyPassword, isGoogleOAuthHash, resolveAuthProvider } from '../../utils/password.js';
 import { authRepository } from '../auth/auth.repository.js';
 import { compareVietnameseAccountNames } from '../shop/kycVerification.js';
 
@@ -59,6 +59,28 @@ export function assertShopAntiSpam(userId: string): void {
   }
   prev.push(now);
   shopPostTimestamps.set(userId, prev);
+}
+
+const MAX_SHOP_IMAGE_DATA_URL_CHARS = 700_000; // ~500KB decoded
+
+function isValidShopImageUrl(raw: string): boolean {
+  if (!raw) return true; // empty = cleared
+  if (raw.length > MAX_SHOP_IMAGE_DATA_URL_CHARS) return false;
+  if (/^https?:\/\/[^\s"'<>]+$/i.test(raw)) return true;
+  if (/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(raw)) return true;
+  return false;
+}
+
+function normalizePrepTimeCode(raw?: string | null): string {
+  const val = String(raw || '').trim();
+  if (!val) return '1_2_DAYS';
+  const upper = val.toUpperCase();
+  if (['SAME_DAY', '1_2_DAYS', '2_3_DAYS', '3_5_DAYS'].includes(upper)) return upper;
+  const lower = val.toLowerCase();
+  if (lower.includes('24h') || lower.includes('trong ngày') || lower.includes('same day')) return 'SAME_DAY';
+  if (lower.includes('2–3') || lower.includes('2-3')) return '2_3_DAYS';
+  if (lower.includes('3–5') || lower.includes('3-5') || lower.includes('5–7') || lower.includes('5-7')) return '3_5_DAYS';
+  return '1_2_DAYS';
 }
 
 function resolveShopSizeSpec(
@@ -1254,8 +1276,8 @@ export const commerceRepository = {
         : shop.vacation_until;
     const prepTime =
       payload.prepTimeDays !== undefined
-        ? String(payload.prepTimeDays).trim().slice(0, 60) || '1–2 ngày làm việc'
-        : shop.prep_time_days || '1–2 ngày làm việc';
+        ? normalizePrepTimeCode(payload.prepTimeDays)
+        : normalizePrepTimeCode(shop.prep_time_days);
     const quickReply =
       payload.quickReplyTemplate !== undefined
         ? String(payload.quickReplyTemplate || '').trim()
@@ -1275,6 +1297,12 @@ export const commerceRepository = {
     if (cleanPhone.length < 8) throw new Error('Số điện thoại Shop không hợp lệ.');
     if (cleanContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanContactEmail)) {
       throw new Error('Email liên hệ gian hàng không đúng định dạng.');
+    }
+    if (cleanLogo && !isValidShopImageUrl(cleanLogo)) {
+      throw new Error('Ảnh Logo không hợp lệ (chỉ chấp nhận URL http/https hoặc ảnh JPG/PNG/WebP tối đa 500KB).');
+    }
+    if (cleanBanner && !isValidShopImageUrl(cleanBanner)) {
+      throw new Error('Ảnh bìa Banner không hợp lệ (chỉ chấp nhận URL http/https hoặc ảnh JPG/PNG/WebP tối đa 500KB).');
     }
 
     const updated = await query(
@@ -1352,6 +1380,7 @@ export const commerceRepository = {
       accountNumber?: string;
       accountHolderName?: string;
       currentPassword?: string;
+      confirmEmail?: string;
     }
   ) {
     const shop = await this.ensureShopForUser(userId);
@@ -1364,21 +1393,33 @@ export const commerceRepository = {
       throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản chủ Shop.');
     }
 
-    const pwd = String(payload.currentPassword || '');
-    if (!pwd) {
-      throw new AppError(
-        400,
-        ErrorCode.AUTH_INVALID_CREDENTIALS,
-        'Bắt buộc nhập mật khẩu tài khoản để xác thực khi thay đổi tài khoản ngân hàng chi trả.'
-      );
-    }
-    const isPasswordValid = await verifyPassword(pwd, user.password_hash);
-    if (!isPasswordValid) {
-      throw new AppError(
-        400,
-        ErrorCode.AUTH_INVALID_CREDENTIALS,
-        'Mật khẩu xác thực không chính xác. Không thể cập nhật tài khoản ngân hàng.'
-      );
+    // Xác thực danh tính: tài khoản mật khẩu xác thực bằng password, tài khoản Google xác thực bằng email đăng nhập
+    if (isGoogleOAuthHash(user.password_hash)) {
+      const confirmed = String(payload.confirmEmail || '').trim().toLowerCase();
+      if (!confirmed || confirmed !== user.email.toLowerCase()) {
+        throw new AppError(
+          400,
+          ErrorCode.AUTH_INVALID_CREDENTIALS,
+          'Tài khoản Google: vui lòng nhập chính xác Email đăng nhập Google của Shop để xác nhận thay đổi ngân hàng.'
+        );
+      }
+    } else {
+      const pwd = String(payload.currentPassword || '');
+      if (!pwd) {
+        throw new AppError(
+          400,
+          ErrorCode.AUTH_INVALID_CREDENTIALS,
+          'Bắt buộc nhập mật khẩu tài khoản để xác thực khi thay đổi tài khoản ngân hàng chi trả.'
+        );
+      }
+      const isPasswordValid = await verifyPassword(pwd, user.password_hash);
+      if (!isPasswordValid) {
+        throw new AppError(
+          400,
+          ErrorCode.AUTH_INVALID_CREDENTIALS,
+          'Mật khẩu xác thực không chính xác. Không thể cập nhật tài khoản ngân hàng.'
+        );
+      }
     }
 
     const bankCode = String(payload.bankCode || '').trim().toUpperCase().slice(0, 30);
@@ -1407,32 +1448,51 @@ export const commerceRepository = {
       );
     }
 
-    await query(`UPDATE shop_bank_accounts SET is_primary = FALSE, updated_at = NOW() WHERE shop_id = $1`, [shop.id]);
-    const savedRows = await query(
-      `INSERT INTO shop_bank_accounts (
-         shop_id, bank_code, bank_name, account_number, account_holder_name,
-         is_primary, name_match_score, verification_status, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'MATCHED', NOW())
-       ON CONFLICT (shop_id, account_number) DO UPDATE
-       SET bank_code = EXCLUDED.bank_code,
-           bank_name = EXCLUDED.bank_name,
-           account_holder_name = EXCLUDED.account_holder_name,
-           is_primary = TRUE,
-           name_match_score = EXCLUDED.name_match_score,
-           verification_status = 'MATCHED',
-           updated_at = NOW()
-       RETURNING id, bank_code, bank_name, account_number, account_holder_name,
-                 is_primary, name_match_score::float, verification_status`,
-      [shop.id, bankCode, bankName, accountNumber, accountHolderName, matchResult.score]
-    );
-    return savedRows[0];
+    // Bọc transaction để tránh mất tài khoản mặc định nếu câu lệnh thứ 2 gặp lỗi
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE shop_bank_accounts SET is_primary = FALSE, updated_at = NOW() WHERE shop_id = $1`,
+        [shop.id]
+      );
+      const savedRes = await client.query(
+        `INSERT INTO shop_bank_accounts (
+           shop_id, bank_code, bank_name, account_number, account_holder_name,
+           is_primary, name_match_score, verification_status, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'MATCHED', NOW())
+         ON CONFLICT (shop_id, account_number) DO UPDATE
+         SET bank_code = EXCLUDED.bank_code,
+             bank_name = EXCLUDED.bank_name,
+             account_holder_name = EXCLUDED.account_holder_name,
+             is_primary = TRUE,
+             name_match_score = EXCLUDED.name_match_score,
+             verification_status = 'MATCHED',
+             updated_at = NOW()
+         RETURNING id, bank_code, bank_name, account_number, account_holder_name,
+                   is_primary, name_match_score::float, verification_status`,
+        [shop.id, bankCode, bankName, accountNumber, accountHolderName, matchResult.score]
+      );
+      await client.query('COMMIT');
+      return savedRes.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async getShopDashboard(userId: string) {
-    const shop = await this.ensureShopForUser(userId);
+    const [shop, user] = await Promise.all([
+      this.ensureShopForUser(userId),
+      authRepository.findUserById(userId),
+    ]);
+    const authProvider = resolveAuthProvider(user?.password_hash);
     if (!shop) {
       return {
         shop: null,
+        authProvider,
         documents: [],
         bankAccount: null,
         reputation: null,
@@ -1464,6 +1524,7 @@ export const commerceRepository = {
     if (shop.status !== 'APPROVED') {
       return {
         shop,
+        authProvider,
         documents,
         bankAccount: bankRows[0] || null,
         reputation,
@@ -1514,6 +1575,7 @@ export const commerceRepository = {
 
     return {
       shop,
+      authProvider,
       documents,
       bankAccount: bankRows[0] || null,
       reputation,

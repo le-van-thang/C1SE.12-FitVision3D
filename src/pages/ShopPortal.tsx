@@ -45,6 +45,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import { ShopSettingsTab } from '@/components/shop/ShopSettingsTab';
 import { ShopProductEditModal } from '@/components/shop/ShopProductEditModal';
+import { addCustomColorWithoutToggle, formatPrepTimeLabel } from '@/components/shop/settings/shopSettingsHelpers';
 import {
   commerceApi,
   type DbProduct,
@@ -221,15 +222,12 @@ export const ShopPortal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<DbProduct | null>(null);
+  const [dashboardAuthProvider, setDashboardAuthProvider] = useState<'google' | 'password' | null>(null);
 
-  // Shop profile & operational mode editable state
+  // Basic shop fields used when resubmitting KYC (for PENDING / REJECTED shops)
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [profileAddress, setProfileAddress] = useState('');
-  const [profileTagline, setProfileTagline] = useState('');
-  const [operationalMode, setOperationalMode] = useState<'ACTIVE' | 'VACATION'>('ACTIVE');
-  const [vacationNote, setVacationNote] = useState('');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // KYC Resubmission state (when shop status is PENDING or REJECTED)
   const [resubmitEntityType, setResubmitEntityType] = useState<ShopEntityType>('INDIVIDUAL');
@@ -311,6 +309,9 @@ export const ShopPortal: React.FC = () => {
     if (res.success && res.data) {
       setAuthNeedsRelogin(false);
       setShop(res.data.shop);
+      if (res.data.authProvider === 'google' || res.data.authProvider === 'password') {
+        setDashboardAuthProvider(res.data.authProvider);
+      }
       setKycDocuments(res.data.documents || []);
       setBankAccount(res.data.bankAccount || null);
       setReputation(res.data.reputation || null);
@@ -322,9 +323,6 @@ export const ShopPortal: React.FC = () => {
         setProfileName(s.shop_name || '');
         setProfilePhone(s.phone_number || '');
         setProfileAddress(s.shop_address || '');
-        setProfileTagline(s.tagline || '');
-        setOperationalMode(s.operational_mode === 'VACATION' ? 'VACATION' : 'ACTIVE');
-        setVacationNote(s.vacation_note || '');
         setResubmitEntityType((s.entity_type as ShopEntityType) || 'INDIVIDUAL');
         setResubmitTaxCode(s.tax_code || '');
         setResubmitLicenseNo(s.business_license_no || '');
@@ -381,43 +379,6 @@ export const ShopPortal: React.FC = () => {
         type: 'error',
         title: 'Không thể cập nhật trạng thái',
         message: res.error?.message || 'Vui lòng thử lại.',
-      });
-    }
-  };
-
-  const handleSaveShopProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (profileName.trim().length < 2) {
-      showGlobalToast({
-        type: 'warning',
-        title: 'Tên thương hiệu quá ngắn',
-        message: 'Vui lòng nhập tên Shop từ 2 ký tự trở lên.',
-      });
-      return;
-    }
-    setIsSavingProfile(true);
-    const res = await commerceApi.updateShopProfile({
-      shopName: profileName.trim(),
-      phoneNumber: profilePhone.trim(),
-      shopAddress: profileAddress.trim(),
-      tagline: profileTagline.trim(),
-      operationalMode,
-      vacationNote: operationalMode === 'VACATION' ? vacationNote.trim() : '',
-    });
-    setIsSavingProfile(false);
-    if (res.success && res.data) {
-      setShop(res.data);
-      showGlobalToast({
-        type: 'success',
-        title: 'Đã cập nhật hồ sơ Shop!',
-        message: 'Tên thương hiệu và thông tin liên hệ đã được cập nhật.',
-      });
-      void loadShopData();
-    } else {
-      showGlobalToast({
-        type: 'error',
-        title: 'Cập nhật thất bại',
-        message: res.error?.message || 'Không thể lưu thông tin Shop.',
       });
     }
   };
@@ -1413,7 +1374,7 @@ export const ShopPortal: React.FC = () => {
                           <p className="text-[11px] text-slate-500">{t('shopPortal.summaryContact')}</p>
                           <p className="font-bold text-slate-900 mt-1 font-mono">{shop.phone_number}</p>
                           <p className="text-[11px] text-slate-500 mt-0.5">
-                            {t('shopPortal.summarySla')}: {shop.prep_time_days || '1–2 ngày làm việc'}
+                            {t('shopPortal.summarySla')}: {formatPrepTimeLabel(shop.prep_time_days, locale)}
                           </p>
                         </div>
                         <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
@@ -1895,7 +1856,27 @@ export const ShopPortal: React.FC = () => {
                                 type="button"
                                 onClick={() => {
                                   const cleanName = customColorName.trim() || detectNearestColorName(customColorHex);
-                                  handleToggleQuickColor({ name: cleanName, hex: customColorHex });
+                                  const result = addCustomColorWithoutToggle(colorVariants, {
+                                    name: cleanName,
+                                    hex: customColorHex,
+                                  });
+                                  if (result.status === 'duplicate') {
+                                    showGlobalToast({
+                                      type: 'warning',
+                                      title: locale === 'en' ? 'Color already exists' : 'Màu này đã có trong danh sách',
+                                      message: cleanName,
+                                    });
+                                    return;
+                                  }
+                                  if (result.status === 'max_reached') {
+                                    showGlobalToast({
+                                      type: 'warning',
+                                      title: t('shopPortal.maxColorsToast'),
+                                      message: '',
+                                    });
+                                    return;
+                                  }
+                                  setColorVariants(result.variants);
                                   setShowCustomColorForm(false);
                                 }}
                                 className="px-3 py-1.5 rounded-lg bg-[#14171C] text-white text-xs font-bold cursor-pointer"
@@ -2581,7 +2562,7 @@ export const ShopPortal: React.FC = () => {
                   bankAccount={bankAccount}
                   reputation={reputation}
                   userEmail={currentUser?.email}
-                  authProvider={authProvider}
+                  authProvider={dashboardAuthProvider ?? authProvider}
                   onShopUpdated={(updated) => setShop(updated)}
                   onBankUpdated={(updated) => setBankAccount(updated)}
                   onReloadDashboard={loadShopData}

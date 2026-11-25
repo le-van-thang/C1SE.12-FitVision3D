@@ -14,7 +14,7 @@ import {
   isDisposableEmail,
   validateEmailDomainAndGmailPolicy,
 } from '../../constants/disposableEmails.js';
-import { hashPassword, verifyPassword } from '../../utils/password.js';
+import { hashPassword, verifyPassword, isGoogleOAuthHash, resolveAuthProvider } from '../../utils/password.js';
 import {
   generateAccessToken,
   generateRefreshTokenString,
@@ -414,6 +414,7 @@ export const authService = {
         fullName: user.full_name,
         role: user.role,
         status: user.status,
+        authProvider: resolveAuthProvider(user.password_hash),
         shopStatus: shopRecord?.status || (user.role === 'SHOP_OWNER' ? 'PENDING' : undefined),
         rejectionReason: shopRecord?.rejection_reason || null,
       },
@@ -510,7 +511,7 @@ export const authService = {
   },
 
   /**
-   * Đổi / Tạo mật khẩu cho tài khoản đang đăng nhập
+   * Đổi mật khẩu cho tài khoản đang đăng nhập (tự động thu hồi toàn bộ phiên cũ)
    */
   async changePassword(
     userId: string,
@@ -521,27 +522,32 @@ export const authService = {
       throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản.');
     }
 
-    // Nếu tài khoản đã có mật khẩu (không phải Google OAuth chưa đặt pass), bắt buộc xác thực mật khẩu cũ
-    const hasExistingPassword = Boolean(user.password_hash && !user.password_hash.startsWith('GOOGLE_OAUTH'));
-    if (hasExistingPassword) {
-      if (!dto.currentPassword || !dto.currentPassword.trim()) {
-        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Vui lòng nhập mật khẩu hiện tại.');
-      }
-      const isMatch = await verifyPassword(dto.currentPassword, user.password_hash);
-      if (!isMatch) {
-        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
-      }
-      if (dto.currentPassword === dto.newPassword) {
-        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
-      }
+    if (isGoogleOAuthHash(user.password_hash)) {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Tài khoản đang đăng nhập bằng Google. Vui lòng quản lý mật khẩu trực tiếp tại Tài khoản Google của bạn.'
+      );
+    }
+
+    if (!dto.currentPassword || !dto.currentPassword.trim()) {
+      throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Vui lòng nhập mật khẩu hiện tại.');
+    }
+    const isMatch = await verifyPassword(dto.currentPassword, user.password_hash);
+    if (!isMatch) {
+      throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
+    }
+    if (dto.currentPassword === dto.newPassword) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
     }
 
     const newHash = await hashPassword(dto.newPassword);
     await authRepository.updatePassword(user.email, newHash);
+    // Thu hồi toàn bộ Refresh Token cũ trên các thiết bị khác sau khi đổi mật khẩu
+    const revokedSessions = await authRepository.revokeAllUserTokens(user.id);
     return {
-      message: hasExistingPassword
-        ? 'Đổi mật khẩu thành công! Vui lòng ghi nhớ mật khẩu mới cho lần đăng nhập sau.'
-        : 'Tạo mật khẩu thành công! Bạn đã có thể đăng nhập bằng Email và mật khẩu.',
+      revokedSessions,
+      message: 'Đổi mật khẩu thành công! Các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi.',
     };
   },
 
@@ -617,6 +623,7 @@ export const authService = {
       fullName: user.full_name,
       role: user.role,
       status: user.status,
+      authProvider: resolveAuthProvider(user.password_hash),
       shopStatus: shopRecord?.status || (user.role === 'SHOP_OWNER' ? 'PENDING' : undefined),
       rejectionReason: shopRecord?.rejection_reason || null,
       createdAt: user.created_at,
@@ -779,6 +786,7 @@ export const authService = {
         fullName: user.full_name,
         role: user.role,
         status: user.status,
+        authProvider: resolveAuthProvider(user.password_hash),
       },
     };
   },

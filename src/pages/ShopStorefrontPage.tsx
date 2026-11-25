@@ -22,6 +22,7 @@ import {
 import { commerceApi, type DbProduct, type PublicStorefrontResponse } from '@/services/commerceApi';
 import { useI18n } from '@/i18n';
 import { useAuth } from '@/context/AuthContext';
+import { formatPrepTimeLabel, isValidShopImageUrl } from '@/components/shop/settings/shopSettingsHelpers';
 
 const TIER_BADGES: Record<'MALL' | 'PREFERRED' | 'REGULAR', { key: string; cls: string }> = {
   MALL: {
@@ -171,16 +172,16 @@ export const ShopStorefrontPage: React.FC = () => {
           </div>
         )}
 
-        {/* Brand Hero & Shop Reputation Banner */}
+        {/* Brand Hero & Shop Reputation Banner (Safe <img> instead of CSS backgroundImage) */}
         <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
-          <div
-            className="h-36 sm:h-44 w-full bg-[#14171C] relative"
-            style={
-              shop.banner_url
-                ? { backgroundImage: `url(${shop.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                : undefined
-            }
-          >
+          <div className="h-36 sm:h-44 w-full bg-[#14171C] relative overflow-hidden">
+            {shop.banner_url && isValidShopImageUrl(shop.banner_url) && (
+              <img
+                src={shop.banner_url}
+                alt={shop.shop_name}
+                className="w-full h-full object-cover"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
             <div className="absolute bottom-4 left-6 right-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -263,7 +264,8 @@ export const ShopStorefrontPage: React.FC = () => {
                 </div>
                 {shop.prep_time_days && (
                   <div className="text-[10px] text-slate-400 mt-0.5">
-                    <Clock size={10} className="inline mr-0.5" /> {t('shopStorefront.prepLabel')}: {shop.prep_time_days}
+                    <Clock size={10} className="inline mr-0.5" /> {t('shopStorefront.prepLabel')}:{' '}
+                    {formatPrepTimeLabel(shop.prep_time_days, locale)}
                   </div>
                 )}
               </div>

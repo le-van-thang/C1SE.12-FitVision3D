@@ -289,6 +289,7 @@ export const commerceApi = {
   getShopDashboard() {
     return commerceRequest<{
       shop: DbShopProfile | null;
+      authProvider?: 'google' | 'password';
       documents?: Array<{
         id: string;
         doc_type: string;
@@ -346,7 +347,8 @@ export const commerceApi = {
     bankName: string;
     accountNumber: string;
     accountHolderName: string;
-    currentPassword: string;
+    currentPassword?: string;
+    confirmEmail?: string;
   }) {
     return commerceRequest<DbShopBankAccount>('/shop/bank-account', {
       method: 'PATCH',
