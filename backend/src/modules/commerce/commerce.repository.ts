@@ -2,6 +2,9 @@ import { pool, query } from '../../config/database.js';
 import { ensureCommerceTablesAndSeed } from './commerce.bootstrap.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
+import { verifyPassword } from '../../utils/password.js';
+import { authRepository } from '../auth/auth.repository.js';
+import { compareVietnameseAccountNames } from '../shop/kycVerification.js';
 
 export type MembershipTierId = 'member' | 'silver' | 'gold' | 'vip';
 
@@ -984,12 +987,19 @@ export const commerceRepository = {
   async ensureShopForUser(userId: string) {
     await ensureCommerceTablesAndSeed();
     const shopRows = await query(
-      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address,
+      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address, contact_email,
               entity_type, tax_code, tax_status, business_license_no,
               legal_representative_name, national_id_last4,
               status, rejection_reason, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
               vacation_note, vacation_until, banner_url, logo_url, tagline, description,
+              COALESCE(prep_time_days, '1–2 ngày làm việc') AS prep_time_days,
+              COALESCE(pickup_address, shop_address) AS pickup_address,
+              COALESCE(return_address, shop_address) AS return_address,
+              COALESCE(return_same_as_pickup, TRUE) AS return_same_as_pickup,
+              quick_reply_template,
+              COALESCE(notify_new_order_email, TRUE) AS notify_new_order_email,
+              COALESCE(notify_low_stock_email, TRUE) AS notify_low_stock_email,
               approved_at, created_at
        FROM shops
        WHERE owner_id = $1
@@ -1017,8 +1027,8 @@ export const commerceRepository = {
     const row = revStats[0];
     const totalReviews = parseInt(row?.total_reviews || '0', 10);
     const repliedReviews = parseInt(row?.replied_reviews || '0', 10);
-    const avgRating = totalReviews > 0 ? parseFloat(row?.avg_rating || '5.0') : 5.0;
-    const responseRate = totalReviews > 0 ? Math.round((repliedReviews / totalReviews) * 100) : 100;
+    const avgRating = totalReviews > 0 ? parseFloat(row?.avg_rating || '0') : 0;
+    const responseRate = totalReviews > 0 ? Math.round((repliedReviews / totalReviews) * 100) : 0;
 
     const prodStats = await query<{ cnt: string }>(
       `SELECT COUNT(*)::text AS cnt
@@ -1068,10 +1078,12 @@ export const commerceRepository = {
     await ensureCommerceTablesAndSeed();
     const target = String(slugOrBrand || '').trim();
     const shops = await query<any>(
-      `SELECT id, shop_name, brand_slug, phone_number, shop_address, city, entity_type,
+      `SELECT id, shop_name, brand_slug, phone_number, shop_address, contact_email, city, entity_type,
               COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
-              vacation_note, vacation_until, banner_url, logo_url, tagline, description, created_at
+              vacation_note, vacation_until, banner_url, logo_url, tagline, description,
+              COALESCE(prep_time_days, '1–2 ngày làm việc') AS prep_time_days,
+              created_at
        FROM shops
        WHERE status = 'APPROVED'
          AND (LOWER(brand_slug) = LOWER($1) OR LOWER(shop_name) = LOWER($1) OR id::text = $1)
@@ -1144,27 +1156,53 @@ export const commerceRepository = {
     payload: {
       shopName?: string;
       phoneNumber?: string;
+      contactEmail?: string | null;
       shopAddress?: string;
+      pickupAddress?: string;
+      returnAddress?: string;
+      returnSameAsPickup?: boolean;
       tagline?: string;
       description?: string;
-      bannerUrl?: string;
-      logoUrl?: string;
+      bannerUrl?: string | null;
+      logoUrl?: string | null;
       operationalMode?: 'ACTIVE' | 'VACATION';
       vacationNote?: string;
       vacationUntil?: string | null;
+      prepTimeDays?: string;
+      quickReplyTemplate?: string | null;
+      notifyNewOrderEmail?: boolean;
+      notifyLowStockEmail?: boolean;
     }
   ) {
     const shop = await this.ensureShopForUser(userId);
     if (!shop) {
       throw new Error('Không tìm thấy hồ sơ Shop.');
     }
-    const cleanName = String(payload.shopName || shop.shop_name).trim();
-    const cleanPhone = String(payload.phoneNumber || shop.phone_number).trim().slice(0, 15);
-    const cleanAddr = String(payload.shopAddress || shop.shop_address).trim().slice(0, 255);
+    const cleanName = String(payload.shopName ?? shop.shop_name).trim();
+    const cleanPhone = String(payload.phoneNumber ?? shop.phone_number).trim().slice(0, 15);
+    const cleanContactEmail =
+      payload.contactEmail !== undefined
+        ? String(payload.contactEmail || '').trim().slice(0, 255)
+        : shop.contact_email || '';
+    const cleanPickup = String(
+      payload.pickupAddress ?? payload.shopAddress ?? shop.pickup_address ?? shop.shop_address
+    )
+      .trim()
+      .slice(0, 255);
+    const returnSame =
+      payload.returnSameAsPickup !== undefined
+        ? Boolean(payload.returnSameAsPickup)
+        : Boolean(shop.return_same_as_pickup ?? true);
+    const cleanReturn = returnSame
+      ? cleanPickup
+      : String(payload.returnAddress ?? shop.return_address ?? cleanPickup).trim().slice(0, 255);
+    const cleanAddr = String(payload.shopAddress ?? cleanPickup ?? shop.shop_address).trim().slice(0, 255);
     const cleanTagline = payload.tagline !== undefined ? String(payload.tagline).trim().slice(0, 255) : shop.tagline;
     const cleanDesc = payload.description !== undefined ? String(payload.description).trim() : shop.description;
-    const cleanBanner = payload.bannerUrl !== undefined ? String(payload.bannerUrl).trim() : shop.banner_url;
-    const cleanLogo = payload.logoUrl !== undefined ? String(payload.logoUrl).trim() : shop.logo_url;
+    const cleanBanner =
+      payload.bannerUrl !== undefined ? String(payload.bannerUrl || '').trim() : shop.banner_url;
+    const cleanLogo =
+      payload.logoUrl !== undefined ? String(payload.logoUrl || '').trim() : shop.logo_url;
     const opMode =
       payload.operationalMode === 'VACATION' || payload.operationalMode === 'ACTIVE'
         ? payload.operationalMode
@@ -1177,27 +1215,56 @@ export const commerceRepository = {
           ? new Date(payload.vacationUntil)
           : null
         : shop.vacation_until;
+    const prepTime =
+      payload.prepTimeDays !== undefined
+        ? String(payload.prepTimeDays).trim().slice(0, 60) || '1–2 ngày làm việc'
+        : shop.prep_time_days || '1–2 ngày làm việc';
+    const quickReply =
+      payload.quickReplyTemplate !== undefined
+        ? String(payload.quickReplyTemplate || '').trim()
+        : shop.quick_reply_template;
+    const notifyNewOrder =
+      payload.notifyNewOrderEmail !== undefined
+        ? Boolean(payload.notifyNewOrderEmail)
+        : Boolean(shop.notify_new_order_email ?? true);
+    const notifyLowStock =
+      payload.notifyLowStockEmail !== undefined
+        ? Boolean(payload.notifyLowStockEmail)
+        : Boolean(shop.notify_low_stock_email ?? true);
 
     if (cleanName.length < 2) throw new Error('Tên Shop phải có tối thiểu 2 ký tự.');
     if (cleanPhone.length < 8) throw new Error('Số điện thoại Shop không hợp lệ.');
+    if (cleanContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanContactEmail)) {
+      throw new Error('Email liên hệ gian hàng không đúng định dạng.');
+    }
 
     const updated = await query(
       `UPDATE shops
-       SET shop_name = $2, phone_number = $3, shop_address = $4,
-           tagline = $5, description = $6, banner_url = $7, logo_url = $8,
-           operational_mode = $9, vacation_note = $10, vacation_until = $11,
+       SET shop_name = $2, phone_number = $3, contact_email = $4, shop_address = $5,
+           pickup_address = $6, return_address = $7, return_same_as_pickup = $8,
+           tagline = $9, description = $10, banner_url = $11, logo_url = $12,
+           operational_mode = $13, vacation_note = $14, vacation_until = $15,
+           prep_time_days = $16, quick_reply_template = $17,
+           notify_new_order_email = $18, notify_low_stock_email = $19,
            updated_at = NOW()
        WHERE id = $1
-       RETURNING id, owner_id, shop_name, brand_slug, phone_number, shop_address,
-                 entity_type, tax_code, tax_status, status, is_verified,
-                 COALESCE(is_mall, FALSE) AS is_mall,
+       RETURNING id, owner_id, shop_name, brand_slug, phone_number, contact_email, shop_address,
+                 pickup_address, return_address, return_same_as_pickup,
+                 entity_type, tax_code, tax_status, business_license_no,
+                 legal_representative_name, national_id_last4,
+                 status, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
                  COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
-                 vacation_note, vacation_until, banner_url, logo_url, tagline, description`,
+                 vacation_note, vacation_until, banner_url, logo_url, tagline, description,
+                 prep_time_days, quick_reply_template, notify_new_order_email, notify_low_stock_email`,
       [
         shop.id,
         cleanName,
         cleanPhone,
+        cleanContactEmail || null,
         cleanAddr,
+        cleanPickup || cleanAddr,
+        cleanReturn || cleanAddr,
+        returnSame,
         cleanTagline || null,
         cleanDesc || null,
         cleanBanner || null,
@@ -1205,6 +1272,10 @@ export const commerceRepository = {
         opMode,
         vacNote || null,
         vacUntil,
+        prepTime,
+        quickReply || null,
+        notifyNewOrder,
+        notifyLowStock,
       ]
     );
     if (cleanName !== shop.shop_name) {
@@ -1214,6 +1285,90 @@ export const commerceRepository = {
       ).catch(() => undefined);
     }
     return updated[0];
+  },
+
+  async updateShopBankAccount(
+    userId: string,
+    payload: {
+      bankCode?: string;
+      bankName?: string;
+      accountNumber?: string;
+      accountHolderName?: string;
+      currentPassword?: string;
+    }
+  ) {
+    const shop = await this.ensureShopForUser(userId);
+    if (!shop) {
+      throw new AppError(404, ErrorCode.VALIDATION_FAILED, 'Không tìm thấy hồ sơ Shop.');
+    }
+
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản chủ Shop.');
+    }
+
+    const pwd = String(payload.currentPassword || '');
+    if (!pwd) {
+      throw new AppError(
+        400,
+        ErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Bắt buộc nhập mật khẩu tài khoản để xác thực khi thay đổi tài khoản ngân hàng chi trả.'
+      );
+    }
+    const isPasswordValid = await verifyPassword(pwd, user.password_hash);
+    if (!isPasswordValid) {
+      throw new AppError(
+        400,
+        ErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Mật khẩu xác thực không chính xác. Không thể cập nhật tài khoản ngân hàng.'
+      );
+    }
+
+    const bankCode = String(payload.bankCode || '').trim().toUpperCase().slice(0, 30);
+    const bankName = String(payload.bankName || '').trim().slice(0, 120);
+    const accountNumber = String(payload.accountNumber || '').replace(/\s+/g, '').slice(0, 40);
+    const accountHolderName = String(payload.accountHolderName || '').trim().slice(0, 150);
+
+    if (!bankCode || !bankName) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Vui lòng chọn ngân hàng nhận thanh toán.');
+    }
+    if (!/^[0-9A-Za-z]{6,25}$/.test(accountNumber)) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Số tài khoản ngân hàng phải gồm 6–25 ký tự hợp lệ.');
+    }
+    if (accountHolderName.length < 3) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Vui lòng nhập đầy đủ tên chủ tài khoản ngân hàng.');
+    }
+
+    const expectedLegalName =
+      shop.legal_representative_name || user.full_name || shop.shop_name;
+    const matchResult = compareVietnameseAccountNames(accountHolderName, expectedLegalName);
+    if (!matchResult.matched) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        `Tên chủ tài khoản ngân hàng ("${accountHolderName}") chưa khớp với tên pháp lý/chủ Shop đã xác minh ("${expectedLegalName}", độ khớp ${Math.round(matchResult.score)}%). Theo quy tắc KYC, chủ tài khoản chi trả phải khớp tên đại diện.`
+      );
+    }
+
+    await query(`UPDATE shop_bank_accounts SET is_primary = FALSE, updated_at = NOW() WHERE shop_id = $1`, [shop.id]);
+    const savedRows = await query(
+      `INSERT INTO shop_bank_accounts (
+         shop_id, bank_code, bank_name, account_number, account_holder_name,
+         is_primary, name_match_score, verification_status, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'MATCHED', NOW())
+       ON CONFLICT (shop_id, account_number) DO UPDATE
+       SET bank_code = EXCLUDED.bank_code,
+           bank_name = EXCLUDED.bank_name,
+           account_holder_name = EXCLUDED.account_holder_name,
+           is_primary = TRUE,
+           name_match_score = EXCLUDED.name_match_score,
+           verification_status = 'MATCHED',
+           updated_at = NOW()
+       RETURNING id, bank_code, bank_name, account_number, account_holder_name,
+                 is_primary, name_match_score::float, verification_status`,
+      [shop.id, bankCode, bankName, accountNumber, accountHolderName, matchResult.score]
+    );
+    return savedRows[0];
   },
 
   async getShopDashboard(userId: string) {
@@ -1439,7 +1594,7 @@ export const commerceRepository = {
          stretch_type, image_url, secondary_image_url, video_url, description, description_en, is_bestseller, is_bespoke, is_hidden, variants
        ) VALUES (
          $1, $2, $3, $4, $5, $5, $6, $7, $8,
-         $9, $10, 5.0, 0, $11, $11,
+         $9, $10, 0.0, 0, $11, $11,
          $12, $13, $14, $15, $16, $16, TRUE, $18, FALSE, $17::jsonb
        ) RETURNING *, rating::float`,
       [
