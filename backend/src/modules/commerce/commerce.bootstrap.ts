@@ -400,6 +400,15 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS vacation_until TIMESTAMPTZ;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS banner_url TEXT;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS tagline VARCHAR(255);
+        ALTER TABLE shops ALTER COLUMN logo_url TYPE TEXT;
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255);
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS prep_time_days VARCHAR(60) NOT NULL DEFAULT '1–2 ngày làm việc';
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS pickup_address VARCHAR(255);
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS return_address VARCHAR(255);
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS return_same_as_pickup BOOLEAN NOT NULL DEFAULT TRUE;
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS quick_reply_template TEXT;
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS notify_new_order_email BOOLEAN NOT NULL DEFAULT TRUE;
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS notify_low_stock_email BOOLEAN NOT NULL DEFAULT TRUE;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS tax_lookup_snapshot JSONB;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS reviewed_by UUID;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
@@ -459,6 +468,11 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
       await query(`
         UPDATE products SET is_mall = TRUE
         WHERE id IN ('prod-01', 'prod-03', 'prod-04', 'prod-05') AND is_mall = FALSE;
+      `).catch(() => undefined);
+
+      await query(`
+        UPDATE products SET rating = 0
+        WHERE COALESCE(reviews_count, 0) = 0 AND rating = 5.0;
       `).catch(() => undefined);
 
       const reviewCountRes = await query<{ count: string }>('SELECT COUNT(*) as count FROM product_reviews');

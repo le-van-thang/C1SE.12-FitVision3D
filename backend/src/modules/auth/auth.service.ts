@@ -499,6 +499,53 @@ export const authService = {
   },
 
   /**
+   * Đăng xuất khỏi tất cả thiết bị (Thu hồi toàn bộ Refresh Token của user)
+   */
+  async logoutAll(userId: string) {
+    const revokedCount = await authRepository.revokeAllUserTokens(userId);
+    return {
+      revokedSessions: revokedCount,
+      message: 'Đã đăng xuất khỏi tất cả thiết bị và thu hồi toàn bộ phiên đăng nhập.',
+    };
+  },
+
+  /**
+   * Đổi / Tạo mật khẩu cho tài khoản đang đăng nhập
+   */
+  async changePassword(
+    userId: string,
+    dto: { currentPassword?: string; newPassword: string; confirmNewPassword: string }
+  ) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản.');
+    }
+
+    // Nếu tài khoản đã có mật khẩu (không phải Google OAuth chưa đặt pass), bắt buộc xác thực mật khẩu cũ
+    const hasExistingPassword = Boolean(user.password_hash && !user.password_hash.startsWith('GOOGLE_OAUTH'));
+    if (hasExistingPassword) {
+      if (!dto.currentPassword || !dto.currentPassword.trim()) {
+        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Vui lòng nhập mật khẩu hiện tại.');
+      }
+      const isMatch = await verifyPassword(dto.currentPassword, user.password_hash);
+      if (!isMatch) {
+        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
+      }
+      if (dto.currentPassword === dto.newPassword) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
+      }
+    }
+
+    const newHash = await hashPassword(dto.newPassword);
+    await authRepository.updatePassword(user.email, newHash);
+    return {
+      message: hasExistingPassword
+        ? 'Đổi mật khẩu thành công! Vui lòng ghi nhớ mật khẩu mới cho lần đăng nhập sau.'
+        : 'Tạo mật khẩu thành công! Bạn đã có thể đăng nhập bằng Email và mật khẩu.',
+    };
+  },
+
+  /**
    * Xác thực Email / Kích hoạt tài khoản qua OTP / Link (Mục 3.3 Contract)
    */
   async verifyEmail(dto: { email: string; otp?: string; verificationToken?: string }) {

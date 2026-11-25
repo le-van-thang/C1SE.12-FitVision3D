@@ -16,23 +16,25 @@ import {
   Store,
 } from 'lucide-react';
 import { commerceApi, type PublicStorefrontResponse } from '@/services/commerceApi';
+import { useI18n } from '@/i18n';
 
-const TIER_BADGES: Record<'MALL' | 'PREFERRED' | 'REGULAR', { label: string; cls: string }> = {
+const TIER_BADGES: Record<'MALL' | 'PREFERRED' | 'REGULAR', { key: string; cls: string }> = {
   MALL: {
-    label: 'FitVision Mall Chính Hãng',
+    key: 'shopStorefront.tierMall',
     cls: 'bg-rose-600 text-white border-rose-600',
   },
   PREFERRED: {
-    label: 'Shop Yêu Thích',
+    key: 'shopStorefront.tierPreferred',
     cls: 'bg-amber-500 text-slate-950 border-amber-500',
   },
   REGULAR: {
-    label: 'Đối Tác Đã Xác Minh KYC',
+    key: 'shopStorefront.tierRegular',
     cls: 'bg-emerald-600 text-white border-emerald-600',
   },
 };
 
 export const ShopStorefrontPage: React.FC = () => {
+  const { t, locale, setLocale } = useI18n();
   const { slug } = useParams<{ slug: string }>();
   const [data, setData] = useState<PublicStorefrontResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export const ShopStorefrontPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center text-sm text-slate-500">
-        Đang tải thông tin gian hàng thương hiệu...
+        {t('shopStorefront.loading')}
       </div>
     );
   }
@@ -80,13 +82,13 @@ export const ShopStorefrontPage: React.FC = () => {
       <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-4">
           <Store size={36} className="mx-auto text-slate-400" />
-          <h1 className="text-lg font-black text-slate-900">Không tìm thấy Gian hàng</h1>
-          <p className="text-xs text-slate-500">{error}</p>
+          <h1 className="text-lg font-black text-slate-900">{t('shopStorefront.notFoundTitle')}</h1>
+          <p className="text-xs text-slate-500">{error || t('shopStorefront.notFoundFallback')}</p>
           <Link
             to="/"
             className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#14171C] text-white text-xs font-bold"
           >
-            <ArrowLeft size={14} /> Về Sàn Thương Mại
+            <ArrowLeft size={14} /> {t('shopStorefront.backMarketplace')}
           </Link>
         </div>
       </div>
@@ -100,30 +102,54 @@ export const ShopStorefrontPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-slate-900 font-sans">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <Link
             to="/"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-950"
           >
-            <ArrowLeft size={15} /> Quay lại Sàn Thời Trang FitVision 3D
+            <ArrowLeft size={15} /> {t('shopStorefront.backToMall')}
           </Link>
-          <span className="text-[11px] font-mono text-slate-400">/stores/{shop.brand_slug || slug}</span>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline text-[11px] font-mono text-slate-400">
+              /stores/{shop.brand_slug || slug}
+            </span>
+            <div className="flex items-center bg-slate-100 rounded-full p-0.5 text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => setLocale('vi')}
+                className={`px-2 py-0.5 rounded-full cursor-pointer ${
+                  locale === 'vi' ? 'bg-white shadow-2xs text-slate-950' : 'text-slate-500'
+                }`}
+              >
+                VI
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocale('en')}
+                className={`px-2 py-0.5 rounded-full cursor-pointer ${
+                  locale === 'en' ? 'bg-white shadow-2xs text-slate-950' : 'text-slate-500'
+                }`}
+              >
+                EN
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Vacation Alert Banner (Shopee/Lazada Holiday Mode) */}
+        {/* Vacation Alert Banner */}
         {isVacation && (
           <div className="rounded-2xl bg-amber-50 border border-amber-300 p-4 flex items-start gap-3">
             <PauseCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-black text-amber-950">
-                Gian hàng hiện đang ở chế độ Tạm nghỉ (Vacation Mode)
-              </p>
+              <p className="text-xs font-black text-amber-950">{t('shopStorefront.vacationTitle')}</p>
               <p className="text-xs text-amber-800 mt-0.5">
-                {shop.vacation_note ||
-                  'Chủ shop đang tạm ngừng nhận đơn mới để xử lý đơn may đo tồn đọng hoặc nghỉ phép. Bạn vẫn có thể xem sản phẩm bên dưới.'}
-                {shop.vacation_until && ` · Dự kiến mở lại: ${new Date(shop.vacation_until).toLocaleDateString('vi-VN')}`}
+                {shop.vacation_note || t('shopStorefront.vacationDefaultNote')}
+                {shop.vacation_until &&
+                  ` · ${t('shopStorefront.vacationReopen')}: ${new Date(shop.vacation_until).toLocaleDateString(
+                    locale === 'en' ? 'en-US' : 'vi-VN'
+                  )}`}
               </p>
             </div>
           </div>
@@ -132,7 +158,7 @@ export const ShopStorefrontPage: React.FC = () => {
         {/* Brand Hero & Shop Reputation Banner */}
         <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
           <div
-            className="h-36 sm:h-44 w-full bg-gradient-to-r from-[#14171C] via-slate-800 to-slate-900 relative"
+            className="h-36 sm:h-44 w-full bg-[#14171C] relative"
             style={
               shop.banner_url
                 ? { backgroundImage: `url(${shop.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -153,7 +179,7 @@ export const ShopStorefrontPage: React.FC = () => {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h1 className="text-xl sm:text-2xl font-black tracking-tight">{shop.shop_name}</h1>
                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${tierMeta.cls}`}>
-                      <BadgeCheck size={12} /> {tierMeta.label}
+                      <BadgeCheck size={12} /> {t(tierMeta.key)}
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -161,29 +187,29 @@ export const ShopStorefrontPage: React.FC = () => {
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full ${isVacation ? 'bg-slate-900' : 'bg-white'}`} />
-                      {isVacation ? 'Tạm nghỉ' : 'Đang hoạt động'}
+                      {isVacation ? t('shopStorefront.statusVacation') : t('shopStorefront.statusActive')}
                     </span>
                   </div>
                   <p className="text-xs text-slate-200 mt-1">
-                    {shop.tagline || 'Thương hiệu thời trang & may đo AI 3D chuẩn số đo trên FitVision 3D'}
+                    {shop.tagline || t('shopStorefront.taglineFallback')}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 4-Metric Shop Reputation Strip (Shopee/Lazada style) */}
+          {/* 4-Metric Shop Reputation Strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-white">
             <div className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
                 <Star size={18} className="fill-amber-400 text-amber-500" />
               </div>
               <div>
-                <div className="text-base font-black text-slate-950">
+                <div className="text-base font-black text-slate-950 font-mono tabular-nums">
                   {reputation.ratingAvg.toFixed(1)} <span className="text-xs font-semibold text-slate-400">/ 5.0</span>
                 </div>
                 <div className="text-[11px] text-slate-500">
-                  Đánh giá tổng quan ({reputation.ratingCount} lượt)
+                  {t('shopStorefront.metricRating')} ({reputation.ratingCount} {t('shopStorefront.metricReviewsUnit')})
                 </div>
               </div>
             </div>
@@ -193,8 +219,8 @@ export const ShopStorefrontPage: React.FC = () => {
                 <MessageSquare size={18} />
               </div>
               <div>
-                <div className="text-base font-black text-slate-950">{reputation.responseRate}%</div>
-                <div className="text-[11px] text-slate-500">Tỷ lệ phản hồi đánh giá</div>
+                <div className="text-base font-black text-slate-950 font-mono tabular-nums">{reputation.responseRate}%</div>
+                <div className="text-[11px] text-slate-500">{t('shopStorefront.metricResponse')}</div>
               </div>
             </div>
 
@@ -203,8 +229,8 @@ export const ShopStorefrontPage: React.FC = () => {
                 <Package size={18} />
               </div>
               <div>
-                <div className="text-base font-black text-slate-950">{reputation.activeProductsCount}</div>
-                <div className="text-[11px] text-slate-500">Sản phẩm đang mở bán</div>
+                <div className="text-base font-black text-slate-950 font-mono tabular-nums">{reputation.activeProductsCount}</div>
+                <div className="text-[11px] text-slate-500">{t('shopStorefront.metricProducts')}</div>
               </div>
             </div>
 
@@ -214,23 +240,35 @@ export const ShopStorefrontPage: React.FC = () => {
               </div>
               <div>
                 <div className="text-xs font-black text-slate-950 flex items-center gap-1">
-                  <CheckCircle2 size={13} className="text-emerald-600" /> Đã Xác Thực KYC
+                  <CheckCircle2 size={13} className="text-emerald-600" /> {t('shopStorefront.metricKyc')}
                 </div>
                 <div className="text-[11px] text-slate-500 truncate max-w-[180px]" title={shop.shop_address}>
                   <MapPin size={10} className="inline mr-0.5" /> {shop.shop_address}
                 </div>
+                {shop.prep_time_days && (
+                  <div className="text-[10px] text-slate-400 mt-0.5">
+                    <Clock size={10} className="inline mr-0.5" /> {t('shopStorefront.prepLabel')}: {shop.prep_time_days}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {(shop.description || shop.phone_number) && (
-            <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-              <span>{shop.description || 'Cung cấp sản phẩm thời trang chuẩn nhân trắc học 3D.'}</span>
-              {shop.phone_number && (
-                <span className="font-mono font-bold text-slate-800 inline-flex items-center gap-1">
-                  <Phone size={12} /> {shop.phone_number}
-                </span>
-              )}
+          {(shop.description || shop.phone_number || shop.contact_email) && (
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/70 text-xs text-slate-600 leading-relaxed flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <p className="max-w-3xl">{shop.description || t('shopStorefront.taglineFallback')}</p>
+              <div className="flex items-center gap-3 shrink-0 font-mono text-[11px] text-slate-700">
+                {shop.phone_number && (
+                  <span className="font-bold inline-flex items-center gap-1">
+                    <Phone size={12} /> {shop.phone_number}
+                  </span>
+                )}
+                {shop.contact_email && (
+                  <span>
+                    {t('shopStorefront.supportLabel')}: {shop.contact_email}
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </section>
@@ -239,7 +277,7 @@ export const ShopStorefrontPage: React.FC = () => {
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-black text-slate-950">
-              Bộ Sưu Tập Của {shop.shop_name} ({filteredProducts.length})
+              {t('shopStorefront.catalogTitle')} ({filteredProducts.length})
             </h2>
             <div className="flex items-center gap-2">
               {(['ALL', 'READY', 'BESPOKE'] as const).map((m) => (
@@ -251,7 +289,11 @@ export const ShopStorefrontPage: React.FC = () => {
                     filterMode === m ? 'bg-[#14171C] text-white' : 'bg-white border border-slate-200 text-slate-700'
                   }`}
                 >
-                  {m === 'ALL' ? 'Tất cả' : m === 'READY' ? 'May sẵn' : 'May đo 3D Bespoke'}
+                  {m === 'ALL'
+                    ? t('shopStorefront.filterAll')
+                    : m === 'READY'
+                      ? t('shopStorefront.filterReady')
+                      : t('shopStorefront.filterBespoke')}
                 </button>
               ))}
             </div>
@@ -259,7 +301,7 @@ export const ShopStorefrontPage: React.FC = () => {
 
           {filteredProducts.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-500">
-              Gian hàng chưa có sản phẩm phù hợp bộ lọc này.
+              {t('shopStorefront.emptyProducts')}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -284,9 +326,18 @@ export const ShopStorefrontPage: React.FC = () => {
                   <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
                     <div>
                       <h3 className="text-xs font-bold text-slate-900 line-clamp-2">{p.name}</h3>
-                      <div className="flex items-center gap-1 text-[11px] text-slate-600 mt-1">
-                        <Star size={11} className="fill-amber-400 text-amber-400" />
-                        <span className="font-bold">{Number(p.rating || 5).toFixed(1)}</span>
+                      <div className="flex items-center gap-1 text-[11px] text-slate-600 mt-1 font-mono tabular-nums">
+                        <Star
+                          size={11}
+                          className={
+                            (p.reviews_count || 0) > 0
+                              ? 'fill-amber-400 text-amber-400'
+                              : 'text-slate-300'
+                          }
+                        />
+                        <span className="font-bold">
+                          {(p.reviews_count || 0) > 0 ? Number(p.rating ?? 0).toFixed(1) : '0.0'}
+                        </span>
                         <span className="text-slate-400">({p.reviews_count || 0})</span>
                       </div>
                     </div>
