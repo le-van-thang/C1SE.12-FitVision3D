@@ -13,6 +13,7 @@ export const adminService = {
   },
 
   async approveStore(storeId: string, adminUserId?: string) {
+    const startedAt = Date.now();
     const shop = await adminRepository.approveShop(storeId, adminUserId);
     if (!shop) {
       throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy hồ sơ cửa hàng để duyệt.');
@@ -20,8 +21,8 @@ export const adminService = {
 
     await adminRepository.logAction({
       userId: adminUserId,
-      actionType: 'STORE_APPROVED',
-      executionTimeMs: 12,
+      actionType: `STORE_APPROVED:${storeId.slice(0, 8)}`,
+      executionTimeMs: Math.max(1, Date.now() - startedAt),
     });
 
     return shop;
@@ -32,6 +33,7 @@ export const adminService = {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Vui lòng cung cấp lý do từ chối hồ sơ.');
     }
 
+    const startedAt = Date.now();
     const shop = await adminRepository.rejectShop(storeId, reason.trim(), adminUserId);
     if (!shop) {
       throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy hồ sơ cửa hàng để từ chối.');
@@ -39,8 +41,8 @@ export const adminService = {
 
     await adminRepository.logAction({
       userId: adminUserId,
-      actionType: 'STORE_REJECTED',
-      executionTimeMs: 15,
+      actionType: `STORE_REJECTED:${storeId.slice(0, 8)}`,
+      executionTimeMs: Math.max(1, Date.now() - startedAt),
     });
 
     return shop;
@@ -50,14 +52,15 @@ export const adminService = {
     if (!reason || reason.trim().length === 0) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Vui lòng cung cấp lý do tạm đình chỉ cửa hàng.');
     }
+    const startedAt = Date.now();
     const shop = await adminRepository.suspendShop(storeId, reason.trim(), adminUserId);
     if (!shop) {
       throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy cửa hàng để tạm đình chỉ.');
     }
     await adminRepository.logAction({
       userId: adminUserId,
-      actionType: 'STORE_SUSPENDED',
-      executionTimeMs: 15,
+      actionType: `STORE_SUSPENDED:${storeId.slice(0, 8)}`,
+      executionTimeMs: Math.max(1, Date.now() - startedAt),
     });
     return shop;
   },
@@ -67,14 +70,15 @@ export const adminService = {
   },
 
   async toggleShopMall(shopId: string, isMall: boolean, adminUserId?: string) {
+    const startedAt = Date.now();
     const shop = await adminRepository.setShopMall(shopId, isMall);
     if (!shop) {
       throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy cửa hàng để cập nhật trạng thái Mall.');
     }
     await adminRepository.logAction({
       userId: adminUserId,
-      actionType: isMall ? 'STORE_MALL_GRANTED' : 'STORE_MALL_REVOKED',
-      executionTimeMs: 10,
+      actionType: `${isMall ? 'STORE_MALL_GRANTED' : 'STORE_MALL_REVOKED'}:${shopId.slice(0, 8)}`,
+      executionTimeMs: Math.max(1, Date.now() - startedAt),
     });
     return shop;
   },

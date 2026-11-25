@@ -178,7 +178,8 @@ export const commerceRepository = {
       `SELECT id, brand_name, shop_id, COALESCE(is_mall, FALSE) AS is_mall, name, name_en, slug, category, gender_target,
               price, sale_price, rating::float, reviews_count, fabric_material, fabric_material_en,
               stretch_type, image_url, secondary_image_url, video_url, description, description_en,
-              is_bestseller, is_bespoke, is_hidden, variants, created_at, updated_at
+              is_bestseller, is_bespoke, is_hidden, COALESCE(hidden_by_admin, FALSE) AS hidden_by_admin,
+              variants, created_at, updated_at
        FROM products
        ${whereClause}
        ORDER BY created_at DESC, id ASC`
@@ -190,17 +191,55 @@ export const commerceRepository = {
     patch: { is_hidden?: boolean; sale_price?: number | null }
   ) {
     await ensureCommerceTablesAndSeed();
+    const existingRows = await query<{
+      id: string;
+      price: number;
+      is_hidden: boolean;
+      hidden_by_admin: boolean;
+    }>(
+      `SELECT id, price, is_hidden, COALESCE(hidden_by_admin, FALSE) AS hidden_by_admin
+       FROM products
+       WHERE id = $1
+       LIMIT 1`,
+      [id]
+    );
+    const existing = existingRows[0];
+    if (!existing) return null;
+
     const hasSalePrice = patch.sale_price !== undefined;
+    let resolvedSalePrice: number | null = null;
+    if (hasSalePrice && patch.sale_price !== null) {
+      const parsedSale = Number(patch.sale_price);
+      if (!Number.isFinite(parsedSale) || parsedSale < 1_000 || parsedSale >= Number(existing.price)) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_FAILED,
+          'Giá khuyến mãi phải từ 1.000₫ trở lên và thấp hơn giá gốc.'
+        );
+      }
+      resolvedSalePrice = Math.round(parsedSale);
+    }
+
     const rows = await query(
       `UPDATE products SET
          is_hidden = COALESCE($2, is_hidden),
+         hidden_by_admin = COALESCE($2, hidden_by_admin),
          sale_price = CASE WHEN $3 THEN $4::integer ELSE sale_price END,
          updated_at = NOW()
        WHERE id = $1
        RETURNING *, rating::float`,
-      [id, patch.is_hidden ?? null, hasSalePrice, patch.sale_price ?? null]
+      [id, typeof patch.is_hidden === 'boolean' ? patch.is_hidden : null, hasSalePrice, resolvedSalePrice]
     );
     return rows[0] || null;
+  },
+
+  async isProductHiddenByAdmin(productId: string): Promise<boolean> {
+    await ensureCommerceTablesAndSeed();
+    const rows = await query<{ hidden_by_admin: boolean }>(
+      'SELECT COALESCE(hidden_by_admin, FALSE) AS hidden_by_admin FROM products WHERE id = $1 LIMIT 1',
+      [productId]
+    );
+    return Boolean(rows[0]?.hidden_by_admin);
   },
 
   async listOrdersForActor(actor: { sub: string; role: string }) {

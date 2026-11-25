@@ -74,7 +74,7 @@ type UserFilterRole = 'ALL' | 'ADMIN' | 'SHOP_OWNER' | 'USER';
 export const AdminPortal: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, isAuthenticated, userRole, signOut, openSignIn } = useAuth();
-  const { orders, updateOrderStatus } = useOrders();
+  const { orders, refreshOrders, updateOrderStatus } = useOrders();
 
   // Navigation tabs & Responsive Sidebar Drawer
   const [mainTab, setMainTab] = useState<AdminMainTab>('OVERVIEW');
@@ -163,6 +163,7 @@ export const AdminPortal: React.FC = () => {
         adminApi.getUsers(),
         adminApi.getAuditLogs(30),
         syncPlatformConfigFromBackend(true),
+        refreshOrders(),
       ]);
 
       if (commerceRes?.config) {
@@ -187,7 +188,7 @@ export const AdminPortal: React.FC = () => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [isAuthenticated, isAdmin]);
+  }, [isAuthenticated, isAdmin, refreshOrders]);
 
   useEffect(() => {
     fetchLiveData();
@@ -1344,6 +1345,11 @@ export const AdminPortal: React.FC = () => {
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                 <span>Hoạt động</span>
+                              </span>
+                            ) : user.status === 'PENDING_APPROVAL' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                <span>Chờ duyệt Shop</span>
                               </span>
                             ) : user.status === 'PENDING_VERIFY' ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">

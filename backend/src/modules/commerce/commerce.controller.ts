@@ -1,7 +1,14 @@
 import type { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { commerceRepository } from './commerce.repository.js';
+import { adminRepository } from '../admin/admin.repository.js';
 import { AppError, sendSuccess } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
+
+const hashRequestIp = (req: Request): string => {
+  const rawIp = req.ip || req.socket?.remoteAddress || 'unknown';
+  return crypto.createHash('sha256').update(`fv3d_ip:${rawIp}`).digest('hex').slice(0, 16);
+};
 
 export const commerceController = {
   async getBootstrap(req: Request, res: Response, next: NextFunction) {
@@ -186,6 +193,7 @@ export const commerceController = {
 
   async saveSettings(req: Request, res: Response, next: NextFunction) {
     try {
+      const startedAt = Date.now();
       const b = req.body || {};
       const saved = await commerceRepository.saveSettings({
         marqueeEnabled: Boolean(b.marqueeEnabled),
@@ -195,6 +203,12 @@ export const commerceController = {
         heroTitleVi: String(b.heroTitleVi || ''),
         heroHighlightVi: String(b.heroHighlightVi || ''),
       });
+      await adminRepository.logAction({
+        userId: req.user?.sub,
+        actionType: 'CMS_SETTINGS_UPDATED',
+        executionTimeMs: Math.max(1, Date.now() - startedAt),
+        ipAddressHash: hashRequestIp(req),
+      });
       sendSuccess(res, saved);
     } catch (err) {
       next(err);
@@ -203,20 +217,35 @@ export const commerceController = {
 
   async createVoucher(req: Request, res: Response, next: NextFunction) {
     try {
+      const startedAt = Date.now();
       const b = req.body || {};
-      if (!b.code || Number(b.discountValue) <= 0) {
-        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã voucher và giá trị giảm không hợp lệ.');
+      const cleanCode = String(b.code || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+      const discountValue = Number(b.discountValue);
+      const discountType = b.discountType === 'percent' ? 'percent' : 'fixed';
+
+      if (cleanCode.length < 3 || !Number.isFinite(discountValue) || discountValue <= 0) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã voucher tối thiểu 3 ký tự và giá trị giảm phải lớn hơn 0.');
       }
+      if (discountType === 'percent' && discountValue > 100) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Voucher giảm theo phần trăm không được vượt quá 100%.');
+      }
+
       const created = await commerceRepository.createVoucher({
-        code: String(b.code),
-        discountType: b.discountType === 'percent' ? 'percent' : 'fixed',
-        discountValue: Number(b.discountValue),
-        titleVi: String(b.titleVi || b.code),
-        titleEn: String(b.titleEn || b.titleVi || b.code),
+        code: cleanCode,
+        discountType,
+        discountValue,
+        titleVi: String(b.titleVi || cleanCode),
+        titleEn: String(b.titleEn || b.titleVi || cleanCode),
         subVi: String(b.subVi || ''),
         subEn: String(b.subEn || ''),
         active: b.active !== false,
         showOnStorefront: b.showOnStorefront !== false,
+      });
+      await adminRepository.logAction({
+        userId: req.user?.sub,
+        actionType: `VOUCHER_CREATED:${cleanCode}`,
+        executionTimeMs: Math.max(1, Date.now() - startedAt),
+        ipAddressHash: hashRequestIp(req),
       });
       sendSuccess(res, created, 201);
     } catch (err) {
@@ -226,6 +255,7 @@ export const commerceController = {
 
   async updateVoucher(req: Request, res: Response, next: NextFunction) {
     try {
+      const startedAt = Date.now();
       const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
       const b = req.body || {};
       const updated = await commerceRepository.updateVoucher(code, {
@@ -235,6 +265,12 @@ export const commerceController = {
       if (!updated) {
         throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy voucher.');
       }
+      await adminRepository.logAction({
+        userId: req.user?.sub,
+        actionType: `VOUCHER_UPDATED:${String(code).toUpperCase()}`,
+        executionTimeMs: Math.max(1, Date.now() - startedAt),
+        ipAddressHash: hashRequestIp(req),
+      });
       sendSuccess(res, updated);
     } catch (err) {
       next(err);
@@ -243,8 +279,15 @@ export const commerceController = {
 
   async deleteVoucher(req: Request, res: Response, next: NextFunction) {
     try {
+      const startedAt = Date.now();
       const code = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
       await commerceRepository.deleteVoucher(code);
+      await adminRepository.logAction({
+        userId: req.user?.sub,
+        actionType: `VOUCHER_DELETED:${String(code).toUpperCase()}`,
+        executionTimeMs: Math.max(1, Date.now() - startedAt),
+        ipAddressHash: hashRequestIp(req),
+      });
       sendSuccess(res, { deleted: true, code: code.toUpperCase() });
     } catch (err) {
       next(err);
@@ -253,15 +296,34 @@ export const commerceController = {
 
   async moderateProduct(req: Request, res: Response, next: NextFunction) {
     try {
+      const startedAt = Date.now();
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const b = req.body || {};
+      let resolvedSalePrice: number | null | undefined;
+      if (b.salePrice !== undefined) {
+        if (b.salePrice === null || b.salePrice === '') {
+          resolvedSalePrice = null;
+        } else {
+          const parsedSale = Number(b.salePrice);
+          if (!Number.isFinite(parsedSale) || parsedSale < 1_000) {
+            throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Giá khuyến mãi không hợp lệ.');
+          }
+          resolvedSalePrice = parsedSale;
+        }
+      }
       const updated = await commerceRepository.moderateProduct(id, {
         is_hidden: typeof b.isHidden === 'boolean' ? b.isHidden : undefined,
-        sale_price: b.salePrice !== undefined ? Number(b.salePrice) : undefined,
+        sale_price: resolvedSalePrice,
       });
       if (!updated) {
         throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy sản phẩm.');
       }
+      await adminRepository.logAction({
+        userId: req.user?.sub,
+        actionType: `PRODUCT_MODERATED:${String(id).slice(0, 16)}`,
+        executionTimeMs: Math.max(1, Date.now() - startedAt),
+        ipAddressHash: hashRequestIp(req),
+      });
       sendSuccess(res, updated);
     } catch (err) {
       next(err);
@@ -376,6 +438,16 @@ export const commerceController = {
         throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập.');
       }
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      if (!isAdmin && req.body?.isHidden === false) {
+        const lockedByAdmin = await commerceRepository.isProductHiddenByAdmin(id);
+        if (lockedByAdmin) {
+          throw new AppError(
+            403,
+            ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+            'Sản phẩm này đang bị Quản trị viên tạm ẩn kiểm duyệt. Vui lòng liên hệ Admin để mở lại.'
+          );
+        }
+      }
       const updated = await commerceRepository.updateShopProduct(userId, isAdmin, id, req.body || {});
       if (!updated) {
         throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy sản phẩm thuộc shop của bạn.');

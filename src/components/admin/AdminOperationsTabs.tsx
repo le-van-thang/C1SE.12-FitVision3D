@@ -503,12 +503,17 @@ export const AdminCatalogSection: React.FC<CatalogProps> = ({
   const toggleProductVisibility = async (prodId: string, prodName: string) => {
     const isHidden = config.hiddenProductIds.includes(prodId);
     const nextIsHidden = !isHidden;
+    const res = await commerceApi.moderateProduct(prodId, { isHidden: nextIsHidden });
+    if (!res.success) {
+      onToast('error', res.error?.message || 'Không thể cập nhật trạng thái sản phẩm.');
+      return;
+    }
+
     const nextHidden = isHidden
       ? config.hiddenProductIds.filter((id) => id !== prodId)
       : [...config.hiddenProductIds, prodId];
 
     onSaveConfig({ ...config, hiddenProductIds: nextHidden });
-    await commerceApi.moderateProduct(prodId, { isHidden: nextIsHidden });
     onToast(
       'success',
       isHidden
@@ -523,10 +528,20 @@ export const AdminCatalogSection: React.FC<CatalogProps> = ({
       onToast('error', 'Giá bán phải tối thiểu 50.000₫.');
       return;
     }
+    const targetProd = catalogProducts.find((p) => p.id === prodId);
+    if (targetProd && parsed >= Number(targetProd.price)) {
+      onToast('error', 'Giá khuyến mãi phải thấp hơn giá gốc sản phẩm.');
+      return;
+    }
+
+    const res = await commerceApi.moderateProduct(prodId, { salePrice: parsed });
+    if (!res.success) {
+      onToast('error', res.error?.message || 'Không thể lưu giá mới lên máy chủ.');
+      return;
+    }
     const nextOverrides = { ...config.priceOverrides, [prodId]: parsed };
     onSaveConfig({ ...config, priceOverrides: nextOverrides });
     setEditingPriceId(null);
-    await commerceApi.moderateProduct(prodId, { salePrice: parsed });
     onToast('success', 'Đã lưu giá niêm yết mới vào PostgreSQL & đồng bộ trang Cửa hàng.');
   };
 
@@ -763,8 +778,12 @@ export const AdminCmsSection: React.FC<CmsProps> = ({
       active: true,
       showOnStorefront: true,
     };
+    const res = await commerceApi.createVoucher(created);
+    if (!res.success) {
+      onToast('error', res.error?.message || 'Không thể lưu voucher lên máy chủ.');
+      return;
+    }
     onSaveConfig({ ...config, vouchers: [created, ...config.vouchers] });
-    await commerceApi.createVoucher(created);
     setNewCode('');
     setNewTitle('');
     onToast('success', `Đã lưu mã "${cleanCode}" vào PostgreSQL & đồng bộ trang chủ.`);
@@ -801,15 +820,27 @@ export const AdminCmsSection: React.FC<CmsProps> = ({
           </h3>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               const reset = resetPlatformConfig();
+              const res = await commerceApi.saveSettings({
+                marqueeEnabled: reset.marqueeEnabled,
+                marqueeItemsVi: reset.marqueeItemsVi,
+                marqueeItemsEn: reset.marqueeItemsEn,
+                heroBadgeVi: reset.heroBadgeVi,
+                heroTitleVi: reset.heroTitleVi,
+                heroHighlightVi: reset.heroHighlightVi,
+              });
+              if (!res.success) {
+                onToast('error', res.error?.message || 'Không thể lưu cấu hình mặc định lên PostgreSQL.');
+                return;
+              }
               setHeroBadge(reset.heroBadgeVi);
               setHeroTitle(reset.heroTitleVi);
               setHeroHighlight(reset.heroHighlightVi);
               setMarqueeText(reset.marqueeItemsVi.join('\n'));
               setMarqueeOn(reset.marqueeEnabled);
               onSaveConfig(reset);
-              onToast('success', 'Đã khôi phục giao diện & voucher về mặc định.');
+              onToast('success', 'Đã khôi phục giao diện về mặc định & lưu PostgreSQL.');
             }}
             className="text-[11px] font-semibold text-slate-500 hover:text-slate-900 flex items-center gap-1 cursor-pointer bg-transparent border-0"
           >
