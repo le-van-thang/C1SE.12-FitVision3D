@@ -310,34 +310,51 @@ export const FashionStoreHome: React.FC = () => {
     setTimeout(() => setCopiedVoucherCode(null), 2000);
   };
 
-  // Cart (persisted to localStorage so reload/F5 preserves items)
-  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    try {
-      const raw = localStorage.getItem('fv3d_smart_cart_v1');
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const getCartStorageKey = (uid?: string | null) =>
+    uid ? `fv3d_smart_cart_v1_${uid}` : 'fv3d_smart_cart_v1_guest';
+
+  // Cart (strictly scoped per authenticated account; cleared on logout to prevent cross-account leakage)
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
-  const [selectedCartIds, setSelectedCartIds] = useState<string[]>(() =>
-    cartItems.map((ci) => ci.id)
-  );
+  const [selectedCartIds, setSelectedCartIds] = useState<string[]>([]);
   const [quickBuyItems, setQuickBuyItems] = useState<CartItem[] | null>(null);
   const [selectedSizeByProduct, setSelectedSizeByProduct] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) {
+      setCartItems([]);
+      setSelectedCartIds([]);
+      setQuickBuyItems(null);
+      return;
+    }
     try {
-      localStorage.setItem('fv3d_smart_cart_v1', JSON.stringify(cartItems));
+      const raw = localStorage.getItem(getCartStorageKey(currentUser.id));
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        setCartItems(parsed);
+        setSelectedCartIds(parsed.map((ci: CartItem) => ci.id));
+        return;
+      }
     } catch {
-      // ignore storage quota errors
+      // ignore corrupted cart storage
+    }
+    setCartItems([]);
+    setSelectedCartIds([]);
+  }, [isAuthenticated, currentUser?.id]);
+
+  useEffect(() => {
+    if (isAuthenticated && currentUser?.id) {
+      try {
+        localStorage.setItem(getCartStorageKey(currentUser.id), JSON.stringify(cartItems));
+      } catch {
+        // ignore storage quota errors
+      }
     }
     setSelectedCartIds((prev) => {
       const validIds = new Set(cartItems.map((ci) => ci.id));
       return prev.filter((id) => validIds.has(id));
     });
-  }, [cartItems]);
+  }, [cartItems, isAuthenticated, currentUser?.id]);
 
   // Drawers & Modals
   const [analysisProduct, setAnalysisProduct] = useState<FashionProduct | null>(null);
@@ -568,6 +585,30 @@ export const FashionStoreHome: React.FC = () => {
       return;
     }
     const targetVariant = variant || product.variants[0];
+    if (!targetVariant || targetVariant.stock <= 0) {
+      showGlobalToast({
+        type: 'warning',
+        title: locale === 'en' ? 'Out of Stock' : 'Sản phẩm tạm hết hàng',
+        message: `${getProductName(product)} · Size ${targetVariant?.size_label || ''} hiện đã hết tồn kho.`,
+      });
+      return;
+    }
+
+    const existingQty = cartItems.find(
+      (ci) =>
+        ci.product.id === product.id &&
+        ci.variant.id === targetVariant.id &&
+        Boolean(ci.product.is_bespoke) === Boolean(bespokeOverride)
+    )?.quantity || 0;
+    if (existingQty >= targetVariant.stock) {
+      showGlobalToast({
+        type: 'info',
+        title: locale === 'en' ? 'Stock Limit Reached' : 'Đã đạt giới hạn tồn kho',
+        message: `Chỉ còn tối đa ${targetVariant.stock} sản phẩm cho Size ${targetVariant.size_label}.`,
+      });
+      return;
+    }
+
     const fit = calculateProductFit(userBody, product);
     const effectiveProduct = bespokeOverride ? { ...product, is_bespoke: true } : product;
     const newId = `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
@@ -582,7 +623,8 @@ export const FashionStoreHome: React.FC = () => {
       );
       if (existing) {
         selectedIdToActivate = existing.id;
-        const updatedExisting = { ...existing, quantity: existing.quantity + 1 };
+        const cappedQty = Math.min(targetVariant.stock, existing.quantity + 1);
+        const updatedExisting = { ...existing, quantity: cappedQty };
         const others = prev.filter((ci) => ci.id !== existing.id);
         return [updatedExisting, ...others];
       }
@@ -628,6 +670,14 @@ export const FashionStoreHome: React.FC = () => {
       return;
     }
     const targetVariant = variant || product.variants[0];
+    if (!targetVariant || targetVariant.stock <= 0) {
+      showGlobalToast({
+        type: 'warning',
+        title: locale === 'en' ? 'Out of Stock' : 'Sản phẩm tạm hết hàng',
+        message: `${getProductName(product)} · Size ${targetVariant?.size_label || ''} hiện đã hết tồn kho.`,
+      });
+      return;
+    }
     const fit = calculateProductFit(userBody, product);
     const effectiveProduct = bespokeOverride ? { ...product, is_bespoke: true } : product;
     const singleItem: CartItem = {
@@ -685,22 +735,36 @@ export const FashionStoreHome: React.FC = () => {
     ) {
       return;
     }
-    const toAdd = MOCK_PRODUCTS.filter((p) => productIds.includes(p.id));
+    const sourceCatalog = visibleCatalogProducts.length > 0 ? visibleCatalogProducts : MOCK_PRODUCTS;
+    const toAdd = sourceCatalog.filter((p) => productIds.includes(p.id));
     if (toAdd.length === 0) return;
+
+    const addedOrUpdatedIds: string[] = [];
 
     setCartItems((prev) => {
       let next = [...prev];
       toAdd.forEach((product) => {
         const fit = calculateProductFit(userBody, product);
-        const recVariant = product.variants.find((v) => v.size_label === fit.recommended_size) || product.variants[0];
+        const recVariant =
+          product.variants.find((v) => v.size_label === fit.recommended_size && v.stock > 0) ||
+          product.variants.find((v) => v.stock > 0);
+        if (!recVariant) return;
+
         const existingIdx = next.findIndex(
           (ci) => ci.product.id === product.id && ci.variant.id === recVariant.id
         );
         if (existingIdx >= 0) {
-          next[existingIdx] = { ...next[existingIdx], quantity: next[existingIdx].quantity + 1 };
+          const updated = {
+            ...next[existingIdx],
+            quantity: Math.min(recVariant.stock, next[existingIdx].quantity + 1),
+          };
+          addedOrUpdatedIds.push(updated.id);
+          next = [updated, ...next.filter((_, i) => i !== existingIdx)];
         } else {
-          next.push({
-            id: `cart-${Date.now()}-${product.id}-${Math.random().toString(36).substr(2, 4)}`,
+          const newId = `cart-${Date.now()}-${product.id}-${Math.random().toString(36).substr(2, 4)}`;
+          addedOrUpdatedIds.push(newId);
+          next.unshift({
+            id: newId,
             product,
             variant: recVariant,
             quantity: 1,
@@ -711,6 +775,10 @@ export const FashionStoreHome: React.FC = () => {
       });
       return next;
     });
+
+    if (addedOrUpdatedIds.length > 0) {
+      setSelectedCartIds((prev) => Array.from(new Set([...addedOrUpdatedIds, ...prev])));
+    }
     setIsCartOpen(true);
   };
 
@@ -3142,13 +3210,17 @@ export const FashionStoreHome: React.FC = () => {
         </button>
 
         {isAuthenticated ? (
-          <a
-            href="/dashboard"
-            className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center"
+          <button
+            type="button"
+            onClick={() => {
+              setProfileModalTab('profile');
+              setIsProfileModalOpen(true);
+            }}
+            className="flex flex-col items-center gap-1 text-[10px] font-medium text-stone-600 hover:text-blue-600 min-w-[50px] min-h-[44px] justify-center bg-transparent border-0 cursor-pointer"
           >
             <UserIcon size={18} />
             <span>{t('ecommerce.mobileNav.profile', 'Hồ sơ')}</span>
-          </a>
+          </button>
         ) : (
           <button
             type="button"
@@ -3168,6 +3240,7 @@ export const FashionStoreHome: React.FC = () => {
         product={analysisProduct}
         selectedVariant={analysisVariant}
         userBody={userBody}
+        hasBodyProfile={hasBodyProfile}
         fitResult={
           analysisProduct ? calculateProductFit(userBody, analysisProduct) : null
         }
@@ -3188,7 +3261,10 @@ export const FashionStoreHome: React.FC = () => {
           }
         }}
         onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant, false, false)}
-        onOpenVirtualStudio={handleOpenVirtualStudio}
+        onOpenVirtualStudio={() => {
+          setIsAnalysisOpen(false);
+          handleOpenVirtualStudio(analysisProduct || undefined);
+        }}
       />
 
       <SmartCartDrawer
@@ -3211,7 +3287,16 @@ export const FashionStoreHome: React.FC = () => {
           setCartItems((prev) =>
             prev.map((i) => {
               if (i.id === id) {
+                const maxStock = Math.max(1, i.variant.stock || 1);
                 const nextQ = i.quantity + delta;
+                if (delta > 0 && nextQ > maxStock) {
+                  showGlobalToast({
+                    type: 'info',
+                    title: locale === 'en' ? 'Stock Limit Reached' : 'Đã đạt tối đa tồn kho',
+                    message: `Size ${i.variant.size_label} hiện chỉ còn ${maxStock} sản phẩm.`,
+                  });
+                  return { ...i, quantity: maxStock };
+                }
                 return nextQ > 0 ? { ...i, quantity: nextQ } : i;
               }
               return i;
@@ -3250,6 +3335,10 @@ export const FashionStoreHome: React.FC = () => {
           }
         }}
         userBody={userBody}
+        hasBodyProfile={hasBodyProfile}
+        onBackToCart={() => {
+          if (!quickBuyItems) setIsCartOpen(true);
+        }}
         onOpenMyOrders={() => {
           setIsCheckoutModalOpen(false);
           setProfileModalTab('orders');
@@ -3360,7 +3449,7 @@ export const FashionStoreHome: React.FC = () => {
         isOpen={isThermalSlipOpen}
         onClose={() => setIsThermalSlipOpen(false)}
         userBody={userBody}
-        userName={isAuthenticated ? 'Thắng Lê' : 'Khách Thử Nghiệm'}
+        userName={isAuthenticated ? (currentUser?.full_name || currentUser?.email || 'Khách hàng FitVision') : 'Khách Thử Nghiệm'}
       />
 
       {/* Quick Admin Management Modal (Dành riêng cho Quản Trị Viên) */}
@@ -3374,6 +3463,7 @@ export const FashionStoreHome: React.FC = () => {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         userBody={userBody}
+        hasBodyProfile={hasBodyProfile}
         onOpenBiometrics={() => setIsBiometricModalOpen(true)}
         initialTab={profileModalTab}
       />
@@ -3392,7 +3482,7 @@ export const FashionStoreHome: React.FC = () => {
         userBody={userBody}
         hasBodyProfile={hasBodyProfile}
         userRole={userRole}
-        userName={currentUser?.full_name || currentUser?.email || 'Thắng Lê'}
+        userName={currentUser?.full_name || currentUser?.email || 'Khách tham quan'}
         avatarUrl={currentUser?.avatar_url || undefined}
         onOpenVellStudio={handleOpenVirtualStudio}
         onOpenMaisonRunway={handleOpenVirtualStudio}

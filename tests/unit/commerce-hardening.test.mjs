@@ -12,8 +12,9 @@ describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Securit
       'utf8'
     );
     assert.match(storeHomeSrc, /fv3d_smart_cart_v1/);
-    assert.match(storeHomeSrc, /localStorage\.getItem\('fv3d_smart_cart_v1'\)/);
-    assert.match(storeHomeSrc, /localStorage\.setItem\('fv3d_smart_cart_v1'/);
+    assert.match(storeHomeSrc, /getCartStorageKey/);
+    assert.match(storeHomeSrc, /localStorage\.getItem\(getCartStorageKey\(currentUser\.id\)\)/);
+    assert.match(storeHomeSrc, /localStorage\.setItem\(getCartStorageKey\(currentUser\.id\)/);
     assert.match(storeHomeSrc, /Array\.isArray\(parsed\)/);
   });
 

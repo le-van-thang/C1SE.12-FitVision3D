@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Sparkles, Truck, RotateCcw } from 'lucide-react';
 import type { CartItem } from './types';
 import { useI18n } from '@/i18n';
@@ -33,6 +33,15 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
   onCheckout,
 }) => {
   const { t, locale } = useI18n();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -242,8 +251,9 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                       <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
                         <button
                           type="button"
+                          disabled={item.quantity <= 1}
                           onClick={() => onUpdateQuantity(item.id, -1)}
-                          className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                          className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                           -
                         </button>
@@ -252,8 +262,14 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                         </span>
                         <button
                           type="button"
+                          disabled={item.quantity >= Math.max(1, item.variant.stock || 1)}
                           onClick={() => onUpdateQuantity(item.id, 1)}
-                          className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                          title={
+                            item.quantity >= Math.max(1, item.variant.stock || 1)
+                              ? (isEn ? 'Max stock reached' : 'Đã đạt tối đa tồn kho')
+                              : undefined
+                          }
+                          className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                           +
                         </button>
