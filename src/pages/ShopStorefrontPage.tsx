@@ -305,7 +305,18 @@ export const ShopStorefrontPage: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredProducts.map((p) => (
+              {filteredProducts.map((p) => {
+                const uniqueColors = Array.from(
+                  new Map(
+                    (p.variants || [])
+                      .filter((v) => v.color_name || v.color_hex)
+                      .map((v) => [
+                        `${(v.color_hex || '').toLowerCase()}|${(v.color_name || '').toLowerCase()}`,
+                        { name: v.color_name || '', hex: v.color_hex || '#CBD5E1' },
+                      ])
+                  ).values()
+                );
+                return (
                 <Link
                   key={p.id}
                   to={`/?product=${encodeURIComponent(p.id)}`}
@@ -340,6 +351,23 @@ export const ShopStorefrontPage: React.FC = () => {
                         </span>
                         <span className="text-slate-400">({p.reviews_count || 0})</span>
                       </div>
+                      {uniqueColors.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap mt-2">
+                          {uniqueColors.slice(0, 6).map((col, ci) => (
+                            <span
+                              key={`${col.hex}-${ci}`}
+                              title={col.name}
+                              className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0"
+                              style={{ backgroundColor: col.hex }}
+                            />
+                          ))}
+                          <span className="text-[10px] text-slate-500 ml-0.5 truncate max-w-[110px]">
+                            {uniqueColors.length === 1
+                              ? uniqueColors[0].name
+                              : `${uniqueColors.length} ${locale === 'en' ? 'colors' : 'màu'}`}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-sm font-black text-slate-950">
@@ -353,7 +381,8 @@ export const ShopStorefrontPage: React.FC = () => {
                     </div>
                   </div>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

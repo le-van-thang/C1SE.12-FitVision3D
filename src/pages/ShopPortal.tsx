@@ -1670,25 +1670,66 @@ export const ShopPortal: React.FC = () => {
                               );
                             })}
                           </div>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {selectedSizes.map((sz) => (
-                              <label key={sz} className="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-300">
-                                <span className="font-bold text-slate-800">{sz}:</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={999}
-                                  value={sizeStockMap[sz] ?? 20}
-                                  onChange={(e) =>
-                                    setSizeStockMap((prev) => ({
-                                      ...prev,
-                                      [sz]: Math.max(1, Number(e.target.value) || 1),
-                                    }))
-                                  }
-                                  className="w-11 bg-transparent font-mono font-semibold text-slate-950 outline-none"
-                                />
-                              </label>
-                            ))}
+                          {/* Clear Stock-Per-Size Box with 1-Click Quick Fill */}
+                          <div className="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-[11px] font-bold text-slate-700">
+                                {t('shopPortal.stockPerSizeLabel')}{' '}
+                                <span className="font-mono font-semibold text-emerald-700">
+                                  ({t('shopPortal.stockTotalPrefix')}{' '}
+                                  {selectedSizes.reduce((sum, sz) => sum + (sizeStockMap[sz] ?? 20), 0)}{' '}
+                                  {t('shopPortal.stockUnit')} {t('shopPortal.stockPerColorSuffix')})
+                                </span>
+                              </span>
+                              <div className="inline-flex items-center gap-1">
+                                <span className="text-[10px] text-slate-500">{t('shopPortal.stockApplyAllLabel')}</span>
+                                {[10, 20, 50].map((presetQty) => (
+                                  <button
+                                    key={presetQty}
+                                    type="button"
+                                    onClick={() =>
+                                      setSizeStockMap((prev) => {
+                                        const next = { ...prev };
+                                        selectedSizes.forEach((sz) => {
+                                          next[sz] = presetQty;
+                                        });
+                                        return next;
+                                      })
+                                    }
+                                    className="px-2 py-0.5 rounded-md bg-white hover:bg-[#14171C] hover:text-white border border-slate-300 text-[10px] font-mono font-bold text-slate-700 cursor-pointer transition-colors"
+                                  >
+                                    {presetQty}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {selectedSizes.map((sz) => (
+                                <label
+                                  key={sz}
+                                  className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 focus-within:border-slate-950"
+                                >
+                                  <span className="text-[11px] font-mono font-black text-slate-900">Size {sz}</span>
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={999}
+                                      value={sizeStockMap[sz] ?? 20}
+                                      onChange={(e) =>
+                                        setSizeStockMap((prev) => ({
+                                          ...prev,
+                                          [sz]: Math.max(1, Number(e.target.value) || 1),
+                                        }))
+                                      }
+                                      className="w-12 text-right bg-transparent font-mono text-xs font-bold text-slate-950 outline-none"
+                                    />
+                                    <span className="text-[10px] text-slate-400">{t('shopPortal.stockUnit')}</span>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2023,7 +2064,24 @@ export const ShopPortal: React.FC = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {products.map((p) => (
+                      {products.map((p) => {
+                        const uniqueColors = Array.from(
+                          new Map(
+                            (p.variants || [])
+                              .filter((v) => v.color_name || v.color_hex)
+                              .map((v) => [
+                                `${(v.color_hex || '').toLowerCase()}|${(v.color_name || '').toLowerCase()}`,
+                                {
+                                  name: v.color_name || 'Mặc định',
+                                  hex: v.color_hex || '#CBD5E1',
+                                },
+                              ])
+                          ).values()
+                        );
+                        const uniqueSizes = Array.from(
+                          new Set((p.variants || []).map((v) => v.size_label).filter(Boolean))
+                        );
+                        return (
                         <div
                           key={p.id}
                           className={`bg-white rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-opacity ${
@@ -2062,6 +2120,40 @@ export const ShopPortal: React.FC = () => {
                             </div>
                           </div>
 
+                          {(uniqueColors.length > 0 || uniqueSizes.length > 0) && (
+                            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                              {uniqueColors.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {uniqueColors.map((col, ci) => (
+                                    <span
+                                      key={`${col.hex}-${ci}`}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-700"
+                                    >
+                                      <span
+                                        className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0"
+                                        style={{ backgroundColor: col.hex }}
+                                      />
+                                      <span className="truncate max-w-[90px]">{col.name}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {uniqueSizes.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 text-[10px] font-mono text-slate-500">
+                                  <span className="font-sans font-semibold text-slate-400">Size:</span>
+                                  {uniqueSizes.map((sz) => (
+                                    <span
+                                      key={sz}
+                                      className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold"
+                                    >
+                                      {sz}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
                             <button
                               type="button"
@@ -2087,7 +2179,8 @@ export const ShopPortal: React.FC = () => {
                             </button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

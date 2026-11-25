@@ -1373,7 +1373,12 @@
     "sharedImageBadge": "Dùng ảnh chung",
     "customImageBadge": "Ảnh riêng",
     "resetToMainImage": "Dùng lại ảnh chính",
-    "maxColorsToast": "Tối đa 6 màu cho mỗi sản phẩm."
+    "maxColorsToast": "Tối đa 6 màu cho mỗi sản phẩm.",
+    "stockPerSizeLabel": "Số lượng hàng trong kho mỗi size",
+    "stockUnit": "chiếc",
+    "stockTotalPrefix": "Tổng:",
+    "stockPerColorSuffix": "/ màu",
+    "stockApplyAllLabel": "Đặt nhanh tất cả:"
   },
   "shopSettings": {
     "title": "Cài Đặt Gian Hàng",

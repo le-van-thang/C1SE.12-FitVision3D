@@ -1373,7 +1373,12 @@
     "sharedImageBadge": "Shared photo",
     "customImageBadge": "Custom photo",
     "resetToMainImage": "Use main photo",
-    "maxColorsToast": "Maximum 6 colors per product."
+    "maxColorsToast": "Maximum 6 colors per product.",
+    "stockPerSizeLabel": "Stock quantity per size",
+    "stockUnit": "pcs",
+    "stockTotalPrefix": "Total:",
+    "stockPerColorSuffix": "/ color",
+    "stockApplyAllLabel": "Set all:"
   },
   "shopSettings": {
     "title": "Shop Settings",
