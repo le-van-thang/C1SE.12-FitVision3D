@@ -354,7 +354,17 @@ export const commerceApi = {
     });
   },
 
-  updateShopProduct(id: string, patch: { isHidden?: boolean; salePrice?: number | null }) {
+  updateShopProduct(
+    id: string,
+    patch: {
+      isHidden?: boolean;
+      name?: string;
+      price?: number;
+      salePrice?: number | null;
+      description?: string;
+      variantStocks?: Record<string, number>;
+    }
+  ) {
     return commerceRequest<DbProduct>(`/shop/products/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
