@@ -284,5 +284,39 @@ export const authApi = {
     }
     return res;
   },
+
+  // 11. Đổi mật khẩu
+  async changePassword(data: { oldPassword?: string; newPassword: string }) {
+    return request<{ message: string }>('/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // 12. Đăng xuất tất cả thiết bị
+  async revokeAllSessions() {
+    const res = await request<{ message: string }>('/revoke-all-sessions', {
+      method: 'POST',
+    });
+    setAccessToken(null);
+    return res;
+  },
+
+  // 13. Xóa dữ liệu 3D nhân trắc học (Zero-Retention & GDPR)
+  async deleteMy3DData() {
+    return request<{ message: string }>('/my-3d-data', {
+      method: 'DELETE',
+    });
+  },
+
+  // 14. Yêu cầu khóa tài khoản
+  async requestAccountLock(reason?: string) {
+    const res = await request<{ message: string }>('/request-lock', {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+    setAccessToken(null);
+    return res;
+  },
 };
 

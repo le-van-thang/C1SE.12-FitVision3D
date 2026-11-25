@@ -692,5 +692,71 @@ export const authRepository = {
     }
     saveStore();
   },
+
+  async revokeAllUserTokens(userId: string): Promise<void> {
+    if (await isDbAvailable()) {
+      await query('UPDATE refresh_tokens SET is_revoked = TRUE WHERE user_id = $1', [userId]);
+      return;
+    }
+    for (const t of memTokens.values()) {
+      if (t.user_id === userId) t.is_revoked = true;
+    }
+    saveStore();
+  },
+
+  async updatePasswordById(userId: string, passwordHash: string): Promise<boolean> {
+    const now = new Date();
+    if (await isDbAvailable()) {
+      const rows = await query<UserEntity>(
+        `UPDATE users SET password_hash = $1, failed_login_attempts = 0, lockout_until = NULL, updated_at = $2
+         WHERE id = $3
+         RETURNING *`,
+        [passwordHash, now, userId]
+      );
+      return rows.length > 0;
+    }
+    const u = memUsers.get(userId);
+    if (u) {
+      u.password_hash = passwordHash;
+      u.failed_login_attempts = 0;
+      u.lockout_until = null;
+      u.updated_at = now;
+      saveStore();
+      return true;
+    }
+    return false;
+  },
+
+  async lockUserStatus(userId: string, reason?: string): Promise<boolean> {
+    const now = new Date();
+    if (await isDbAvailable()) {
+      const rows = await query<UserEntity>(
+        `UPDATE users SET status = 'LOCKED', updated_at = $1 WHERE id = $2 RETURNING *`,
+        [now, userId]
+      );
+      return rows.length > 0;
+    }
+    const u = memUsers.get(userId);
+    if (u) {
+      u.status = 'LOCKED';
+      u.updated_at = now;
+      saveStore();
+      return true;
+    }
+    return false;
+  },
+
+  async deleteUser3DData(userId: string): Promise<boolean> {
+    if (await isDbAvailable()) {
+      await query(
+        `DELETE FROM mesh_parameters WHERE measurement_id IN (SELECT id FROM measurements WHERE user_id = $1)`,
+        [userId]
+      );
+      await query(`DELETE FROM measurements WHERE user_id = $1`, [userId]);
+      await query(`DELETE FROM biometric_inputs WHERE user_id = $1`, [userId]);
+      return true;
+    }
+    return true;
+  },
 };
 

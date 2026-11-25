@@ -735,5 +735,46 @@ export const authService = {
       },
     };
   },
+
+  async changePassword(userId: string, dto: { oldPassword?: string; newPassword: string }) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy người dùng.');
+    }
+
+    if (user.password_hash) {
+      if (!dto.oldPassword) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Vui lòng nhập mật khẩu hiện tại.');
+      }
+      const isMatch = await verifyPassword(dto.oldPassword, user.password_hash);
+      if (!isMatch) {
+        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
+      }
+    }
+
+    if (!dto.newPassword || dto.newPassword.length < 8) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Mật khẩu mới phải có ít nhất 8 ký tự.');
+    }
+
+    const newHash = await hashPassword(dto.newPassword);
+    await authRepository.updatePasswordById(userId, newHash);
+    return { success: true, message: 'Đổi mật khẩu thành công.' };
+  },
+
+  async revokeAllSessions(userId: string) {
+    await authRepository.revokeAllUserTokens(userId);
+    return { success: true, message: 'Đã đăng xuất khỏi tất cả các thiết bị.' };
+  },
+
+  async deleteMy3DData(userId: string) {
+    await authRepository.deleteUser3DData(userId);
+    return { success: true, message: 'Toàn bộ dữ liệu số đo 3D và nhân trắc học đã được xóa theo chuẩn Zero-Retention.' };
+  },
+
+  async requestAccountLock(userId: string, reason?: string) {
+    await authRepository.lockUserStatus(userId, reason);
+    await authRepository.revokeAllUserTokens(userId);
+    return { success: true, message: 'Tài khoản đã được khóa an toàn theo yêu cầu.' };
+  },
 };
 

@@ -323,3 +323,14 @@ export function clearTransientStudioPrivacyState(): void {
     sessionStorage.removeItem('fv3d_estimator');
   } catch {}
 }
+
+/** Complete GDPR/Zero-Retention Wipe of all 3D measurements and biometric profiles for a user. */
+export function wipeAllUser3DData(userId?: string | null): void {
+  clearTransientStudioPrivacyState();
+  try {
+    localStorage.removeItem(getBodyKey(userId));
+    localStorage.removeItem(getScanKey(userId));
+    sessionStorage.removeItem('fv3d_estimator');
+  } catch {}
+  window.dispatchEvent(new Event(BODY_PROFILE_UPDATED_EVENT));
+}

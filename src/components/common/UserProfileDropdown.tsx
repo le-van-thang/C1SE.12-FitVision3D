@@ -327,6 +327,36 @@ export const UserProfileDropdown: React.FC<{ variant?: 'light' | 'dark' }> = ({ 
                 <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}>{t('app.menu.open')}</span>
               </button>
             )}
+
+            {/* Shopee-style My Account (/settings) shortcut */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/settings');
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 10px',
+                borderRadius: 8,
+                background: isLight ? '#F8FAFC' : 'rgba(255, 255, 255, 0.05)',
+                border: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.1)',
+                color: isLight ? '#0F172A' : '#F8FAFC',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <User size={14} className={isLight ? "text-blue-600" : "text-blue-400"} />
+                <span>{t('app.menu.myAccount', 'Tài khoản của tôi')}</span>
+              </span>
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: isLight ? '#64748B' : '#94A3B8' }}>/settings</span>
+            </button>
           </div>
 
           {/* Sign Out Button */}

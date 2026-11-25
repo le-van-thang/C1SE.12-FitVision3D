@@ -17,6 +17,7 @@ import {
   Sparkles,
   Truck,
   Tag,
+  BookOpen,
 } from 'lucide-react';
 import type { CartItem, PaymentMethod, UserBodyProfile, Order, OrderMeasurementSnapshot } from './types';
 import { useAuth } from '@/context/AuthContext';
@@ -47,7 +48,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOpenMyOrders,
   onBackToCart,
 }) => {
-  const { currentUser, isAuthenticated, getUserProfileDetails, openSignIn } = useAuth();
+  const {
+    currentUser,
+    isAuthenticated,
+    getUserProfileDetails,
+    openSignIn,
+    userAddresses,
+    defaultAddress,
+    saveAddress,
+  } = useAuth();
   const { createOrder, refreshOrders } = useOrders();
   const { t, locale } = useI18n();
 
@@ -59,16 +68,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const savedDetails = getUserProfileDetails(currentUser?.id);
 
-  // Form Fields (zero hardcoded PII — populated only from authenticated user's own profile)
-  const [fullName, setFullName] = useState(currentUser?.full_name || '');
-  const [phone, setPhone] = useState(savedDetails?.phone || '');
-  const [city, setCity] = useState(savedDetails?.city || '');
-  const [address, setAddress] = useState(savedDetails?.address || '');
+  // Form Fields (zero hardcoded PII — populated from defaultAddress or authenticated user profile)
+  const [fullName, setFullName] = useState(defaultAddress?.recipientName || currentUser?.full_name || '');
+  const [phone, setPhone] = useState(defaultAddress?.phone || savedDetails?.phone || '');
+  const [city, setCity] = useState(defaultAddress?.city || savedDetails?.city || '');
+  const [address, setAddress] = useState(defaultAddress?.detailedAddress || savedDetails?.address || '');
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr_sepay');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [qrImgFailed, setQrImgFailed] = useState(false);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [saveToAddressBook, setSaveToAddressBook] = useState(false);
 
   // Coupon code
   const [couponCode, setCouponCode] = useState('');
@@ -84,10 +95,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       const details = getUserProfileDetails(currentUser?.id);
-      setFullName(currentUser?.full_name || '');
-      setPhone(details?.phone || '');
-      setCity(details?.city || '');
-      setAddress(details?.address || '');
+      if (defaultAddress) {
+        setFullName(defaultAddress.recipientName || currentUser?.full_name || '');
+        setPhone(defaultAddress.phone || details?.phone || '');
+        setCity(defaultAddress.city || details?.city || '');
+        setAddress(defaultAddress.detailedAddress || details?.address || '');
+      } else {
+        setFullName(currentUser?.full_name || '');
+        setPhone(details?.phone || '');
+        setCity(details?.city || '');
+        setAddress(details?.address || '');
+      }
       setNote('');
       setFormError(null);
       setCouponCode('');
@@ -101,6 +119,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setPaymentCheckMessage(null);
       setIsSubmitting(false);
       setQrImgFailed(false);
+      setShowAddressPicker(false);
+      setSaveToAddressBook(false);
     } else {
       setCouponCode('');
       setAppliedDiscount(0);
@@ -114,6 +134,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setPaymentCheckMessage(null);
       setIsSubmitting(false);
       setQrImgFailed(false);
+      setShowAddressPicker(false);
+      setSaveToAddressBook(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, currentUser?.id]);
@@ -372,6 +394,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         order: placedOrders[0],
       };
       if (result.success && result.order) {
+        if (saveToAddressBook && address.trim() && fullName.trim() && phone.trim()) {
+          saveAddress({
+            recipientName: fullName.trim(),
+            phone: phone.trim(),
+            city: city.trim(),
+            detailedAddress: address.trim(),
+            label: 'other',
+            isDefault: userAddresses.length === 0,
+          });
+        }
         setCreatedOrders(placedOrders);
         setCreatedOrder(result.order);
         onClearCart();
@@ -514,12 +546,84 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* 2. Thông tin người nhận hàng */}
+              {/* 2. Thông tin người nhận hàng & Sổ địa chỉ */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-900 tracking-wider">
-                  <MapPin size={15} className="text-blue-600" />
-                  <span>{t('ecommerce.checkout.deliveryInfo', 'Địa Chỉ Giao Hàng & Liên Hệ')}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-900 tracking-wider">
+                    <MapPin size={15} className="text-blue-600" />
+                    <span>{t('ecommerce.checkout.deliveryInfo', 'Địa Chỉ Giao Hàng & Liên Hệ')}</span>
+                  </div>
+
+                  {userAddresses && userAddresses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddressPicker(!showAddressPicker)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
+                    >
+                      <BookOpen size={12} />
+                      <span>{locale === 'en' ? 'Address Book' : 'Sổ Địa Chỉ'} ({userAddresses.length})</span>
+                    </button>
+                  )}
                 </div>
+
+                {/* Sổ địa chỉ Quick Selector Popup */}
+                {showAddressPicker && userAddresses && userAddresses.length > 0 && (
+                  <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200 space-y-2 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                      <span>{locale === 'en' ? 'Select from your saved addresses:' : 'Chọn nhanh địa chỉ nhận hàng từ Sổ địa chỉ:'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddressPicker(false)}
+                        className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                      {userAddresses.map((addr) => {
+                        const isSelected = address === addr.detailedAddress && phone === addr.phone;
+                        return (
+                          <div
+                            key={addr.id}
+                            onClick={() => {
+                              setFullName(addr.recipientName);
+                              setPhone(addr.phone);
+                              setCity(addr.city);
+                              setAddress(addr.detailedAddress);
+                              setShowAddressPicker(false);
+                            }}
+                            className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-blue-100/80 border-blue-500 shadow-2xs ring-1 ring-blue-400'
+                                : 'bg-white hover:bg-slate-50 border-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-900 truncate">{addr.recipientName}</span>
+                              <div className="flex items-center gap-1">
+                                {addr.isDefault && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">
+                                    {locale === 'en' ? 'Default' : 'Mặc định'}
+                                  </span>
+                                )}
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">
+                                  {addr.label === 'home'
+                                    ? (locale === 'en' ? 'Home' : 'Nhà riêng')
+                                    : addr.label === 'office'
+                                    ? (locale === 'en' ? 'Office' : 'Văn phòng')
+                                    : (locale === 'en' ? 'Other' : 'Khác')}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-[11px] font-mono text-slate-600 mt-0.5">{addr.phone}</div>
+                            <div className="text-[11px] text-slate-700 mt-0.5 line-clamp-1">{addr.detailedAddress}, {addr.city}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -576,6 +680,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       placeholder={t('ecommerce.profileModal.addressPlaceholder', 'Số 123 Đường Bách Khoa, P. Hòa Khánh...')}
                       className="w-full text-xs px-3.5 py-2.5 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium bg-white"
                     />
+                  </div>
+
+                  {/* Lưu vào sổ địa chỉ checkbox */}
+                  <div className="sm:col-span-2">
+                    <label className="flex items-center gap-2 text-xs text-slate-700 font-medium cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={saveToAddressBook}
+                        onChange={(e) => setSaveToAddressBook(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>{locale === 'en' ? 'Save this address to my Address Book for future orders' : 'Lưu địa chỉ này vào Sổ Địa Chỉ để dùng cho các đơn hàng sau'}</span>
+                    </label>
                   </div>
 
                   <div className="sm:col-span-2">

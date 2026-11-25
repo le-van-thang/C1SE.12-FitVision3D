@@ -61,3 +61,16 @@ authRouter.get('/shop-studio', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), 
   });
 });
 
+// 9. Cài đặt bảo mật & Đổi mật khẩu
+authRouter.post('/change-password', requireAuth, authController.changePassword);
+
+// 10. Đăng xuất khỏi tất cả thiết bị (Revoke all sessions)
+authRouter.post('/revoke-all-sessions', requireAuth, authController.revokeAllSessions);
+
+// 11. Xóa toàn bộ dữ liệu số đo 3D cá nhân (GDPR & Zero-Retention)
+authRouter.delete('/my-3d-data', requireAuth, authController.deleteMy3DData);
+
+// 12. Yêu cầu khóa tài khoản
+authRouter.post('/request-lock', requireAuth, authController.requestAccountLock);
+
+

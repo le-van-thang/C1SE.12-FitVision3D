@@ -11,6 +11,7 @@ import { SizeChartManager } from "./pages/SizeChartManager";
 import { AdminPortal } from "./pages/AdminPortal";
 import { ShopPortal } from "./pages/ShopPortal";
 import { ShopStorefrontPage } from "./pages/ShopStorefrontPage";
+import { UserSettingsPage } from "./pages/UserSettingsPage";
 import { GlobalToastHost } from "./components/common/GlobalToastHost";
 import { MerchantOnboardingModal } from "./components/store/MerchantOnboardingModal";
 import "./index.css";
@@ -82,6 +83,7 @@ export const App: React.FC = () => (
             <Route path="/stores/:slug" element={<ShopStorefrontPage />} />
             <Route path="/legacy-landing" element={<Landing />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/settings" element={<RequireAuth><UserSettingsPage /></RequireAuth>} />
             <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />
             <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
             <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />
