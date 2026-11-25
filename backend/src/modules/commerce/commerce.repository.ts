@@ -1055,13 +1055,78 @@ export const commerceRepository = {
        ORDER BY is_mall DESC, created_at DESC`
     );
 
-    const enriched = await Promise.all(
-      shops.map(async (s: any) => ({
+    if (shops.length === 0) return [];
+
+    const [revAggRows, prodAggRows] = await Promise.all([
+      query<{
+        shop_id: string | null;
+        brand_key: string;
+        total_reviews: number;
+        rating_sum: number;
+        replied_reviews: number;
+      }>(
+        `SELECT p.shop_id,
+                LOWER(p.brand_name) AS brand_key,
+                COUNT(r.id)::int AS total_reviews,
+                COALESCE(SUM(r.rating), 0)::float AS rating_sum,
+                COUNT(CASE WHEN r.shop_reply IS NOT NULL AND LENGTH(TRIM(r.shop_reply)) > 0 THEN 1 END)::int AS replied_reviews
+         FROM product_reviews r
+         INNER JOIN products p ON p.id = r.product_id
+         GROUP BY p.shop_id, LOWER(p.brand_name)`
+      ),
+      query<{
+        shop_id: string | null;
+        brand_key: string;
+        active_cnt: number;
+      }>(
+        `SELECT shop_id, LOWER(brand_name) AS brand_key, COUNT(*)::int AS active_cnt
+         FROM products
+         WHERE is_hidden = FALSE
+         GROUP BY shop_id, LOWER(brand_name)`
+      ),
+    ]);
+
+    return shops.map((s: any) => {
+      const shopBrandKey = String(s.shop_name || '').trim().toLowerCase();
+      let totalReviews = 0;
+      let ratingSum = 0;
+      let repliedReviews = 0;
+
+      for (const row of revAggRows) {
+        if (row.shop_id === s.id || row.brand_key === shopBrandKey) {
+          totalReviews += Number(row.total_reviews) || 0;
+          ratingSum += Number(row.rating_sum) || 0;
+          repliedReviews += Number(row.replied_reviews) || 0;
+        }
+      }
+
+      let activeProductsCount = 0;
+      for (const row of prodAggRows) {
+        if (row.shop_id === s.id || row.brand_key === shopBrandKey) {
+          activeProductsCount += Number(row.active_cnt) || 0;
+        }
+      }
+
+      const avgRating = totalReviews > 0 ? Math.round((ratingSum / totalReviews) * 10) / 10 : 5.0;
+      const responseRate = totalReviews > 0 ? Math.round((repliedReviews / totalReviews) * 100) : 100;
+      const isMall = Boolean(s.is_mall);
+      const tier: 'MALL' | 'PREFERRED' | 'REGULAR' = isMall
+        ? 'MALL'
+        : avgRating >= 4.7 && responseRate >= 80 && totalReviews >= 1
+          ? 'PREFERRED'
+          : 'REGULAR';
+
+      return {
         ...s,
-        reputation: await this.computeShopReputation(s.id, s.shop_name, Boolean(s.is_mall)),
-      }))
-    );
-    return enriched;
+        reputation: {
+          ratingAvg: avgRating,
+          ratingCount: totalReviews,
+          responseRate,
+          activeProductsCount,
+          tier,
+        },
+      };
+    });
   },
 
   async getPublicStorefrontBySlug(slugOrBrand: string) {
@@ -1410,6 +1475,20 @@ export const commerceRepository = {
       }
     }
 
+    const resolvedStockBySize: Record<string, number> = {};
+    for (const sz of selectedSizes) {
+      const rawVal = stockMap[sz];
+      if (rawVal === undefined || rawVal === null || rawVal === '') {
+        resolvedStockBySize[sz] = 20;
+        continue;
+      }
+      const parsed = Number(rawVal);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Tồn kho size ${sz} không hợp lệ (không được âm).`);
+      }
+      resolvedStockBySize[sz] = Math.floor(parsed);
+    }
+
     const id = `prod-${Date.now()}`;
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
 
@@ -1421,7 +1500,7 @@ export const commerceRepository = {
         color_hex: c.colorHex,
         image_url: c.imageUrl || fallbackImg,
         sku: `${id.toUpperCase()}-C${colorIdx + 1}-${sz}`,
-        stock: Number(stockMap[sz]) || 20,
+        stock: resolvedStockBySize[sz],
         spec: isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz],
       }))
     );
@@ -1509,26 +1588,112 @@ export const commerceRepository = {
     const shop = shopRows[0];
     if (!shop && !isAdmin) return null;
 
-    const ownerFilter = isAdmin ? 'TRUE' : '(shop_id = $5 OR LOWER(brand_name) = LOWER($6))';
-    const hasSale = patch.salePrice !== undefined;
-    const params: any[] = [
+    const findOwnerFilter = isAdmin ? 'TRUE' : '(shop_id = $2 OR LOWER(brand_name) = LOWER($3))';
+    const findParams: any[] = isAdmin ? [productId] : [productId, shop.id, shop.shop_name];
+    const existingRows = await query<{
+      id: string;
+      name: string;
+      price: number;
+      sale_price: number | null;
+      description: string | null;
+      is_hidden: boolean;
+      variants: any[];
+    }>(
+      `SELECT id, name, price, sale_price, description, is_hidden, variants
+       FROM products
+       WHERE id = $1 AND ${findOwnerFilter}
+       LIMIT 1`,
+      findParams
+    );
+    const existing = existingRows[0];
+    if (!existing) return null;
+
+    const nextName =
+      patch.name !== undefined ? String(patch.name || '').trim() : existing.name;
+    if (nextName.length < 3) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Tên sản phẩm phải có tối thiểu 3 ký tự.');
+    }
+
+    const nextPrice =
+      patch.price !== undefined ? Number(patch.price) : Number(existing.price);
+    if (!Number.isFinite(nextPrice) || nextPrice < 1_000) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Giá gốc sản phẩm phải tối thiểu 1.000₫.');
+    }
+
+    let nextSalePrice: number | null = existing.sale_price !== null ? Number(existing.sale_price) : null;
+    if (patch.salePrice !== undefined) {
+      if (patch.salePrice === null || patch.salePrice === '') {
+        nextSalePrice = null;
+      } else {
+        const parsedSale = Number(patch.salePrice);
+        if (!Number.isFinite(parsedSale) || parsedSale < 1_000 || parsedSale >= nextPrice) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            'Giá khuyến mãi phải từ 1.000₫ trở lên và thấp hơn giá gốc.'
+          );
+        }
+        nextSalePrice = Math.round(parsedSale);
+      }
+    } else if (nextSalePrice !== null && nextSalePrice >= nextPrice) {
+      nextSalePrice = null;
+    }
+
+    const nextDescription =
+      typeof patch.description === 'string'
+        ? patch.description.trim()
+        : (existing.description ?? '');
+
+    const nextIsHidden =
+      typeof patch.isHidden === 'boolean' ? patch.isHidden : Boolean(existing.is_hidden);
+
+    let nextVariants = Array.isArray(existing.variants) ? [...existing.variants] : [];
+    if (patch.variantStocks && typeof patch.variantStocks === 'object') {
+      nextVariants = nextVariants.map((v: any) => {
+        const rawById = patch.variantStocks[v.id];
+        const rawBySize = patch.variantStocks[v.size_label];
+        const rawVal = rawById !== undefined ? rawById : rawBySize;
+        if (rawVal === undefined) return v;
+        const parsed = Number(rawVal);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Tồn kho biến thể "${v.size_label || v.id}" không hợp lệ (không được âm).`
+          );
+        }
+        return { ...v, stock: Math.floor(parsed) };
+      });
+    }
+
+    const updateOwnerFilter = isAdmin ? 'TRUE' : '(shop_id = $8 OR LOWER(brand_name) = LOWER($9))';
+    const updateParams: any[] = [
       productId,
-      typeof patch.isHidden === 'boolean' ? patch.isHidden : null,
-      hasSale,
-      hasSale ? (patch.salePrice ? Number(patch.salePrice) : null) : null,
+      nextIsHidden,
+      nextName,
+      Math.round(nextPrice),
+      nextSalePrice,
+      nextDescription,
+      JSON.stringify(nextVariants),
     ];
     if (!isAdmin) {
-      params.push(shop.id, shop.shop_name);
+      updateParams.push(shop.id, shop.shop_name);
     }
 
     const rows = await query(
       `UPDATE products SET
-         is_hidden = COALESCE($2, is_hidden),
-         sale_price = CASE WHEN $3 THEN $4::integer ELSE sale_price END,
+         is_hidden = $2,
+         name = $3,
+         name_en = $3,
+         price = $4,
+         sale_price = $5,
+         description = $6,
+         description_en = $6,
+         variants = $7::jsonb,
          updated_at = NOW()
-       WHERE id = $1 AND ${ownerFilter}
+       WHERE id = $1 AND ${updateOwnerFilter}
        RETURNING *, rating::float`,
-      params
+      updateParams
     );
     return rows[0] || null;
   },
