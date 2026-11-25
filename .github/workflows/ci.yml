@@ -26,9 +26,7 @@ jobs:
       - name: Run Unit & Integration Tests
         run: npm test
 
-      # Advisory until pre-existing allowlist entries in src/i18n/vi.json are reconciled on Developer
-      - name: Check i18n Locale Integrity (Advisory)
-        continue-on-error: true
+      - name: Check i18n Locale Integrity
         run: npm run i18n:check
 
       - name: TypeScript Check & Production Build

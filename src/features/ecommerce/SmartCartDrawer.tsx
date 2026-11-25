@@ -215,7 +215,7 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {item.product.is_bespoke ? (
                           <span className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300">
-                            ✂️ May Đo Bespoke · 13 số đo 3D
+                            {isEn ? '✂️ Bespoke Tailoring · 13 3D Measurements' : '✂️ May Đo Bespoke · 13 số đo 3D'}
                           </span>
                         ) : onChangeVariant && item.product.variants.length > 1 ? (
                           <select
