@@ -105,7 +105,7 @@ const HERO_PRODUCT_SLIDES: HeroProductSlide[] = [
     fabricVi: '100% Vải Linen Tự Nhiên Nhập Khẩu Pháp',
     fabricEn: '100% French Normandy Flax Linen',
     price: 1650000,
-    originalPrice: 1950000,
+    originalPrice: 1850000,
     fitPercentage: 98,
     fitSize: 'L',
     fitChest: 96,
@@ -911,7 +911,7 @@ export const FashionStoreHome: React.FC = () => {
                 <Menu size={18} />
               </button>
 
-              <a href="/" className="flex items-center gap-2.5 group">
+              <Link to="/" className="flex items-center gap-2.5 group">
                 <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm group-hover:bg-blue-500 transition-colors">
                   <Scissors size={17} strokeWidth={2.2} />
                 </div>
@@ -923,7 +923,7 @@ export const FashionStoreHome: React.FC = () => {
                     {t('ecommerce.sidebar.brandSub', 'Atelier & May Đo 3D')}
                   </span>
                 </div>
-              </a>
+              </Link>
             </div>
 
             {/* Center (Desktop): Crisp White Search Bar on Dark Header */}
@@ -1110,8 +1110,9 @@ export const FashionStoreHome: React.FC = () => {
 
                           {userRole === 'admin' ? (
                             <div className="space-y-1.5">
-                              <a
-                                href="/admin"
+                              <Link
+                                to="/admin"
+                                onClick={() => setIsUserMenuOpen(false)}
                                 className="w-full px-3 py-2 rounded-xl text-left bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white flex items-center justify-between cursor-pointer transition-colors"
                               >
                                 <div className="flex items-center gap-2">
@@ -1119,7 +1120,7 @@ export const FashionStoreHome: React.FC = () => {
                                   <span>{locale === 'en' ? 'Admin Control Portal (/admin)' : 'Cổng Quản Trị Admin (/admin)'}</span>
                                 </div>
                                 <ChevronRight size={13} />
-                              </a>
+                              </Link>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1136,8 +1137,9 @@ export const FashionStoreHome: React.FC = () => {
                               </button>
                             </div>
                           ) : userRole === 'store' || currentStore?.status === 'APPROVED' ? (
-                            <a
-                              href="/shop"
+                            <Link
+                              to="/shop"
+                              onClick={() => setIsUserMenuOpen(false)}
                               className="w-full px-3 py-2 rounded-xl text-left bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white flex items-center justify-between cursor-pointer"
                             >
                               <div className="flex items-center gap-2">
@@ -1145,7 +1147,7 @@ export const FashionStoreHome: React.FC = () => {
                                 <span>{locale === 'en' ? 'Seller Center (/shop)' : 'Vào Kênh Người Bán (/shop)'}</span>
                               </div>
                               <ChevronRight size={13} />
-                            </a>
+                            </Link>
                           ) : currentStore?.status === 'PENDING' ? (
                             <button
                               type="button"
@@ -1451,13 +1453,13 @@ export const FashionStoreHome: React.FC = () => {
                     <span>{locale === 'en' ? '3D Virtual Try-On' : 'Thử Đồ Ảo 3D'}</span>
                   </button>
 
-                  <a
-                    href="/dashboard"
+                  <Link
+                    to="/dashboard"
                     className="h-11 px-4 sm:px-5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer border border-blue-400/40"
                   >
                     <Camera size={15} className="text-white shrink-0" />
                     <span>{t('ecommerce.hero.ctaScan', 'Quét Vóc Dáng AI 30s')}</span>
-                  </a>
+                  </Link>
 
                   {isAuthenticated && userRole !== 'store' ? (
                     <button
@@ -1712,13 +1714,13 @@ export const FashionStoreHome: React.FC = () => {
               <span>{t('ecommerce.sidebar.virtualTryOn', 'Thử Đồ Ảo 3D')}</span>
             </button>
 
-            <a
-              href="/dashboard"
+            <Link
+              to="/dashboard"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer active:scale-95"
             >
               <Camera size={15} className="text-white" />
               <span>{t('ecommerce.topbar.aiScan', 'Quét Đo AI 3D (ISO)')}</span>
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -1781,13 +1783,13 @@ export const FashionStoreHome: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-              <a
-                href="/admin"
+              <Link
+                to="/admin"
                 className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <ShieldCheck size={14} />
                 <span>{locale === 'en' ? 'Open Admin Portal' : 'Vào Trang Quản Trị (/admin)'}</span>
-              </a>
+              </Link>
               <button
                 type="button"
                 onClick={() => setIsAdminModalOpen(true)}
@@ -3112,7 +3114,7 @@ export const FashionStoreHome: React.FC = () => {
 
               {/* Payment Method Badges */}
               <div className="flex items-center gap-2 pt-1 flex-wrap">
-                {['COD', 'VietQR', 'SePay', 'ATM / Visa'].map((pm) => (
+                {['COD', 'VietQR', 'SePay'].map((pm) => (
                   <span
                     key={pm}
                     className="px-2.5 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-slate-300"
@@ -3130,10 +3132,10 @@ export const FashionStoreHome: React.FC = () => {
               </h4>
               <ul className="space-y-2.5 text-slate-400">
                 <li>
-                  <a href="/dashboard" className="hover:text-white transition-colors duration-200 flex items-center gap-2 font-medium">
+                  <Link to="/dashboard" className="hover:text-white transition-colors duration-200 flex items-center gap-2 font-medium">
                     <Camera size={13} className="text-blue-400" />
                     <span>{t('ecommerce.footer.booth', 'Buồng Quét 3D Online')}</span>
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <button
@@ -3227,8 +3229,8 @@ export const FashionStoreHome: React.FC = () => {
         </button>
 
         {/* Central Floating Action Button: 3D Camera Scan */}
-        <a
-          href="/dashboard"
+        <Link
+          to="/dashboard"
           className="flex flex-col items-center -mt-5 group"
         >
           <div
@@ -3240,7 +3242,7 @@ export const FashionStoreHome: React.FC = () => {
           <span className="text-[9px] font-bold text-blue-700 mt-1">
             {t('ecommerce.mobileNav.scan3d', 'Quét 3D')}
           </span>
-        </a>
+        </Link>
 
         <button
           type="button"

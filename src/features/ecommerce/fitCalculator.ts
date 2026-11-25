@@ -86,6 +86,8 @@ export function calculateProductFit(
   }
 
   // Determine Verdict & Advice (Bilingual)
+  const roundedScore = Math.round(highestScore);
+  const isPantsCategory = product.category === 'pants';
   let verdictLabelVi = 'Vừa vặn tuyệt đối';
   let verdictLabelEn = 'Perfect Golden Ratio Fit';
   let adviceVi = '';
@@ -93,16 +95,28 @@ export function calculateProductFit(
 
   if (highestScore >= 95) {
     bestVerdict = 'PERFECT_FIT';
-    verdictLabelVi = 'Vừa vặn hoàn hảo (98%)';
-    verdictLabelEn = 'Perfect Golden Ratio Fit (98%)';
-    adviceVi = `Size ${bestVariant.size_label} ôm khít bờ vai và lồng ngực ${user.chest_cm}cm của bạn, độ cử động ${bestDeltas.chest_diff_cm > 0 ? '+' : ''}${bestDeltas.chest_diff_cm}cm đạt tỉ lệ vàng tôn vóc dáng.`;
-    adviceEn = `Size ${bestVariant.size_label} aligns precisely with your ${user.chest_cm}cm chest and shoulders, with +${bestDeltas.chest_diff_cm}cm ease ratio sculpting your silhouette.`;
+    verdictLabelVi = `Vừa vặn hoàn hảo (${roundedScore}%)`;
+    verdictLabelEn = `Perfect Golden Ratio Fit (${roundedScore}%)`;
+    if (isPantsCategory) {
+      const waistEaseSign = bestDeltas.waist_diff_cm >= 0 ? '+' : '';
+      adviceVi = `Size ${bestVariant.size_label} vừa chuẩn vòng eo ${user.waist_cm}cm và vòng hông ${user.hip_cm}cm của bạn, độ cử động eo ${waistEaseSign}${bestDeltas.waist_diff_cm}cm cho cảm giác đứng ngồi thoải mái.`;
+      adviceEn = `Size ${bestVariant.size_label} aligns precisely with your ${user.waist_cm}cm waist and ${user.hip_cm}cm hip, with ${waistEaseSign}${bestDeltas.waist_diff_cm}cm waist ease for effortless drape.`;
+    } else {
+      const chestEaseSign = bestDeltas.chest_diff_cm >= 0 ? '+' : '';
+      adviceVi = `Size ${bestVariant.size_label} ôm khít bờ vai và lồng ngực ${user.chest_cm}cm của bạn, độ cử động ${chestEaseSign}${bestDeltas.chest_diff_cm}cm đạt tỉ lệ vàng tôn vóc dáng.`;
+      adviceEn = `Size ${bestVariant.size_label} aligns precisely with your ${user.chest_cm}cm chest and shoulders, with ${chestEaseSign}${bestDeltas.chest_diff_cm}cm ease ratio sculpting your silhouette.`;
+    }
   } else if (highestScore >= 85) {
     bestVerdict = 'SLIGHTLY_SNUG';
     verdictLabelVi = 'Phom gọn gàng (Slim)';
     verdictLabelEn = 'Crisp Tailored Slim Fit';
-    adviceVi = `Size ${bestVariant.size_label} phom dáng thon gọn. Vòng eo vừa vặn chuẩn xác, cử động ngực vừa đủ, thích hợp mặc sơ vin hoặc phong cách lịch lãm.`;
-    adviceEn = `Size ${bestVariant.size_label} delivers a crisp tailored contour with exact waist fit and comfortable chest ease for refined formal wear.`;
+    if (isPantsCategory) {
+      adviceVi = `Size ${bestVariant.size_label} phom quần gọn gàng, ôm vừa vòng eo ${user.waist_cm}cm và phần hông tôn dáng thanh lịch khi di chuyển.`;
+      adviceEn = `Size ${bestVariant.size_label} delivers a crisp tailored trouser silhouette around your waist and hips for refined movement.`;
+    } else {
+      adviceVi = `Size ${bestVariant.size_label} phom dáng thon gọn. Vòng eo vừa vặn chuẩn xác, cử động ngực vừa đủ, thích hợp mặc sơ vin hoặc phong cách lịch lãm.`;
+      adviceEn = `Size ${bestVariant.size_label} delivers a crisp tailored contour with exact waist fit and comfortable chest ease for refined formal wear.`;
+    }
   } else {
     bestVerdict = 'RELAXED';
     verdictLabelVi = 'Phom suông thoải mái';

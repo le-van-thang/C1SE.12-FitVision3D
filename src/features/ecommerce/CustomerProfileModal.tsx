@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   X,
   User,
@@ -30,6 +31,40 @@ import { useI18n } from '@/i18n';
 import { UserBodyProfile } from './types';
 import { MembershipTab, computeMembershipSummary } from './MembershipTab';
 
+interface UserAccountPrefs {
+  easePref: 'slim' | 'standard' | 'loose';
+  autoEaseMatch: boolean;
+  emailOrderUpdates: boolean;
+  showBespokeBadge: boolean;
+}
+
+const DEFAULT_ACCOUNT_PREFS: UserAccountPrefs = {
+  easePref: 'standard',
+  autoEaseMatch: true,
+  emailOrderUpdates: true,
+  showBespokeBadge: true,
+};
+
+const getPrefsStorageKey = (userId: string) => `fv3d_user_prefs_v1_${userId}`;
+
+function loadUserPrefs(userId?: string | null): UserAccountPrefs {
+  if (!userId || typeof localStorage === 'undefined') return DEFAULT_ACCOUNT_PREFS;
+  try {
+    const raw = localStorage.getItem(getPrefsStorageKey(userId));
+    if (!raw) return DEFAULT_ACCOUNT_PREFS;
+    const parsed = JSON.parse(raw);
+    return {
+      easePref:
+        parsed?.easePref === 'slim' || parsed?.easePref === 'loose' ? parsed.easePref : 'standard',
+      autoEaseMatch: parsed?.autoEaseMatch !== false,
+      emailOrderUpdates: parsed?.emailOrderUpdates !== false,
+      showBespokeBadge: parsed?.showBespokeBadge !== false,
+    };
+  } catch {
+    return DEFAULT_ACCOUNT_PREFS;
+  }
+}
+
 interface CustomerProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -59,13 +94,33 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
     updateUserProfile,
     getUserProfileDetails,
   } = useAuth();
-  const { getUserOrders, cancelOrder } = useOrders();
+  const { getUserOrders, cancelOrder, refreshOrders } = useOrders();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'membership' | 'measurements' | 'orders' | 'merchant'>(initialTab);
-  const [easePref, setEasePref] = useState<'slim' | 'standard' | 'loose'>('standard');
+  const [prefs, setPrefs] = useState<UserAccountPrefs>(() => loadUserPrefs(currentUser?.id));
+  const easePref = prefs.easePref;
   const [orderFilter, setOrderFilter] = useState<string>('all');
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [checkingOrderId, setCheckingOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPrefs(loadUserPrefs(currentUser?.id));
+  }, [currentUser?.id]);
+
+  const updatePref = (patch: Partial<UserAccountPrefs>) => {
+    setPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      if (currentUser?.id && typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem(getPrefsStorageKey(currentUser.id), JSON.stringify(next));
+        } catch {
+          // Ignore storage quota errors
+        }
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -656,21 +711,36 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     <span className="font-extrabold text-slate-900">
                       {t('ecommerce.profileModal.optEase', 'Tự động so khớp Ease Allowance (Độ cử động 3D)')}
                     </span>
-                    <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={prefs.autoEaseMatch}
+                      onChange={(e) => updatePref({ autoEaseMatch: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                    />
                   </label>
 
                   <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors">
                     <span className="font-extrabold text-slate-900">
                       {t('ecommerce.profileModal.optEmail', 'Nhận thông báo tiến độ may đo qua Email')}
                     </span>
-                    <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={prefs.emailOrderUpdates}
+                      onChange={(e) => updatePref({ emailOrderUpdates: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                    />
                   </label>
 
                   <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 cursor-pointer transition-colors">
                     <span className="font-extrabold text-slate-900">
                       {t('ecommerce.profileModal.optBadge', 'Hiển thị huy hiệu khách hàng Bespoke')}
                     </span>
-                    <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={prefs.showBespokeBadge}
+                      onChange={(e) => updatePref({ showBespokeBadge: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                    />
                   </label>
                 </div>
               </div>
@@ -761,7 +831,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                     <button
                       key={opt.id}
                       type="button"
-                      onClick={() => setEasePref(opt.id)}
+                      onClick={() => updatePref({ easePref: opt.id })}
                       className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold text-center border-[1.5px] transition-all cursor-pointer ${
                         easePref === opt.id
                           ? 'bg-[#14171C] text-white border-[#14171C] shadow-2xs'
@@ -786,13 +856,14 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                   <Ruler size={14} />
                   <span>{t('ecommerce.profileModal.updateMeasurements', 'Cập Nhật Số Đo')}</span>
                 </button>
-                <a
-                  href="/dashboard"
+                <Link
+                  to="/dashboard"
+                  onClick={onClose}
                   className="flex-1 py-2.5 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-900 border-[1.5px] border-slate-300 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer text-center"
                 >
                   <Camera size={14} />
                   <span>{t('ecommerce.profileModal.rescan3D', 'Quét 3D Lại')}</span>
-                </a>
+                </Link>
               </div>
             </div>
           )}
@@ -927,32 +998,79 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                           </div>
 
                           {/* Expanded Details */}
-                          {isExpanded && (
-                            <div className="pt-2.5 border-t border-dashed border-stone-200 space-y-2 text-xs bg-stone-50/80 -mx-4 -mb-3 p-4 rounded-b-2xl">
-                              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                                <div>
-                                  <span className="text-stone-500 block">{t('ecommerce.orders.recipient', 'Người nhận:')}</span>
-                                  <strong className="text-stone-900 font-bold">{order.recipient.full_name} ({order.recipient.phone})</strong>
-                                </div>
-                                <div>
-                                  <span className="text-stone-500 block">{t('ecommerce.orders.payment', 'Thanh toán:')}</span>
-                                  <strong className="text-stone-900 font-bold">
-                                    {order.payment_method === 'vietqr_sepay' ? '💳 VietQR / SePay' : '💵 COD'}
-                                  </strong>
-                                </div>
-                                <div className="col-span-2">
-                                  <span className="text-stone-500 block">{t('ecommerce.orders.deliveryAddress', 'Địa chỉ giao:')}</span>
-                                  <strong className="text-stone-900 font-bold">{order.recipient.address}, {order.recipient.city}</strong>
-                                </div>
-                                {order.recipient.note && (
+                          {isExpanded && (() => {
+                            const bankCode = import.meta.env.VITE_SEPAY_BANK_CODE || 'MB';
+                            const accountNumber = import.meta.env.VITE_SEPAY_ACCOUNT_NUMBER || '33822222622222';
+                            const accountName = import.meta.env.VITE_SEPAY_ACCOUNT_NAME || 'FITVISION 3D ATELIER';
+                            const showQrReopen =
+                              order.payment_method === 'vietqr_sepay' &&
+                              order.payment_status !== 'paid' &&
+                              order.status !== 'cancelled';
+                            const qrUrl = `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-compact2.png?amount=${Math.round(order.total_amount)}&addInfo=${encodeURIComponent(order.id)}&accountName=${encodeURIComponent(accountName)}`;
+                            return (
+                              <div className="pt-2.5 border-t border-dashed border-stone-200 space-y-3 text-xs bg-stone-50/80 -mx-4 -mb-3 p-4 rounded-b-2xl">
+                                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                  <div>
+                                    <span className="text-stone-500 block">{t('ecommerce.orders.recipient', 'Người nhận:')}</span>
+                                    <strong className="text-stone-900 font-bold">{order.recipient.full_name} ({order.recipient.phone})</strong>
+                                  </div>
+                                  <div>
+                                    <span className="text-stone-500 block">{t('ecommerce.orders.payment', 'Thanh toán:')}</span>
+                                    <strong className="text-stone-900 font-bold">
+                                      {order.payment_method === 'vietqr_sepay' ? '💳 VietQR / SePay' : '💵 COD'}
+                                    </strong>
+                                  </div>
                                   <div className="col-span-2">
-                                    <span className="text-stone-500 block">{t('ecommerce.orders.note', 'Ghi chú:')}</span>
-                                    <span className="text-stone-700 italic">{order.recipient.note}</span>
+                                    <span className="text-stone-500 block">{t('ecommerce.orders.deliveryAddress', 'Địa chỉ giao:')}</span>
+                                    <strong className="text-stone-900 font-bold">{order.recipient.address}, {order.recipient.city}</strong>
+                                  </div>
+                                  {order.recipient.note && (
+                                    <div className="col-span-2">
+                                      <span className="text-stone-500 block">{t('ecommerce.orders.note', 'Ghi chú:')}</span>
+                                      <span className="text-stone-700 italic">{order.recipient.note}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {showQrReopen && (
+                                  <div className="p-3 rounded-xl bg-white border border-blue-200 flex flex-col sm:flex-row items-center gap-3">
+                                    <img
+                                      src={qrUrl}
+                                      alt={`VietQR ${order.id}`}
+                                      className="w-28 h-28 rounded-lg border border-slate-200 object-contain shrink-0 bg-white"
+                                    />
+                                    <div className="flex-1 min-w-0 space-y-1 text-[11px]">
+                                      <p className="font-bold text-blue-900">
+                                        {isEn ? 'Pending VietQR Payment' : 'Thanh toán chuyển khoản VietQR / SePay'}
+                                      </p>
+                                      <p className="text-slate-600 font-mono">
+                                        {bankCode} · {accountNumber} · {accountName}
+                                      </p>
+                                      <p className="text-slate-600">
+                                        {isEn ? 'Transfer note:' : 'Nội dung CK:'}{' '}
+                                        <b className="font-mono text-slate-900">{order.id}</b> ·{' '}
+                                        <b className="font-mono text-rose-600">{order.total_amount.toLocaleString('vi-VN')} ₫</b>
+                                      </p>
+                                      <button
+                                        type="button"
+                                        disabled={checkingOrderId === order.id}
+                                        onClick={async () => {
+                                          setCheckingOrderId(order.id);
+                                          await refreshOrders();
+                                          setCheckingOrderId(null);
+                                        }}
+                                        className="mt-1 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold cursor-pointer disabled:opacity-60"
+                                      >
+                                        {checkingOrderId === order.id
+                                          ? (isEn ? 'Checking...' : 'Đang kiểm tra...')
+                                          : (isEn ? 'Check Payment Status' : 'Kiểm tra thanh toán')}
+                                      </button>
+                                    </div>
                                   </div>
                                 )}
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Order Footer & Actions */}
                           <div className="flex items-center justify-between pt-2 border-t border-stone-100">

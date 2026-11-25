@@ -393,9 +393,15 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                         {product.price.toLocaleString('vi-VN')} ₫
                       </span>
                     )}
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Freeship
-                    </span>
+                    {(product.sale_price || product.price) >= 1_000_000 ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Freeship
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        {isEn ? 'Freeship from 1M₫' : 'Freeship từ 1Tr'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
