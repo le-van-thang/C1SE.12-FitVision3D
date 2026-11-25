@@ -256,7 +256,7 @@ export const Dashboard: React.FC = () => {
 
         setAudit({
           id: Date.now(),
-          user_id: currentUser?.id || "usr-current",
+          user_id: currentUser?.id || "guest",
           action_type: "body_scan",
           execution_time_ms: Math.round(elapsed * 1000),
           zero_retention_flag: true,

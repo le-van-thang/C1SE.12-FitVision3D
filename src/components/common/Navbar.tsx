@@ -40,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
   } = useAuth();
 
   const isUser = userRole === 'user' || userRole === 'customer';
-  const isStore = userRole === 'store' || userRole === 'tailor' || userRole === 'retailer';
+  const isStore = userRole === 'store' || userRole === 'tailor';
   const isAdmin = userRole === 'admin';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -110,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
                 <span>{t('ecommerce.sidebar.virtualTryOn', 'Phòng Thử Đồ 3D')}</span>
               </Link>
 
-              {isAuthenticated && (
+              {isAuthenticated && (isStore || isAdmin) && (
                 <Link
                   to="/size-charts"
                   className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
@@ -247,7 +247,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
                 <Sparkles size={15} />
                 <span>{t('ecommerce.sidebar.virtualTryOn', 'Phòng Thử Đồ 3D')}</span>
               </Link>
-              {isAuthenticated && (
+              {isAuthenticated && (isStore || isAdmin) && (
                 <Link
                   to="/size-charts"
                   onClick={() => setMobileMenuOpen(false)}
