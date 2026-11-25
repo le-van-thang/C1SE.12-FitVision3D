@@ -2,10 +2,11 @@
 // SIZE CHART MANAGER
 // brand_size_charts + garment_categories (name, target_gender)
 // ============================================================
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Save, RotateCcw, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
+import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { BRAND_NAMES, GARMENT_CATEGORIES, buildSizeRows, type SizeRow } from "../data/mockData";
 import { type FitType } from "../types/fitting.types";
@@ -18,23 +19,63 @@ const GENDERS: GarmentCategory["target_gender"][] = ["male", "female", "unisex"]
 
 const fitFromEase = (e: number): FitType => (e < 1.5 ? "slim" : e < 3 ? "regular" : e < 4.5 ? "relaxed" : "oversized");
 const mid = (a: number | null, b: number | null) => (((a ?? 0) + (b ?? 0)) / 2);
+const getSizeChartStorageKey = (brand: string, gender: string, categoryId: number) =>
+  `fv3d_size_chart_v1_${brand}_${gender}_${categoryId}`;
+
+function loadSavedSizeChart(brand: string, gender: string, categoryId: number): { rows: SizeRow[]; ease: number } | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(getSizeChartStorageKey(brand, gender, categoryId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.rows) || parsed.rows.length === 0) return null;
+    return {
+      rows: parsed.rows,
+      ease: Number.isFinite(Number(parsed.ease)) ? Number(parsed.ease) : 2.5,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export const SizeChartManager: React.FC = () => {
+  const { userRole } = useAuth();
   const { t } = useI18n();
   const [brand, setBrand] = useState<string>(BRAND_NAMES[0]);
   const [gender, setGender] = useState<GarmentCategory["target_gender"]>("unisex");
-  const [categoryId, setCategoryId] = useState<number>(GARMENT_CATEGORIES.find((c) => c.target_gender === "unisex")!.id);
-  const [ease, setEase] = useState(2.5);
-  const [rows, setRows] = useState<SizeRow[]>(() => buildSizeRows(BRAND_NAMES[0]));
+  const initialCategoryId = GARMENT_CATEGORIES.find((c) => c.target_gender === "unisex")!.id;
+  const [categoryId, setCategoryId] = useState<number>(initialCategoryId);
+  const initialSaved = loadSavedSizeChart(BRAND_NAMES[0], "unisex", initialCategoryId);
+  const [ease, setEase] = useState<number>(() => initialSaved?.ease ?? 2.5);
+  const [rows, setRows] = useState<SizeRow[]>(() => initialSaved?.rows ?? buildSizeRows(BRAND_NAMES[0]));
   const [simChest, setSimChest] = useState(93.5);
   const [simWaist, setSimWaist] = useState(78);
   const [toast, setToast] = useState<string | null>(null);
 
+  useEffect(() => {
+    const saved = loadSavedSizeChart(brand, gender, categoryId);
+    if (saved) {
+      setRows(saved.rows);
+      setEase(saved.ease);
+    } else {
+      setRows(buildSizeRows(brand));
+      setEase(2.5);
+    }
+  }, [brand, gender, categoryId]);
+
   const categories = useMemo(() => GARMENT_CATEGORIES.filter((c) => c.target_gender === gender), [gender]);
+  const selectedCategory = useMemo(
+    () => GARMENT_CATEGORIES.find((c) => c.id === categoryId),
+    [categoryId]
+  );
+  const isBottomCategory = useMemo(
+    () => /quần|váy|pant|trouser|jean|skirt|short|bottom/i.test(selectedCategory?.name || ""),
+    [selectedCategory?.name]
+  );
 
   const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
-  const changeBrand = (b: string) => { setBrand(b); setRows(buildSizeRows(b)); };
+  const changeBrand = (b: string) => { setBrand(b); };
   const changeGender = (g: GarmentCategory["target_gender"]) => {
     setGender(g);
     setCategoryId(GARMENT_CATEGORIES.find((c) => c.target_gender === g)!.id);
@@ -53,28 +94,47 @@ export const SizeChartManager: React.FC = () => {
     return out;
   }, [rows, t]);
 
-  // Simulator: effective measurement = body + ease_tolerance_cm
+  // Simulator: match waist range for bottoms (pants/skirts), chest range for tops
   const result = useMemo(() => {
-    const eff = simChest + ease;
-    const exact = rows.find((r) => eff >= (r.min_chest ?? 0) && eff <= (r.max_chest ?? 0));
-    const best = exact ?? [...rows].sort((a, b) => Math.abs(mid(a.min_chest, a.max_chest) - eff) - Math.abs(mid(b.min_chest, b.max_chest) - eff))[0];
+    const effChest = simChest + ease;
+    const effWaist = simWaist + ease;
+    const best = isBottomCategory
+      ? rows.find((r) => effWaist >= (r.min_waist ?? 0) && effWaist <= (r.max_waist ?? 0)) ??
+        [...rows].sort((a, b) => Math.abs(mid(a.min_waist, a.max_waist) - effWaist) - Math.abs(mid(b.min_waist, b.max_waist) - effWaist))[0]
+      : rows.find((r) => effChest >= (r.min_chest ?? 0) && effChest <= (r.max_chest ?? 0)) ??
+        [...rows].sort((a, b) => Math.abs(mid(a.min_chest, a.max_chest) - effChest) - Math.abs(mid(b.min_chest, b.max_chest) - effChest))[0];
     return {
       recommended_size: best.size_label,
       fit_type: fitFromEase(ease),
-      chest_delta_cm: eff - mid(best.min_chest, best.max_chest),
-      waist_delta_cm: simWaist + ease - mid(best.min_waist, best.max_waist),
+      chest_delta_cm: effChest - mid(best.min_chest, best.max_chest),
+      waist_delta_cm: effWaist - mid(best.min_waist, best.max_waist),
     };
-  }, [rows, simChest, simWaist, ease]);
+  }, [rows, simChest, simWaist, ease, isBottomCategory]);
 
   const save = () => {
-    const category = GARMENT_CATEGORIES.find((c) => c.id === categoryId)!;
+    const category = selectedCategory || GARMENT_CATEGORIES.find((c) => c.id === categoryId)!;
     const payload = { brand_name: brand, category: category.name, target_gender: gender, ease_tolerance_cm: ease, sizes: rows };
+    try {
+      localStorage.setItem(getSizeChartStorageKey(brand, gender, categoryId), JSON.stringify({ ease, rows }));
+    } catch {
+      // Ignore storage quota errors
+    }
     navigator.clipboard?.writeText(JSON.stringify(payload, null, 2));
     flash(t("sizes.saved"));
   };
 
-  const reset = () => { setRows(buildSizeRows(brand)); setEase(2.5); flash(t("sizes.resetDone")); };
+  const reset = () => {
+    try {
+      localStorage.removeItem(getSizeChartStorageKey(brand, gender, categoryId));
+    } catch {
+      // Ignore storage errors
+    }
+    setRows(buildSizeRows(brand));
+    setEase(2.5);
+    flash(t("sizes.resetDone"));
+  };
   const delta = (d: number) => `${d > 0 ? "+" : ""}${d.toFixed(1)}`;
+  const backRoute = userRole === "admin" ? "/admin" : userRole === "store" ? "/shop" : "/dashboard";
 
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
@@ -93,7 +153,7 @@ export const SizeChartManager: React.FC = () => {
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <Link
-              to="/dashboard"
+              to={backRoute}
               className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs shadow-2xs transition-all"
             >
               <ArrowLeft size={14} />

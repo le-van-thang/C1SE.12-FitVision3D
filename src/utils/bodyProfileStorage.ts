@@ -272,6 +272,8 @@ export function clearFullScanSnapshot(userId?: string | null): void {
   if (!userId) return;
   try {
     localStorage.removeItem(getScanKey(userId));
+    localStorage.removeItem(getBodyKey(userId));
+    window.dispatchEvent(new Event(BODY_PROFILE_UPDATED_EVENT));
   } catch {
     // ignore
   }

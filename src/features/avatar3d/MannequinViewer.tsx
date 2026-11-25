@@ -780,7 +780,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
               transition: "border-color 0.15s",
             }}
           >
-            <span>{VIEW_LABELS[currentZone] || t(`viewer.zone.${currentZone}`)}</span>
+            <span>{t(`viewer.zone.${currentZone}`, VIEW_LABELS[currentZone])}</span>
             <ChevronDown size={14} strokeWidth={2} style={{ color: "#94A3B8" }} />
           </button>
 
@@ -824,7 +824,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                     transition: "background 0.15s, color 0.15s",
                   }}
                 >
-                  {VIEW_LABELS[z] || t(`viewer.zone.${z}`)}
+                  {t(`viewer.zone.${z}`, VIEW_LABELS[z])}
                 </button>
               ))}
             </div>
@@ -941,7 +941,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                   transition: "color 0.2s",
                 }}
               >
-                {val != null ? `${val.toFixed(1)}` : "—"}
+                {val != null ? `${val.toFixed(1)} cm` : "—"}
               </span>
             </div>
           );
@@ -1012,7 +1012,7 @@ export const MannequinViewer: React.FC<MannequinViewerProps> = ({
                   transition: "color 0.2s",
                 }}
               >
-                {val != null ? `${val.toFixed(1)}` : "—"}
+                {val != null ? `${val.toFixed(1)} cm` : "—"}
               </span>
             </div>
           );
