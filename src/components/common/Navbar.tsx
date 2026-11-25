@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   ScanLine,
@@ -12,6 +12,8 @@ import {
   AlertTriangle,
   Sparkles,
   ShoppingBag,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -40,6 +42,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
   const isUser = userRole === 'user' || userRole === 'customer';
   const isStore = userRole === 'store' || userRole === 'tailor' || userRole === 'retailer';
   const isAdmin = userRole === 'admin';
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   const pendingStoresCount = stores.filter((s) => s.status === 'PENDING').length;
 
@@ -173,8 +180,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
           )}
         </nav>
 
-        {/* Right: Language Switcher & Auth */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Right: Language Switcher, Auth & Mobile Hamburger */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <LanguageSwitcher compact variant="dark" />
 
           {isAuthenticated ? (
@@ -183,15 +190,109 @@ export const Navbar: React.FC<NavbarProps> = ({ onDemoMode, isDemoMode = false }
             <button
               type="button"
               onClick={openSignIn}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs shadow-sm transition-all cursor-pointer"
               id="nav-signin-btn"
             >
               <LogIn size={15} strokeWidth={2.4} />
               <span>{t('app.nav.signIn', 'Đăng Nhập')}</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="md:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 cursor-pointer"
+            aria-label="Toggle mobile navigation"
+            aria-expanded={mobileMenuOpen}
+            id="nav-mobile-toggle"
+          >
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
       </header>
+
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <nav
+          className="md:hidden bg-[#14171C] border-b border-white/15 px-4 py-3 flex flex-col gap-2 text-white shadow-lg sticky top-16 z-40 no-print"
+          aria-label="Mobile navigation"
+        >
+          {!isAdmin && (
+            <>
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold ${
+                  pathname === '/' ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-200 hover:bg-white/10'
+                }`}
+              >
+                <ShoppingBag size={15} />
+                <span>{t('ecommerce.nav.store', 'Sàn Thời Trang')}</span>
+              </Link>
+              <Link
+                to="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold ${
+                  pathname === '/dashboard' ? 'bg-[#F5EBD8] text-[#14171C]' : 'bg-white/5 text-slate-200 hover:bg-white/10'
+                }`}
+              >
+                <ScanLine size={15} />
+                <span>{t('app.nav.dashboard', 'Phòng Đo 3D')}</span>
+              </Link>
+              <Link
+                to="/?openStudio=1"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-blue-500/15 text-blue-200 border border-blue-400/25"
+              >
+                <Sparkles size={15} />
+                <span>{t('ecommerce.sidebar.virtualTryOn', 'Phòng Thử Đồ 3D')}</span>
+              </Link>
+              {isAuthenticated && (
+                <Link
+                  to="/size-charts"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold ${
+                    pathname === '/size-charts' ? 'bg-[#F5EBD8] text-[#14171C]' : 'bg-white/5 text-slate-200 hover:bg-white/10'
+                  }`}
+                >
+                  <Table2 size={15} />
+                  <span>{t('app.nav.sizeCharts', 'Bảng Kích Cỡ')}</span>
+                </Link>
+              )}
+            </>
+          )}
+          {isAuthenticated && isStore && (
+            <>
+              <Link
+                to="/shop"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-200 border border-emerald-400/25"
+              >
+                <StoreIcon size={15} />
+                <span>{t('app.nav.shop', 'Kênh Người Bán')}</span>
+              </Link>
+              <Link
+                to="/tailor"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-amber-400/15 text-amber-200 border border-amber-300/25"
+              >
+                <Scissors size={15} />
+                <span>{t('app.nav.tailor', 'Studio Nhà May')}</span>
+              </Link>
+            </>
+          )}
+          {isAuthenticated && isAdmin && (
+            <Link
+              to="/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-purple-600 text-white"
+            >
+              <Shield size={15} />
+              <span>{t('app.nav.adminShort', 'Quản Trị Sàn')}</span>
+            </Link>
+          )}
+        </nav>
+      )}
 
       {/* Global Modals Mounted from Auth Context */}
       <AuthModal />

@@ -32,7 +32,9 @@ interface CheckoutModalProps {
   items: CartItem[];
   onClearCart: () => void;
   userBody?: UserBodyProfile;
+  hasBodyProfile?: boolean;
   onOpenMyOrders?: () => void;
+  onBackToCart?: () => void;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -41,7 +43,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   items,
   onClearCart,
   userBody,
+  hasBodyProfile = false,
   onOpenMyOrders,
+  onBackToCart,
 }) => {
   const { currentUser, isAuthenticated, getUserProfileDetails, openSignIn } = useAuth();
   const { createOrder, refreshOrders } = useOrders();
@@ -50,8 +54,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [step, setStep] = useState<'checkout' | 'success'>('checkout');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [createdOrders, setCreatedOrders] = useState<Order[]>([]);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
   const [paymentCheckMessage, setPaymentCheckMessage] = useState<string | null>(null);
 
@@ -64,6 +66,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [address, setAddress] = useState(savedDetails?.address || '');
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr_sepay');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [qrImgFailed, setQrImgFailed] = useState(false);
 
   // Coupon code
   const [couponCode, setCouponCode] = useState('');
@@ -75,35 +80,54 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [hasConfirmedTransfer, setHasConfirmedTransfer] = useState(false);
 
-  // Reset recipient & coupon state on modal open/close or user switch to prevent cross-account PII/discount leakage
+  // Sync recipient PII strictly per signed-in user & clear stale voucher/discount when opening or closing
   useEffect(() => {
-    if (!isOpen) {
-      setStep('checkout');
-      setCreatedOrder(null);
-      setCreatedOrders([]);
-      setSubmitError(null);
-      setIsSubmitting(false);
+    if (isOpen) {
+      const details = getUserProfileDetails(currentUser?.id);
+      setFullName(currentUser?.full_name || '');
+      setPhone(details?.phone || '');
+      setCity(details?.city || '');
+      setAddress(details?.address || '');
+      setNote('');
+      setFormError(null);
       setCouponCode('');
       setAppliedDiscount(0);
       setCouponError(null);
       setCouponSuccess(null);
+      setStep('checkout');
+      setCreatedOrder(null);
+      setCreatedOrders([]);
       setHasConfirmedTransfer(false);
       setPaymentCheckMessage(null);
-      return;
+      setIsSubmitting(false);
+      setQrImgFailed(false);
+    } else {
+      setCouponCode('');
+      setAppliedDiscount(0);
+      setCouponError(null);
+      setCouponSuccess(null);
+      setFormError(null);
+      setStep('checkout');
+      setCreatedOrder(null);
+      setCreatedOrders([]);
+      setHasConfirmedTransfer(false);
+      setPaymentCheckMessage(null);
+      setIsSubmitting(false);
+      setQrImgFailed(false);
     }
-    const freshDetails = getUserProfileDetails(currentUser?.id);
-    setFullName(currentUser?.full_name || '');
-    setPhone(freshDetails?.phone || '');
-    setCity(freshDetails?.city || '');
-    setAddress(freshDetails?.address || '');
-    setNote('');
-    setSubmitError(null);
-    setCouponCode('');
-    setAppliedDiscount(0);
-    setCouponError(null);
-    setCouponSuccess(null);
-    setPaymentCheckMessage(null);
-  }, [isOpen, currentUser?.id, currentUser?.full_name, getUserProfileDetails]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, currentUser?.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
 
   // Real-time SePay Webhook polling when awaiting VietQR payment
   useEffect(() => {
@@ -226,17 +250,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitError(null);
+    if (isSubmitting) return;
+    setFormError(null);
+
     if (!isAuthenticated || !currentUser?.id) {
       openSignIn();
       return;
     }
-    if (!fullName.trim() || !phone.trim() || !address.trim() || !city.trim()) {
-      setSubmitError('Vui lòng điền đầy đủ họ tên, số điện thoại, thành phố và địa chỉ nhận hàng.');
+    if (items.length === 0) {
+      setFormError(
+        locale === 'en'
+          ? 'No products selected for checkout.'
+          : 'Không có sản phẩm nào được chọn để thanh toán.'
+      );
       return;
     }
-    if (items.length === 0) {
-      setSubmitError('Giỏ hàng thanh toán đang trống.');
+    if (!fullName.trim() || !phone.trim() || !address.trim() || !city.trim()) {
+      setFormError(
+        locale === 'en'
+          ? 'Please enter full recipient name, phone number, city, and delivery address.'
+          : 'Vui lòng điền đầy đủ họ tên, số điện thoại, tỉnh/thành phố và địa chỉ nhận hàng.'
+      );
       return;
     }
 
@@ -263,7 +297,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         source: 'scan',
         captured_at: fullScan.updatedAt,
       };
-    } else if (userBody && userBody.source === 'manual' && userBody.height_cm > 0 && userBody.chest_cm > 0) {
+    } else if (hasBodyProfile && userBody && userBody.height_cm > 0 && userBody.chest_cm > 0) {
       const hM = userBody.height_cm / 100;
       measurementSnapshot = {
         stature_cm: userBody.height_cm,
@@ -284,6 +318,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setIsSubmitting(true);
     try {
       const placedOrders: Order[] = [];
+      let lastResult: { success: boolean; order?: Order; error?: string } = {
+        success: false,
+      };
       for (let idx = 0; idx < shopGroupList.length; idx++) {
         const group = shopGroupList[idx];
         const groupSubtotal = group.items.reduce(
@@ -295,7 +332,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         const groupShipping = groupSubtotal >= 1_000_000 || applyCouponHere === 'FREESHIP3D' ? 0 : 30_000;
         const groupDiscount = idx === 0 ? Math.min(groupSubtotal, appliedDiscount) : 0;
 
-        const res = await createOrder({
+        const result = await createOrder({
           customer_id: currentUser.id,
           customer_name: fullName.trim(),
           recipient: {
@@ -317,17 +354,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           measurement_snapshot: groupHasBespoke ? measurementSnapshot : null,
         });
 
-        if (!res.success || !res.order) {
-          setSubmitError(res.error || 'Đặt hàng thất bại. Vui lòng kiểm tra tồn kho hoặc thông tin thanh toán.');
+        lastResult = result;
+        if (!result.success || !result.order) {
+          setFormError(
+            result.error ||
+              (locale === 'en'
+                ? 'Could not place order. Please review stock availability and try again.'
+                : 'Đặt hàng thất bại. Vui lòng kiểm tra tồn kho hoặc thông tin thanh toán.')
+          );
           return;
         }
-        placedOrders.push(res.order);
+        placedOrders.push(result.order);
       }
 
-      setCreatedOrders(placedOrders);
-      setCreatedOrder(placedOrders[0]);
-      onClearCart();
-      setStep('success');
+      const result = {
+        success: placedOrders.length > 0 && lastResult.success,
+        order: placedOrders[0],
+      };
+      if (result.success && result.order) {
+        setCreatedOrders(placedOrders);
+        setCreatedOrder(result.order);
+        onClearCart();
+        setStep('success');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -358,6 +407,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setStep('checkout');
     setCreatedOrder(null);
     setHasConfirmedTransfer(false);
+    setCouponCode('');
+    setAppliedDiscount(0);
+    setCouponError(null);
+    setCouponSuccess(null);
+    setFormError(null);
     onClose();
   };
 
@@ -412,11 +466,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           {/* STEP 1: CHECKOUT FORM */}
           {step === 'checkout' && (
             <form onSubmit={handleSubmitOrder} className="space-y-6">
-              {submitError && (
-                <div className="p-3.5 rounded-xl bg-rose-50 border-2 border-rose-200 text-rose-700 text-xs font-bold">
-                  {submitError}
-                </div>
-              )}
               {shopGroupList.length > 1 && (
                 <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-semibold">
                   Giỏ hàng gồm {shopGroupList.length} gian hàng khác nhau — hệ thống sẽ tự tách thành {shopGroupList.length} mã đơn riêng để mỗi Shop xử lý độc lập.
@@ -716,21 +765,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               </div>
 
+              {formError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700 text-left">
+                  {formError}
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={handleCloseAll}
+                  onClick={() => {
+                    handleCloseAll();
+                    if (onBackToCart) onBackToCart();
+                  }}
                   className="flex-1 py-3 px-4 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-black text-xs transition-colors cursor-pointer"
                 >
                   {t('ecommerce.checkout.backToCart', 'Quay Lại Giỏ Hàng')}
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="flex-2 py-3 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 disabled:opacity-60 text-white font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
+                  disabled={isSubmitting || items.length === 0}
+                  className="flex-2 py-3 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
                 >
-                  <span>{isSubmitting ? 'Đang tạo đơn hàng...' : t('ecommerce.checkout.confirmOrder', 'Xác Nhận Đặt Hàng Ngay')}</span>
+                  <span>
+                    {isSubmitting
+                      ? locale === 'en'
+                        ? 'Processing Order...'
+                        : 'Đang Tạo Đơn Hàng...'
+                      : t('ecommerce.checkout.confirmOrder', 'Xác Nhận Đặt Hàng Ngay')}
+                  </span>
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -835,15 +899,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                     {/* QR Code */}
                     <div className="bg-white p-3 rounded-2xl border-2 border-blue-200 text-center shadow-xs flex flex-col items-center">
-                      <img
-                        src={`https://img.vietqr.io/image/MB-${encodeURIComponent(bankAccount.accountNumber)}-compact2.png?amount=${createdOrder.total_amount}&addInfo=${encodeURIComponent(bankAccount.transferContent)}&accountName=${encodeURIComponent(bankAccount.accountHolder)}`}
-                        alt={t('ecommerce.checkout.vietqrScanTitle', 'Mã QR Chuyển Khoản Ngân Hàng VietQR')}
-                        className="w-48 h-48 object-contain rounded-xl border border-slate-100"
-                        onError={(e) => {
-                          // Fallback if image fails to load
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
+                      {qrImgFailed ? (
+                        <div className="w-48 h-48 rounded-xl border border-amber-200 bg-amber-50 flex flex-col items-center justify-center p-3 text-center gap-1.5">
+                          <QrCode size={28} className="text-amber-600" />
+                          <span className="text-[11px] font-bold text-amber-900">
+                            {locale === 'en' ? 'Could not load VietQR image' : 'Không tải được ảnh VietQR'}
+                          </span>
+                          <span className="text-[10px] text-amber-700">
+                            {locale === 'en'
+                              ? 'Please copy the account number & transfer memo on the right.'
+                              : 'Vui lòng sao chép STK & nội dung chuyển khoản bên cạnh.'}
+                          </span>
+                        </div>
+                      ) : (
+                        <img
+                          src={`https://img.vietqr.io/image/MB-${encodeURIComponent(bankAccount.accountNumber)}-compact2.png?amount=${createdOrder.total_amount}&addInfo=${encodeURIComponent(bankAccount.transferContent)}&accountName=${encodeURIComponent(bankAccount.accountHolder)}`}
+                          alt={t('ecommerce.checkout.vietqrScanTitle', 'Mã QR Chuyển Khoản Ngân Hàng VietQR')}
+                          className="w-48 h-48 object-contain rounded-xl border border-slate-100"
+                          onError={() => setQrImgFailed(true)}
+                        />
+                      )}
                       <span className="text-[10px] text-slate-500 font-mono mt-2 block">
                         {t('ecommerce.checkout.vietqrScanInstruction', 'Quét bằng app ngân hàng bất kỳ (Vietcombank, MB, Techcombank...)')}
                       </span>

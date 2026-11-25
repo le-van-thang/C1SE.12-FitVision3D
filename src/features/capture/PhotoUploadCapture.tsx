@@ -123,10 +123,23 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
 
   const frontInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    return () => {
+      if (frontImage?.url && frontImage.url.startsWith("blob:")) {
+        URL.revokeObjectURL(frontImage.url);
+      }
+    };
+  }, [frontImage?.url]);
+
   const handleFrontFile = (file: File) => {
     if (!file.type.startsWith("image/")) return;
     const url = URL.createObjectURL(file);
-    setFrontImage({ file, url, name: file.name });
+    setFrontImage((prev) => {
+      if (prev?.url && prev.url.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.url);
+      }
+      return { file, url, name: file.name };
+    });
   };
 
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -313,7 +326,7 @@ export const PhotoUploadCapture: React.FC<PhotoUploadCaptureProps> = ({
           <p className="text-[11px] leading-snug text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1.5 font-medium">
             {t(
               "cap.calibNudge",
-              "Gợi ý: Nhập chiều cao & cân nặng để AI đo chuẩn dáng bạn hơn (có thể bỏ trống — tự dùng mức 172 cm · 68 kg)."
+              "Gợi ý: Nhập chiều cao & cân nặng để AI đo chuẩn dáng bạn hơn (có thể bỏ trống — tự dùng mức 172 cm · 70 kg)."
             )}
           </p>
         )}

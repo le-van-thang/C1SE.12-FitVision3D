@@ -343,43 +343,45 @@ export const FashionStoreHome: React.FC = () => {
     }
   });
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
-  const [selectedCartIds, setSelectedCartIds] = useState<string[]>(() =>
-    cartItems.map((ci) => ci.id)
-  );
+  const [selectedCartIds, setSelectedCartIds] = useState<string[]>([]);
   const [quickBuyItems, setQuickBuyItems] = useState<CartItem[] | null>(null);
   const [selectedSizeByProduct, setSelectedSizeByProduct] = useState<Record<string, string>>({});
 
   // Reload/clear cart whenever authenticated account changes or signs out
   useEffect(() => {
-    try {
-      localStorage.removeItem('fv3d_smart_cart_v1');
-    } catch {}
-    setQuickBuyItems(null);
-    setIsCheckoutModalOpen(false);
     if (!isAuthenticated || !currentUser?.id) {
       setCartItems([]);
       setSelectedCartIds([]);
+      setQuickBuyItems(null);
+      setIsCheckoutModalOpen(false);
       setIsCartOpen(false);
       return;
     }
     try {
+      localStorage.removeItem('fv3d_smart_cart_v1');
+      setQuickBuyItems(null);
+      setIsCheckoutModalOpen(false);
       const raw = localStorage.getItem(getCartStorageKey(currentUser.id));
       const parsed = raw ? JSON.parse(raw) : [];
-      const loaded: CartItem[] = Array.isArray(parsed) ? parsed : [];
-      setCartItems(loaded);
-      setSelectedCartIds(loaded.map((ci) => ci.id));
+      if (Array.isArray(parsed)) {
+        setCartItems(parsed);
+        setSelectedCartIds(parsed.map((ci: CartItem) => ci.id));
+        return;
+      }
     } catch {
-      setCartItems([]);
-      setSelectedCartIds([]);
+      // ignore corrupted cart storage
     }
+    setCartItems([]);
+    setSelectedCartIds([]);
   }, [isAuthenticated, currentUser?.id]);
 
   useEffect(() => {
-    if (!isAuthenticated || !currentUser?.id) return;
-    try {
-      localStorage.setItem(getCartStorageKey(currentUser.id), JSON.stringify(cartItems));
-    } catch {
-      // ignore storage quota errors
+    if (isAuthenticated && currentUser?.id) {
+      try {
+        localStorage.setItem(getCartStorageKey(currentUser.id), JSON.stringify(cartItems));
+      } catch {
+        // ignore storage quota errors
+      }
     }
     setSelectedCartIds((prev) => {
       const validIds = new Set(cartItems.map((ci) => ci.id));
@@ -618,9 +620,9 @@ export const FashionStoreHome: React.FC = () => {
     const targetVariant = variant || product.variants[0];
     if (!targetVariant || Number(targetVariant.stock ?? 0) <= 0) {
       showGlobalToast({
-        type: 'error',
-        title: locale === 'en' ? 'Out of stock' : 'Sản phẩm đã hết hàng',
-        message: `${getProductName(product)}${targetVariant ? ` (Size ${targetVariant.size_label})` : ''} hiện đang hết tồn kho.`,
+        type: 'warning',
+        title: locale === 'en' ? 'Out of Stock' : 'Sản phẩm tạm hết hàng',
+        message: `${getProductName(product)}${targetVariant ? ` (Size ${targetVariant.size_label})` : ''} hiện đã hết tồn kho.`,
       });
       return;
     }
@@ -663,8 +665,8 @@ export const FashionStoreHome: React.FC = () => {
       );
       if (existing) {
         selectedIdToActivate = existing.id;
-        const maxStock = Number(targetVariant.stock ?? 99);
-        const updatedExisting = { ...existing, quantity: Math.min(maxStock, existing.quantity + 1) };
+        const cappedQty = Math.min(Number(targetVariant.stock ?? 99), existing.quantity + 1);
+        const updatedExisting = { ...existing, quantity: cappedQty };
         const others = prev.filter((ci) => ci.id !== existing.id);
         return [updatedExisting, ...others];
       }
@@ -712,9 +714,9 @@ export const FashionStoreHome: React.FC = () => {
     const targetVariant = variant || product.variants[0];
     if (!targetVariant || Number(targetVariant.stock ?? 0) <= 0) {
       showGlobalToast({
-        type: 'error',
-        title: locale === 'en' ? 'Out of stock' : 'Sản phẩm đã hết hàng',
-        message: `${getProductName(product)} hiện đang hết hàng ở size đã chọn.`,
+        type: 'warning',
+        title: locale === 'en' ? 'Out of Stock' : 'Sản phẩm tạm hết hàng',
+        message: `${getProductName(product)}${targetVariant ? ` · Size ${targetVariant.size_label}` : ''} hiện đã hết tồn kho.`,
       });
       return;
     }
@@ -784,10 +786,12 @@ export const FashionStoreHome: React.FC = () => {
     ) {
       return;
     }
-    const toAdd = visibleCatalogProducts.filter((p) => productIds.includes(p.id));
+    const sourceCatalog = visibleCatalogProducts.length > 0 ? visibleCatalogProducts : MOCK_PRODUCTS;
+    const toAdd = sourceCatalog.filter((p) => productIds.includes(p.id));
     if (toAdd.length === 0) return;
 
-    const addedIds: string[] = [];
+    const addedOrUpdatedIds: string[] = [];
+
     setCartItems((prev) => {
       const next = [...prev];
       toAdd.forEach((product) => {
@@ -796,33 +800,36 @@ export const FashionStoreHome: React.FC = () => {
           product.variants.find((v) => v.size_label === fit.recommended_size && Number(v.stock ?? 0) > 0) ||
           product.variants.find((v) => Number(v.stock ?? 0) > 0);
         if (!recVariant) return;
+
         const existingIdx = next.findIndex(
           (ci) => ci.product.id === product.id && ci.variant.id === recVariant.id
         );
         if (existingIdx >= 0) {
           const maxStock = Number(recVariant.stock ?? 99);
-          next[existingIdx] = {
+          const updated = {
             ...next[existingIdx],
             quantity: Math.min(maxStock, next[existingIdx].quantity + 1),
           };
-          addedIds.push(next[existingIdx].id);
+          addedOrUpdatedIds.push(updated.id);
+          next[existingIdx] = updated;
         } else {
-          const createdId = `cart-${Date.now()}-${product.id}-${Math.random().toString(36).substr(2, 4)}`;
+          const newId = `cart-${Date.now()}-${product.id}-${Math.random().toString(36).substr(2, 4)}`;
+          addedOrUpdatedIds.push(newId);
           next.unshift({
-            id: createdId,
+            id: newId,
             product,
             variant: recVariant,
             quantity: 1,
             fit_score: fit.match_percentage,
             is_ai_recommended: recVariant.size_label === fit.recommended_size,
           });
-          addedIds.push(createdId);
         }
       });
       return next;
     });
-    if (addedIds.length > 0) {
-      setSelectedCartIds((prev) => Array.from(new Set([...addedIds, ...prev])));
+
+    if (addedOrUpdatedIds.length > 0) {
+      setSelectedCartIds((prev) => Array.from(new Set([...addedOrUpdatedIds, ...prev])));
     }
     setIsCartOpen(true);
   };
@@ -3318,7 +3325,10 @@ export const FashionStoreHome: React.FC = () => {
           }
         }}
         onAddSuggestedToCart={(comp, variant) => handleAddToCart(comp, variant, false, false)}
-        onOpenVirtualStudio={() => handleOpenVirtualStudio(analysisProduct || undefined)}
+        onOpenVirtualStudio={() => {
+          setIsAnalysisOpen(false);
+          handleOpenVirtualStudio(analysisProduct || undefined);
+        }}
       />
 
       <SmartCartDrawer
@@ -3341,8 +3351,16 @@ export const FashionStoreHome: React.FC = () => {
           setCartItems((prev) =>
             prev.map((i) => {
               if (i.id === id) {
-                const maxStock = Number(i.variant?.stock ?? 99);
-                const nextQ = Math.min(maxStock, i.quantity + delta);
+                const maxStock = Math.max(1, Number(i.variant?.stock ?? 1) || 1);
+                const nextQ = i.quantity + delta;
+                if (delta > 0 && nextQ > maxStock) {
+                  showGlobalToast({
+                    type: 'info',
+                    title: locale === 'en' ? 'Stock Limit Reached' : 'Đã đạt tối đa tồn kho',
+                    message: `Size ${i.variant.size_label} hiện chỉ còn ${maxStock} sản phẩm.`,
+                  });
+                  return { ...i, quantity: maxStock };
+                }
                 return nextQ > 0 ? { ...i, quantity: nextQ } : i;
               }
               return i;
@@ -3381,6 +3399,10 @@ export const FashionStoreHome: React.FC = () => {
           }
         }}
         userBody={userBody}
+        hasBodyProfile={hasBodyProfile}
+        onBackToCart={() => {
+          if (!quickBuyItems) setIsCartOpen(true);
+        }}
         onOpenMyOrders={() => {
           setIsCheckoutModalOpen(false);
           setProfileModalTab('orders');
@@ -3501,6 +3523,7 @@ export const FashionStoreHome: React.FC = () => {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         userBody={userBody}
+        hasBodyProfile={hasBodyProfile}
         onOpenBiometrics={() => setIsBiometricModalOpen(true)}
         initialTab={profileModalTab}
       />

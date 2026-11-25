@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Sparkles, Truck, RotateCcw } from 'lucide-react';
 import type { CartItem } from './types';
 import { useI18n } from '@/i18n';
@@ -33,6 +33,15 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
   onCheckout,
 }) => {
   const { t, locale } = useI18n();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -253,11 +262,11 @@ export const SmartCartDrawer: React.FC<SmartCartDrawerProps> = ({
                         </span>
                         <button
                           type="button"
-                          disabled={typeof item.variant.stock === 'number' && item.quantity >= item.variant.stock}
+                          disabled={item.quantity >= Math.max(1, item.variant.stock || 1)}
                           onClick={() => onUpdateQuantity(item.id, 1)}
                           title={
-                            typeof item.variant.stock === 'number' && item.quantity >= item.variant.stock
-                              ? `Tối đa ${item.variant.stock} sản phẩm trong kho`
+                            item.quantity >= Math.max(1, item.variant.stock || 1)
+                              ? (isEn ? 'Max stock reached' : 'Đã đạt tối đa tồn kho')
                               : undefined
                           }
                           className="w-6 h-6 flex items-center justify-center text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"

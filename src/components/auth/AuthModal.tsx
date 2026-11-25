@@ -310,8 +310,9 @@ export const AuthModal: React.FC = () => {
       return;
     }
 
+    const otpToSubmit = adminOtpRequired ? adminOtp.trim() : undefined;
     setLoading(true);
-    const res = await signIn(email, password, websiteTrap, adminOtpRequired ? adminOtp.trim() : undefined);
+    const res = await signIn(email, password, websiteTrap, otpToSubmit);
     setLoading(false);
 
     if (res.success) {

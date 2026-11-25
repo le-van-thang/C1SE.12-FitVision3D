@@ -67,7 +67,7 @@ export async function runAiMeasurement(params: {
   const { frontFile, height_cm, weight_kg, gender } = params;
 
   let lastError: unknown = null;
-  const maxRetries = 4;
+  const maxRetries = 2;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     for (const endpoint of AI_ENDPOINTS) {
@@ -186,23 +186,31 @@ export async function runAiMeasurement(params: {
           };
         } else {
           const errText = await res.text().catch(() => `HTTP ${res.status}`);
-          lastError = new Error(`AI Server trả lỗi (${res.status}): ${errText}`);
+          const clientErr = new Error(`Dữ liệu ảnh hoặc thông số chưa hợp lệ (${res.status}): ${errText}`);
+          // Do not retry deterministic 4xx client errors (except 408/429) across endpoints
+          if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+            throw clientErr;
+          }
+          lastError = clientErr;
         }
       } catch (err) {
+        if (err instanceof Error && err.message.startsWith("Dữ liệu ảnh hoặc thông số chưa hợp lệ")) {
+          throw err;
+        }
         lastError = err;
       }
     }
 
     if (attempt < maxRetries) {
       console.warn(
-        `[FitVision 3D] Đang chờ AI Model (Port 8000) khởi động... Thử lại lần ${attempt}/${maxRetries}`
+        `[FitVision 3D] Đang thử kết nối lại dịch vụ AI... Lần ${attempt}/${maxRetries}`
       );
-      await sleep(2500);
+      await sleep(1500);
     }
   }
 
   throw new Error(
-    `Không thể kết nối tới Model AI SMPLer-X (Port 8000). Chi tiết: ${
+    `Không thể kết nối tới dịch vụ đo 3D AI lúc này. ${
       lastError instanceof Error ? lastError.message : String(lastError)
     }`
   );

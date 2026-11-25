@@ -73,21 +73,37 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
   const [replyDraft, setReplyDraft] = useState<string>('');
 
   useEffect(() => {
-    if (product) {
-      setActiveImage(product.image_url);
-      setIsShowingVideo(false);
-      setOpenFaqIndex(0);
-      setLiveRating(product.rating);
-      setLiveReviewsCount(product.reviews_count);
-      setReviewComment('');
-      setReviewRating(5);
-      commerceApi.getProductReviews(product.id).then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setReviews(res.data);
-        }
-      });
+    if (!product) {
+      setReviews([]);
+      return;
     }
+    let active = true;
+    setActiveImage(product.image_url);
+    setIsShowingVideo(false);
+    setOpenFaqIndex(0);
+    setReviews([]);
+    setLiveRating(product.rating);
+    setLiveReviewsCount(product.reviews_count);
+    setReviewComment('');
+    setReviewRating(5);
+    commerceApi.getProductReviews(product.id).then((res) => {
+      if (active && res.success && Array.isArray(res.data)) {
+        setReviews(res.data);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [product?.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -424,43 +440,42 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
               </div>
             </div>
 
-            {/* 2. Match Score Card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white border border-emerald-500/25 shadow-2xs">
-              {hasBodyProfile ? (
-                <>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 size={18} className="text-emerald-600" />
-                      <span className="font-bold text-emerald-900 text-sm">
-                        {verdictLabel}
-                      </span>
-                    </div>
-                    <span className="font-mono text-xl font-black text-emerald-700">
-                      {fitResult.match_percentage}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                    {advisorAdvice}
-                  </p>
-                </>
-              ) : (
-                <div className="space-y-1">
+            {/* 2. Match Score Card (strictly guarded by hasBodyProfile to avoid leaking mock 172/96/78 data) */}
+            {hasBodyProfile ? (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white border border-emerald-500/25 shadow-2xs">
+                <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <Sparkles size={16} className="text-amber-600" />
-                    <span className="font-bold text-slate-900 text-xs">
-                      {isEn
-                        ? 'No personal 3D measurements saved yet'
-                        : 'Bạn chưa có số đo 3D cá nhân'}
+                    <CheckCircle2 size={18} className="text-emerald-600" />
+                    <span className="font-bold text-emerald-900 text-sm">
+                      {verdictLabel}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {isEn
-                      ? 'Scan 1 photo or enter your height/weight to get an accurate ISO 8559 size fit score instead of generic reference dimensions.'
-                      : 'Hãy quét 1 ảnh 3D hoặc nhập số đo cá nhân để hệ thống tính chính xác độ vừa vặn cho cơ thể thật của bạn.'}
-                  </p>
+                  <span className="font-mono text-xl font-black text-emerald-700">
+                    {fitResult.match_percentage}%
+                  </span>
                 </div>
-              )}
-            </div>
+                <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                  {advisorAdvice}
+                </p>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300/80 space-y-2 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-950 text-xs flex items-center gap-1.5">
+                    <Sparkles size={15} className="text-amber-600" />
+                    <span>{isEn ? 'Personal 3D Measurements Not Set' : 'Chưa có hồ sơ số đo 3D cá nhân'}</span>
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-amber-800 border border-amber-200">
+                    {isEn ? 'Needs Scan' : 'Cần quét 3D'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-900/90 leading-relaxed">
+                  {isEn
+                    ? 'Scan 1 photo or enter your height/weight to get accurate AI size recommendations instead of default estimates.'
+                    : 'Quét 1 ảnh 3D hoặc nhập số đo cơ thể để AI tính chính xác độ vừa vặn cho riêng bạn (không dùng số đo mẫu mặc định).'}
+                </p>
+              </div>
+            )}
 
             {/* 3. Multi-Color Selector + Size Selector + AI 3D Scan CTA */}
             <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3.5">
@@ -526,7 +541,13 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                       selectedVariant.stock > 0 ? 'text-emerald-700' : 'text-rose-600'
                     }`}
                   >
-                    {selectedVariant.stock > 0 ? `Còn ${selectedVariant.stock} sản phẩm` : 'Hết hàng'}
+                    {selectedVariant.stock > 0
+                      ? isEn
+                        ? `${selectedVariant.stock} in stock`
+                        : `Còn ${selectedVariant.stock} sản phẩm`
+                      : isEn
+                        ? 'Out of stock'
+                        : 'Tạm hết hàng'}
                   </span>
                 </div>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
@@ -549,7 +570,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                         }`}
                       >
                         {v.size_label}
-                        {isRecommended && (
+                        {isRecommended && !isOutOfStock && (
                           <span className="absolute -top-2 -right-1 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-extrabold rounded-full shadow-2xs">
                             AI
                           </span>
@@ -593,7 +614,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 </span>
               </h4>
 
-              {!isPants && (
+              {!isPants && hasBodyProfile && (
                 <>
                   <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/80 flex items-center justify-between text-xs">
                     <div>
@@ -959,7 +980,7 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                 <Plus size={15} />
                 <span>
                   {Number(selectedVariant.stock ?? 0) <= 0
-                    ? 'Hết hàng'
+                    ? (isEn ? 'Out of Stock' : 'Hết hàng')
                     : t('ecommerce.drawer.addToCartSize', 'Thêm vào giỏ ({size})').replace('{size}', selectedVariant.size_label)}
                 </span>
               </button>
@@ -974,11 +995,11 @@ export const FitAnalysisDrawer: React.FC<FitAnalysisDrawerProps> = ({
                   }
                   onClose();
                 }}
-                className="py-3 px-3.5 rounded-xl bg-[#14171C] hover:bg-blue-600 disabled:bg-slate-300 disabled:cursor-not-allowed active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="py-3 px-3.5 rounded-xl bg-[#14171C] hover:bg-blue-600 disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <span>
                   {Number(selectedVariant.stock ?? 0) <= 0
-                    ? 'Tạm hết hàng'
+                    ? (isEn ? 'Sold Out' : 'Tạm hết hàng')
                     : isEn
                       ? `Buy Now (${selectedVariant.size_label})`
                       : `Mua ngay (${selectedVariant.size_label})`}

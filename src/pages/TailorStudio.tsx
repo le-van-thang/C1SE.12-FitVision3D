@@ -242,24 +242,23 @@ export const TailorStudio: React.FC = () => {
         .filter((d): d is DossierRecord => d !== null);
 
       if (liveRecords.length > 0) {
-        const merged = [...liveRecords, ...DOSSIERS];
-        setDossiers(merged);
+        setDossiers(liveRecords);
         if (requestedOrderId) {
-          const hitIdx = merged.findIndex(
+          const hitIdx = liveRecords.findIndex(
             (d) => d.dossier_code.toLowerCase() === requestedOrderId.toLowerCase()
           );
           if (hitIdx >= 0) {
             setIdx(hitIdx);
-            setInputVal(merged[hitIdx].dossier_code);
+            setInputVal(liveRecords[hitIdx].dossier_code);
             setNotice({
               kind: "ok",
-              text: `Đã nạp số đo thật từ đơn hàng ${merged[hitIdx].dossier_code} · ${merged[hitIdx].profile.full_name}`,
+              text: `Đã nạp số đo thật từ đơn hàng ${liveRecords[hitIdx].dossier_code} · ${liveRecords[hitIdx].profile.full_name}`,
             });
             return;
           }
         }
         setIdx(0);
-        setInputVal(merged[0].dossier_code);
+        setInputVal(liveRecords[0].dossier_code);
       }
     })();
     return () => {
@@ -315,6 +314,13 @@ export const TailorStudio: React.FC = () => {
     setNotice(null);
   };
 
+  const toAsciiPdfText = (val: string) =>
+    String(val || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D");
+
   const exportPdf = () => {
     try {
       const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -323,9 +329,9 @@ export const TailorStudio: React.FC = () => {
       doc.text("FITVISION 3D - BESPOKE TECH PACK (ISO 8559-1)", 15, 20);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
-      doc.text(`Order / Dossier Code: ${dossier_code}`, 15, 32);
-      doc.text(`Customer: ${profile.full_name}`, 15, 39);
-      doc.text(`Contact / Notes: ${profile.email}`, 15, 46);
+      doc.text(`Order / Dossier Code: ${toAsciiPdfText(dossier_code)}`, 15, 32);
+      doc.text(`Customer: ${toAsciiPdfText(profile.full_name)}`, 15, 39);
+      doc.text(`Contact / Notes: ${toAsciiPdfText(profile.email)}`, 15, 46);
       doc.text(`Gender Base: ${mesh.base_gender_mesh} | Height: ${b.stature_cm} cm | Weight: ${b.weight_kg} kg | BMI: ${b.calculated_bmi ?? "-"}`, 15, 53);
 
       doc.setDrawColor(180);
@@ -712,7 +718,7 @@ export const TailorStudio: React.FC = () => {
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {dossiers.map((d, i) => (
                 <button
-                  key={d.profile.id}
+                  key={d.dossier_code}
                   id={`client-${i}`}
                   className={`zf-client ${i === idx ? "active" : ""}`}
                   onClick={() => pick(i)}

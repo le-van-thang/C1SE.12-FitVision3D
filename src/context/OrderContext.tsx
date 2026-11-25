@@ -86,7 +86,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const hasBespoke =
         input.has_bespoke_items ?? input.items.some((it) => Boolean(it.product?.is_bespoke));
 
-      const draftOrder: Order & { coupon_code?: string } = {
+      const newOrder: Order & { coupon_code?: string } = {
         id: orderId,
         customer_id: currentUser?.id || input.customer_id,
         customer_name: input.customer_name,
@@ -107,7 +107,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         estimated_delivery: new Date(Date.now() + 4 * 24 * 3600 * 1000).toLocaleDateString('vi-VN'),
       };
 
-      const res = await commerceApi.createOrder(draftOrder);
+      const res = await commerceApi.createOrder(newOrder);
       if (res.success && res.data) {
         const persisted = res.data;
         setOrders((prev) => [persisted, ...prev.filter((o) => o.id !== persisted.id)]);
@@ -120,23 +120,26 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { success: true, order: persisted };
       }
 
-      const errMsg = res.error?.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra tồn kho hoặc kết nối máy chủ.';
+      const errorMsg =
+        res.error?.code === 'NETWORK_ERROR'
+          ? 'Không thể kết nối máy chủ đặt hàng. Giỏ hàng của bạn vẫn được giữ nguyên, vui lòng thử lại.'
+          : res.error?.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại tồn kho sản phẩm.';
       showGlobalToast({
         type: 'error',
         title: 'Không thể tạo đơn hàng',
-        message: errMsg,
+        message: errorMsg,
       });
-      return { success: false, error: errMsg };
+      return { success: false, error: errorMsg };
     },
     [currentUser?.id]
   );
 
   const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
-    let previousStatus: OrderStatus | undefined;
+    let prevStatus: OrderStatus | undefined;
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id === orderId) {
-          previousStatus = o.status;
+          prevStatus = o.status;
           return { ...o, status };
         }
         return o;
@@ -147,9 +150,10 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setOrders((prev) => prev.map((o) => (o.id === orderId ? res.data! : o)));
         window.dispatchEvent(new Event('fv3d-membership-updated'));
       } else {
-        if (previousStatus) {
+        if (prevStatus) {
+          const rollbackStatus = prevStatus;
           setOrders((prev) =>
-            prev.map((o) => (o.id === orderId ? { ...o, status: previousStatus! } : o))
+            prev.map((o) => (o.id === orderId ? { ...o, status: rollbackStatus } : o))
           );
         }
         showGlobalToast({
@@ -162,11 +166,11 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const cancelOrder = useCallback((orderId: string) => {
-    let previousStatus: OrderStatus | undefined;
+    let prevStatus: OrderStatus | undefined;
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id === orderId) {
-          previousStatus = o.status;
+          prevStatus = o.status;
           return { ...o, status: 'cancelled' };
         }
         return o;
@@ -184,9 +188,10 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
         window.dispatchEvent(new Event('fv3d-membership-updated'));
       } else {
-        if (previousStatus) {
+        if (prevStatus) {
+          const rollbackStatus = prevStatus;
           setOrders((prev) =>
-            prev.map((o) => (o.id === orderId ? { ...o, status: previousStatus! } : o))
+            prev.map((o) => (o.id === orderId ? { ...o, status: rollbackStatus } : o))
           );
         }
         showGlobalToast({
