@@ -172,6 +172,8 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestEpochRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const hasVerifiedMeasurements = botId === 'customer' && isAuthenticated && hasBodyProfile && !!userBody;
   const floatingHints = isEn ? profile.floatingHintsEn : profile.floatingHintsVi;
@@ -186,8 +188,13 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialGreetingBubble()]);
 
-  // Strictly isolate conversation history when switching bot role, account, or language
+  // Strictly isolate conversation history & abort in-flight replies when switching role/account
   useEffect(() => {
+    requestEpochRef.current += 1;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsTyping(false);
+    setInputMessage('');
     setMessages([buildInitialGreetingBubble()]);
     setHintIndex(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,7 +222,8 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
   const callBotApi = async (
     query: string,
     historyPayload: Array<{ role: 'user' | 'model'; text: string }>,
-    token: string | null
+    token: string | null,
+    signal?: AbortSignal
   ) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) {
@@ -238,6 +246,7 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
       method: 'POST',
       headers,
       credentials: 'include',
+      signal,
       body: JSON.stringify({
         query,
         locale: isEn ? 'en' : 'vi',
@@ -249,7 +258,8 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
 
   const generateAssistantReply = async (
     query: string,
-    priorMessages: ChatMessage[]
+    priorMessages: ChatMessage[],
+    signal?: AbortSignal
   ): Promise<string> => {
     const historyPayload = priorMessages
       .filter((m) => !m.id.startsWith('welcome-'))
@@ -261,7 +271,7 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
 
     try {
       let token = getAccessToken();
-      let res = await callBotApi(query, historyPayload, token);
+      let res = await callBotApi(query, historyPayload, token, signal);
 
       // If access token expired, attempt silent refresh once and retry
       if (res.status === 401 && isAuthenticated) {
@@ -269,7 +279,7 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
         if (refreshed.success && refreshed.data?.accessToken) {
           setAccessToken(refreshed.data.accessToken);
           token = refreshed.data.accessToken;
-          res = await callBotApi(query, historyPayload, token);
+          res = await callBotApi(query, historyPayload, token, signal);
         }
       }
 
@@ -324,6 +334,11 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
     const query = (customQuery ?? inputMessage).trim();
     if (!query || isTyping) return;
 
+    const epoch = requestEpochRef.current;
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const priorSnapshot = [...messages];
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -337,7 +352,8 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
     setIsTyping(true);
 
     try {
-      const reply = await generateAssistantReply(query, priorSnapshot);
+      const reply = await generateAssistantReply(query, priorSnapshot, controller.signal);
+      if (epoch !== requestEpochRef.current || controller.signal.aborted) return;
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
@@ -346,6 +362,7 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch {
+      if (epoch !== requestEpochRef.current || controller.signal.aborted) return;
       setMessages((prev) => [
         ...prev,
         {
@@ -358,7 +375,9 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
         },
       ]);
     } finally {
-      setIsTyping(false);
+      if (epoch === requestEpochRef.current) {
+        setIsTyping(false);
+      }
     }
   };
 
@@ -370,7 +389,7 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
     <>
       {/* ── FLOATING ICON LAUNCHER + ROLE SUGGESTION PILL ── */}
       {!isOpen && (
-        <div className="gemini-assistant-container fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2 pointer-events-auto">
+        <div className="gemini-assistant-container fixed bottom-20 md:bottom-5 right-4 md:right-5 z-40 flex flex-col items-end gap-2 pointer-events-auto">
           {showFloatingHint && (
             <div className="relative flex items-center gap-1.5 mr-2 animate-in fade-in slide-in-from-bottom-1 duration-300">
               <button
@@ -416,10 +435,10 @@ export const GeminiAssistantWidget: React.FC<GeminiAssistantWidgetProps> = ({
       {/* ── ROLE-SPECIFIC ASSISTANT CHAT WINDOW ── */}
       {isOpen && (
         <div
-          className={`gemini-assistant-container fixed z-40 transition-all duration-200 ease-out flex flex-col bg-white border border-slate-200/90 text-slate-900 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)] rounded-3xl overflow-hidden font-sans ${
+          className={`gemini-assistant-container fixed z-[60] transition-all duration-200 ease-out flex flex-col bg-white border border-slate-200/90 text-slate-900 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)] rounded-3xl overflow-hidden font-sans ${
             isExpanded
               ? 'inset-4 sm:inset-10 md:inset-x-28 md:inset-y-10'
-              : 'bottom-5 right-4 sm:right-5 w-[92vw] sm:w-[400px] h-[565px] max-h-[82vh]'
+              : 'bottom-20 md:bottom-5 right-4 sm:right-5 w-[92vw] sm:w-[400px] h-[565px] max-h-[82vh]'
           }`}
         >
           {/* Header */}

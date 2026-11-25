@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Navbar } from "../components/common/Navbar";
 import { LoginRequiredDialog } from "../components/common/LoginRequiredDialog";
+import { showGlobalToast } from "../components/common/GlobalToastHost";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { PhotoUploadCapture } from "../features/capture/PhotoUploadCapture";
@@ -78,11 +79,28 @@ export const Dashboard: React.FC = () => {
   const [tab, setTab] = useState<Tab>("capture");
   const [activeMetric, setActiveMetric] = useState<MetricKey>("chest_circ_cm");
 
-  // Restore last saved scan snapshot for this authenticated account when returning to Dashboard
+  // Strictly clear/isolate biometric & 3D mesh state on logout or user switch
   useEffect(() => {
-    if (!isAuthenticated || !currentUser?.id) return;
+    const clearViewerState = () => {
+      setMeasurement(null);
+      setBiometric(null);
+      setMesh(null);
+      setGarmentRec(null);
+      setAudit(null);
+    };
+
+    if (!isAuthenticated || !currentUser?.id) {
+      clearViewerState();
+      return;
+    }
+
+    let active = true;
     const applySnapshot = (saved: ReturnType<typeof loadFullScanSnapshot>) => {
-      if (!saved) return;
+      if (!active) return;
+      if (!saved) {
+        clearViewerState();
+        return;
+      }
       setMeasurement(saved.measurement);
       setBiometric(saved.biometric);
       setMesh(saved.mesh);
@@ -93,8 +111,12 @@ export const Dashboard: React.FC = () => {
 
     applySnapshot(loadFullScanSnapshot(currentUser.id));
     void hydrateBodyProfileFromBackend(currentUser.id).then((remote) => {
-      if (remote) applySnapshot(remote);
+      if (active && remote) applySnapshot(remote);
     });
+
+    return () => {
+      active = false;
+    };
   }, [isAuthenticated, currentUser?.id]);
 
   // Handle Photo Scan from Phone / Disk (Single Front A-Pose Image)
@@ -109,17 +131,38 @@ export const Dashboard: React.FC = () => {
         setLockedFeature(t("app.dash.featMeasure", "Đo 3D với Model AI SMPLer-X"));
         return;
       }
+
+      // Normalize meters (e.g. 1.72 -> 172) and validate BEFORE sending to AI service
+      let normalizedHeight = Number(params.height_cm) || 172;
+      if (normalizedHeight > 0 && normalizedHeight < 3.0) {
+        normalizedHeight = Math.round(normalizedHeight * 100.0 * 10) / 10;
+      }
+      const normalizedWeight = Number(params.weight_kg) || 70;
+      if (normalizedHeight < 100 || normalizedHeight > 250 || normalizedWeight < 30 || normalizedWeight > 250) {
+        showGlobalToast({
+          type: "error",
+          title: "Thông số chiều cao / cân nặng chưa hợp lệ",
+          message: "Vui lòng nhập chiều cao từ 100–250 cm (hoặc 1.0–2.5 m) và cân nặng từ 30–250 kg.",
+        });
+        return;
+      }
+
+      const normalizedParams = {
+        ...params,
+        height_cm: normalizedHeight,
+        weight_kg: normalizedWeight,
+      };
+
       const t0 = performance.now();
       setProcessing(true);
 
       try {
-        const res = await runAiMeasurement(params);
+        const res = await runAiMeasurement(normalizedParams);
         const elapsed = (performance.now() - t0) / 1000;
 
         const meas = res.iso_8559_measurements;
-        let h = params.height_cm || meas.chieu_cao_cm || 172;
-        if (h > 0 && h < 3.0) h = Math.round(h * 100.0 * 10) / 10;
-        const w = params.weight_kg || meas.can_nang_kg || 70;
+        const h = normalizedHeight;
+        const w = normalizedWeight;
         const calcBmi = bmi(w, h);
 
         // Anthropometric scaling for 3D Mannequin
@@ -158,7 +201,7 @@ export const Dashboard: React.FC = () => {
 
         const newMeasurement: Measurement = {
           id: `meas-${Date.now()}`,
-          user_id: "usr-current",
+          user_id: currentUser?.id || "usr-current",
           input_id: `inp-${Date.now()}`,
           chest_circ_cm: meas.vong_nguc_cm,
           waist_circ_cm: meas.vong_eo_cm,
@@ -177,7 +220,7 @@ export const Dashboard: React.FC = () => {
 
         const newBiometric: BiometricInput = {
           id: `bio-${Date.now()}`,
-          user_id: "usr-current",
+          user_id: currentUser?.id || "usr-current",
           stature_cm: h,
           weight_kg: w,
           gender: params.gender === "male" ? "male" : params.gender === "female" ? "female" : "other",
@@ -222,11 +265,14 @@ export const Dashboard: React.FC = () => {
         setTab("mesh");
       } catch (err) {
         console.error("Lỗi trích xuất đo đạc:", err);
-        alert(
-          err instanceof Error
-            ? err.message
-            : "Không thể kết nối tới Model AI (Port 8000). Vui lòng kiểm tra AI Server!"
-        );
+        showGlobalToast({
+          type: "error",
+          title: "Không thể phân tích ảnh 3D",
+          message:
+            err instanceof Error
+              ? err.message
+              : "Dịch vụ AI xử lý hình ảnh hiện đang bận. Vui lòng thử lại sau ít phút.",
+        });
       } finally {
         setProcessing(false);
       }
@@ -252,7 +298,7 @@ export const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-[#F7F7F5] text-[#14161A] font-sans flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
       <Navbar />
 
-      <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8" id="dashboard-main">
+      <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-20 lg:pb-8" id="dashboard-main">
         {/* Top Header & Audit Badges (Sáng sủa, thời thượng, tương phản cao) */}
         <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-5 border-b-2 border-slate-200">
           <div>
@@ -306,7 +352,7 @@ export const Dashboard: React.FC = () => {
         {/* 3-Column Studio Grid (3 cột bằng nhau 1/3 - 1/3 - 1/3 & cao đều nhau) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* COLUMN 1: Photo Upload & Biometrics Studio */}
-          <section className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "capture" ? "tab-active" : ""}`} aria-label="Photo Studio">
+          <section className={`lg:col-span-4 min-w-0 flex-col ${tab === "capture" ? "flex tab-active" : "hidden lg:flex"}`} aria-label="Photo Studio">
             <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-4 hover:border-slate-400 transition-all flex flex-col">
               <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100">
                 <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
@@ -328,7 +374,7 @@ export const Dashboard: React.FC = () => {
           </section>
 
           {/* COLUMN 2: 3D Humanoid Wireframe Topology Viewport */}
-          <section className={`lg:col-span-4 min-w-0 flex flex-col relative z-0 isolate ${tab === "mesh" ? "tab-active" : ""}`} aria-label="3D Mesh preview">
+          <section className={`lg:col-span-4 min-w-0 flex-col relative z-0 isolate ${tab === "mesh" ? "flex tab-active" : "hidden lg:flex"}`} aria-label="3D Mesh preview">
             <div className="h-full rounded-3xl border-2 border-slate-300 bg-white p-5 shadow-sm space-y-3 hover:border-slate-400 transition-all relative z-0 isolate flex flex-col">
               <div className="flex items-center justify-between pb-3 border-b-2 border-slate-100">
                 <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
@@ -359,7 +405,7 @@ export const Dashboard: React.FC = () => {
 
           {/* COLUMN 3: ISO 8559 Measurements (Compact 1-column list + Quick Actions) */}
           <section
-            className={`lg:col-span-4 min-w-0 flex flex-col ${tab === "metrics" ? "tab-active" : ""}`}
+            className={`lg:col-span-4 min-w-0 flex-col ${tab === "metrics" ? "flex tab-active" : "hidden lg:flex"}`}
             aria-label="Measurements and recommendations"
           >
             {locked ? (
@@ -526,22 +572,28 @@ export const Dashboard: React.FC = () => {
       />
 
       {/* Mobile Bottom Tab Navigation */}
-      <nav className="zf-tabs no-print" aria-label="View selector">
+      <nav
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] grid grid-cols-3 no-print"
+        aria-label="View selector"
+      >
         {(
           [
-            ["capture", t("app.dash.tabUpload"), ScanLine],
-            ["mesh", t("app.dash.tabMesh"), Box],
-            ["metrics", t("app.dash.tabMetrics"), ListChecks],
+            ["capture", t("app.dash.tabUpload", "Tải ảnh"), ScanLine],
+            ["mesh", t("app.dash.tabMesh", "Mẫu 3D"), Box],
+            ["metrics", t("app.dash.tabMetrics", "Số đo"), ListChecks],
           ] as const
         ).map(([k, label, Icon]) => (
           <button
             key={k}
-            className={tab === k ? "active" : ""}
+            type="button"
+            className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-bold transition-colors cursor-pointer ${
+              tab === k ? "text-blue-600 bg-blue-50/70" : "text-slate-500 hover:text-slate-800"
+            }`}
             onClick={() => setTab(k)}
             id={`tab-${k}`}
           >
-            <Icon size={18} strokeWidth={1.5} />
-            {label}
+            <Icon size={18} strokeWidth={1.8} />
+            <span>{label}</span>
           </button>
         ))}
       </nav>
