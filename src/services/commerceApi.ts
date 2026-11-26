@@ -342,13 +342,20 @@ export const commerceApi = {
     });
   },
 
+  requestShopBankOtp() {
+    return commerceRequest<{ sent: boolean; maskedEmail: string; expiresInSeconds: number; devOtp?: string }>(
+      '/shop/bank-account/request-otp',
+      { method: 'POST' }
+    );
+  },
+
   updateShopBankAccount(payload: {
     bankCode: string;
     bankName: string;
     accountNumber: string;
     accountHolderName: string;
     currentPassword?: string;
-    confirmEmail?: string;
+    otpCode?: string;
   }) {
     return commerceRequest<DbShopBankAccount>('/shop/bank-account', {
       method: 'PATCH',

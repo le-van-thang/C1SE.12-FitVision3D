@@ -290,10 +290,13 @@ export const authApi = {
 
   // 11. Đổi / Tạo mật khẩu cho tài khoản đang đăng nhập
   async changePassword(data: { currentPassword?: string; newPassword: string; confirmNewPassword: string }) {
-    return request<{ message: string }>('/change-password', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return request<{ message: string; createdFirstPassword?: boolean; authProvider?: 'google' | 'password' }>(
+      '/change-password',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
   },
 
   // 12. Đăng xuất khỏi tất cả thiết bị

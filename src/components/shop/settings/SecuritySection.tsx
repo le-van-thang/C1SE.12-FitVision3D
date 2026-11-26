@@ -6,15 +6,16 @@ import { useI18n } from '@/i18n';
 
 interface SecuritySectionProps {
   isGoogleAccount: boolean;
+  onReloadDashboard: () => Promise<void> | void;
   onSignedOutAll: () => Promise<void> | void;
 }
 
 export const SecuritySection: React.FC<SecuritySectionProps> = ({
   isGoogleAccount,
+  onReloadDashboard,
   onSignedOutAll,
 }) => {
-  const { t, locale } = useI18n();
-  const isEn = locale === 'en';
+  const { t } = useI18n();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -25,18 +26,17 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isGoogleAccount) return;
     if (newPassword !== confirmNewPassword) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Passwords do not match' : 'Mật khẩu xác nhận không khớp',
+        title: t('shopSettings.passMismatchTitle'),
         message: '',
       });
       return;
     }
     setIsChangingPassword(true);
     const res = await authApi.changePassword({
-      currentPassword,
+      ...(isGoogleAccount ? {} : { currentPassword }),
       newPassword,
       confirmNewPassword,
     });
@@ -48,13 +48,14 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
       setConfirmNewPassword('');
       showGlobalToast({
         type: 'success',
-        title: isEn ? 'Password updated' : 'Cập nhật mật khẩu thành công',
+        title: t('shopSettings.passUpdatedTitle'),
         message: res.data?.message || '',
       });
+      void onReloadDashboard();
     } else {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Password update failed' : 'Đổi mật khẩu thất bại',
+        title: t('shopSettings.passUpdateFailedTitle'),
         message: res.error?.message || '',
       });
     }
@@ -68,14 +69,14 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
     if (res.success) {
       showGlobalToast({
         type: 'success',
-        title: isEn ? 'Signed out of all devices' : 'Đã đăng xuất toàn bộ thiết bị',
+        title: t('shopSettings.logoutAllDoneTitle'),
         message: res.data?.message || '',
       });
       await onSignedOutAll();
     } else {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Action failed' : 'Thao tác thất bại',
+        title: t('shopSettings.actionFailedTitle'),
         message: res.error?.message || '',
       });
     }
@@ -97,67 +98,63 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
         {isGoogleAccount && (
           <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200 flex items-start gap-2.5 text-xs text-blue-950">
             <ShieldCheck size={16} className="text-blue-600 shrink-0 mt-0.5" />
-            <p className="leading-relaxed font-medium">{t('shopSettings.googlePassDisabledNotice')}</p>
+            <p className="leading-relaxed font-medium">{t('shopSettings.googlePassCreateNotice')}</p>
           </div>
         )}
 
-        <div
-          className={`grid grid-cols-1 md:grid-cols-3 gap-4 transition-opacity ${
-            isGoogleAccount ? 'opacity-45 pointer-events-none select-none' : ''
-          }`}
-        >
-          <div>
-            <label className="text-xs font-bold text-slate-800 block mb-1.5">{t('shopSettings.curPassLabel')}</label>
-            <input
-              required={!isGoogleAccount}
-              disabled={isGoogleAccount}
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder={t('shopSettings.curPassPlaceholder')}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white disabled:bg-slate-100 text-xs text-slate-950 outline-none focus:border-slate-950"
-            />
-          </div>
+        <div className={`grid grid-cols-1 ${isGoogleAccount ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
+          {!isGoogleAccount && (
+            <div>
+              <label className="text-xs font-bold text-slate-800 block mb-1.5">{t('shopSettings.curPassLabel')}</label>
+              <input
+                required
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder={t('shopSettings.curPassPlaceholder')}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-950 outline-none focus:border-slate-950"
+              />
+            </div>
+          )}
           <div>
             <label className="text-xs font-bold text-slate-800 block mb-1.5">{t('shopSettings.newPassLabel')}</label>
             <input
-              required={!isGoogleAccount}
-              disabled={isGoogleAccount}
+              required
               type="password"
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder={t('shopSettings.newPassPlaceholder')}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white disabled:bg-slate-100 text-xs text-slate-950 outline-none focus:border-slate-950"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-950 outline-none focus:border-slate-950"
             />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-800 block mb-1.5">{t('shopSettings.confirmPassLabel')}</label>
             <input
-              required={!isGoogleAccount}
-              disabled={isGoogleAccount}
+              required
               type="password"
               autoComplete="new-password"
               value={confirmNewPassword}
               onChange={(e) => setConfirmNewPassword(e.target.value)}
               placeholder={t('shopSettings.confirmPassPlaceholder')}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white disabled:bg-slate-100 text-xs text-slate-950 outline-none focus:border-slate-950"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-950 outline-none focus:border-slate-950"
             />
           </div>
         </div>
 
-        <div
-          className={`flex justify-end pt-2 border-t border-slate-100 ${
-            isGoogleAccount ? 'opacity-45 pointer-events-none select-none' : ''
-          }`}
-        >
+        <div className="flex justify-end pt-2 border-t border-slate-100">
           <button
             type="submit"
-            disabled={isChangingPassword || isGoogleAccount}
+            disabled={isChangingPassword}
             className="px-5 py-2.5 rounded-xl bg-[#14171C] hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed transition-colors"
           >
-            <Lock size={14} /> {isChangingPassword ? t('shopSettings.updatingPassBtn') : t('shopSettings.updatePassBtn')}
+            <Lock size={14} />{' '}
+            {isChangingPassword
+              ? t('shopSettings.updatingPassBtn')
+              : isGoogleAccount
+                ? t('shopSettings.createPassBtn')
+                : t('shopSettings.updatePassBtn')}
           </button>
         </div>
       </form>

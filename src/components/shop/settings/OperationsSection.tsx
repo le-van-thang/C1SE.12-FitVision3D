@@ -25,7 +25,6 @@ export const OperationsSection: React.FC<OperationsSectionProps> = ({
   onReloadDashboard,
 }) => {
   const { t, locale } = useI18n();
-  const isEn = locale === 'en';
 
   const [operationalMode, setOperationalMode] = useState<'ACTIVE' | 'VACATION'>(
     shop.operational_mode === 'VACATION' ? 'VACATION' : 'ACTIVE'
@@ -58,14 +57,14 @@ export const OperationsSection: React.FC<OperationsSectionProps> = ({
       onShopUpdated(res.data);
       showGlobalToast({
         type: 'success',
-        title: isEn ? 'Operation settings saved!' : 'Đã lưu Cài Đặt Vận Hành!',
+        title: t('shopSettings.operationsSavedTitle'),
         message: '',
       });
       void onReloadDashboard();
     } else {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Update failed' : 'Cập nhật thất bại',
+        title: t('shopSettings.updateFailedTitle'),
         message: res.error?.message || '',
       });
     }

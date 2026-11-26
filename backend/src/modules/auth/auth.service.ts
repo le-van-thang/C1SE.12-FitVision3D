@@ -511,7 +511,7 @@ export const authService = {
   },
 
   /**
-   * Đổi mật khẩu cho tài khoản đang đăng nhập (tự động thu hồi toàn bộ phiên cũ)
+   * Đổi mật khẩu hoặc tạo mật khẩu lần đầu cho tài khoản Google (tự động thu hồi toàn bộ phiên cũ)
    */
   async changePassword(
     userId: string,
@@ -522,32 +522,32 @@ export const authService = {
       throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản.');
     }
 
-    if (isGoogleOAuthHash(user.password_hash)) {
-      throw new AppError(
-        403,
-        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
-        'Tài khoản đang đăng nhập bằng Google. Vui lòng quản lý mật khẩu trực tiếp tại Tài khoản Google của bạn.'
-      );
-    }
+    const isFirstTimeGooglePassword = isGoogleOAuthHash(user.password_hash);
 
-    if (!dto.currentPassword || !dto.currentPassword.trim()) {
-      throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Vui lòng nhập mật khẩu hiện tại.');
-    }
-    const isMatch = await verifyPassword(dto.currentPassword, user.password_hash);
-    if (!isMatch) {
-      throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
-    }
-    if (dto.currentPassword === dto.newPassword) {
-      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
+    if (!isFirstTimeGooglePassword) {
+      if (!dto.currentPassword || !dto.currentPassword.trim()) {
+        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Vui lòng nhập mật khẩu hiện tại.');
+      }
+      const isMatch = await verifyPassword(dto.currentPassword, user.password_hash);
+      if (!isMatch) {
+        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
+      }
+      if (dto.currentPassword === dto.newPassword) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
+      }
     }
 
     const newHash = await hashPassword(dto.newPassword);
     await authRepository.updatePassword(user.email, newHash);
-    // Thu hồi toàn bộ Refresh Token cũ trên các thiết bị khác sau khi đổi mật khẩu
+    // Thu hồi toàn bộ Refresh Token cũ trên các thiết bị khác sau khi đổi/tạo mật khẩu
     const revokedSessions = await authRepository.revokeAllUserTokens(user.id);
     return {
       revokedSessions,
-      message: 'Đổi mật khẩu thành công! Các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi.',
+      createdFirstPassword: isFirstTimeGooglePassword,
+      authProvider: 'password' as const,
+      message: isFirstTimeGooglePassword
+        ? 'Thiết lập mật khẩu đăng nhập thành công! Bạn có thể dùng mật khẩu này cho các lần đăng nhập và xác thực bảo mật tiếp theo.'
+        : 'Đổi mật khẩu thành công! Các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi.',
     };
   },
 

@@ -24,8 +24,7 @@ export const PaymentTaxSection: React.FC<PaymentTaxSectionProps> = ({
   onBankUpdated,
   onReloadDashboard,
 }) => {
-  const { t, locale } = useI18n();
-  const isEn = locale === 'en';
+  const { t } = useI18n();
 
   const [bankCode, setBankCode] = useState(bankAccount?.bank_code || VIETNAM_BANKS[0].code);
   const [bankName, setBankName] = useState(bankAccount?.bank_name || VIETNAM_BANKS[0].name);
@@ -34,8 +33,19 @@ export const PaymentTaxSection: React.FC<PaymentTaxSectionProps> = ({
     bankAccount?.account_holder_name || shop.legal_representative_name || ''
   );
   const [verifyPassword, setVerifyPassword] = useState('');
-  const [confirmGoogleEmail, setConfirmGoogleEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setOtpCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [otpCooldown]);
 
   useEffect(() => {
     if (bankAccount) {
@@ -46,13 +56,37 @@ export const PaymentTaxSection: React.FC<PaymentTaxSectionProps> = ({
     }
   }, [bankAccount]);
 
+  const handleRequestBankOtp = async () => {
+    if (isSendingOtp || otpCooldown > 0) return;
+    setIsSendingOtp(true);
+    const res = await commerceApi.requestShopBankOtp();
+    setIsSendingOtp(false);
+    if (res.success && res.data) {
+      setOtpSentTo(res.data.maskedEmail);
+      setOtpCooldown(60);
+      showGlobalToast({
+        type: 'info',
+        title: t('shopSettings.bankOtpSentTitle'),
+        message: res.data.devOtp
+          ? `${t('shopSettings.bankOtpSentMsg')} (DEV OTP: ${res.data.devOtp})`
+          : `${res.data.maskedEmail} — ${t('shopSettings.bankOtpSentMsg')}`,
+      });
+    } else {
+      showGlobalToast({
+        type: 'error',
+        title: t('shopSettings.bankOtpSendFailedTitle'),
+        message: res.error?.message || '',
+      });
+    }
+  };
+
   const handleSaveBank = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isGoogleAccount) {
-      if (!confirmGoogleEmail.trim()) {
+      if (!/^\d{6}$/.test(otpCode.trim())) {
         showGlobalToast({
           type: 'warning',
-          title: isEn ? 'Google email required' : 'Vui lòng nhập Email Google xác nhận',
+          title: t('shopSettings.bankOtpRequiredTitle'),
           message: '',
         });
         return;
@@ -60,7 +94,7 @@ export const PaymentTaxSection: React.FC<PaymentTaxSectionProps> = ({
     } else if (!verifyPassword.trim()) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Password required' : 'Thiếu mật khẩu xác thực',
+        title: t('shopSettings.bankPasswordRequiredTitle'),
         message: '',
       });
       return;
@@ -73,7 +107,7 @@ export const PaymentTaxSection: React.FC<PaymentTaxSectionProps> = ({
       accountNumber: accountNumber.trim(),
       accountHolderName: accountHolderName.trim(),
       ...(isGoogleAccount
-        ? { confirmEmail: confirmGoogleEmail.trim() }
+        ? { otpCode: otpCode.trim() }
         : { currentPassword: verifyPassword }),
     });
     setIsSaving(false);
@@ -81,19 +115,18 @@ export const PaymentTaxSection: React.FC<PaymentTaxSectionProps> = ({
     if (res.success && res.data) {
       onBankUpdated(res.data);
       setVerifyPassword('');
-      setConfirmGoogleEmail('');
+      setOtpCode('');
+      setOtpSentTo(null);
       showGlobalToast({
         type: 'success',
-        title: isEn ? 'Bank account updated!' : 'Đã cập nhật tài khoản Ngân hàng!',
-        message: isEn
-          ? `KYC name match verified (${Math.round(res.data.name_match_score)}%).`
-          : `Đã đối chiếu khớp KYC (${Math.round(res.data.name_match_score)}%) với tên chủ Shop.`,
+        title: t('shopSettings.bankUpdatedTitle'),
+        message: `${t('shopSettings.bankUpdatedMsg')} (${Math.round(res.data.name_match_score)}%)`,
       });
       void onReloadDashboard();
     } else {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Bank update failed' : 'Không thể cập nhật ngân hàng',
+        title: t('shopSettings.bankUpdateFailedTitle'),
         message: res.error?.message || '',
       });
     }
@@ -217,16 +250,37 @@ export const PaymentTaxSection: React.FC<PaymentTaxSectionProps> = ({
             <div>
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1.5">
                 <Mail size={13} className="text-blue-600" />
-                {isEn ? 'Confirm Google Login Email *' : 'Nhập lại Email Google để xác nhận *'}
+                {t('shopSettings.bankOtpLabel')}
               </label>
-              <input
-                required
-                type="email"
-                value={confirmGoogleEmail}
-                onChange={(e) => setConfirmGoogleEmail(e.target.value)}
-                placeholder={userEmail || 'email@gmail.com'}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-blue-300 bg-blue-50/40 text-xs text-slate-950 outline-none focus:border-slate-950"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  required
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  placeholder={t('shopSettings.bankOtpPlaceholder')}
+                  className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border border-blue-300 bg-blue-50/40 text-xs font-mono tracking-widest text-slate-950 outline-none focus:border-slate-950"
+                />
+                <button
+                  type="button"
+                  disabled={isSendingOtp || otpCooldown > 0 || !isApproved}
+                  onClick={() => void handleRequestBankOtp()}
+                  className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+                >
+                  {isSendingOtp
+                    ? t('shopSettings.bankSendingOtpBtn')
+                    : otpCooldown > 0
+                      ? `${otpCooldown}s`
+                      : t('shopSettings.bankSendOtpBtn')}
+                </button>
+              </div>
+              {otpSentTo && (
+                <p className="text-[11px] text-blue-700 font-medium mt-1">
+                  {otpSentTo} {userEmail ? '' : ''}
+                </p>
+              )}
             </div>
           ) : (
             <div>

@@ -346,6 +346,25 @@ export const commerceController = {
     }
   },
 
+  async requestShopBankOtp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập tài khoản Shop.');
+      }
+      const result = await commerceRepository.requestShopBankChangeOtp(userId);
+      sendSuccess(res, result);
+    } catch (err: any) {
+      if (err instanceof AppError) {
+        return next(err);
+      }
+      if (err?.message) {
+        return next(new AppError(400, ErrorCode.VALIDATION_FAILED, err.message));
+      }
+      next(err);
+    }
+  },
+
   async updateShopBankAccount(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.sub;

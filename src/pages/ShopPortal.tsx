@@ -45,7 +45,15 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
 import { ShopSettingsTab } from '@/components/shop/ShopSettingsTab';
 import { ShopProductEditModal } from '@/components/shop/ShopProductEditModal';
-import { addCustomColorWithoutToggle, formatPrepTimeLabel } from '@/components/shop/settings/shopSettingsHelpers';
+import {
+  addCustomColorWithoutToggle,
+  compressImageToDataUrl,
+  formatPrepTimeLabel,
+  isValidProductVideoUrl,
+  isValidShopImageUrl,
+  parseStockDraft,
+  sanitizeStockInput,
+} from '@/components/shop/settings/shopSettingsHelpers';
 import {
   commerceApi,
   type DbProduct,
@@ -258,13 +266,13 @@ export const ShopPortal: React.FC = () => {
   const [customColorHex, setCustomColorHex] = useState('#1E3A8A');
   const [customColorName, setCustomColorName] = useState('Xanh Navy');
   const [selectedSizes, setSelectedSizes] = useState<('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[]>(['S', 'M', 'L', 'XL']);
-  const [sizeStockMap, setSizeStockMap] = useState<Record<string, number>>({
-    XS: 10,
-    S: 20,
-    M: 30,
-    L: 30,
-    XL: 20,
-    XXL: 10,
+  const [sizeStockMap, setSizeStockMap] = useState<Record<string, string>>({
+    XS: '10',
+    S: '20',
+    M: '30',
+    L: '30',
+    XL: '20',
+    XXL: '10',
   });
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoFileName, setNewVideoFileName] = useState('');
@@ -505,24 +513,29 @@ export const ShopPortal: React.FC = () => {
     });
   };
 
-  const handlePrimaryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePrimaryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      showGlobalToast({ type: 'error', title: 'Invalid image', message: 'JPG / PNG / WebP only.' });
+    if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) {
+      showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: 'JPG / PNG / WebP' });
+      e.target.value = '';
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      showGlobalToast({ type: 'warning', title: 'Max 2MB', message: 'Image must be <= 2MB.' });
+    if (file.size > MAX_IMAGE_BYTES * 2.5) {
+      showGlobalToast({ type: 'warning', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidImageUrlMsg') });
+      e.target.value = '';
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setPrimaryProductImage(reader.result);
+    try {
+      const compressed = await compressImageToDataUrl(file, 960, 960, 0.8);
+      if (!isValidShopImageUrl(compressed)) {
+        showGlobalToast({ type: 'warning', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidImageUrlMsg') });
+      } else {
+        setPrimaryProductImage(compressed);
       }
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.imageCompressError') });
+    }
     e.target.value = '';
   };
 
@@ -685,11 +698,31 @@ export const ShopPortal: React.FC = () => {
     }
 
     const resolvedPrimaryImg = primaryProductImage.trim() || DEFAULT_SAMPLE_IMG;
+    if (!isValidShopImageUrl(resolvedPrimaryImg)) {
+      showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidImageUrlMsg') });
+      return;
+    }
+    const cleanVideo = newVideoUrl.trim();
+    if (cleanVideo && !isValidProductVideoUrl(cleanVideo)) {
+      showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidVideoUrlMsg') });
+      return;
+    }
     const cleanColors = colorVariants.map((c) => ({
       colorName: c.colorName.trim() || detectNearestColorName(c.colorHex),
       colorHex: c.colorHex,
       imageUrl: c.imageUrl.trim() || resolvedPrimaryImg,
     }));
+    for (const c of cleanColors) {
+      if (!isValidShopImageUrl(c.imageUrl)) {
+        showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidImageUrlMsg') });
+        return;
+      }
+    }
+
+    const numericStockMap: Record<string, number> = {};
+    for (const sz of selectedSizes) {
+      numericStockMap[sz] = parseStockDraft(sizeStockMap[sz], 0);
+    }
 
     setIsCreating(true);
     const res = await commerceApi.createShopProduct({
@@ -702,7 +735,7 @@ export const ShopPortal: React.FC = () => {
       fabricMaterial: newFabric.trim() || 'Cotton Cao Cấp',
       stretchType: newStretch,
       imageUrl: resolvedPrimaryImg,
-      videoUrl: newVideoUrl.trim() || undefined,
+      videoUrl: cleanVideo || undefined,
       description:
         newDescription.trim() ||
         `Thiết kế độc quyền từ ${shop?.shop_name || 'Shop'} — Đủ màu (${cleanColors.map((c) => c.colorName).join(', ')}), hỗ trợ chọn size AI 3D FitVision.`,
@@ -710,7 +743,7 @@ export const ShopPortal: React.FC = () => {
       colorHex: cleanColors[0].colorHex,
       colorVariants: cleanColors,
       sizes: selectedSizes,
-      stockMap: sizeStockMap,
+      stockMap: numericStockMap,
     });
     setIsCreating(false);
 
@@ -1661,13 +1694,13 @@ export const ShopPortal: React.FC = () => {
                                 {t('shopPortal.stockPerSizeLabel')}{' '}
                                 <span className="font-mono font-semibold text-emerald-700">
                                   ({t('shopPortal.stockTotalPrefix')}{' '}
-                                  {selectedSizes.reduce((sum, sz) => sum + (sizeStockMap[sz] ?? 20), 0)}{' '}
+                                  {selectedSizes.reduce((sum, sz) => sum + parseStockDraft(sizeStockMap[sz], 0), 0)}{' '}
                                   {t('shopPortal.stockUnit')} {t('shopPortal.stockPerColorSuffix')})
                                 </span>
                               </span>
                               <div className="inline-flex items-center gap-1">
                                 <span className="text-[10px] text-slate-500">{t('shopPortal.stockApplyAllLabel')}</span>
-                                {[10, 20, 50].map((presetQty) => (
+                                {[0, 10, 20, 50].map((presetQty) => (
                                   <button
                                     key={presetQty}
                                     type="button"
@@ -1675,7 +1708,7 @@ export const ShopPortal: React.FC = () => {
                                       setSizeStockMap((prev) => {
                                         const next = { ...prev };
                                         selectedSizes.forEach((sz) => {
-                                          next[sz] = presetQty;
+                                          next[sz] = String(presetQty);
                                         });
                                         return next;
                                       })
@@ -1697,14 +1730,19 @@ export const ShopPortal: React.FC = () => {
                                   <span className="text-[11px] font-mono font-black text-slate-900">Size {sz}</span>
                                   <div className="flex items-center gap-1">
                                     <input
-                                      type="number"
-                                      min={1}
-                                      max={999}
-                                      value={sizeStockMap[sz] ?? 20}
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={sizeStockMap[sz] ?? ''}
                                       onChange={(e) =>
                                         setSizeStockMap((prev) => ({
                                           ...prev,
-                                          [sz]: Math.max(1, Number(e.target.value) || 1),
+                                          [sz]: sanitizeStockInput(e.target.value),
+                                        }))
+                                      }
+                                      onBlur={() =>
+                                        setSizeStockMap((prev) => ({
+                                          ...prev,
+                                          [sz]: String(parseStockDraft(prev[sz], 0)),
                                         }))
                                       }
                                       className="w-12 text-right bg-transparent font-mono text-xs font-bold text-slate-950 outline-none"

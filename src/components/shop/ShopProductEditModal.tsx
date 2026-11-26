@@ -12,7 +12,14 @@ import {
 import { commerceApi, type DbProduct } from '@/services/commerceApi';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 import { useI18n } from '@/i18n';
-import { addCustomColorWithoutToggle } from './settings/shopSettingsHelpers';
+import {
+  addCustomColorWithoutToggle,
+  compressImageToDataUrl,
+  isValidProductVideoUrl,
+  isValidShopImageUrl,
+  parseStockDraft,
+  sanitizeStockInput,
+} from './settings/shopSettingsHelpers';
 
 const ALL_SIZES: ('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[] = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
@@ -44,8 +51,7 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
   onClose,
   onUpdated,
 }) => {
-  const { t, locale } = useI18n();
-  const isEn = locale === 'en';
+  const { t } = useI18n();
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState<'shirt' | 'polo' | 'pants' | 'dress' | 'tailored'>('shirt');
@@ -60,13 +66,13 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
   const [primaryImage, setPrimaryImage] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [selectedSizes, setSelectedSizes] = useState<('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[]>(['S', 'M', 'L', 'XL']);
-  const [sizeStockMap, setSizeStockMap] = useState<Record<string, number>>({
-    XS: 10,
-    S: 20,
-    M: 30,
-    L: 30,
-    XL: 20,
-    XXL: 10,
+  const [sizeStockMap, setSizeStockMap] = useState<Record<string, string>>({
+    XS: '10',
+    S: '20',
+    M: '30',
+    L: '30',
+    XL: '20',
+    XXL: '10',
   });
   const [colorVariants, setColorVariants] = useState<{ colorName: string; colorHex: string; imageUrl: string }[]>([]);
   const [showCustomColor, setShowCustomColor] = useState(false);
@@ -99,10 +105,12 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
     );
     setSelectedSizes(sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL']);
 
-    const nextStock: Record<string, number> = { XS: 10, S: 20, M: 30, L: 30, XL: 20, XXL: 10 };
+    const nextStock: Record<string, string> = { XS: '10', S: '20', M: '30', L: '30', XL: '20', XXL: '10' };
+    const seenSizes = new Set<string>();
     for (const v of variants) {
-      if (v.size_label && typeof v.stock === 'number') {
-        nextStock[v.size_label] = v.stock;
+      if (v.size_label && typeof v.stock === 'number' && !seenSizes.has(v.size_label)) {
+        nextStock[v.size_label] = String(Math.max(0, Math.min(999, Math.trunc(v.stock))));
+        seenSizes.add(v.size_label);
       }
     }
     setSizeStockMap(nextStock);
@@ -112,7 +120,7 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
         variants.map((v) => [
           `${(v.color_hex || '#14171C').toLowerCase()}|${(v.color_name || '').toLowerCase()}`,
           {
-            colorName: v.color_name || 'Mặc định',
+            colorName: v.color_name || t('shopPortal.defaultColorName'),
             colorHex: v.color_hex || '#14171C',
             imageUrl:
               (v as any).image_url && (v as any).image_url !== product.image_url
@@ -160,28 +168,41 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
     });
   };
 
-  const handleFileToDataUrl = (file: File, onLoaded: (url: string) => void) => {
-    if (!file.type.startsWith('image/')) {
+  const handleFileToDataUrl = async (file: File, onLoaded: (url: string) => void) => {
+    if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Invalid image file' : 'Sai định dạng ảnh',
+        title: t('shopPortal.invalidImageTitle'),
         message: 'JPG / PNG / WebP',
       });
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
+    if (file.size > MAX_IMAGE_BYTES * 2.5) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Image too large' : 'Ảnh quá lớn',
-        message: isEn ? 'Maximum 2MB per image.' : 'Tối đa 2MB mỗi ảnh.',
+        title: t('shopPortal.invalidImageTitle'),
+        message: t('shopPortal.invalidImageUrlMsg'),
       });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') onLoaded(reader.result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageToDataUrl(file, 960, 960, 0.8);
+      if (!isValidShopImageUrl(compressed)) {
+        showGlobalToast({
+          type: 'warning',
+          title: t('shopPortal.invalidImageTitle'),
+          message: t('shopPortal.invalidImageUrlMsg'),
+        });
+        return;
+      }
+      onLoaded(compressed);
+    } catch {
+      showGlobalToast({
+        type: 'error',
+        title: t('shopPortal.invalidImageTitle'),
+        message: t('shopPortal.imageCompressError'),
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -193,36 +214,66 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
     if (cleanName.length < 3) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Product name too short' : 'Tên sản phẩm quá ngắn',
-        message: isEn ? 'Minimum 3 characters.' : 'Vui lòng nhập tối thiểu 3 ký tự.',
+        title: t('shopPortal.productNameShortTitle'),
+        message: t('shopPortal.productNameShortMsg'),
       });
       return;
     }
     if (!Number.isFinite(numericPrice) || numericPrice < 1000) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Invalid base price' : 'Giá gốc không hợp lệ',
-        message: isEn ? 'Minimum 1,000 VND.' : 'Giá gốc tối thiểu 1.000₫.',
+        title: t('shopPortal.invalidPriceTitle'),
+        message: t('shopPortal.invalidPriceMsg'),
       });
       return;
     }
     if (numericSale !== null && (!Number.isFinite(numericSale) || numericSale < 1000 || numericSale >= numericPrice)) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Invalid sale price' : 'Giá khuyến mãi không hợp lệ',
-        message: isEn
-          ? 'Sale price must be at least 1,000 VND and lower than base price.'
-          : 'Giá khuyến mãi phải từ 1.000₫ và thấp hơn giá gốc.',
+        title: t('shopPortal.invalidSalePriceTitle'),
+        message: t('shopPortal.invalidSalePriceMsg'),
       });
       return;
     }
 
     const resolvedPrimary = primaryImage.trim() || product.image_url;
+    if (!isValidShopImageUrl(resolvedPrimary)) {
+      showGlobalToast({
+        type: 'error',
+        title: t('shopPortal.invalidImageTitle'),
+        message: t('shopPortal.invalidImageUrlMsg'),
+      });
+      return;
+    }
+    const cleanVideo = videoUrl.trim();
+    if (cleanVideo && !isValidProductVideoUrl(cleanVideo)) {
+      showGlobalToast({
+        type: 'error',
+        title: t('shopPortal.invalidImageTitle'),
+        message: t('shopPortal.invalidVideoUrlMsg'),
+      });
+      return;
+    }
     const cleanColors = colorVariants.map((c) => ({
-      colorName: c.colorName.trim() || 'Mặc định',
+      colorName: c.colorName.trim() || t('shopPortal.defaultColorName'),
       colorHex: c.colorHex,
       imageUrl: c.imageUrl.trim() || resolvedPrimary,
     }));
+    for (const c of cleanColors) {
+      if (!isValidShopImageUrl(c.imageUrl)) {
+        showGlobalToast({
+          type: 'error',
+          title: t('shopPortal.invalidImageTitle'),
+          message: t('shopPortal.invalidImageUrlMsg'),
+        });
+        return;
+      }
+    }
+
+    const numericStockMap: Record<string, number> = {};
+    for (const sz of selectedSizes) {
+      numericStockMap[sz] = parseStockDraft(sizeStockMap[sz], 0);
+    }
 
     setIsSaving(true);
     const res = await commerceApi.updateShopProduct(product.id, {
@@ -236,11 +287,11 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
       fabricMaterial: fabricMaterial.trim(),
       stretchType,
       imageUrl: resolvedPrimary,
-      videoUrl: videoUrl.trim() || null,
+      videoUrl: cleanVideo || null,
       description: description.trim(),
       colorVariants: cleanColors,
       sizes: selectedSizes,
-      stockMap: sizeStockMap,
+      stockMap: numericStockMap,
     });
     setIsSaving(false);
 
@@ -248,15 +299,15 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
       onUpdated(res.data);
       showGlobalToast({
         type: 'success',
-        title: isEn ? 'Product updated!' : 'Đã lưu thay đổi sản phẩm!',
+        title: t('shopPortal.productUpdatedTitle'),
         message: res.data.name,
       });
       onClose();
     } else {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Update failed' : 'Cập nhật thất bại',
-        message: res.error?.message || (isEn ? 'Could not update product.' : 'Không thể lưu thay đổi sản phẩm.'),
+        title: t('shopPortal.productUpdateFailedTitle'),
+        message: res.error?.message || t('shopPortal.productUpdateFailedMsg'),
       });
     }
   };
@@ -371,7 +422,7 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
                 min={0}
                 value={salePrice}
                 onChange={(e) => setSalePrice(e.target.value)}
-                placeholder={isEn ? 'Optional' : 'Để trống nếu không giảm'}
+                placeholder={t('shopPortal.optionalSalePlaceholder')}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-mono font-bold text-slate-950 outline-none focus:border-slate-950"
               />
             </div>
@@ -438,7 +489,7 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
               <label className="text-xs font-bold text-slate-900">{t('shopPortal.sizesLabel')}</label>
               <div className="inline-flex items-center gap-1">
                 <span className="text-[10px] text-slate-500">{t('shopPortal.stockApplyAllLabel')}</span>
-                {[10, 20, 50].map((qty) => (
+                {[0, 10, 20, 50].map((qty) => (
                   <button
                     key={qty}
                     type="button"
@@ -446,7 +497,7 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
                       setSizeStockMap((prev) => {
                         const next = { ...prev };
                         selectedSizes.forEach((sz) => {
-                          next[sz] = qty;
+                          next[sz] = String(qty);
                         });
                         return next;
                       })
@@ -488,14 +539,19 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
                   <span className="text-[11px] font-mono font-black text-slate-900">Size {sz}</span>
                   <div className="flex items-center gap-1">
                     <input
-                      type="number"
-                      min={1}
-                      max={999}
-                      value={sizeStockMap[sz] ?? 20}
+                      type="text"
+                      inputMode="numeric"
+                      value={sizeStockMap[sz] ?? ''}
                       onChange={(e) =>
                         setSizeStockMap((prev) => ({
                           ...prev,
-                          [sz]: Math.max(1, Number(e.target.value) || 1),
+                          [sz]: sanitizeStockInput(e.target.value),
+                        }))
+                      }
+                      onBlur={() =>
+                        setSizeStockMap((prev) => ({
+                          ...prev,
+                          [sz]: String(parseStockDraft(prev[sz], 0)),
                         }))
                       }
                       className="w-12 text-right bg-transparent font-mono text-xs font-bold text-slate-950 outline-none"
@@ -577,9 +633,7 @@ export const ShopProductEditModal: React.FC<ShopProductEditModalProps> = ({
                     if (result.status === 'duplicate') {
                       showGlobalToast({
                         type: 'warning',
-                        title: isEn
-                          ? 'This color name or hex code already exists.'
-                          : 'Màu hoặc mã màu này đã tồn tại trong danh sách.',
+                        title: t('shopPortal.duplicateColorToast'),
                         message: '',
                       });
                       return;

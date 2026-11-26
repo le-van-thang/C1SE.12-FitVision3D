@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { commerceController } from './commerce.controller.js';
 import { requireApprovedShop, requireAuth, requireRole } from '../../middlewares/authGuard.js';
+import { registerRateLimiter } from '../../middlewares/rateLimiter.js';
 import { verifyAccessToken } from '../../utils/jwt.js';
 
 export const commerceRouter = Router();
@@ -49,7 +50,8 @@ commerceRouter.patch('/admin/products/:id', requireAuth, requireRole('ADMIN'), c
 // Shop Owner Seller Center Endpoints (Kênh Người Bán - khóa cứng khi Shop chưa APPROVED)
 commerceRouter.get('/shop/dashboard', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), commerceController.getShopDashboard);
 commerceRouter.patch('/shop/profile', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.updateShopProfile);
-commerceRouter.patch('/shop/bank-account', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.updateShopBankAccount);
+commerceRouter.post('/shop/bank-account/request-otp', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, registerRateLimiter, commerceController.requestShopBankOtp);
+commerceRouter.patch('/shop/bank-account', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, registerRateLimiter, commerceController.updateShopBankAccount);
 commerceRouter.post('/shop/suggest-description', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.suggestProductDescription);
 commerceRouter.post('/shop/products', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.createShopProduct);
 commerceRouter.patch('/shop/products/:id', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), requireApprovedShop, commerceController.updateShopProduct);

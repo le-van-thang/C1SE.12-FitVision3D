@@ -17,8 +17,7 @@ export const ShippingSection: React.FC<ShippingSectionProps> = ({
   onShopUpdated,
   onReloadDashboard,
 }) => {
-  const { t, locale } = useI18n();
-  const isEn = locale === 'en';
+  const { t } = useI18n();
 
   const [pickupAddress, setPickupAddress] = useState(shop.pickup_address || shop.shop_address || '');
   const [returnSameAsPickup, setReturnSameAsPickup] = useState(shop.return_same_as_pickup ?? true);
@@ -37,7 +36,7 @@ export const ShippingSection: React.FC<ShippingSectionProps> = ({
     if (cleanPickup.length < 5) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Pickup address too short' : 'Địa chỉ lấy hàng chưa đầy đủ',
+        title: t('shopSettings.pickupTooShortTitle'),
         message: '',
       });
       return;
@@ -56,14 +55,14 @@ export const ShippingSection: React.FC<ShippingSectionProps> = ({
       onShopUpdated(res.data);
       showGlobalToast({
         type: 'success',
-        title: isEn ? 'Shipping addresses saved!' : 'Đã lưu Địa Chỉ Vận Chuyển!',
+        title: t('shopSettings.shippingSavedTitle'),
         message: '',
       });
       void onReloadDashboard();
     } else {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Update failed' : 'Cập nhật thất bại',
+        title: t('shopSettings.updateFailedTitle'),
         message: res.error?.message || '',
       });
     }

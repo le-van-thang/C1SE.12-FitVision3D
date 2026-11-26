@@ -1,9 +1,11 @@
+import crypto from 'crypto';
 import { pool, query } from '../../config/database.js';
 import { ensureCommerceTablesAndSeed } from './commerce.bootstrap.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
 import { verifyPassword, isGoogleOAuthHash, resolveAuthProvider } from '../../utils/password.js';
 import { authRepository } from '../auth/auth.repository.js';
+import { emailService } from '../../services/email.service.js';
 import { compareVietnameseAccountNames } from '../shop/kycVerification.js';
 
 export type MembershipTierId = 'member' | 'silver' | 'gold' | 'vip';
@@ -62,13 +64,106 @@ export function assertShopAntiSpam(userId: string): void {
 }
 
 const MAX_SHOP_IMAGE_DATA_URL_CHARS = 700_000; // ~500KB decoded
+const MAX_PRODUCT_VIDEO_DATA_URL_CHARS = 22_000_000; // ~15MB decoded
+const ALLOWED_SIZE_SPEC_CATEGORIES = ['shirt', 'polo', 'pants', 'dress'] as const;
+const ALLOWED_SIZE_LABELS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
 
-function isValidShopImageUrl(raw: string): boolean {
+export function isValidShopImageUrl(raw: string): boolean {
   if (!raw) return true; // empty = cleared
   if (raw.length > MAX_SHOP_IMAGE_DATA_URL_CHARS) return false;
   if (/^https?:\/\/[^\s"'<>]+$/i.test(raw)) return true;
   if (/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(raw)) return true;
   return false;
+}
+
+export function isValidProductVideoUrl(raw: string): boolean {
+  if (!raw) return true;
+  if (/^https?:\/\/[^\s"'<>]+$/i.test(raw)) return raw.length <= 2048;
+  if (/^data:video\/(mp4|webm|ogg);base64,[A-Za-z0-9+/=]+$/i.test(raw)) {
+    return raw.length <= MAX_PRODUCT_VIDEO_DATA_URL_CHARS;
+  }
+  return false;
+}
+
+export function parseStockValue(raw: unknown, fallback = 20): number {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(999, Math.trunc(n)));
+}
+
+export function buildStableColorToken(colorHex: string, colorName: string): string {
+  const cleanHex = String(colorHex || '')
+    .replace(/[^0-9a-fA-F]/g, '')
+    .toLowerCase()
+    .slice(0, 6);
+  if (cleanHex.length >= 3) return cleanHex;
+  const slug = String(colorName || 'default')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 8);
+  return slug || 'def';
+}
+
+export function sanitizeAndValidateSizeSpecs(
+  rawSpecs: unknown
+): Record<string, any[]> | null {
+  if (rawSpecs === null || rawSpecs === undefined) return null;
+  if (typeof rawSpecs !== 'object' || Array.isArray(rawSpecs)) {
+    throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Dữ liệu bảng thông số size (sizeSpecs) không hợp lệ.');
+  }
+
+  const cleaned: Record<string, any[]> = {};
+  const numericFields = ['chest_min', 'chest_max', 'waist_min', 'waist_max', 'hip_max', 'shoulder', 'length'] as const;
+
+  for (const [cat, rows] of Object.entries(rawSpecs as Record<string, unknown>)) {
+    if (!ALLOWED_SIZE_SPEC_CATEGORIES.includes(cat as any)) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Danh mục thông số size không hợp lệ: ${cat}`);
+    }
+    if (!Array.isArray(rows) || rows.length > 10) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Danh sách size cho danh mục "${cat}" không hợp lệ.`);
+    }
+
+    cleaned[cat] = rows.map((row: any) => {
+      const size = String(row?.size || '').trim().toUpperCase();
+      if (!ALLOWED_SIZE_LABELS.includes(size as any)) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Mã size không hợp lệ: "${size}"`);
+      }
+      const nextRow: Record<string, any> = { size };
+      for (const field of numericFields) {
+        const val = row?.[field];
+        if (val === undefined || val === null || val === '') continue;
+        const num = Number(val);
+        if (!Number.isFinite(num) || num < 0 || num > 250) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Thông số "${field}" của size ${size} (${cat}) phải nằm trong khoảng 0–250 cm.`
+          );
+        }
+        nextRow[field] = Math.round(num * 10) / 10;
+      }
+      if (
+        nextRow.chest_min !== undefined &&
+        nextRow.chest_max !== undefined &&
+        nextRow.chest_min > nextRow.chest_max
+      ) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Ngực min phải ≤ Ngực max ở size ${size} (${cat}).`);
+      }
+      if (
+        nextRow.waist_min !== undefined &&
+        nextRow.waist_max !== undefined &&
+        nextRow.waist_min > nextRow.waist_max
+      ) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Eo min phải ≤ Eo max ở size ${size} (${cat}).`);
+      }
+      return nextRow;
+    });
+  }
+
+  return cleaned;
 }
 
 function normalizePrepTimeCode(raw?: string | null): string {
@@ -1135,11 +1230,11 @@ export const commerceRepository = {
     await ensureCommerceTablesAndSeed();
     const target = String(slugOrBrand || '').trim();
     const shops = await query<any>(
-      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address, contact_email, city, entity_type,
+      `SELECT id, shop_name, brand_slug, phone_number, shop_address, contact_email, city, entity_type,
               COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
               vacation_note, vacation_until, banner_url, logo_url, tagline, description,
-              COALESCE(prep_time_days, '1–2 ngày làm việc') AS prep_time_days,
+              COALESCE(prep_time_days, '1_2_DAYS') AS prep_time_days,
               size_specs,
               created_at
        FROM shops
@@ -1291,7 +1386,9 @@ export const commerceRepository = {
         ? Boolean(payload.notifyLowStockEmail)
         : Boolean(shop.notify_low_stock_email ?? true);
     const nextSizeSpecs =
-      payload.sizeSpecs !== undefined ? payload.sizeSpecs : shop.size_specs || null;
+      payload.sizeSpecs !== undefined
+        ? sanitizeAndValidateSizeSpecs(payload.sizeSpecs)
+        : shop.size_specs || null;
 
     if (cleanName.length < 2) throw new Error('Tên Shop phải có tối thiểu 2 ký tự.');
     if (cleanPhone.length < 8) throw new Error('Số điện thoại Shop không hợp lệ.');
@@ -1305,71 +1402,111 @@ export const commerceRepository = {
       throw new Error('Ảnh bìa Banner không hợp lệ (chỉ chấp nhận URL http/https hoặc ảnh JPG/PNG/WebP tối đa 500KB).');
     }
 
-    const updated = await query(
-      `UPDATE shops
-       SET shop_name = $2, phone_number = $3, contact_email = $4, shop_address = $5,
-           pickup_address = $6, return_address = $7, return_same_as_pickup = $8,
-           tagline = $9, description = $10, banner_url = $11, logo_url = $12,
-           operational_mode = $13, vacation_note = $14, vacation_until = $15,
-           prep_time_days = $16, quick_reply_template = $17,
-           notify_new_order_email = $18, notify_low_stock_email = $19,
-           size_specs = $20::jsonb,
-           updated_at = NOW()
-       WHERE id = $1
-       RETURNING id, owner_id, shop_name, brand_slug, phone_number, contact_email, shop_address,
-                 pickup_address, return_address, return_same_as_pickup,
-                 entity_type, tax_code, tax_status, business_license_no,
-                 legal_representative_name, national_id_last4,
-                 status, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
-                 COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
-                 vacation_note, vacation_until, banner_url, logo_url, tagline, description,
-                 prep_time_days, quick_reply_template, notify_new_order_email, notify_low_stock_email, size_specs`,
-      [
-        shop.id,
-        cleanName,
-        cleanPhone,
-        cleanContactEmail || null,
-        cleanAddr,
-        cleanPickup || cleanAddr,
-        cleanReturn || cleanAddr,
-        returnSame,
-        cleanTagline || null,
-        cleanDesc || null,
-        cleanBanner || null,
-        cleanLogo || null,
-        opMode,
-        vacNote || null,
-        vacUntil,
-        prepTime,
-        quickReply || null,
-        notifyNewOrder,
-        notifyLowStock,
-        nextSizeSpecs ? JSON.stringify(nextSizeSpecs) : null,
-      ]
-    );
-    if (payload.sizeSpecs && typeof payload.sizeSpecs === 'object') {
-      const shopProducts = await query<any>(
-        `SELECT id, category, variants FROM products WHERE shop_id = $1 OR LOWER(brand_name) = LOWER($2)`,
-        [shop.id, cleanName]
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updatedRes = await client.query(
+        `UPDATE shops
+         SET shop_name = $2, phone_number = $3, contact_email = $4, shop_address = $5,
+             pickup_address = $6, return_address = $7, return_same_as_pickup = $8,
+             tagline = $9, description = $10, banner_url = $11, logo_url = $12,
+             operational_mode = $13, vacation_note = $14, vacation_until = $15,
+             prep_time_days = $16, quick_reply_template = $17,
+             notify_new_order_email = $18, notify_low_stock_email = $19,
+             size_specs = $20::jsonb,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, owner_id, shop_name, brand_slug, phone_number, contact_email, shop_address,
+                   pickup_address, return_address, return_same_as_pickup,
+                   entity_type, tax_code, tax_status, business_license_no,
+                   legal_representative_name, national_id_last4,
+                   status, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
+                   COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
+                   vacation_note, vacation_until, banner_url, logo_url, tagline, description,
+                   prep_time_days, quick_reply_template, notify_new_order_email, notify_low_stock_email, size_specs`,
+        [
+          shop.id,
+          cleanName,
+          cleanPhone,
+          cleanContactEmail || null,
+          cleanAddr,
+          cleanPickup || cleanAddr,
+          cleanReturn || cleanAddr,
+          returnSame,
+          cleanTagline || null,
+          cleanDesc || null,
+          cleanBanner || null,
+          cleanLogo || null,
+          opMode,
+          vacNote || null,
+          vacUntil,
+          prepTime,
+          quickReply || null,
+          notifyNewOrder,
+          notifyLowStock,
+          nextSizeSpecs ? JSON.stringify(nextSizeSpecs) : null,
+        ]
       );
-      for (const prod of shopProducts) {
-        const syncedVariants = (prod.variants || []).map((v: any) => ({
-          ...v,
-          spec: resolveShopSizeSpec(payload.sizeSpecs, prod.category, v.size_label, v.spec || {}),
-        }));
-        await query(`UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`, [
-          prod.id,
-          JSON.stringify(syncedVariants),
-        ]).catch(() => undefined);
+
+      if (payload.sizeSpecs !== undefined && nextSizeSpecs) {
+        const shopProductsRes = await client.query<any>(
+          `SELECT id, category, variants FROM products WHERE shop_id = $1 OR LOWER(brand_name) = LOWER($2)`,
+          [shop.id, cleanName]
+        );
+        for (const prod of shopProductsRes.rows) {
+          const syncedVariants = (prod.variants || []).map((v: any) => ({
+            ...v,
+            spec: resolveShopSizeSpec(nextSizeSpecs, prod.category, v.size_label, v.spec || {}),
+          }));
+          await client.query(`UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`, [
+            prod.id,
+            JSON.stringify(syncedVariants),
+          ]);
+        }
       }
+
+      if (cleanName !== shop.shop_name) {
+        await client.query(
+          `UPDATE products SET brand_name = $2, updated_at = NOW() WHERE shop_id = $1`,
+          [shop.id, cleanName]
+        );
+      }
+
+      await client.query('COMMIT');
+      return updatedRes.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
     }
-    if (cleanName !== shop.shop_name) {
-      await query(
-        `UPDATE products SET brand_name = $2, updated_at = NOW() WHERE shop_id = $1`,
-        [shop.id, cleanName]
-      ).catch(() => undefined);
+  },
+
+  async requestShopBankChangeOtp(userId: string) {
+    const shop = await this.ensureShopForUser(userId);
+    if (!shop) {
+      throw new AppError(404, ErrorCode.VALIDATION_FAILED, 'Không tìm thấy hồ sơ Shop.');
     }
-    return updated[0];
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản chủ Shop.');
+    }
+    const otpCode = String(crypto.randomInt(100000, 1000000));
+    emailService.saveOtp(user.email, otpCode, 'BANK_CHANGE', 5 * 60 * 1000);
+    await emailService.sendShopBankChangeOtpEmail(user.email, user.full_name, otpCode);
+
+    const [localPart, domainPart] = user.email.split('@');
+    const maskedLocal =
+      localPart.length <= 2 ? `${localPart[0] || '*'}*` : `${localPart.slice(0, 2)}***${localPart.slice(-1)}`;
+    const maskedEmail = `${maskedLocal}@${domainPart || '***'}`;
+
+    const isDevMock = process.env.NODE_ENV !== 'production' && !emailService.isSmtpConfigured();
+    return {
+      sent: true,
+      maskedEmail,
+      expiresInSeconds: 300,
+      ...(isDevMock ? { devOtp: otpCode } : {}),
+    };
   },
 
   async updateShopBankAccount(
@@ -1380,7 +1517,7 @@ export const commerceRepository = {
       accountNumber?: string;
       accountHolderName?: string;
       currentPassword?: string;
-      confirmEmail?: string;
+      otpCode?: string;
     }
   ) {
     const shop = await this.ensureShopForUser(userId);
@@ -1393,14 +1530,22 @@ export const commerceRepository = {
       throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản chủ Shop.');
     }
 
-    // Xác thực danh tính: tài khoản mật khẩu xác thực bằng password, tài khoản Google xác thực bằng email đăng nhập
+    // Xác thực danh tính: tài khoản mật khẩu xác thực bằng password, tài khoản Google xác thực bằng OTP 6 số gửi qua Email
     if (isGoogleOAuthHash(user.password_hash)) {
-      const confirmed = String(payload.confirmEmail || '').trim().toLowerCase();
-      if (!confirmed || confirmed !== user.email.toLowerCase()) {
+      const cleanOtp = String(payload.otpCode || '').trim();
+      if (!/^\d{6}$/.test(cleanOtp)) {
         throw new AppError(
           400,
-          ErrorCode.AUTH_INVALID_CREDENTIALS,
-          'Tài khoản Google: vui lòng nhập chính xác Email đăng nhập Google của Shop để xác nhận thay đổi ngân hàng.'
+          ErrorCode.AUTH_OTP_INVALID,
+          'Tài khoản Google: vui lòng bấm "Gửi mã OTP" và nhập mã xác nhận 6 chữ số đã gửi về Email của bạn.'
+        );
+      }
+      const isOtpValid = emailService.verifyOtp(user.email, cleanOtp, 'BANK_CHANGE');
+      if (!isOtpValid) {
+        throw new AppError(
+          400,
+          ErrorCode.AUTH_OTP_INVALID,
+          'Mã OTP xác nhận không chính xác hoặc đã hết hạn (5 phút). Vui lòng yêu cầu mã mới.'
         );
       }
     } else {
@@ -1601,19 +1746,20 @@ export const commerceRepository = {
     }
 
     const rawImg = String(payload.imageUrl || '').trim();
-    if (rawImg.startsWith('data:image/') && rawImg.length > 4_200_000) {
-      throw new Error('Ảnh tải lên quá nặng (> 3MB). Vui lòng nén ảnh hoặc dùng link URL.');
+    if (rawImg && !isValidShopImageUrl(rawImg)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Ảnh đại diện sản phẩm không hợp lệ (chỉ chấp nhận URL http/https hoặc ảnh JPG/PNG/WebP tối đa 500KB).'
+      );
     }
     const rawVideo = String(payload.videoUrl || '').trim();
-    if (rawVideo) {
-      if (rawVideo.startsWith('data:video/') && rawVideo.length > 22_000_000) {
-        throw new Error('Video tải lên vượt quá giới hạn 15MB để bảo vệ máy chủ. Hãy dùng link MP4/YouTube hoặc video ngắn hơn.');
-      }
-      const isHttpVideo = rawVideo.startsWith('http://') || rawVideo.startsWith('https://');
-      const isBase64Video = rawVideo.startsWith('data:video/');
-      if (!isHttpVideo && !isBase64Video) {
-        throw new Error('Định dạng video không hợp lệ (chỉ hỗ trợ link HTTP/HTTPS hoặc file MP4/WebM).');
-      }
+    if (rawVideo && !isValidProductVideoUrl(rawVideo)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Định dạng hoặc dung lượng video không hợp lệ (chỉ hỗ trợ URL http/https hoặc video MP4/WebM tối đa 15MB).'
+      );
     }
 
     // Anti-Spam Rate Limiter & Shop Quota Enforcement (only count valid submissions)
@@ -1679,31 +1825,43 @@ export const commerceRepository = {
           ];
 
     for (const c of rawColors) {
-      if (c.imageUrl && c.imageUrl.startsWith('data:image/') && c.imageUrl.length > 4_200_000) {
-        throw new Error(`Ảnh của màu "${c.colorName}" quá nặng (> 3MB). Vui lòng nén ảnh hoặc dùng link URL.`);
+      if (c.imageUrl && !isValidShopImageUrl(c.imageUrl)) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_FAILED,
+          `Ảnh của màu "${c.colorName}" không hợp lệ hoặc quá dung lượng tối đa 500KB.`
+        );
       }
     }
 
     const id = `prod-${Date.now()}`;
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
 
-    const variants = rawColors.flatMap((c, colorIdx) =>
-      selectedSizes.map((sz) => ({
-        id: `${id}-c${colorIdx}-${sz.toLowerCase()}`,
+    const usedTokens = new Set<string>();
+    const variants = rawColors.flatMap((c) => {
+      let colorToken = buildStableColorToken(c.colorHex, c.colorName);
+      let suffix = 1;
+      while (usedTokens.has(colorToken)) {
+        colorToken = `${buildStableColorToken(c.colorHex, c.colorName)}${suffix++}`;
+      }
+      usedTokens.add(colorToken);
+      const colorKey = `${c.colorHex.toLowerCase()}|${c.colorName.toLowerCase()}`;
+      return selectedSizes.map((sz) => ({
+        id: `${id}-${colorToken}-${sz.toLowerCase()}`,
         size_label: sz,
         color_name: c.colorName,
         color_hex: c.colorHex,
         image_url: c.imageUrl || fallbackImg,
-        sku: `${id.toUpperCase()}-C${colorIdx + 1}-${sz}`,
-        stock: Number(stockMap[sz]) || 20,
+        sku: `${id.toUpperCase()}-${colorToken.toUpperCase()}-${sz}`,
+        stock: parseStockValue(stockMap[`${colorKey}|${sz}`] ?? stockMap[sz], 20),
         spec: resolveShopSizeSpec(
           shop.size_specs,
           category,
           sz,
           isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz]
         ),
-      }))
-    );
+      }));
+    });
 
     const imageUrl = rawColors[0]?.imageUrl || fallbackImg;
     const secondaryImageUrl =
@@ -1802,6 +1960,10 @@ export const commerceRepository = {
     if (nextName.length < 3) {
       throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Tên sản phẩm phải có tối thiểu 3 ký tự.');
     }
+    const nextNameEn =
+      patch.nameEn !== undefined
+        ? String(patch.nameEn).trim() || existing.name_en || nextName
+        : existing.name_en || nextName;
 
     const nextCategory =
       ['shirt', 'polo', 'pants', 'dress', 'tailored'].includes(patch.category)
@@ -1827,20 +1989,42 @@ export const commerceRepository = {
       patch.fabricMaterial !== undefined
         ? String(patch.fabricMaterial).trim() || existing.fabric_material
         : existing.fabric_material;
+    const nextFabricEn =
+      patch.fabricMaterialEn !== undefined
+        ? String(patch.fabricMaterialEn).trim() || existing.fabric_material_en || nextFabric
+        : existing.fabric_material_en || nextFabric;
     const nextStretch =
       patch.stretchType !== undefined
         ? String(patch.stretchType).trim() || existing.stretch_type
         : existing.stretch_type;
     const nextDesc =
       patch.description !== undefined ? String(patch.description).trim() : existing.description;
+    const nextDescEn =
+      patch.descriptionEn !== undefined
+        ? String(patch.descriptionEn).trim() || existing.description_en || nextDesc
+        : existing.description_en || nextDesc;
     const nextVideoUrl =
       patch.videoUrl !== undefined ? (String(patch.videoUrl || '').trim() || null) : existing.video_url;
+    if (nextVideoUrl && !isValidProductVideoUrl(nextVideoUrl)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Đường dẫn hoặc định dạng video sản phẩm không hợp lệ.'
+      );
+    }
 
     let nextVariants = existing.variants || [];
     let nextImageUrl =
       patch.imageUrl !== undefined
         ? String(patch.imageUrl || '').trim() || existing.image_url
         : existing.image_url;
+    if (patch.imageUrl !== undefined && nextImageUrl && !isValidShopImageUrl(nextImageUrl)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Ảnh đại diện sản phẩm không hợp lệ hoặc vượt quá 500KB.'
+      );
+    }
     let nextSecondaryImageUrl = existing.secondary_image_url;
 
     const hasVariantRebuild =
@@ -1870,16 +2054,16 @@ export const commerceRepository = {
       const rawColors =
         Array.isArray(patch.colorVariants) && patch.colorVariants.length > 0
           ? patch.colorVariants.slice(0, 6).map((c: any) => ({
-              colorName: String(c?.colorName || 'Mặc định').trim(),
+              colorName: String(c?.colorName || 'Default').trim(),
               colorHex: String(c?.colorHex || '#14171C').trim(),
               imageUrl: String(c?.imageUrl || nextImageUrl).trim(),
             }))
           : Array.from(
               new Map(
                 (existing.variants || []).map((v: any) => [
-                  `${v.color_hex}|${v.color_name}`,
+                  `${String(v.color_hex || '#14171C').toLowerCase()}|${String(v.color_name || '').toLowerCase()}`,
                   {
-                    colorName: v.color_name || 'Mặc định',
+                    colorName: v.color_name || 'Default',
                     colorHex: v.color_hex || '#14171C',
                     imageUrl: v.image_url || nextImageUrl,
                   },
@@ -1887,61 +2071,109 @@ export const commerceRepository = {
               ).values()
             );
 
+      for (const c of rawColors) {
+        if (c.imageUrl && !isValidShopImageUrl(c.imageUrl)) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Ảnh của màu "${c.colorName}" không hợp lệ hoặc vượt quá 500KB.`
+          );
+        }
+      }
+
       const validSizes: string[] =
         Array.isArray(patch.sizes) && patch.sizes.length > 0
           ? patch.sizes.filter((s: string) => ['XS', 'S', 'M', 'L', 'XL', 'XXL'].includes(s))
           : Array.from(new Set((existing.variants || []).map((v: any) => v.size_label).filter(Boolean)));
       const finalSizes = validSizes.length > 0 ? validSizes : ['S', 'M', 'L', 'XL'];
-      const stockMap: Record<string, number> = patch.stockMap || {};
+      const stockMap: Record<string, unknown> = patch.stockMap || {};
 
-      nextVariants = rawColors.flatMap((c: any, colorIdx: number) =>
-        finalSizes.map((sz) => ({
-          id: `${productId}-c${colorIdx}-${sz.toLowerCase()}`,
-          size_label: sz,
-          color_name: c.colorName,
-          color_hex: c.colorHex,
-          image_url: c.imageUrl || nextImageUrl,
-          sku: `${productId.toUpperCase()}-C${colorIdx + 1}-${sz}`,
-          stock: Math.max(1, Number(stockMap[sz]) || 20),
-          spec: resolveShopSizeSpec(
-            shop?.size_specs,
-            nextCategory,
-            sz,
-            isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz]
-          ),
-        }))
-      );
+      // Index existing variants by (color_hex|color_name|size) and (color_hex|size) to preserve stable IDs, SKUs & stocks
+      const existingByExact = new Map<string, any>();
+      const existingByHexSize = new Map<string, any>();
+      for (const v of existing.variants || []) {
+        const hex = String(v.color_hex || '#14171C').toLowerCase();
+        const cname = String(v.color_name || '').toLowerCase();
+        const sz = String(v.size_label || '').toUpperCase();
+        existingByExact.set(`${hex}|${cname}|${sz}`, v);
+        if (!existingByHexSize.has(`${hex}|${sz}`)) {
+          existingByHexSize.set(`${hex}|${sz}`, v);
+        }
+      }
+
+      const usedTokens = new Set<string>();
+      nextVariants = rawColors.flatMap((c: any) => {
+        const baseToken = buildStableColorToken(c.colorHex, c.colorName);
+        let colorToken = baseToken;
+        let suffix = 1;
+        while (usedTokens.has(colorToken)) {
+          colorToken = `${baseToken}${suffix++}`;
+        }
+        usedTokens.add(colorToken);
+        const colorKey = `${c.colorHex.toLowerCase()}|${c.colorName.toLowerCase()}`;
+
+        return finalSizes.map((sz) => {
+          const prevVariant =
+            existingByExact.get(`${colorKey}|${sz}`) ||
+            existingByHexSize.get(`${c.colorHex.toLowerCase()}|${sz}`);
+          const prevStock =
+            prevVariant && typeof prevVariant.stock === 'number' ? prevVariant.stock : 20;
+          const explicitStock =
+            stockMap[`${colorKey}|${sz}`] !== undefined
+              ? stockMap[`${colorKey}|${sz}`]
+              : stockMap[sz];
+
+          return {
+            id: prevVariant?.id || `${productId}-${colorToken}-${sz.toLowerCase()}`,
+            size_label: sz,
+            color_name: c.colorName,
+            color_hex: c.colorHex,
+            image_url: c.imageUrl || nextImageUrl,
+            sku: prevVariant?.sku || `${productId.toUpperCase()}-${colorToken.toUpperCase()}-${sz}`,
+            stock: parseStockValue(explicitStock, prevStock),
+            spec: resolveShopSizeSpec(
+              shop?.size_specs,
+              nextCategory,
+              sz,
+              isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz]
+            ),
+          };
+        });
+      });
 
       if (rawColors[1]?.imageUrl && rawColors[1].imageUrl !== nextImageUrl) {
         nextSecondaryImageUrl = rawColors[1].imageUrl;
+      } else {
+        nextSecondaryImageUrl = null;
       }
     }
 
     const rows = await query(
       `UPDATE products SET
          name = $2,
-         name_en = $2,
-         category = $3,
-         gender_target = $4,
-         price = $5,
-         sale_price = $6,
-         is_hidden = $7,
-         is_bespoke = $8,
-         fabric_material = $9,
-         fabric_material_en = $9,
-         stretch_type = $10,
-         image_url = $11,
-         secondary_image_url = $12,
-         video_url = $13,
-         description = $14,
-         description_en = $14,
-         variants = $15::jsonb,
+         name_en = $3,
+         category = $4,
+         gender_target = $5,
+         price = $6,
+         sale_price = $7,
+         is_hidden = $8,
+         is_bespoke = $9,
+         fabric_material = $10,
+         fabric_material_en = $11,
+         stretch_type = $12,
+         image_url = $13,
+         secondary_image_url = $14,
+         video_url = $15,
+         description = $16,
+         description_en = $17,
+         variants = $18::jsonb,
          updated_at = NOW()
        WHERE id = $1
        RETURNING *, rating::float`,
       [
         productId,
         nextName,
+        nextNameEn,
         nextCategory,
         nextGender,
         nextPrice,
@@ -1949,11 +2181,13 @@ export const commerceRepository = {
         nextHidden,
         nextBespoke,
         nextFabric,
+        nextFabricEn,
         nextStretch,
         nextImageUrl,
         nextSecondaryImageUrl,
         nextVideoUrl,
         nextDesc,
+        nextDescEn,
         JSON.stringify(nextVariants),
       ]
     );

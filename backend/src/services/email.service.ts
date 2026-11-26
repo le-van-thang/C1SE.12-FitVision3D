@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { env } from '../config/env.js';
 
-type OtpKind = 'VERIFY' | 'FORGOT' | 'ADMIN_2FA';
+type OtpKind = 'VERIFY' | 'FORGOT' | 'ADMIN_2FA' | 'BANK_CHANGE';
 
 interface OtpRecord {
   code: string;
@@ -34,19 +34,19 @@ class EmailService {
   }
 
   /**
-   * Lưu mã OTP vào bộ nhớ tạm thời (15 phút)
+   * Lưu mã OTP vào bộ nhớ tạm thời (mặc định 15 phút, hỗ trợ tùy chỉnh TTL)
    */
-  public saveOtp(email: string, code: string, type: OtpKind) {
+  public saveOtp(email: string, code: string, type: OtpKind, ttlMs = 15 * 60 * 1000) {
     const key = `${type}:${email.toLowerCase().trim()}`;
-    const expiresAt = Date.now() + 15 * 60 * 1000;
+    const expiresAt = Date.now() + ttlMs;
     this.otpStore.set(key, { code, expiresAt, type });
   }
 
   /**
-   * Kiểm tra mã OTP (tuyệt đối không dùng mã mặc định cho ADMIN_2FA)
+   * Kiểm tra mã OTP (tuyệt đối không dùng mã mặc định cho ADMIN_2FA và BANK_CHANGE)
    */
   public verifyOtp(email: string, code: string, type: OtpKind): boolean {
-    if (code === '123456' && type !== 'ADMIN_2FA') return true;
+    if (code === '123456' && type !== 'ADMIN_2FA' && type !== 'BANK_CHANGE') return true;
 
     const key = `${type}:${email.toLowerCase().trim()}`;
     const record = this.otpStore.get(key);
@@ -173,6 +173,49 @@ class EmailService {
           </div>
           <p style="font-size: 13px; color: #EF4444; line-height: 1.6;">
             ⚠️ Nếu không phải bạn vừa thực hiện đăng nhập, hãy đổi mật khẩu Admin ngay lập tức!
+          </p>
+        </div>
+      </div>
+    `;
+    return this.sendMail(toEmail, subject, html);
+  }
+
+  public isSmtpConfigured(): boolean {
+    if (!this.transporter) {
+      this.initTransporter();
+    }
+    return Boolean(this.transporter);
+  }
+
+  /**
+   * Gửi mã OTP xác thực thay đổi tài khoản ngân hàng chi trả của Shop (hiệu lực 5 phút)
+   */
+  public async sendShopBankChangeOtpEmail(
+    toEmail: string,
+    fullName: string,
+    otpCode: string
+  ): Promise<boolean> {
+    const subject = `[FitVision 3D Security] Mã OTP xác nhận đổi tài khoản ngân hàng Shop: ${otpCode}`;
+    const html = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0A0F12; color: #FFFFFF; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+        <div style="padding: 24px 32px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(10, 15, 18, 0) 100%); border-bottom: 1px solid rgba(59, 130, 246, 0.35);">
+          <h1 style="margin: 0; font-size: 20px; color: #FFFFFF;">FitVision <span style="color: #60A5FA;">3D SELLER</span></h1>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #BFDBFE;">Xác thực bảo mật thay đổi tài khoản ngân hàng nhận tiền</p>
+        </div>
+        <div style="padding: 32px;">
+          <h2 style="font-size: 18px; color: #FFFFFF; margin-top: 0;">Mã xác nhận OTP (hiệu lực 5 phút)</h2>
+          <p style="font-size: 14px; color: #CBD5E1; line-height: 1.6;">
+            Xin chào <strong>${fullName || toEmail}</strong>,<br/>
+            Bạn vừa yêu cầu cập nhật tài khoản ngân hàng chi trả cho Gian hàng. Vui lòng nhập mã OTP 6 chữ số sau để xác nhận:
+          </p>
+          <div style="margin: 28px 0; text-align: center;">
+            <div style="display: inline-block; padding: 14px 36px; background: rgba(59, 130, 246, 0.14); border: 2px dashed #60A5FA; border-radius: 12px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #93C5FD; font-family: monospace;">
+              ${otpCode}
+            </div>
+            <p style="margin: 8px 0 0 0; font-size: 12px; color: #94A3B8;">Có hiệu lực trong 5 phút • Chỉ dùng 1 lần</p>
+          </div>
+          <p style="font-size: 13px; color: #EF4444; line-height: 1.6;">
+            ⚠️ Tuyệt đối không chia sẻ mã này cho bất kỳ ai. Nếu bạn không thực hiện yêu cầu này, hãy kiểm tra bảo mật tài khoản ngay.
           </p>
         </div>
       </div>

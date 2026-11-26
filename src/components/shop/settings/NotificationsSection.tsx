@@ -4,18 +4,6 @@ import { commerceApi, type DbShopProfile } from '@/services/commerceApi';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 import { useI18n } from '@/i18n';
 
-const QUICK_REPLY_PRESETS_VI = [
-  'Cảm ơn bạn đã tin tưởng và lựa chọn sản phẩm của Shop! Chúc bạn luôn mặc đẹp và tự tin với phom dáng chuẩn AI 3D.',
-  'Cảm ơn đánh giá 5 sao của bạn! Nếu cần tư vấn thêm về size hoặc đổi chỉnh phom trong 14 ngày, cứ nhắn Shop ngay nhé.',
-  'Shop rất trân trọng phản hồi của bạn và sẽ tiếp tục cải thiện chất lượng vải cũng như dịch vụ đóng gói tốt hơn nữa.',
-];
-
-const QUICK_REPLY_PRESETS_EN = [
-  'Thank you for choosing our shop! We hope you enjoy your AI 3D precision fit.',
-  'Thank you for the 5-star review! Reach out anytime if you need size advice or our 14-day fit adjustment.',
-  'We truly appreciate your feedback and will keep improving our fabric quality and packaging.',
-];
-
 interface NotificationsSectionProps {
   shop: DbShopProfile;
   isApproved: boolean;
@@ -29,9 +17,12 @@ export const NotificationsSection: React.FC<NotificationsSectionProps> = ({
   onShopUpdated,
   onReloadDashboard,
 }) => {
-  const { t, locale } = useI18n();
-  const isEn = locale === 'en';
-  const presets = isEn ? QUICK_REPLY_PRESETS_EN : QUICK_REPLY_PRESETS_VI;
+  const { t } = useI18n();
+  const presets = [
+    t('shopSettings.quickReplyPreset1'),
+    t('shopSettings.quickReplyPreset2'),
+    t('shopSettings.quickReplyPreset3'),
+  ];
 
   const [quickReplyTemplate, setQuickReplyTemplate] = useState(shop.quick_reply_template || '');
   const [notifyNewOrderEmail, setNotifyNewOrderEmail] = useState(shop.notify_new_order_email ?? true);
@@ -59,14 +50,14 @@ export const NotificationsSection: React.FC<NotificationsSectionProps> = ({
       onShopUpdated(res.data);
       showGlobalToast({
         type: 'success',
-        title: isEn ? 'Notification settings saved!' : 'Đã lưu Cài Đặt Thông Báo!',
+        title: t('shopSettings.notifySavedTitle'),
         message: '',
       });
       void onReloadDashboard();
     } else {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Update failed' : 'Cập nhật thất bại',
+        title: t('shopSettings.updateFailedTitle'),
         message: res.error?.message || '',
       });
     }

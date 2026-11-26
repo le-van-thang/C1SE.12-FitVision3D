@@ -208,6 +208,7 @@ export const ShopSettingsTab: React.FC<ShopSettingsTabProps> = ({
           {section === 'security' && (
             <SecuritySection
               isGoogleAccount={isGoogleAccount}
+              onReloadDashboard={onReloadDashboard}
               onSignedOutAll={onSignedOutAll}
             />
           )}

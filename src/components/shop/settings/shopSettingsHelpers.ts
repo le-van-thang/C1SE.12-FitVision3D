@@ -51,6 +51,37 @@ export function isValidShopImageUrl(raw: string): boolean {
   return false;
 }
 
+export function isValidProductVideoUrl(raw: string): boolean {
+  const val = raw.trim();
+  if (!val) return true;
+  if (/^https?:\/\/[^\s"'<>]+$/i.test(val)) return val.length <= 2048;
+  if (/^data:video\/(mp4|webm|ogg);base64,[A-Za-z0-9+/=]+$/i.test(val)) {
+    return val.length <= 22_000_000;
+  }
+  return false;
+}
+
+/**
+ * Sanitize user-typed stock input while typing: allows empty string '' so clearing "20"
+ * and typing "35" never turns into "135". Strips non-digits and clamps to 0..999.
+ */
+export function sanitizeStockInput(raw: string): string {
+  const digitsOnly = raw.replace(/[^0-9]/g, '');
+  if (!digitsOnly) return '';
+  const num = Math.min(999, Math.max(0, parseInt(digitsOnly, 10)));
+  return String(num);
+}
+
+/**
+ * Convert a stock draft string/number into an integer 0..999 (preserving 0 as valid out-of-stock).
+ */
+export function parseStockDraft(raw: string | number | undefined | null, fallback = 20): number {
+  if (raw === '' || raw === undefined || raw === null) return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(999, Math.trunc(n)));
+}
+
 export interface ColorVariantDraft {
   colorName: string;
   colorHex: string;

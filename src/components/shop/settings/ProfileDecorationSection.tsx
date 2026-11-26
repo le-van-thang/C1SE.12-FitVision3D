@@ -20,8 +20,7 @@ export const ProfileDecorationSection: React.FC<ProfileDecorationSectionProps> =
   onShopUpdated,
   onReloadDashboard,
 }) => {
-  const { t, locale } = useI18n();
-  const isEn = locale === 'en';
+  const { t } = useI18n();
 
   const [shopName, setShopName] = useState(shop.shop_name || '');
   const [tagline, setTagline] = useState(shop.tagline || '');
@@ -51,16 +50,16 @@ export const ProfileDecorationSection: React.FC<ProfileDecorationSectionProps> =
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Unsupported file format' : 'Định dạng không hỗ trợ',
-        message: isEn ? 'Only JPG, PNG, or WebP images are allowed.' : 'Chỉ chấp nhận tệp ảnh JPG, PNG hoặc WebP.',
+        title: t('shopSettings.unsupportedFormatTitle'),
+        message: t('shopSettings.unsupportedFormatMsg'),
       });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Image too large' : 'Ảnh quá dung lượng',
-        message: isEn ? 'Please choose an image under 5MB.' : 'Vui lòng chọn ảnh gốc dưới 5MB.',
+        title: t('shopSettings.imageTooLargeTitle'),
+        message: t('shopSettings.imageUnder5mbMsg'),
       });
       return;
     }
@@ -72,8 +71,8 @@ export const ProfileDecorationSection: React.FC<ProfileDecorationSectionProps> =
       if (!isValidShopImageUrl(dataUrl)) {
         showGlobalToast({
           type: 'warning',
-          title: isEn ? 'Compressed image still too large' : 'Ảnh sau nén vẫn vượt giới hạn 500KB',
-          message: isEn ? 'Please choose a smaller image.' : 'Vui lòng chọn ảnh nhẹ hơn.',
+          title: t('shopSettings.compressedTooLargeTitle'),
+          message: t('shopSettings.chooseSmallerImageMsg'),
         });
         return;
       }
@@ -82,7 +81,7 @@ export const ProfileDecorationSection: React.FC<ProfileDecorationSectionProps> =
     } catch (err: any) {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Image processing error' : 'Lỗi xử lý ảnh',
+        title: t('shopSettings.imageProcessErrTitle'),
         message: err?.message || '',
       });
     } finally {
@@ -95,18 +94,16 @@ export const ProfileDecorationSection: React.FC<ProfileDecorationSectionProps> =
     if (shopName.trim().length < 2) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Shop name too short' : 'Tên Shop quá ngắn',
-        message: isEn ? 'Minimum 2 characters.' : 'Vui lòng nhập tối thiểu 2 ký tự.',
+        title: t('shopSettings.shopNameShortTitle'),
+        message: t('shopSettings.shopNameShortMsg'),
       });
       return;
     }
     if (!isValidShopImageUrl(logoUrl) || !isValidShopImageUrl(bannerUrl)) {
       showGlobalToast({
         type: 'warning',
-        title: isEn ? 'Invalid image URL' : 'Đường dẫn ảnh không hợp lệ',
-        message: isEn
-          ? 'Use an http/https URL or a JPG/PNG/WebP image under 500KB.'
-          : 'Chỉ chấp nhận đường dẫn http/https hoặc ảnh JPG/PNG/WebP dưới 500KB.',
+        title: t('shopSettings.invalidImageUrlTitle'),
+        message: t('shopSettings.invalidImageUrlMsg'),
       });
       return;
     }
@@ -128,14 +125,14 @@ export const ProfileDecorationSection: React.FC<ProfileDecorationSectionProps> =
       onShopUpdated(res.data);
       showGlobalToast({
         type: 'success',
-        title: isEn ? 'Shop profile saved!' : 'Đã lưu Hồ Sơ & Trang Trí!',
-        message: isEn ? 'Updated on your public storefront.' : 'Thông tin đã đồng bộ lên trang Shop công khai.',
+        title: t('shopSettings.profileSavedTitle'),
+        message: t('shopSettings.profileSavedMsg'),
       });
       void onReloadDashboard();
     } else {
       showGlobalToast({
         type: 'error',
-        title: isEn ? 'Update failed' : 'Cập nhật thất bại',
+        title: t('shopSettings.updateFailedTitle'),
         message: res.error?.message || '',
       });
     }

@@ -334,6 +334,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.success && res.data?.user) {
         const profile = mapBackendUserToProfile(res.data.user);
+        setAuthProvider(res.data.user.authProvider === 'google' ? 'google' : 'password');
         setProfiles((prev) => {
           const filtered = prev.filter((p) => p.id !== profile.id);
           return [profile, ...filtered];
