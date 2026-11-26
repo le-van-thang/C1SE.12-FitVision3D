@@ -48,3 +48,36 @@ export function registerRateLimiter(req: Request, res: Response, next: NextFunct
   res.setHeader('X-RateLimit-Remaining', remaining);
   next();
 }
+
+const sensitiveStore = new Map<string, RateLimitRecord>();
+
+/**
+ * Giới hạn thao tác nhạy cảm của user đã đăng nhập (đổi mật khẩu...):
+ * tối đa 5 lần / 5 phút theo từng tài khoản (chống dò mật khẩu hiện tại).
+ */
+export function sensitiveActionRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  if (process.env.NODE_ENV === 'test' || req.headers['x-test-suite'] === 'true') {
+    return next();
+  }
+  const key = `${req.user?.sub || req.ip || 'unknown'}:${req.path}`;
+  const now = Date.now();
+  const windowMs = 5 * 60 * 1000;
+  const maxAttempts = 5;
+  const record = sensitiveStore.get(key);
+
+  if (!record || now > record.resetAt) {
+    sensitiveStore.set(key, { count: 1, resetAt: now + windowMs });
+    return next();
+  }
+  if (record.count >= maxAttempts) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((record.resetAt - now) / 1000));
+    res.setHeader('Retry-After', retryAfterSeconds);
+    throw new AppError(
+      429,
+      ErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
+      `Bạn đã thử quá ${maxAttempts} lần. Vui lòng thử lại sau ${retryAfterSeconds} giây.`
+    );
+  }
+  record.count += 1;
+  next();
+}

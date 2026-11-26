@@ -1,12 +1,21 @@
 import type { FashionProduct, UserBodyProfile, FitMatchResult } from './types';
+import type { EaseAllowanceType } from '@/types/settings.types';
+
+function resolveTargetEase(minEase: number, maxEase: number, preference: EaseAllowanceType): number {
+  if (preference === 'slim') return Math.max(0, minEase - 1);
+  if (preference === 'relaxed') return maxEase + 2;
+  return (minEase + maxEase) / 2;
+}
 
 /**
  * FitVision 3D - Intelligent Anthropometric Match Engine
- * Computes anatomical delta vs garment specs based on ISO 8559 Ease Allowance.
+ * Computes anatomical delta vs garment specs based on ISO 8559 Ease Allowance
+ * and the user's preferred fit (slim / regular / relaxed).
  */
 export function calculateProductFit(
   user: UserBodyProfile,
-  product: FashionProduct
+  product: FashionProduct,
+  easePreference: EaseAllowanceType = 'regular'
 ): FitMatchResult {
   if (!product.variants || product.variants.length === 0) {
     return {
@@ -41,7 +50,7 @@ export function calculateProductFit(
       const effectiveWaist = user.waist_cm + 2.5;
       waistDiff = spec.waist_cm - effectiveWaist;
       const hipDiff = (spec.hip_cm || user.hip_cm + 4) - user.hip_cm;
-      const targetEase = (spec.ease_min_cm + spec.ease_max_cm) / 2;
+      const targetEase = resolveTargetEase(spec.ease_min_cm, spec.ease_max_cm, easePreference);
 
       const waistPenalty = Math.abs(waistDiff - targetEase) * 4;
       const hipPenalty = Math.abs(hipDiff - 4) * 3;
@@ -61,7 +70,7 @@ export function calculateProductFit(
       waistDiff = spec.waist_cm - user.waist_cm;
       shoulderDiff = spec.shoulder_cm - user.shoulder_cm;
 
-      const targetEase = (spec.ease_min_cm + spec.ease_max_cm) / 2;
+      const targetEase = resolveTargetEase(spec.ease_min_cm, spec.ease_max_cm, easePreference);
       const chestPenalty = Math.abs(chestDiff - targetEase) * 3.5;
       const waistPenalty = Math.abs(waistDiff - targetEase) * 2.5;
       const shoulderPenalty = Math.abs(shoulderDiff - 1.0) * 4;

@@ -8,6 +8,7 @@ import { adminRouter } from './modules/admin/admin.routes.js';
 import { commerceRouter } from './modules/commerce/commerce.routes.js';
 import { measurementsRouter } from './modules/measurements/measurements.routes.js';
 import { aiRouter } from './modules/ai/ai.routes.js';
+import { userSettingsRouter } from './modules/userSettings/userSettings.routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { env } from './config/env.js';
 
@@ -48,6 +49,7 @@ app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/commerce', commerceRouter);
 app.use('/api/v1/measurements', measurementsRouter);
 app.use('/api/v1/ai', aiRouter);
+app.use('/api/v1/me/settings', userSettingsRouter);
 
 // 5. Health Check Endpoint
 app.get('/health', (req, res) => {

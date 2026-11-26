@@ -14,29 +14,68 @@ declare global {
 }
 
 /**
- * Middleware xác thực Access Token (Bearer Token)
+ * Middleware xác thực Access Token (Bearer Token) và kiểm tra trạng thái LOCKED/BANNED theo thời gian thực.
  */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new AppError(
-      401,
-      ErrorCode.AUTH_UNAUTHORIZED,
-      'Yêu cầu xác thực. Vui lòng gửi kèm Access Token hợp lệ.'
-    );
-  }
-
-  const token = authHeader.split(' ')[1];
+export async function requireAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
   try {
-    const payload = verifyAccessToken(token);
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next(
+        new AppError(
+          401,
+          ErrorCode.AUTH_UNAUTHORIZED,
+          'Yêu cầu xác thực. Vui lòng gửi kèm Access Token hợp lệ.'
+        )
+      );
+    }
+
+    const token = authHeader.split(' ')[1];
+    let payload: TokenPayload;
+    try {
+      payload = verifyAccessToken(token);
+    } catch {
+      return next(
+        new AppError(
+          401,
+          ErrorCode.AUTH_UNAUTHORIZED,
+          'Access Token không hợp lệ hoặc đã hết hạn.'
+        )
+      );
+    }
+
+    // Kiểm tra trạng thái tài khoản trực tiếp trên DB để chặn ngay các Access Token cũ khi đã LOCKED/BANNED
+    try {
+      const rows = await query<{ status: string }>(
+        'SELECT status FROM users WHERE id = $1 LIMIT 1',
+        [payload.sub]
+      );
+      const status = rows[0]?.status;
+      if (status === 'LOCKED') {
+        return next(
+          new AppError(
+            403,
+            ErrorCode.AUTH_ACCOUNT_LOCKED,
+            'Tài khoản đã bị khóa. Vui lòng liên hệ Quản trị viên để mở khóa.'
+          )
+        );
+      }
+      if (status === 'BANNED') {
+        return next(
+          new AppError(
+            403,
+            ErrorCode.AUTH_ACCOUNT_BANNED,
+            'Tài khoản đã bị đình chỉ do vi phạm quy định.'
+          )
+        );
+      }
+    } catch {
+      // Nếu DB tạm offline (chế độ fallback dev), tiếp tục bằng payload đã xác thực chữ ký
+    }
+
     req.user = payload;
     next();
-  } catch (err: any) {
-    throw new AppError(
-      401,
-      ErrorCode.AUTH_UNAUTHORIZED,
-      'Access Token không hợp lệ hoặc đã hết hạn.'
-    );
+  } catch (err) {
+    next(err);
   }
 }
 

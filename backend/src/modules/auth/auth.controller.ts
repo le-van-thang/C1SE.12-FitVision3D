@@ -9,6 +9,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   GoogleAuthDto,
+  ChangePasswordDto,
 } from './auth.dto.js';
 import { sendSuccess } from '../../utils/responseEnvelope.js';
 import { env } from '../../config/env.js';
@@ -221,6 +222,73 @@ export const authController = {
         },
         200
       );
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * POST /api/v1/auth/change-password
+   */
+  async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.sub;
+      const validatedData = ChangePasswordDto.parse(req.body);
+      const result = await authService.changePassword(userId, validatedData);
+      sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * POST /api/v1/auth/logout-all
+   */
+  async logoutAll(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.sub;
+      const result = await authService.logoutAll(userId);
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: env.isProduction,
+        sameSite: 'lax',
+        path: '/api/v1/auth',
+        maxAge: 0,
+      });
+      sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * DELETE /api/v1/auth/my-3d-data
+   */
+  async deleteMy3DData(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.sub;
+      const result = await authService.deleteMy3DData(userId, req.ip);
+      sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * POST /api/v1/auth/request-lock
+   */
+  async requestAccountLock(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.sub;
+      const result = await authService.requestAccountLock(userId, req.ip);
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: env.isProduction,
+        sameSite: 'lax',
+        path: '/api/v1/auth',
+        maxAge: 0,
+      });
+      sendSuccess(res, result, 200);
     } catch (error) {
       next(error);
     }

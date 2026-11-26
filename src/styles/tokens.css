@@ -22,7 +22,8 @@
   --label:     #94A3B8;
   --muted:     #64748B;
 
-  --font-sans: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Be Vietnam Pro', 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Lora', 'Be Vietnam Pro', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
 
   --r-md: 8px;

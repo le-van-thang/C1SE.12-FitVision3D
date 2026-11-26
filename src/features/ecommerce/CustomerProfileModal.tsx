@@ -27,6 +27,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
 import { useI18n } from '@/i18n';
+import { useNavigate } from 'react-router-dom';
 import { UserBodyProfile } from './types';
 import { MembershipTab, computeMembershipSummary } from './MembershipTab';
 
@@ -47,6 +48,7 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
   onOpenBiometrics,
   initialTab = 'profile',
 }) => {
+  const navigate = useNavigate();
   const { t, locale } = useI18n();
   const isEn = locale === 'en';
   const {
@@ -419,6 +421,36 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           {/* TAB 1: THÔNG TIN CÁ NHÂN & CHỈNH SỬA PROFILE ĐẦY ĐỦ */}
           {activeTab === 'profile' && (
             <div className="space-y-4">
+              {/* Account Settings Entry — chỉ hiển thị cho tài khoản khách hàng */}
+              {userRole === 'user' && (
+                <div className="p-4 rounded-card bg-[#26356B] text-white border border-[#1B274F] shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <ShieldCheck size={14} className="text-[#C9D2F5]" />
+                        {isEn ? 'Account Settings & Security' : 'Cài Đặt Tài Khoản & Bảo Mật'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/80">
+                      {isEn
+                        ? 'Address Book, Refund Bank Account, Password, Sessions & 3D Privacy.'
+                        : 'Sổ Địa Chỉ nhận hàng, Ngân hàng hoàn tiền, Đổi mật khẩu, Phiên đăng nhập & Quyền riêng tư 3D.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      navigate('/settings');
+                    }}
+                    className="px-3.5 py-2 rounded-control bg-white text-[#26356B] hover:bg-[#F1ECE2] active:scale-98 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer"
+                  >
+                    <span>{isEn ? 'Open Settings' : 'Mở Cài Đặt'}</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+
               {/* Mini Atelier Membership Shortcut Card */}
               <button
                 type="button"

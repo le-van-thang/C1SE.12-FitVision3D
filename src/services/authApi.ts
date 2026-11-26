@@ -3,7 +3,10 @@
  * Kết nối trực tiếp vào Backend Service (http://localhost:5000/api/v1/auth)
  */
 
+import type { UserAddress, RefundBankAccount, UserPreferences } from '@/types/settings.types';
+
 const API_BASE_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api/v1/auth';
+const SETTINGS_API_BASE_URL = API_BASE_URL.replace(/\/auth\/?$/, '/me/settings');
 
 const ACCESS_TOKEN_STORAGE_KEY = 'fv3d_access_token_v1';
 
@@ -47,8 +50,12 @@ export interface ApiResponse<T = any> {
   timestamp: string;
 }
 
-async function request<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-  const url = `${API_BASE_URL}${endpoint}`;
+async function request<T = any>(
+  endpoint: string,
+  options: RequestInit = {},
+  baseUrl: string = API_BASE_URL
+): Promise<ApiResponse<T>> {
+  const url = `${baseUrl}${endpoint}`;
   const currentLocale = typeof window !== 'undefined' ? (localStorage.getItem('fv3d_locale_preference') || 'vi') : 'vi';
   const headers: Record<string, string> = {
     'Accept-Language': currentLocale,
@@ -173,6 +180,7 @@ export const authApi = {
         fullName: string;
         role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
         status: string;
+        authProvider?: 'google' | 'password';
       };
     }>('/login', {
       method: 'POST',
@@ -229,6 +237,7 @@ export const authApi = {
       fullName: string;
       role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
       status: string;
+      authProvider?: 'google' | 'password';
       createdAt: string;
     }>('/me', { method: 'GET' });
   },
@@ -273,6 +282,7 @@ export const authApi = {
         fullName: string;
         role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
         status: string;
+        authProvider?: 'google' | 'password';
       };
     }>('/google', {
       method: 'POST',
@@ -284,5 +294,92 @@ export const authApi = {
     }
     return res;
   },
+
+  // 11. Đổi mật khẩu cho tài khoản đang đăng nhập (thu hồi các phiên cũ)
+  async changePassword(data: { currentPassword?: string; newPassword: string; confirmNewPassword: string }) {
+    return request<{ revokedSessions: number; message: string }>('/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // 12. Đăng xuất khỏi tất cả thiết bị
+  async logoutAll() {
+    const res = await request<{ revokedSessions: number; message: string }>('/logout-all', {
+      method: 'POST',
+    });
+    if (res.success) {
+      setAccessToken(null);
+    }
+    return res;
+  },
+
+  // 13. Xóa dữ liệu 3D nhân trắc học (Zero-Retention & GDPR)
+  async deleteMy3DData() {
+    return request<{ deletedMeasurements: number; message: string }>('/my-3d-data', {
+      method: 'DELETE',
+    });
+  },
+
+  // 14. Yêu cầu khóa tài khoản (chỉ khách hàng)
+  async requestAccountLock() {
+    const res = await request<{ revokedSessions: number; message: string }>('/request-lock', {
+      method: 'POST',
+    });
+    if (res.success) {
+      setAccessToken(null);
+    }
+    return res;
+  },
+};
+
+export interface UserProfileServerData {
+  fullName?: string;
+  avatarUrl?: string;
+  phone: string;
+  city: string;
+  address: string;
+  gender: 'male' | 'female' | 'other' | null;
+  birthDate: string | null;
+  notes: string;
+}
+
+export interface UserSettingsBundle {
+  profile: UserProfileServerData;
+  addresses: UserAddress[];
+  refundBank: RefundBankAccount | null;
+  preferences: UserPreferences;
+}
+
+type AddressInput = Omit<UserAddress, 'id' | 'createdAt' | 'isDefault'> & { isDefault?: boolean };
+
+const settingsRequest = <T>(endpoint: string, options: RequestInit = {}) =>
+  request<T>(endpoint, options, SETTINGS_API_BASE_URL);
+
+export const settingsApi = {
+  getAll: () => settingsRequest<UserSettingsBundle>(''),
+
+  saveProfile: (data: UserProfileServerData) =>
+    settingsRequest<UserProfileServerData>('/profile', { method: 'PUT', body: JSON.stringify(data) }),
+
+  createAddress: (data: AddressInput) =>
+    settingsRequest<{ addresses: UserAddress[] }>('/addresses', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateAddress: (id: string, data: AddressInput) =>
+    settingsRequest<{ addresses: UserAddress[] }>(`/addresses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  setDefaultAddress: (id: string) =>
+    settingsRequest<{ addresses: UserAddress[] }>(`/addresses/${id}/default`, { method: 'POST' }),
+
+  deleteAddress: (id: string) =>
+    settingsRequest<{ addresses: UserAddress[] }>(`/addresses/${id}`, { method: 'DELETE' }),
+
+  saveRefundBank: (data: Pick<RefundBankAccount, 'bankCode' | 'bankName' | 'accountNumber' | 'accountHolderName'>) =>
+    settingsRequest<RefundBankAccount>('/refund-bank', { method: 'PUT', body: JSON.stringify(data) }),
+
+  deleteRefundBank: () => settingsRequest<{ message: string }>('/refund-bank', { method: 'DELETE' }),
+
+  savePreferences: (data: UserPreferences) =>
+    settingsRequest<UserPreferences>('/preferences', { method: 'PUT', body: JSON.stringify(data) }),
 };
 

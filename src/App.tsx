@@ -11,6 +11,7 @@ import { SizeChartManager } from "./pages/SizeChartManager";
 import { AdminPortal } from "./pages/AdminPortal";
 import { ShopPortal } from "./pages/ShopPortal";
 import { ShopStorefrontPage } from "./pages/ShopStorefrontPage";
+import { UserSettingsPage } from "./pages/UserSettingsPage";
 import { GlobalToastHost } from "./components/common/GlobalToastHost";
 import { MerchantOnboardingModal } from "./components/store/MerchantOnboardingModal";
 import "./index.css";
@@ -19,6 +20,15 @@ import "./index.css";
 const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/" replace />;
+};
+
+/** Customer-only Account Settings: Admin -> /admin, Seller -> /shop, Guest -> / */
+const RequireCustomer: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/" replace />;
+  if (userRole === 'admin') return <Navigate to="/admin" replace />;
+  if (userRole === 'store' || userRole === 'tailor') return <Navigate to="/shop" replace />;
+  return children;
 };
 
 /** Tailor & Size chart studio only accessible to Approved Store Partners or Admin */
@@ -82,6 +92,7 @@ export const App: React.FC = () => (
             <Route path="/stores/:slug" element={<ShopStorefrontPage />} />
             <Route path="/legacy-landing" element={<Landing />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/settings" element={<RequireCustomer><UserSettingsPage /></RequireCustomer>} />
             <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />
             <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
             <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />

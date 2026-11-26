@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authController } from './auth.controller.js';
 import { requireAuth, requireRole } from '../../middlewares/authGuard.js';
-import { registerRateLimiter } from '../../middlewares/rateLimiter.js';
+import { registerRateLimiter, sensitiveActionRateLimiter } from '../../middlewares/rateLimiter.js';
 import { sendSuccess } from '../../utils/responseEnvelope.js';
 
 export const authRouter = Router();
@@ -60,4 +60,15 @@ authRouter.get('/shop-studio', requireAuth, requireRole('SHOP_OWNER', 'ADMIN'), 
     user: req.user,
   });
 });
+
+// 9. Cài đặt bảo mật: Đổi mật khẩu & Đăng xuất khỏi tất cả thiết bị (đồng bộ chuẩn endpoint)
+authRouter.post('/change-password', requireAuth, sensitiveActionRateLimiter, authController.changePassword);
+authRouter.post('/logout-all', requireAuth, authController.logoutAll);
+
+// 10. Xóa toàn bộ dữ liệu số đo 3D cá nhân (GDPR & Zero-Retention)
+authRouter.delete('/my-3d-data', requireAuth, authController.deleteMy3DData);
+
+// 11. Yêu cầu khóa tài khoản (chỉ khách hàng)
+authRouter.post('/request-lock', requireAuth, authController.requestAccountLock);
+
 
