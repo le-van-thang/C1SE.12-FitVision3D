@@ -1,6 +1,6 @@
 // =============================================================================
 // FITVISION 3D - USER SETTINGS & ADDRESS BOOK TYPES
-// Chuẩn thiết kế Shopee "Tài khoản của tôi" & Tuân thủ Zero-Retention
+// Tài khoản của tôi & Tuân thủ Zero-Image Retention
 // =============================================================================
 
 export type AddressType = 'home' | 'office' | 'other';

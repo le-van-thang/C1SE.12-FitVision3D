@@ -18,3 +18,19 @@ export async function verifyPassword(plainText: string, hashed: string): Promise
   return bcrypt.compare(plainText, hashed);
 }
 
+/**
+ * Detect whether a stored password_hash belongs to a Google OAuth-only account
+ * (created without a local password).
+ */
+export function isGoogleOAuthHash(hashed?: string | null): boolean {
+  if (!hashed) return false;
+  return (
+    hashed.includes('google_oauth_no_direct_password') ||
+    hashed.startsWith('GOOGLE_OAUTH')
+  );
+}
+
+export function resolveAuthProvider(hashed?: string | null): 'google' | 'password' {
+  return isGoogleOAuthHash(hashed) ? 'google' : 'password';
+}
+

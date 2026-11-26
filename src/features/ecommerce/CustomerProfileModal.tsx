@@ -421,36 +421,35 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
           {/* TAB 1: THÔNG TIN CÁ NHÂN & CHỈNH SỬA PROFILE ĐẦY ĐỦ */}
           {activeTab === 'profile' && (
             <div className="space-y-4">
-              {/* Shopee Standard Account Settings Entry */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-[#14171C] text-white border border-slate-800 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                      Shopee Standard
-                    </span>
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <ShieldCheck size={14} className="text-sky-400" />
-                      {isEn ? 'Account Settings & Security' : 'Cài Đặt Tài Khoản & Bảo Mật'}
-                    </span>
+              {/* Account Settings Entry — chỉ hiển thị cho tài khoản khách hàng */}
+              {userRole === 'user' && (
+                <div className="p-4 rounded-card bg-[#26356B] text-white border border-[#1B274F] shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <ShieldCheck size={14} className="text-[#C9D2F5]" />
+                        {isEn ? 'Account Settings & Security' : 'Cài Đặt Tài Khoản & Bảo Mật'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/80">
+                      {isEn
+                        ? 'Address Book, Refund Bank Account, Password, Sessions & 3D Privacy.'
+                        : 'Sổ Địa Chỉ nhận hàng, Ngân hàng hoàn tiền, Đổi mật khẩu, Phiên đăng nhập & Quyền riêng tư 3D.'}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-300">
-                    {isEn
-                      ? 'Address Book, Refund Bank Account, Password/Sessions, 3D Ease & GDPR Privacy.'
-                      : 'Sổ Địa Chỉ nhận hàng, Ngân hàng hoàn tiền, Đổi mật khẩu/Phiên đăng nhập & Quyền riêng tư 3D.'}
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      navigate('/settings');
+                    }}
+                    className="px-3.5 py-2 rounded-control bg-white text-[#26356B] hover:bg-[#F1ECE2] active:scale-98 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer"
+                  >
+                    <span>{isEn ? 'Open Settings' : 'Mở Cài Đặt'}</span>
+                    <ChevronRight size={14} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    navigate('/settings');
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-98 text-white text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer shadow-sm"
-                >
-                  <span>{isEn ? 'Open Settings Page' : 'Đến Trang Cài Đặt'}</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
+              )}
 
               {/* Mini Atelier Membership Shortcut Card */}
               <button

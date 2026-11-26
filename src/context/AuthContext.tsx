@@ -9,7 +9,7 @@ import {
   checkHoneypot,
   RateLimiter,
 } from '@/lib/validationRules';
-import { authApi } from '@/services/authApi';
+import { authApi, settingsApi } from '@/services/authApi';
 import { adminApi } from '@/services/adminApi';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 import { clearTransientStudioPrivacyState, wipeAllUser3DData } from '@/utils/bodyProfileStorage';
@@ -47,6 +47,17 @@ export interface UserProfileDetails {
   has_password?: boolean;
 }
 
+export interface SettingsResult {
+  success: boolean;
+  error?: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  emailOrderUpdates: true,
+  emailPromotions: false,
+  easeAllowancePreference: 'regular',
+};
+
 export interface AuthContextType {
   currentUser: Profile | null;
   currentStore: Store | null;
@@ -54,6 +65,7 @@ export interface AuthContextType {
   profiles: Profile[];
   isAuthenticated: boolean;
   userRole: UserRole | 'guest';
+  authProvider: 'google' | 'password';
 
   // Modal Controls
   isAuthModalOpen: boolean;
@@ -89,25 +101,25 @@ export interface AuthContextType {
   updateUserProfile: (data: { full_name?: string; avatar_url?: string } & UserProfileDetails) => Promise<{ success: boolean; error?: string }>;
   getUserProfileDetails: (userId?: string) => UserProfileDetails;
 
-  // Sổ địa chỉ nhận hàng (Chuẩn Shopee)
+  // Sổ địa chỉ nhận hàng
   userAddresses: UserAddress[];
   defaultAddress: UserAddress | null;
-  saveAddress: (address: Omit<UserAddress, 'id' | 'createdAt'> & { id?: string }) => void;
-  deleteAddress: (id: string) => void;
-  setDefaultAddress: (id: string) => void;
+  saveAddress: (address: Omit<UserAddress, 'id' | 'createdAt'> & { id?: string }) => Promise<SettingsResult>;
+  deleteAddress: (id: string) => Promise<SettingsResult>;
+  setDefaultAddress: (id: string) => Promise<SettingsResult>;
 
   // Ngân hàng hoàn tiền
   refundBank: RefundBankAccount | null;
-  saveRefundBank: (bank: RefundBankAccount) => void;
-  deleteRefundBank: () => void;
+  saveRefundBank: (bank: RefundBankAccount) => Promise<SettingsResult>;
+  deleteRefundBank: () => Promise<SettingsResult>;
 
   // Cài đặt thông báo & Quyền riêng tư 3D
   userPreferences: UserPreferences;
-  updateUserPreferences: (prefs: Partial<UserPreferences>) => void;
-  changePassword: (oldPassword: string | undefined, newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  revokeAllSessions: () => Promise<{ success: boolean; error?: string }>;
-  deleteMy3DData: () => Promise<{ success: boolean; error?: string }>;
-  requestAccountLock: (reason?: string) => Promise<{ success: boolean; error?: string }>;
+  updateUserPreferences: (prefs: Partial<UserPreferences>) => Promise<SettingsResult>;
+  changePassword: (currentPassword: string | undefined, newPassword: string, confirmNewPassword: string) => Promise<SettingsResult>;
+  logoutAllDevices: () => Promise<SettingsResult>;
+  deleteMy3DData: () => Promise<SettingsResult>;
+  requestAccountLock: () => Promise<SettingsResult>;
 
   // Merchant Onboarding & Admin
   applyMerchant: (payload: MerchantOnboardingPayload) => Promise<{ success: boolean; error?: string }>;
@@ -179,6 +191,7 @@ function initCurrentUserId(): string | null {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authProvider, setAuthProvider] = useState<'google' | 'password'>('password');
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>(initProfiles);
   const [stores, setStores] = useState<Store[]>(initStores);
@@ -232,6 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return exists ? prev.map((p) => (p.id === prof.id ? prof : p)) : [prof, ...prev];
           });
           setCurrentUserId(prof.id);
+          setAuthProvider(res.data.authProvider === 'google' ? 'google' : 'password');
           await syncMyStoreFromBackend(prof.id);
         }
       } catch {
@@ -360,6 +374,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return [profile, ...filtered];
         });
         setCurrentUserId(profile.id);
+        setAuthProvider(res.data.user.authProvider === 'google' ? 'google' : 'password');
         setIsAuthModalOpen(false);
         syncMyStoreFromBackend(profile.id);
         showGlobalToast({
@@ -538,6 +553,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return [prof, ...filtered];
         });
         setCurrentUserId(prof.id);
+        setAuthProvider(res.data.user.authProvider === 'google' ? 'google' : 'password');
         setIsAuthModalOpen(false);
         syncMyStoreFromBackend(prof.id);
         showGlobalToast({
@@ -562,6 +578,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 7. Sign Out
   const signOut = useCallback(async () => {
     setCurrentUserId(null);
+    setAuthProvider('password');
     clearTransientStudioPrivacyState();
     try {
       localStorage.setItem(STORAGE_KEY_USER_ID, 'guest');
@@ -789,363 +806,302 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   }, []);
 
-  // 11. Profile Details & Update
-  const getUserProfileDetails = useCallback((userId?: string): UserProfileDetails => {
-    const targetId = userId || currentUserId;
-    if (!targetId) {
-      return {
-        phone: '0988 123 456',
-        address: '123 Nguyễn Văn Linh, P. Hải Châu',
-        city: 'Đà Nẵng',
-        gender: 'male',
-        notes: 'May đo phom dáng chuẩn, vải tự nhiên',
-      };
+  // 11. Hồ sơ, Sổ địa chỉ, Ngân hàng hoàn tiền & Tùy chọn — lưu ở PostgreSQL qua /api/v1/me/settings
+  const [profileDetails, setProfileDetails] = useState<UserProfileDetails>({});
+  const [userAddresses, setUserAddresses] = useState<UserAddress[]>([]);
+  const [refundBank, setRefundBank] = useState<RefundBankAccount | null>(null);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!currentUserId) {
+      setProfileDetails({});
+      setUserAddresses([]);
+      setRefundBank(null);
+      setUserPreferences(DEFAULT_PREFERENCES);
+      return;
     }
-    try {
-      const raw = localStorage.getItem(`fv3d_profile_details_${targetId}`);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return {
-      phone: '0988 123 456',
-      address: '123 Nguyễn Văn Linh, P. Hải Châu',
-      city: 'Đà Nẵng',
-      gender: 'male',
-      notes: 'May đo phom dáng chuẩn, vải tự nhiên',
+    (async () => {
+      const res = await settingsApi.getAll();
+      if (cancelled || !res.success || !res.data) return;
+      const { profile, addresses, refundBank: bank, preferences } = res.data;
+      setProfileDetails({
+        phone: profile.phone,
+        city: profile.city,
+        address: profile.address,
+        gender: profile.gender || undefined,
+        birth_date: profile.birthDate || undefined,
+        notes: profile.notes,
+      });
+      setUserAddresses(addresses);
+      setRefundBank(bank);
+      setUserPreferences(preferences);
+
+      let localAvatar: string | null = null;
+      try {
+        localAvatar = localStorage.getItem(`fv3d_local_avatar_${currentUserId}`);
+      } catch {
+        localAvatar = null;
+      }
+      const resolvedAvatar = localAvatar || profile.avatarUrl || undefined;
+      if (profile.fullName || resolvedAvatar) {
+        setProfiles((prev) =>
+          prev.map((p) =>
+            p.id === currentUserId
+              ? {
+                  ...p,
+                  full_name: profile.fullName || p.full_name,
+                  avatar_url: resolvedAvatar ?? p.avatar_url,
+                }
+              : p
+          )
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
   }, [currentUserId]);
 
+  const getUserProfileDetails = useCallback(
+    (userId?: string): UserProfileDetails => {
+      if (userId && userId !== currentUserId) return {};
+      return profileDetails;
+    },
+    [currentUserId, profileDetails]
+  );
+
+  const failure = (res: { error: { message: string } | null }, fallback: string): SettingsResult => ({
+    success: false,
+    error: res.error?.message || fallback,
+  });
+
   const updateUserProfile = useCallback(
-    async (data: { full_name?: string; avatar_url?: string } & UserProfileDetails) => {
+    async (data: { full_name?: string; avatar_url?: string } & UserProfileDetails): Promise<SettingsResult> => {
       if (!currentUserId) {
         return { success: false, error: 'Vui lòng đăng nhập để cập nhật hồ sơ.' };
       }
 
-      const now = new Date().toISOString();
+      // Chỉ gửi URL HTTPS preset lên máy chủ; ảnh tải từ máy (base64) chỉ lưu cục bộ (Zero-Image Retention)
+      const isDataImage = typeof data.avatar_url === 'string' && data.avatar_url.startsWith('data:');
+      const serverAvatarUrl =
+        data.avatar_url === undefined ? undefined : isDataImage ? '' : data.avatar_url;
 
+      const res = await settingsApi.saveProfile({
+        fullName: data.full_name && data.full_name.trim() ? data.full_name.trim() : undefined,
+        avatarUrl: serverAvatarUrl,
+        phone: (data.phone !== undefined ? data.phone : profileDetails.phone || '').trim(),
+        city: (data.city !== undefined ? data.city : profileDetails.city || '').trim(),
+        address: (data.address !== undefined ? data.address : profileDetails.address || '').trim(),
+        gender: data.gender || profileDetails.gender || null,
+        birthDate: (data.birth_date !== undefined ? data.birth_date : profileDetails.birth_date) || null,
+        notes: (data.notes !== undefined ? data.notes : profileDetails.notes || '').trim(),
+      });
+      if (!res.success || !res.data) {
+        return failure(res, 'Không thể lưu hồ sơ. Vui lòng thử lại.');
+      }
+
+      try {
+        if (isDataImage && data.avatar_url) {
+          localStorage.setItem(`fv3d_local_avatar_${currentUserId}`, data.avatar_url);
+        } else if (data.avatar_url !== undefined) {
+          localStorage.removeItem(`fv3d_local_avatar_${currentUserId}`);
+        }
+      } catch {
+        // Ignore storage quota errors
+      }
+
+      const saved = res.data;
+      setProfileDetails({
+        phone: saved.phone,
+        city: saved.city,
+        address: saved.address,
+        gender: saved.gender || undefined,
+        birth_date: saved.birthDate || undefined,
+        notes: saved.notes,
+      });
+
+      const now = new Date().toISOString();
       setProfiles((prev) =>
         prev.map((p) => {
           if (p.id !== currentUserId) return p;
           return {
             ...p,
-            full_name: data.full_name && data.full_name.trim() ? data.full_name.trim() : p.full_name,
-            avatar_url: data.avatar_url !== undefined ? data.avatar_url : p.avatar_url,
+            full_name: saved.fullName || (data.full_name && data.full_name.trim()) || p.full_name,
+            avatar_url: isDataImage
+              ? data.avatar_url || null
+              : data.avatar_url !== undefined
+              ? saved.avatarUrl || null
+              : p.avatar_url,
             updated_at: now,
           };
         })
       );
-
-      const existingDetails = getUserProfileDetails(currentUserId);
-      const updatedDetails: UserProfileDetails = {
-        phone: data.phone !== undefined ? data.phone.trim() : existingDetails.phone,
-        address: data.address !== undefined ? data.address.trim() : existingDetails.address,
-        city: data.city !== undefined ? data.city.trim() : existingDetails.city,
-        gender: data.gender || existingDetails.gender,
-        notes: data.notes !== undefined ? data.notes.trim() : existingDetails.notes,
-      };
-
-      try {
-        localStorage.setItem(`fv3d_profile_details_${currentUserId}`, JSON.stringify(updatedDetails));
-      } catch {}
-
       return { success: true };
     },
-    [currentUserId, getUserProfileDetails]
+    [currentUserId, profileDetails]
   );
-
-  // 12. Sổ địa chỉ nhận hàng (Chuẩn Shopee)
-  const [userAddresses, setUserAddresses] = useState<UserAddress[]>(() => {
-    if (!currentUserId) return [];
-    try {
-      const raw = localStorage.getItem(`fv3d_addresses_${currentUserId}`);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return [];
-  });
-
-  const [refundBank, setRefundBank] = useState<RefundBankAccount | null>(() => {
-    if (!currentUserId) return null;
-    try {
-      const raw = localStorage.getItem(`fv3d_refund_bank_${currentUserId}`);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return null;
-  });
-
-  const [userPreferences, setUserPreferences] = useState<UserPreferences>(() => {
-    const defaultPrefs: UserPreferences = {
-      emailOrderUpdates: true,
-      emailPromotions: false,
-      easeAllowancePreference: 'regular',
-    };
-    if (!currentUserId) return defaultPrefs;
-    try {
-      const raw = localStorage.getItem(`fv3d_preferences_${currentUserId}`);
-      if (raw) return { ...defaultPrefs, ...JSON.parse(raw) };
-    } catch {}
-    return defaultPrefs;
-  });
-
-  // Sync address book and settings when current user switches
-  useEffect(() => {
-    if (!currentUserId) {
-      setUserAddresses([]);
-      setRefundBank(null);
-      setUserPreferences({
-        emailOrderUpdates: true,
-        emailPromotions: false,
-        easeAllowancePreference: 'regular',
-      });
-      return;
-    }
-
-    try {
-      const rawAddr = localStorage.getItem(`fv3d_addresses_${currentUserId}`);
-      if (rawAddr) {
-        setUserAddresses(JSON.parse(rawAddr));
-      } else {
-        const details = getUserProfileDetails(currentUserId);
-        const currentUserObj = profiles.find((p) => p.id === currentUserId);
-        if (details?.address) {
-          const initialAddr: UserAddress = {
-            id: 'addr-default-' + currentUserId.slice(0, 8),
-            recipientName: currentUserObj?.full_name || 'Khách hàng',
-            phone: details.phone || '0988 123 456',
-            city: details.city || 'Đà Nẵng',
-            detailedAddress: details.address,
-            label: 'home',
-            isDefault: true,
-            createdAt: new Date().toISOString(),
-          };
-          setUserAddresses([initialAddr]);
-          localStorage.setItem(`fv3d_addresses_${currentUserId}`, JSON.stringify([initialAddr]));
-        } else {
-          setUserAddresses([]);
-        }
-      }
-
-      const rawBank = localStorage.getItem(`fv3d_refund_bank_${currentUserId}`);
-      if (rawBank) setRefundBank(JSON.parse(rawBank));
-      else setRefundBank(null);
-
-      const rawPrefs = localStorage.getItem(`fv3d_preferences_${currentUserId}`);
-      if (rawPrefs) {
-        setUserPreferences((prev) => ({ ...prev, ...JSON.parse(rawPrefs) }));
-      }
-    } catch {}
-  }, [currentUserId, getUserProfileDetails, profiles]);
 
   const defaultAddress = useMemo(() => {
     if (!userAddresses.length) return null;
     return userAddresses.find((a) => a.isDefault) || userAddresses[0];
   }, [userAddresses]);
 
+  const applyAddresses = (
+    res: { success: boolean; data: { addresses: UserAddress[] } | null; error: { message: string } | null },
+    toast: { type: 'success' | 'info'; title: string; message: string },
+    fallback: string
+  ): SettingsResult => {
+    if (!res.success || !res.data) return failure(res, fallback);
+    setUserAddresses(res.data.addresses);
+    showGlobalToast(toast);
+    return { success: true };
+  };
+
   const saveAddress = useCallback(
-    (addressData: Omit<UserAddress, 'id' | 'createdAt'> & { id?: string }) => {
-      if (!currentUserId) return;
-      const now = new Date().toISOString();
-      setUserAddresses((prev) => {
-        let updated: UserAddress[];
-        const isDefault = addressData.isDefault || prev.length === 0;
-
-        if (addressData.id) {
-          updated = prev.map((item) => {
-            if (item.id === addressData.id) {
-              return {
-                ...item,
-                ...addressData,
-                isDefault,
-              };
-            }
-            return isDefault ? { ...item, isDefault: false } : item;
-          });
-        } else {
-          const newAddress: UserAddress = {
-            ...addressData,
-            id: 'addr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-            isDefault,
-            createdAt: now,
-          };
-          const mappedPrev = isDefault ? prev.map((a) => ({ ...a, isDefault: false })) : prev;
-          updated = [newAddress, ...mappedPrev];
-        }
-
-        try {
-          localStorage.setItem(`fv3d_addresses_${currentUserId}`, JSON.stringify(updated));
-        } catch {}
-
-        return updated;
-      });
-
-      showGlobalToast({
-        type: 'success',
-        title: 'Đã cập nhật sổ địa chỉ',
-        message: 'Địa chỉ nhận hàng đã được lưu an toàn.',
-      });
+    async (addressData: Omit<UserAddress, 'id' | 'createdAt'> & { id?: string }): Promise<SettingsResult> => {
+      if (!currentUserId) return { success: false, error: 'Vui lòng đăng nhập.' };
+      const { id, ...payload } = addressData;
+      const res = id ? await settingsApi.updateAddress(id, payload) : await settingsApi.createAddress(payload);
+      return applyAddresses(
+        res,
+        { type: 'success', title: 'Đã cập nhật sổ địa chỉ', message: 'Địa chỉ nhận hàng đã được lưu an toàn.' },
+        'Không thể lưu địa chỉ.'
+      );
     },
     [currentUserId]
   );
 
   const deleteAddress = useCallback(
-    (id: string) => {
-      if (!currentUserId) return;
-      setUserAddresses((prev) => {
-        const remaining = prev.filter((a) => a.id !== id);
-        if (remaining.length > 0 && !remaining.some((a) => a.isDefault)) {
-          remaining[0].isDefault = true;
-        }
-        try {
-          localStorage.setItem(`fv3d_addresses_${currentUserId}`, JSON.stringify(remaining));
-        } catch {}
-        return remaining;
-      });
-
-      showGlobalToast({
-        type: 'info',
-        title: 'Đã xóa địa chỉ',
-        message: 'Địa chỉ đã được gỡ khỏi sổ địa chỉ của bạn.',
-      });
+    async (id: string): Promise<SettingsResult> => {
+      if (!currentUserId) return { success: false, error: 'Vui lòng đăng nhập.' };
+      const res = await settingsApi.deleteAddress(id);
+      return applyAddresses(
+        res,
+        { type: 'info', title: 'Đã xóa địa chỉ', message: 'Địa chỉ đã được gỡ khỏi sổ địa chỉ của bạn.' },
+        'Không thể xóa địa chỉ.'
+      );
     },
     [currentUserId]
   );
 
   const setDefaultAddress = useCallback(
-    (id: string) => {
-      if (!currentUserId) return;
-      setUserAddresses((prev) => {
-        const updated = prev.map((a) => ({
-          ...a,
-          isDefault: a.id === id,
-        }));
-        try {
-          localStorage.setItem(`fv3d_addresses_${currentUserId}`, JSON.stringify(updated));
-        } catch {}
-        return updated;
-      });
-
-      showGlobalToast({
-        type: 'success',
-        title: 'Địa chỉ mặc định',
-        message: 'Đã đặt địa chỉ làm mặc định cho các đơn hàng tiếp theo.',
-      });
+    async (id: string): Promise<SettingsResult> => {
+      if (!currentUserId) return { success: false, error: 'Vui lòng đăng nhập.' };
+      const res = await settingsApi.setDefaultAddress(id);
+      return applyAddresses(
+        res,
+        { type: 'success', title: 'Địa chỉ mặc định', message: 'Đã đặt địa chỉ làm mặc định cho các đơn hàng tiếp theo.' },
+        'Không thể đặt địa chỉ mặc định.'
+      );
     },
     [currentUserId]
   );
 
   const saveRefundBank = useCallback(
-    (bank: RefundBankAccount) => {
-      if (!currentUserId) return;
-      setRefundBank(bank);
-      try {
-        localStorage.setItem(`fv3d_refund_bank_${currentUserId}`, JSON.stringify(bank));
-      } catch {}
+    async (bank: RefundBankAccount): Promise<SettingsResult> => {
+      if (!currentUserId) return { success: false, error: 'Vui lòng đăng nhập.' };
+      const res = await settingsApi.saveRefundBank({
+        bankCode: bank.bankCode,
+        bankName: bank.bankName,
+        accountNumber: bank.accountNumber,
+        accountHolderName: bank.accountHolderName,
+      });
+      if (!res.success || !res.data) return failure(res, 'Không thể liên kết tài khoản ngân hàng.');
+      setRefundBank(res.data);
       showGlobalToast({
         type: 'success',
         title: 'Liên kết ngân hàng thành công',
-        message: `Đã lưu tài khoản ${bank.bankCode} (${bank.accountHolderName}) để đối soát hoàn tiền.`,
+        message: `Đã lưu tài khoản ${res.data.bankCode} (${res.data.accountHolderName}) để đối soát hoàn tiền.`,
       });
+      return { success: true };
     },
     [currentUserId]
   );
 
-  const deleteRefundBank = useCallback(() => {
-    if (!currentUserId) return;
+  const deleteRefundBank = useCallback(async (): Promise<SettingsResult> => {
+    if (!currentUserId) return { success: false, error: 'Vui lòng đăng nhập.' };
+    const res = await settingsApi.deleteRefundBank();
+    if (!res.success) return failure(res, 'Không thể gỡ tài khoản ngân hàng.');
     setRefundBank(null);
-    try {
-      localStorage.removeItem(`fv3d_refund_bank_${currentUserId}`);
-    } catch {}
     showGlobalToast({
       type: 'info',
       title: 'Đã gỡ tài khoản ngân hàng',
       message: 'Tài khoản hoàn tiền đã được xóa.',
     });
+    return { success: true };
   }, [currentUserId]);
 
   const updateUserPreferences = useCallback(
-    (prefs: Partial<UserPreferences>) => {
-      if (!currentUserId) return;
-      setUserPreferences((prev) => {
-        const updated = { ...prev, ...prefs };
-        try {
-          localStorage.setItem(`fv3d_preferences_${currentUserId}`, JSON.stringify(updated));
-        } catch {}
-        return updated;
-      });
+    async (prefs: Partial<UserPreferences>): Promise<SettingsResult> => {
+      if (!currentUserId) return { success: false, error: 'Vui lòng đăng nhập.' };
+      const res = await settingsApi.savePreferences({ ...userPreferences, ...prefs });
+      if (!res.success || !res.data) {
+        const result = failure(res, 'Không thể lưu tùy chọn.');
+        showGlobalToast({ type: 'error', title: 'Chưa lưu được tùy chọn', message: result.error || '' });
+        return result;
+      }
+      setUserPreferences(res.data);
       showGlobalToast({
         type: 'success',
         title: 'Đã lưu tùy chọn',
-        message: 'Cài đặt thông báo & gợi ý kích thước 3D đã được cập nhật.',
+        message: 'Cài đặt thông báo & độ rộng ưa thích đã được cập nhật.',
       });
+      return { success: true };
     },
-    [currentUserId]
+    [currentUserId, userPreferences]
   );
 
   const changePassword = useCallback(
-    async (oldPassword: string | undefined, newPassword: string) => {
-      try {
-        const res = await authApi.changePassword({ oldPassword, newPassword });
-        if (res.success) {
-          showGlobalToast({
-            type: 'success',
-            title: 'Đổi mật khẩu thành công',
-            message: 'Mật khẩu bảo vệ tài khoản của bạn đã được cập nhật.',
-          });
-          return { success: true };
-        }
-        return { success: false, error: res.error?.message || 'Đổi mật khẩu thất bại.' };
-      } catch (err: any) {
-        return { success: false, error: err.message || 'Lỗi kết nối máy chủ.' };
-      }
-    },
-    []
-  );
-
-  const revokeAllSessions = useCallback(async () => {
-    try {
-      await authApi.revokeAllSessions();
+    async (currentPassword: string | undefined, newPassword: string, confirmNewPassword: string): Promise<SettingsResult> => {
+      const res = await authApi.changePassword({ currentPassword, newPassword, confirmNewPassword });
+      if (!res.success) return failure(res, 'Đổi mật khẩu thất bại.');
       showGlobalToast({
-        type: 'info',
-        title: 'Đã đăng xuất toàn bộ thiết bị',
-        message: 'Tất cả các phiên làm việc khác đã được hủy an toàn.',
+        type: 'success',
+        title: 'Đổi mật khẩu thành công',
+        message: 'Vui lòng đăng nhập lại bằng mật khẩu mới.',
       });
       await signOut();
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Lỗi khi hủy phiên đăng nhập.' };
-    }
-  }, [signOut]);
-
-  const deleteMy3DData = useCallback(async () => {
-    try {
-      await authApi.deleteMy3DData();
-      wipeAllUser3DData(currentUserId);
-      showGlobalToast({
-        type: 'success',
-        title: 'Xóa dữ liệu 3D thành công',
-        message: 'Toàn bộ số đo và mesh đã được xóa vĩnh viễn theo chuẩn Zero-Retention.',
-      });
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Lỗi khi xóa dữ liệu 3D.' };
-    }
-  }, [currentUserId]);
-
-  const requestAccountLock = useCallback(
-    async (reason?: string) => {
-      try {
-        await authApi.requestAccountLock(reason);
-        showGlobalToast({
-          type: 'warning',
-          title: 'Tài khoản đã được khóa',
-          message: 'Hệ thống đã khóa tài khoản của bạn để bảo mật thông tin.',
-        });
-        await signOut();
-        return { success: true };
-      } catch (err: any) {
-        return { success: false, error: err.message || 'Lỗi khi yêu cầu khóa tài khoản.' };
-      }
     },
     [signOut]
   );
+
+  const logoutAllDevices = useCallback(async (): Promise<SettingsResult> => {
+    const res = await authApi.logoutAll();
+    if (!res.success) return failure(res, 'Không thể đăng xuất khỏi các thiết bị.');
+    showGlobalToast({
+      type: 'info',
+      title: 'Đã đăng xuất toàn bộ thiết bị',
+      message: 'Tất cả các phiên đăng nhập đã được thu hồi.',
+    });
+    await signOut();
+    return { success: true };
+  }, [signOut]);
+
+  const deleteMy3DData = useCallback(async (): Promise<SettingsResult> => {
+    const res = await authApi.deleteMy3DData();
+    if (!res.success) return failure(res, 'Không thể xóa dữ liệu 3D. Dữ liệu của bạn vẫn được giữ nguyên.');
+    wipeAllUser3DData(currentUserId);
+    showGlobalToast({
+      type: 'success',
+      title: 'Xóa dữ liệu 3D thành công',
+      message: 'Toàn bộ số đo và mô hình 3D đã được xóa vĩnh viễn theo chuẩn Zero-Retention.',
+    });
+    return { success: true };
+  }, [currentUserId]);
+
+  const requestAccountLock = useCallback(async (): Promise<SettingsResult> => {
+    const res = await authApi.requestAccountLock();
+    if (!res.success) return failure(res, 'Không thể khóa tài khoản. Tài khoản của bạn vẫn hoạt động bình thường.');
+    showGlobalToast({
+      type: 'warning',
+      title: 'Tài khoản đã được khóa',
+      message: 'Hệ thống đã khóa tài khoản của bạn để bảo mật thông tin.',
+    });
+    await signOut();
+    return { success: true };
+  }, [signOut]);
 
   // 13. Demo Switcher for Instant Testing
   const switchDemoRole = useCallback((role: 'user' | 'pending' | 'store' | 'admin' | 'guest') => {
@@ -1175,6 +1131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profiles,
         isAuthenticated,
         userRole,
+        authProvider,
 
         isAuthModalOpen,
         authModalTab,
@@ -1216,7 +1173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userPreferences,
         updateUserPreferences,
         changePassword,
-        revokeAllSessions,
+        logoutAllDevices,
         deleteMy3DData,
         requestAccountLock,
 

@@ -25,6 +25,7 @@ import { useOrders } from '@/context/OrderContext';
 import { useI18n } from '@/i18n';
 import { loadPlatformConfig } from '@/services/platformConfig';
 import { commerceApi } from '@/services/commerceApi';
+import { showGlobalToast } from '@/components/common/GlobalToastHost';
 import { loadFullScanSnapshot } from '@/utils/bodyProfileStorage';
 
 interface CheckoutModalProps {
@@ -395,7 +396,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       };
       if (result.success && result.order) {
         if (saveToAddressBook && address.trim() && fullName.trim() && phone.trim()) {
-          saveAddress({
+          const addrRes = await saveAddress({
             recipientName: fullName.trim(),
             phone: phone.trim(),
             city: city.trim(),
@@ -403,6 +404,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             label: 'other',
             isDefault: userAddresses.length === 0,
           });
+          if (!addrRes.success) {
+            showGlobalToast({
+              type: 'warning',
+              title: locale === 'en' ? 'Address not saved to Address Book' : 'Chưa lưu được vào Sổ Địa Chỉ',
+              message:
+                addrRes.error ||
+                (locale === 'en'
+                  ? 'Order was placed, but the address could not be saved.'
+                  : 'Đơn hàng đã đặt thành công, nhưng địa chỉ chưa lưu được vào Sổ Địa Chỉ.'),
+            });
+          }
         }
         setCreatedOrders(placedOrders);
         setCreatedOrder(result.order);

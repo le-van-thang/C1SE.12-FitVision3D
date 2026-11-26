@@ -1,4 +1,6 @@
 import { query, pool } from '../../config/database.js';
+import { AppError } from '../../utils/responseEnvelope.js';
+import { ErrorCode } from '../../constants/errorCodes.js';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -693,41 +695,26 @@ export const authRepository = {
     saveStore();
   },
 
-  async revokeAllUserTokens(userId: string): Promise<void> {
+  async revokeAllUserTokens(userId: string): Promise<number> {
     if (await isDbAvailable()) {
-      await query('UPDATE refresh_tokens SET is_revoked = TRUE WHERE user_id = $1', [userId]);
-      return;
+      const rows = await query<{ id: string }>(
+        'UPDATE refresh_tokens SET is_revoked = TRUE WHERE user_id = $1 AND is_revoked = FALSE RETURNING id',
+        [userId]
+      );
+      return rows.length;
     }
+    let count = 0;
     for (const t of memTokens.values()) {
-      if (t.user_id === userId) t.is_revoked = true;
+      if (t.user_id === userId && !t.is_revoked) {
+        t.is_revoked = true;
+        count += 1;
+      }
     }
     saveStore();
+    return count;
   },
 
-  async updatePasswordById(userId: string, passwordHash: string): Promise<boolean> {
-    const now = new Date();
-    if (await isDbAvailable()) {
-      const rows = await query<UserEntity>(
-        `UPDATE users SET password_hash = $1, failed_login_attempts = 0, lockout_until = NULL, updated_at = $2
-         WHERE id = $3
-         RETURNING *`,
-        [passwordHash, now, userId]
-      );
-      return rows.length > 0;
-    }
-    const u = memUsers.get(userId);
-    if (u) {
-      u.password_hash = passwordHash;
-      u.failed_login_attempts = 0;
-      u.lockout_until = null;
-      u.updated_at = now;
-      saveStore();
-      return true;
-    }
-    return false;
-  },
-
-  async lockUserStatus(userId: string, reason?: string): Promise<boolean> {
+  async lockUserStatus(userId: string): Promise<boolean> {
     const now = new Date();
     if (await isDbAvailable()) {
       const rows = await query<UserEntity>(
@@ -746,17 +733,41 @@ export const authRepository = {
     return false;
   },
 
-  async deleteUser3DData(userId: string): Promise<boolean> {
-    if (await isDbAvailable()) {
-      await query(
-        `DELETE FROM mesh_parameters WHERE measurement_id IN (SELECT id FROM measurements WHERE user_id = $1)`,
-        [userId]
+  async deleteUser3DData(userId: string): Promise<number> {
+    if (!(await isDbAvailable())) {
+      throw new AppError(
+        503,
+        ErrorCode.INTERNAL_SERVER_ERROR,
+        'Cơ sở dữ liệu chưa sẵn sàng. Không thể xóa dữ liệu 3D vào lúc này.'
       );
-      await query(`DELETE FROM measurements WHERE user_id = $1`, [userId]);
-      await query(`DELETE FROM biometric_inputs WHERE user_id = $1`, [userId]);
-      return true;
     }
-    return true;
+    // measurements -> mesh_parameters / recommendations được xóa theo ON DELETE CASCADE
+    const rows = await query<{ id: string }>(
+      'DELETE FROM measurements WHERE user_id = $1 RETURNING id',
+      [userId]
+    );
+    await query('DELETE FROM biometric_inputs WHERE user_id = $1', [userId]);
+    return rows.length;
+  },
+
+  /**
+   * Ghi nhật ký hệ thống (system_audit_logs). Chỉ lưu băm SHA-256 của IP, không lưu IP thô / ảnh.
+   */
+  async logAuditAction(data: { userId: string; actionType: string; ipAddress?: string }): Promise<void> {
+    if (!(await isDbAvailable())) return;
+    const ipHash = crypto
+      .createHash('sha256')
+      .update(data.ipAddress || 'unknown-ip')
+      .digest('hex');
+    try {
+      await query(
+        `INSERT INTO system_audit_logs (user_id, action_type, execution_time_ms, zero_retention_flag, ip_address_hash, created_at)
+         VALUES ($1, $2, 0, TRUE, $3, NOW())`,
+        [data.userId, data.actionType, ipHash]
+      );
+    } catch (err) {
+      console.warn('[auth audit] could not write audit log:', err);
+    }
   },
 };
 

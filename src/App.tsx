@@ -22,6 +22,15 @@ const RequireAuth: React.FC<{ children: React.ReactElement }> = ({ children }) =
   return isAuthenticated ? children : <Navigate to="/" replace />;
 };
 
+/** Customer-only Account Settings: Admin -> /admin, Seller -> /shop, Guest -> / */
+const RequireCustomer: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { isAuthenticated, userRole } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/" replace />;
+  if (userRole === 'admin') return <Navigate to="/admin" replace />;
+  if (userRole === 'store' || userRole === 'tailor') return <Navigate to="/shop" replace />;
+  return children;
+};
+
 /** Tailor & Size chart studio only accessible to Approved Store Partners or Admin */
 const RequireStore: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthenticated, userRole } = useAuth();
@@ -83,7 +92,7 @@ export const App: React.FC = () => (
             <Route path="/stores/:slug" element={<ShopStorefrontPage />} />
             <Route path="/legacy-landing" element={<Landing />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
-            <Route path="/settings" element={<RequireAuth><UserSettingsPage /></RequireAuth>} />
+            <Route path="/settings" element={<RequireCustomer><UserSettingsPage /></RequireCustomer>} />
             <Route path="/shop" element={<RequireStore><ShopPortal /></RequireStore>} />
             <Route path="/tailor" element={<RequireStore><TailorStudio /></RequireStore>} />
             <Route path="/size-charts" element={<RequireStore><SizeChartManager /></RequireStore>} />

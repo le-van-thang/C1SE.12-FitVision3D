@@ -181,7 +181,8 @@ export const FashionStoreHome: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [studioInitialMode, setStudioInitialMode] = useState<'avatar3d' | 'photo' | 'lookbook'>('avatar3d');
-  const { isAuthenticated, userRole, currentUser, currentStore, signOut, openSignIn, openOnboarding, openStatusModal } = useAuth();
+  const { isAuthenticated, userRole, currentUser, currentStore, signOut, openSignIn, openOnboarding, openStatusModal, userPreferences } = useAuth();
+  const easePref = userPreferences?.easeAllowancePreference || 'regular';
   const { getUserOrders } = useOrders();
   const { t, locale } = useI18n();
 
@@ -507,7 +508,7 @@ export const FashionStoreHome: React.FC = () => {
   // Pre-calculate fit scores for all products
   const productsWithFit = useMemo(() => {
     return visibleCatalogProducts.map((prod) => {
-      const fit = calculateProductFit(userBody, prod);
+      const fit = calculateProductFit(userBody, prod, easePref);
       const recommendedVariant =
         prod.variants.find((v) => v.size_label === fit.recommended_size) || prod.variants[0];
       return {
@@ -652,7 +653,7 @@ export const FashionStoreHome: React.FC = () => {
       return;
     }
 
-    const fit = calculateProductFit(userBody, product);
+    const fit = calculateProductFit(userBody, product, easePref);
     const newId = `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
     let selectedIdToActivate = existingItem ? existingItem.id : newId;
 
@@ -730,7 +731,7 @@ export const FashionStoreHome: React.FC = () => {
       setIsBiometricModalOpen(true);
       return;
     }
-    const fit = calculateProductFit(userBody, product);
+    const fit = calculateProductFit(userBody, product, easePref);
     const singleItem: CartItem = {
       id: `quick-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       product: effectiveProduct,
@@ -766,7 +767,7 @@ export const FashionStoreHome: React.FC = () => {
         if (ci.id !== cartItemId) return ci;
         const nextVariant = ci.product.variants.find((v) => v.id === newVariantId);
         if (!nextVariant) return ci;
-        const fit = calculateProductFit(userBody, ci.product);
+        const fit = calculateProductFit(userBody, ci.product, easePref);
         return {
           ...ci,
           variant: nextVariant,
@@ -795,7 +796,7 @@ export const FashionStoreHome: React.FC = () => {
     setCartItems((prev) => {
       const next = [...prev];
       toAdd.forEach((product) => {
-        const fit = calculateProductFit(userBody, product);
+        const fit = calculateProductFit(userBody, product, easePref);
         const recVariant =
           product.variants.find((v) => v.size_label === fit.recommended_size && Number(v.stock ?? 0) > 0) ||
           product.variants.find((v) => Number(v.stock ?? 0) > 0);
@@ -835,7 +836,7 @@ export const FashionStoreHome: React.FC = () => {
   };
 
   const handleOpenAnalysis = (product: FashionProduct) => {
-    const fit = calculateProductFit(userBody, product);
+    const fit = calculateProductFit(userBody, product, easePref);
     const activePreview = previewColorMap[product.id];
     const variant =
       (activePreview &&
@@ -3306,7 +3307,7 @@ export const FashionStoreHome: React.FC = () => {
         userBody={userBody}
         hasBodyProfile={hasBodyProfile}
         fitResult={
-          analysisProduct ? calculateProductFit(userBody, analysisProduct) : null
+          analysisProduct ? calculateProductFit(userBody, analysisProduct, easePref) : null
         }
         onSelectSize={(v) => setAnalysisVariant(v)}
         onAddToCart={() => {

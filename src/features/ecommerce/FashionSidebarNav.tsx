@@ -418,21 +418,23 @@ export const FashionSidebarNav: React.FC<FashionSidebarNavProps> = ({
                 <ChevronRight size={13} className="text-blue-600" />
               </button>
 
-              {/* Lối tắt Cài Đặt Tài Khoản (Shopee Standard) */}
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  navigate('/settings');
-                }}
-                className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-300 text-slate-800 text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal size={13} className="text-slate-600" />
-                  <span>{isEn ? 'Account Settings' : 'Cài Đặt Tài Khoản'}</span>
-                </div>
-                <ChevronRight size={13} className="text-slate-400" />
-              </button>
+              {/* Lối tắt Cài Đặt Tài Khoản — chỉ hiển thị cho khách hàng */}
+              {userRole === 'user' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    navigate('/settings');
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-300 text-slate-800 text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal size={13} className="text-slate-600" />
+                    <span>{isEn ? 'Account Settings' : 'Cài Đặt Tài Khoản'}</span>
+                  </div>
+                  <ChevronRight size={13} className="text-slate-400" />
+                </button>
+              )}
             </div>
           )}
         </div>

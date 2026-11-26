@@ -9,6 +9,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   GoogleAuthDto,
+  ChangePasswordDto,
 } from './auth.dto.js';
 import { sendSuccess } from '../../utils/responseEnvelope.js';
 import { env } from '../../config/env.js';
@@ -232,8 +233,8 @@ export const authController = {
   async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.sub;
-      const { oldPassword, newPassword } = req.body;
-      const result = await authService.changePassword(userId, { oldPassword, newPassword });
+      const validatedData = ChangePasswordDto.parse(req.body);
+      const result = await authService.changePassword(userId, validatedData);
       sendSuccess(res, result, 200);
     } catch (error) {
       next(error);
@@ -241,12 +242,12 @@ export const authController = {
   },
 
   /**
-   * POST /api/v1/auth/revoke-all-sessions
+   * POST /api/v1/auth/logout-all
    */
-  async revokeAllSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async logoutAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.sub;
-      const result = await authService.revokeAllSessions(userId);
+      const result = await authService.logoutAll(userId);
       res.clearCookie('refreshToken', {
         httpOnly: true,
         secure: env.isProduction,
@@ -266,7 +267,7 @@ export const authController = {
   async deleteMy3DData(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.sub;
-      const result = await authService.deleteMy3DData(userId);
+      const result = await authService.deleteMy3DData(userId, req.ip);
       sendSuccess(res, result, 200);
     } catch (error) {
       next(error);
@@ -279,8 +280,7 @@ export const authController = {
   async requestAccountLock(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.sub;
-      const { reason } = req.body;
-      const result = await authService.requestAccountLock(userId, reason);
+      const result = await authService.requestAccountLock(userId, req.ip);
       res.clearCookie('refreshToken', {
         httpOnly: true,
         secure: env.isProduction,

@@ -14,7 +14,7 @@ import {
   isDisposableEmail,
   validateEmailDomainAndGmailPolicy,
 } from '../../constants/disposableEmails.js';
-import { hashPassword, verifyPassword } from '../../utils/password.js';
+import { hashPassword, verifyPassword, isGoogleOAuthHash, resolveAuthProvider } from '../../utils/password.js';
 import {
   generateAccessToken,
   generateRefreshTokenString,
@@ -379,6 +379,14 @@ export const authService = {
       );
     }
 
+    if (user.status === 'LOCKED') {
+      throw new AppError(
+        403,
+        ErrorCode.AUTH_ACCOUNT_LOCKED,
+        'Tài khoản đã bị khóa. Vui lòng liên hệ Quản trị viên để mở khóa.'
+      );
+    }
+
     // Cấp phát JWT Access Token (15 phút)
     const accessToken = generateAccessToken({
       sub: user.id,
@@ -414,6 +422,7 @@ export const authService = {
         fullName: user.full_name,
         role: user.role,
         status: user.status,
+        authProvider: resolveAuthProvider(user.password_hash),
         shopStatus: shopRecord?.status || (user.role === 'SHOP_OWNER' ? 'PENDING' : undefined),
         rejectionReason: shopRecord?.rejection_reason || null,
       },
@@ -455,8 +464,12 @@ export const authService = {
 
     // Kiểm tra User
     const user = await authRepository.findUserById(storedToken.user_id);
-    if (!user || user.status === 'BANNED') {
-      throw new AppError(403, ErrorCode.AUTH_ACCOUNT_BANNED, 'Tài khoản không hợp lệ.');
+    if (!user || user.status === 'BANNED' || user.status === 'LOCKED') {
+      throw new AppError(
+        403,
+        user?.status === 'LOCKED' ? ErrorCode.AUTH_ACCOUNT_LOCKED : ErrorCode.AUTH_ACCOUNT_BANNED,
+        'Tài khoản không hợp lệ hoặc đã bị khóa.'
+      );
     }
 
     // Tạo Access Token mới
@@ -570,6 +583,7 @@ export const authService = {
       fullName: user.full_name,
       role: user.role,
       status: user.status,
+      authProvider: resolveAuthProvider(user.password_hash),
       shopStatus: shopRecord?.status || (user.role === 'SHOP_OWNER' ? 'PENDING' : undefined),
       rejectionReason: shopRecord?.rejection_reason || null,
       createdAt: user.created_at,
@@ -701,6 +715,14 @@ export const authService = {
       throw new AppError(403, ErrorCode.AUTH_ACCOUNT_BANNED, 'Tài khoản Google này đã bị khóa do vi phạm.');
     }
 
+    if (user.status === 'LOCKED') {
+      throw new AppError(
+        403,
+        ErrorCode.AUTH_ACCOUNT_LOCKED,
+        'Tài khoản đã bị khóa. Vui lòng liên hệ Quản trị viên để mở khóa.'
+      );
+    }
+
     // Cấp phát JWT Access Token (15 phút)
     const accessToken = generateAccessToken({
       sub: user.id,
@@ -732,49 +754,100 @@ export const authService = {
         fullName: user.full_name,
         role: user.role,
         status: user.status,
+        authProvider: resolveAuthProvider(user.password_hash),
       },
     };
   },
 
-  async changePassword(userId: string, dto: { oldPassword?: string; newPassword: string }) {
+  /**
+   * Đăng xuất khỏi tất cả thiết bị (Thu hồi toàn bộ Refresh Token của user)
+   */
+  async logoutAll(userId: string) {
+    const revokedCount = await authRepository.revokeAllUserTokens(userId);
+    return {
+      revokedSessions: revokedCount,
+      message: 'Đã đăng xuất khỏi tất cả thiết bị và thu hồi toàn bộ phiên đăng nhập.',
+    };
+  },
+
+  /**
+   * Đổi mật khẩu cho tài khoản đang đăng nhập (chặn tài khoản Google, tự động thu hồi toàn bộ phiên cũ)
+   */
+  async changePassword(
+    userId: string,
+    dto: { currentPassword?: string; newPassword: string; confirmNewPassword: string }
+  ) {
     const user = await authRepository.findUserById(userId);
     if (!user) {
-      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy người dùng.');
+      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản.');
     }
 
-    if (user.password_hash) {
-      if (!dto.oldPassword) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Vui lòng nhập mật khẩu hiện tại.');
-      }
-      const isMatch = await verifyPassword(dto.oldPassword, user.password_hash);
-      if (!isMatch) {
-        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
-      }
+    if (isGoogleOAuthHash(user.password_hash)) {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Tài khoản đang đăng nhập bằng Google. Vui lòng quản lý mật khẩu trực tiếp tại Tài khoản Google của bạn.'
+      );
     }
 
-    if (!dto.newPassword || dto.newPassword.length < 8) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Mật khẩu mới phải có ít nhất 8 ký tự.');
+    if (!dto.currentPassword || !dto.currentPassword.trim()) {
+      throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Vui lòng nhập mật khẩu hiện tại.');
+    }
+    const isMatch = await verifyPassword(dto.currentPassword, user.password_hash);
+    if (!isMatch) {
+      throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
+    }
+    if (dto.currentPassword === dto.newPassword) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
     }
 
     const newHash = await hashPassword(dto.newPassword);
-    await authRepository.updatePasswordById(userId, newHash);
-    return { success: true, message: 'Đổi mật khẩu thành công.' };
+    await authRepository.updatePassword(user.email, newHash);
+    const revokedSessions = await authRepository.revokeAllUserTokens(user.id);
+    return {
+      revokedSessions,
+      message: 'Đổi mật khẩu thành công! Các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi.',
+    };
   },
 
-  async revokeAllSessions(userId: string) {
-    await authRepository.revokeAllUserTokens(userId);
-    return { success: true, message: 'Đã đăng xuất khỏi tất cả các thiết bị.' };
+  /**
+   * Xóa toàn bộ số đo 3D / nhân trắc học của chính user (Zero-Retention & GDPR) + ghi Audit Log.
+   */
+  async deleteMy3DData(userId: string, ipAddress?: string) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản.');
+    }
+    const deletedMeasurements = await authRepository.deleteUser3DData(userId);
+    await authRepository.logAuditAction({ userId, actionType: 'USER_DELETE_3D_DATA', ipAddress });
+    return {
+      deletedMeasurements,
+      message: 'Toàn bộ dữ liệu số đo 3D và nhân trắc học đã được xóa theo chuẩn Zero-Retention.',
+    };
   },
 
-  async deleteMy3DData(userId: string) {
-    await authRepository.deleteUser3DData(userId);
-    return { success: true, message: 'Toàn bộ dữ liệu số đo 3D và nhân trắc học đã được xóa theo chuẩn Zero-Retention.' };
-  },
-
-  async requestAccountLock(userId: string, reason?: string) {
-    await authRepository.lockUserStatus(userId, reason);
-    await authRepository.revokeAllUserTokens(userId);
-    return { success: true, message: 'Tài khoản đã được khóa an toàn theo yêu cầu.' };
+  /**
+   * Khách hàng tự yêu cầu khóa tài khoản (chặn ADMIN / SHOP_OWNER tự khóa) + ghi Audit Log.
+   */
+  async requestAccountLock(userId: string, ipAddress?: string) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản.');
+    }
+    if (user.role !== 'USER') {
+      throw new AppError(
+        403,
+        ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+        'Chỉ tài khoản khách hàng mới có thể tự yêu cầu khóa. Vui lòng liên hệ Quản trị viên.'
+      );
+    }
+    const locked = await authRepository.lockUserStatus(userId);
+    if (!locked) {
+      throw new AppError(500, ErrorCode.INTERNAL_SERVER_ERROR, 'Không thể khóa tài khoản. Vui lòng thử lại.');
+    }
+    const revokedSessions = await authRepository.revokeAllUserTokens(userId);
+    await authRepository.logAuditAction({ userId, actionType: 'USER_SELF_LOCK', ipAddress });
+    return { revokedSessions, message: 'Tài khoản đã được khóa an toàn theo yêu cầu.' };
   },
 };
 
