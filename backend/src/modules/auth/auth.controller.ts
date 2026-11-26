@@ -9,6 +9,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   GoogleAuthDto,
+  ChangePasswordDto,
 } from './auth.dto.js';
 import { sendSuccess } from '../../utils/responseEnvelope.js';
 import { env } from '../../config/env.js';
@@ -164,6 +165,40 @@ export const authController = {
       const userId = req.user!.sub;
       const profile = await authService.getProfile(userId);
       sendSuccess(res, profile, 200);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * POST /api/v1/auth/change-password
+   */
+  async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.sub;
+      const validatedData = ChangePasswordDto.parse(req.body);
+      const result = await authService.changePassword(userId, validatedData);
+      sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * POST /api/v1/auth/logout-all
+   */
+  async logoutAll(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.sub;
+      const result = await authService.logoutAll(userId);
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: env.isProduction,
+        sameSite: 'lax',
+        path: '/api/v1/auth',
+        maxAge: 0,
+      });
+      sendSuccess(res, result, 200);
     } catch (error) {
       next(error);
     }

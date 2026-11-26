@@ -50,6 +50,7 @@ export interface AuthContextType {
   profiles: Profile[];
   isAuthenticated: boolean;
   userRole: UserRole | 'guest';
+  authProvider: 'google' | 'password';
 
   // Modal Controls
   isAuthModalOpen: boolean;
@@ -159,6 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profiles, setProfiles] = useState<Profile[]>(initProfiles);
   const [stores, setStores] = useState<Store[]>(initStores);
   const [currentUserId, setCurrentUserId] = useState<string | null>(initCurrentUserId);
+  const [authProvider, setAuthProvider] = useState<'google' | 'password'>('password');
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -203,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const res = await authApi.getProfile();
         if (res.success && res.data && isMounted) {
           const prof = mapBackendUserToProfile(res.data);
+          setAuthProvider(res.data.authProvider === 'google' ? 'google' : 'password');
           setProfiles((prev) => {
             const exists = prev.some((p) => p.id === prof.id);
             return exists ? prev.map((p) => (p.id === prof.id ? prof : p)) : [prof, ...prev];
@@ -331,6 +334,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.success && res.data?.user) {
         const profile = mapBackendUserToProfile(res.data.user);
+        setAuthProvider(res.data.user.authProvider === 'google' ? 'google' : 'password');
         setProfiles((prev) => {
           const filtered = prev.filter((p) => p.id !== profile.id);
           return [profile, ...filtered];
@@ -509,6 +513,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await authApi.googleLogin(data);
       if (res.success && res.data?.user) {
         const prof = mapBackendUserToProfile(res.data.user);
+        setAuthProvider(res.data.user.authProvider === 'google' ? 'google' : 'password');
         setProfiles((prev) => {
           const filtered = prev.filter((p) => p.id !== prof.id);
           return [prof, ...filtered];
@@ -538,6 +543,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 7. Sign Out
   const signOut = useCallback(async () => {
     setCurrentUserId(null);
+    setAuthProvider('password');
     clearTransientStudioPrivacyState();
     try {
       localStorage.setItem(STORAGE_KEY_USER_ID, 'guest');
@@ -856,6 +862,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profiles,
         isAuthenticated,
         userRole,
+        authProvider,
 
         isAuthModalOpen,
         authModalTab,

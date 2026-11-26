@@ -36,11 +36,24 @@ import {
   CreditCard,
   PauseCircle,
   ExternalLink,
+  Settings,
+  Pencil,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { GeminiAssistantWidget } from '@/components/ai/GeminiAssistantWidget';
+import { ShopSettingsTab } from '@/components/shop/ShopSettingsTab';
+import { ShopProductEditModal } from '@/components/shop/ShopProductEditModal';
+import {
+  addCustomColorWithoutToggle,
+  compressImageToDataUrl,
+  formatPrepTimeLabel,
+  isValidProductVideoUrl,
+  isValidShopImageUrl,
+  parseStockDraft,
+  sanitizeStockInput,
+} from '@/components/shop/settings/shopSettingsHelpers';
 import {
   commerceApi,
   type DbProduct,
@@ -154,7 +167,7 @@ async function analyzeImageVisualTone(src: string): Promise<{ dominantColor?: st
   });
 }
 
-type ShopTab = 'OVERVIEW' | 'PRODUCTS' | 'ORDERS' | 'SIZE_CHART';
+type ShopTab = 'OVERVIEW' | 'PRODUCTS' | 'ORDERS' | 'SIZE_CHART' | 'SETTINGS';
 
 type GarmentCategoryKey = 'shirt' | 'polo' | 'pants' | 'dress';
 
@@ -204,8 +217,8 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
 export const ShopPortal: React.FC = () => {
-  const { currentUser, isAuthenticated, userRole, isAuthModalOpen, openSignIn, openOnboarding, signOut } = useAuth();
-  const { locale, setLocale } = useI18n();
+  const { currentUser, isAuthenticated, userRole, authProvider, isAuthModalOpen, openSignIn, openOnboarding, signOut } = useAuth();
+  const { locale, setLocale, t } = useI18n();
   const [activeTab, setActiveTab] = useState<ShopTab>('OVERVIEW');
   const [shop, setShop] = useState<DbShopProfile | null>(null);
   const [kycDocuments, setKycDocuments] = useState<any[]>([]);
@@ -216,15 +229,13 @@ export const ShopPortal: React.FC = () => {
   const [reviews, setReviews] = useState<DbShopReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<DbProduct | null>(null);
+  const [dashboardAuthProvider, setDashboardAuthProvider] = useState<'google' | 'password' | null>(null);
 
-  // Shop profile & operational mode editable state
+  // Basic shop fields used when resubmitting KYC (for PENDING / REJECTED shops)
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [profileAddress, setProfileAddress] = useState('');
-  const [profileTagline, setProfileTagline] = useState('');
-  const [operationalMode, setOperationalMode] = useState<'ACTIVE' | 'VACATION'>('ACTIVE');
-  const [vacationNote, setVacationNote] = useState('');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // KYC Resubmission state (when shop status is PENDING or REJECTED)
   const [resubmitEntityType, setResubmitEntityType] = useState<ShopEntityType>('INDIVIDUAL');
@@ -247,17 +258,21 @@ export const ShopPortal: React.FC = () => {
   const [newFabric, setNewFabric] = useState('100% Cotton Cao Cấp');
   const [newStretch, setNewStretch] = useState('Co giãn nhẹ (2-3%)');
   const [newIsBespoke, setNewIsBespoke] = useState(false);
+  const [primaryProductImage, setPrimaryProductImage] = useState(DEFAULT_SAMPLE_IMG);
   const [colorVariants, setColorVariants] = useState<{ colorName: string; colorHex: string; imageUrl: string }[]>([
-    { colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: DEFAULT_SAMPLE_IMG },
+    { colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: '' },
   ]);
+  const [showCustomColorForm, setShowCustomColorForm] = useState(false);
+  const [customColorHex, setCustomColorHex] = useState('#1E3A8A');
+  const [customColorName, setCustomColorName] = useState('Xanh Navy');
   const [selectedSizes, setSelectedSizes] = useState<('XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL')[]>(['S', 'M', 'L', 'XL']);
-  const [sizeStockMap, setSizeStockMap] = useState<Record<string, number>>({
-    XS: 10,
-    S: 20,
-    M: 30,
-    L: 30,
-    XL: 20,
-    XXL: 10,
+  const [sizeStockMap, setSizeStockMap] = useState<Record<string, string>>({
+    XS: '10',
+    S: '20',
+    M: '30',
+    L: '30',
+    XL: '20',
+    XXL: '10',
   });
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoFileName, setNewVideoFileName] = useState('');
@@ -302,6 +317,9 @@ export const ShopPortal: React.FC = () => {
     if (res.success && res.data) {
       setAuthNeedsRelogin(false);
       setShop(res.data.shop);
+      if (res.data.authProvider === 'google' || res.data.authProvider === 'password') {
+        setDashboardAuthProvider(res.data.authProvider);
+      }
       setKycDocuments(res.data.documents || []);
       setBankAccount(res.data.bankAccount || null);
       setReputation(res.data.reputation || null);
@@ -313,12 +331,15 @@ export const ShopPortal: React.FC = () => {
         setProfileName(s.shop_name || '');
         setProfilePhone(s.phone_number || '');
         setProfileAddress(s.shop_address || '');
-        setProfileTagline(s.tagline || '');
-        setOperationalMode(s.operational_mode === 'VACATION' ? 'VACATION' : 'ACTIVE');
-        setVacationNote(s.vacation_note || '');
         setResubmitEntityType((s.entity_type as ShopEntityType) || 'INDIVIDUAL');
         setResubmitTaxCode(s.tax_code || '');
         setResubmitLicenseNo(s.business_license_no || '');
+        if (s.size_specs && typeof s.size_specs === 'object') {
+          setSizeSpecs((prev) => ({
+            ...prev,
+            ...(s.size_specs as Record<GarmentCategoryKey, SizeSpecRow[]>),
+          }));
+        }
       }
       if (res.data.bankAccount) {
         setResubmitBankCode(res.data.bankAccount.bank_code || 'VCB');
@@ -366,43 +387,6 @@ export const ShopPortal: React.FC = () => {
         type: 'error',
         title: 'Không thể cập nhật trạng thái',
         message: res.error?.message || 'Vui lòng thử lại.',
-      });
-    }
-  };
-
-  const handleSaveShopProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (profileName.trim().length < 2) {
-      showGlobalToast({
-        type: 'warning',
-        title: 'Tên thương hiệu quá ngắn',
-        message: 'Vui lòng nhập tên Shop từ 2 ký tự trở lên.',
-      });
-      return;
-    }
-    setIsSavingProfile(true);
-    const res = await commerceApi.updateShopProfile({
-      shopName: profileName.trim(),
-      phoneNumber: profilePhone.trim(),
-      shopAddress: profileAddress.trim(),
-      tagline: profileTagline.trim(),
-      operationalMode,
-      vacationNote: operationalMode === 'VACATION' ? vacationNote.trim() : '',
-    });
-    setIsSavingProfile(false);
-    if (res.success && res.data) {
-      setShop(res.data);
-      showGlobalToast({
-        type: 'success',
-        title: 'Đã cập nhật hồ sơ Shop!',
-        message: 'Tên thương hiệu và thông tin liên hệ đã được cập nhật.',
-      });
-      void loadShopData();
-    } else {
-      showGlobalToast({
-        type: 'error',
-        title: 'Cập nhật thất bại',
-        message: res.error?.message || 'Không thể lưu thông tin Shop.',
       });
     }
   };
@@ -508,9 +492,56 @@ export const ShopPortal: React.FC = () => {
     });
   };
 
+  const handleToggleQuickColor = (preset: { name: string; hex: string }) => {
+    setColorVariants((prev) => {
+      const existsIdx = prev.findIndex(
+        (c) => c.colorHex.toLowerCase() === preset.hex.toLowerCase() || c.colorName.toLowerCase() === preset.name.toLowerCase()
+      );
+      if (existsIdx >= 0) {
+        if (prev.length === 1) return prev; // Keep at least 1 color
+        return prev.filter((_, i) => i !== existsIdx);
+      }
+      if (prev.length >= 6) {
+        showGlobalToast({
+          type: 'warning',
+          title: t('shopPortal.maxColorsToast'),
+          message: '',
+        });
+        return prev;
+      }
+      return [...prev, { colorName: preset.name, colorHex: preset.hex, imageUrl: '' }];
+    });
+  };
+
+  const handlePrimaryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) {
+      showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: 'JPG / PNG / WebP' });
+      e.target.value = '';
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES * 2.5) {
+      showGlobalToast({ type: 'warning', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidImageUrlMsg') });
+      e.target.value = '';
+      return;
+    }
+    try {
+      const compressed = await compressImageToDataUrl(file, 960, 960, 0.8);
+      if (!isValidShopImageUrl(compressed)) {
+        showGlobalToast({ type: 'warning', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidImageUrlMsg') });
+      } else {
+        setPrimaryProductImage(compressed);
+      }
+    } catch {
+      showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.imageCompressError') });
+    }
+    e.target.value = '';
+  };
+
   const handleSuggestDescription = async () => {
     setIsGeneratingDesc(true);
-    const primaryImg = colorVariants[0]?.imageUrl || DEFAULT_SAMPLE_IMG;
+    const primaryImg = primaryProductImage || colorVariants[0]?.imageUrl || DEFAULT_SAMPLE_IMG;
     const tone = await analyzeImageVisualTone(primaryImg);
 
     const res = await commerceApi.suggestShopProductDescription({
@@ -666,11 +697,32 @@ export const ShopPortal: React.FC = () => {
       return;
     }
 
+    const resolvedPrimaryImg = primaryProductImage.trim() || DEFAULT_SAMPLE_IMG;
+    if (!isValidShopImageUrl(resolvedPrimaryImg)) {
+      showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidImageUrlMsg') });
+      return;
+    }
+    const cleanVideo = newVideoUrl.trim();
+    if (cleanVideo && !isValidProductVideoUrl(cleanVideo)) {
+      showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidVideoUrlMsg') });
+      return;
+    }
     const cleanColors = colorVariants.map((c) => ({
       colorName: c.colorName.trim() || detectNearestColorName(c.colorHex),
       colorHex: c.colorHex,
-      imageUrl: c.imageUrl.trim() || DEFAULT_SAMPLE_IMG,
+      imageUrl: c.imageUrl.trim() || resolvedPrimaryImg,
     }));
+    for (const c of cleanColors) {
+      if (!isValidShopImageUrl(c.imageUrl)) {
+        showGlobalToast({ type: 'error', title: t('shopPortal.invalidImageTitle'), message: t('shopPortal.invalidImageUrlMsg') });
+        return;
+      }
+    }
+
+    const numericStockMap: Record<string, number> = {};
+    for (const sz of selectedSizes) {
+      numericStockMap[sz] = parseStockDraft(sizeStockMap[sz], 0);
+    }
 
     setIsCreating(true);
     const res = await commerceApi.createShopProduct({
@@ -682,8 +734,8 @@ export const ShopPortal: React.FC = () => {
       isBespoke: newIsBespoke || newCategory === 'tailored',
       fabricMaterial: newFabric.trim() || 'Cotton Cao Cấp',
       stretchType: newStretch,
-      imageUrl: cleanColors[0].imageUrl,
-      videoUrl: newVideoUrl.trim() || undefined,
+      imageUrl: resolvedPrimaryImg,
+      videoUrl: cleanVideo || undefined,
       description:
         newDescription.trim() ||
         `Thiết kế độc quyền từ ${shop?.shop_name || 'Shop'} — Đủ màu (${cleanColors.map((c) => c.colorName).join(', ')}), hỗ trợ chọn size AI 3D FitVision.`,
@@ -691,7 +743,7 @@ export const ShopPortal: React.FC = () => {
       colorHex: cleanColors[0].colorHex,
       colorVariants: cleanColors,
       sizes: selectedSizes,
-      stockMap: sizeStockMap,
+      stockMap: numericStockMap,
     });
     setIsCreating(false);
 
@@ -705,7 +757,8 @@ export const ShopPortal: React.FC = () => {
       setNewVideoUrl('');
       setNewVideoFileName('');
       setNewIsBespoke(false);
-      setColorVariants([{ colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: DEFAULT_SAMPLE_IMG }]);
+      setPrimaryProductImage(DEFAULT_SAMPLE_IMG);
+      setColorVariants([{ colorName: 'Trắng Kem', colorHex: '#F3F4F6', imageUrl: '' }]);
       setSelectedSizes(['S', 'M', 'L', 'XL']);
       showGlobalToast({
         type: 'success',
@@ -781,16 +834,30 @@ export const ShopPortal: React.FC = () => {
     }));
   };
 
-  const handleSaveSizeSpecs = () => {
+  const handleSaveSizeSpecs = async () => {
     try {
       localStorage.setItem(SIZE_SPECS_STORAGE_KEY, JSON.stringify(sizeSpecs));
+    } catch {
+      // ignore localStorage quota error
+    }
+    const res = await commerceApi.updateShopProfile({ sizeSpecs });
+    if (res.success && res.data) {
+      setShop(res.data);
       showGlobalToast({
         type: 'success',
-        title: 'Đã lưu Bảng Size Chuẩn 3D!',
-        message: 'Thuật toán AI Fit sẽ đối chiếu thông số S/M/L/XL này với vóc dáng khách mua.',
+        title: locale === 'en' ? '3D Size Chart saved to database!' : 'Đã lưu Bảng Size Chuẩn 3D vào hệ thống!',
+        message:
+          locale === 'en'
+            ? 'All shop products now use these specs for AI 3D size matching.'
+            : 'Toàn bộ sản phẩm của Shop đã được đồng bộ thông số S/M/L/XL này cho hệ thống AI chọn size.',
       });
-    } catch {
-      showGlobalToast({ type: 'error', title: 'Lỗi lưu trình duyệt', message: 'Không thể ghi localStorage.' });
+      void loadShopData();
+    } else {
+      showGlobalToast({
+        type: 'error',
+        title: locale === 'en' ? 'Could not save size chart' : 'Không thể lưu Bảng Size',
+        message: res.error?.message || (locale === 'en' ? 'Please try again.' : 'Vui lòng thử lại.'),
+      });
     }
   };
 
@@ -850,7 +917,7 @@ export const ShopPortal: React.FC = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h2 className="text-xs font-black text-slate-950 truncate">
-                  {shop?.shop_name || 'Kênh Người Bán'}
+                  {shop?.shop_name || t('shopPortal.brandFallback')}
                 </h2>
                 {shop?.is_mall && (
                   <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider">
@@ -859,7 +926,7 @@ export const ShopPortal: React.FC = () => {
                 )}
               </div>
               <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400">
-                SELLER CENTER
+                {t('shopPortal.sellerCenter')}
               </p>
             </div>
           </div>
@@ -874,7 +941,7 @@ export const ShopPortal: React.FC = () => {
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
               }`}
             >
-              <TrendingUp size={15} /> Tổng Quan &amp; Hồ Sơ Shop
+              <TrendingUp size={15} /> {t('shopPortal.navOverview')}
             </button>
 
             <button
@@ -887,7 +954,7 @@ export const ShopPortal: React.FC = () => {
               }`}
             >
               <span className="flex items-center gap-2.5">
-                <Package size={15} /> Sản Phẩm &amp; Video
+                <Package size={15} /> {t('shopPortal.navProducts')}
               </span>
               <span className="text-[10px] font-mono opacity-80">{products.length}/50</span>
             </button>
@@ -902,7 +969,7 @@ export const ShopPortal: React.FC = () => {
               }`}
             >
               <span className="flex items-center gap-2.5">
-                <ShoppingBag size={15} /> Đơn Hàng &amp; Đánh Giá
+                <ShoppingBag size={15} /> {t('shopPortal.navOrders')}
               </span>
               <span className="text-[10px] font-mono opacity-80">
                 {orders.length}
@@ -912,7 +979,7 @@ export const ShopPortal: React.FC = () => {
 
             <div className="pt-3 mt-3 border-t border-slate-100 space-y-1">
               <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Hỗ Trợ AI Chọn Size
+                {t('shopPortal.navAiSection')}
               </p>
               <button
                 type="button"
@@ -923,13 +990,31 @@ export const ShopPortal: React.FC = () => {
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                 }`}
               >
-                <Ruler size={15} /> Bảng Size Chuẩn 3D
+                <Ruler size={15} /> {t('shopPortal.navSizeChart')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('SETTINGS')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'SETTINGS'
+                    ? 'bg-[#14171C] text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Settings size={15} /> {t('shopPortal.navSettings')}
+                </span>
+                {shop?.operational_mode === 'VACATION' && (
+                  <span className="px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[9px] font-black">
+                    {t('shopPortal.badgeVacationShort')}
+                  </span>
+                )}
               </button>
               <Link
                 to="/"
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/70 hover:bg-blue-100 transition-colors"
               >
-                <ArrowLeft size={15} /> Về Trang Chủ Sàn
+                <ArrowLeft size={15} /> {t('shopPortal.navBackHome')}
               </Link>
             </div>
           </nav>
@@ -945,7 +1030,7 @@ export const ShopPortal: React.FC = () => {
             onClick={() => void signOut()}
             className="w-full py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <LogOut size={13} /> Đăng xuất
+            <LogOut size={13} /> {t('shopPortal.signOut')}
           </button>
         </div>
       </aside>
@@ -955,19 +1040,19 @@ export const ShopPortal: React.FC = () => {
         <header className="h-14 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold text-slate-950">
-              {shop?.shop_name ? `Gian Hàng ${shop.shop_name}` : 'Kênh Người Bán FitVision'}
+              {shop?.shop_name ? shop.shop_name : t('shopPortal.brandFallback')}
             </span>
             {authNeedsRelogin ? (
               <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">
-                Phiên xác thực hết hạn
+                {t('shopPortal.reloginTitle')}
               </span>
             ) : shop?.is_mall ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold">
-                <BadgeCheck size={12} /> FitVision Mall Chính Hãng
+                <BadgeCheck size={12} /> {t('shopStorefront.tierMall')}
               </span>
             ) : shop ? (
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                Gian hàng đã kích hoạt
+                {t('shopPortal.statusActive')}
               </span>
             ) : null}
           </div>
@@ -977,7 +1062,7 @@ export const ShopPortal: React.FC = () => {
               onClick={() => void loadShopData()}
               className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
             >
-              <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} /> Làm mới
+              <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} /> {t('shopPortal.refresh')}
             </button>
             <div className="flex items-center bg-slate-100 rounded-full p-0.5 text-[11px] font-bold">
               <button
@@ -1002,7 +1087,7 @@ export const ShopPortal: React.FC = () => {
           </div>
         </header>
 
-        <main className="p-6 space-y-6 max-w-6xl w-full mx-auto">
+        <main className="p-6 pb-24 space-y-6 max-w-6xl w-full mx-auto">
           {authNeedsRelogin && (
             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-start gap-3">
@@ -1221,38 +1306,38 @@ export const ShopPortal: React.FC = () => {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-                      <p className="text-[11px] font-bold uppercase text-slate-400">Sản phẩm đang bán</p>
-                      <p className="text-2xl font-black text-slate-950 mt-2">{products.length}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Hạn mức: tối đa 50 SP</p>
+                      <p className="text-[11px] font-bold uppercase text-slate-400">{t('shopPortal.kpiProducts')}</p>
+                      <p className="text-2xl font-black text-slate-950 mt-2 font-mono tabular-nums">{products.length}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">{t('shopPortal.kpiProductsSub')}</p>
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-                      <p className="text-[11px] font-bold uppercase text-slate-400">Đơn hàng nhận được</p>
-                      <p className="text-2xl font-black text-slate-950 mt-2">{orders.length}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Khớp trên hệ thống sàn</p>
+                      <p className="text-[11px] font-bold uppercase text-slate-400">{t('shopPortal.kpiOrders')}</p>
+                      <p className="text-2xl font-black text-slate-950 mt-2 font-mono tabular-nums">{orders.length}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">{t('shopPortal.kpiOrdersSub')}</p>
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-                      <p className="text-[11px] font-bold uppercase text-slate-400">Tổng doanh thu ước tính</p>
-                      <p className="text-2xl font-black text-emerald-700 mt-2">{formatCurrency(totalRevenue)}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Đã trừ đơn hủy</p>
+                      <p className="text-[11px] font-bold uppercase text-slate-400">{t('shopPortal.kpiRevenue')}</p>
+                      <p className="text-2xl font-black text-emerald-700 mt-2 font-mono tabular-nums">{formatCurrency(totalRevenue)}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">{t('shopPortal.kpiRevenueSub')}</p>
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-                      <p className="text-[11px] font-bold uppercase text-slate-400">Đánh giá chờ trả lời</p>
-                      <p className="text-2xl font-black text-amber-600 mt-2">{pendingReviewsCount}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Tổng {reviews.length} đánh giá</p>
+                      <p className="text-[11px] font-bold uppercase text-slate-400">{t('shopPortal.kpiReviews')}</p>
+                      <p className="text-2xl font-black text-amber-600 mt-2 font-mono tabular-nums">{pendingReviewsCount}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        {t('shopPortal.kpiReviewsTotal').replace('{count}', String(reviews.length))}
+                      </p>
                     </div>
                   </div>
 
                   {/* Quick How-To Flow Card */}
-                  <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="bg-[#14171C] text-white rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="space-y-1.5">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
-                        <Sparkles size={12} /> Quy Trình Bán Hàng Thời Trang AI 3D
+                        <Sparkles size={12} /> {t('shopPortal.flowBadge')}
                       </span>
-                      <h3 className="text-lg font-black">
-                        Đăng quần áo bán sẵn — AI tự động chọn size cho khách hàng
-                      </h3>
+                      <h3 className="text-lg font-black">{t('shopPortal.flowTitle')}</h3>
                       <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                        Bạn không cần quản lý may đo thủ công. Chỉ cần đăng sản phẩm (kèm ảnh + video thực tế) và cài thông số S / M / L / XL tại mục <b>Bảng Size Chuẩn 3D</b>. Khi khách mua hàng quét vóc dáng 3D trên trang chủ, hệ thống sẽ tự gợi ý size chuẩn nhất từ shop của bạn.
+                        {t('shopPortal.flowDesc')}
                       </p>
                     </div>
                     <button
@@ -1263,144 +1348,93 @@ export const ShopPortal: React.FC = () => {
                       }}
                       className="px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5 flex-shrink-0 cursor-pointer transition-colors"
                     >
-                      <Plus size={15} /> Đăng Sản Phẩm Ngay
+                      <Plus size={15} /> {t('shopPortal.flowCta')}
                     </button>
                   </div>
 
-                  {/* Shop Profile Editor */}
-                  <form
-                    onSubmit={handleSaveShopProfile}
-                    className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5 shadow-2xs"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
-                      <div>
-                        <h3 className="text-sm font-black text-slate-950">Hồ Sơ Thương Hiệu, Đánh Giá Tổng Quan &amp; Chế Độ Hoạt Động</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Quản lý trang thương hiệu riêng, chỉ số sao trung bình trên toàn sàn và chế độ Tạm nghỉ (Vacation Mode).
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {reputation && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
-                            ★ {reputation.ratingAvg.toFixed(1)}/5 ({reputation.ratingCount}) • Phản hồi {reputation.responseRate}% • {reputation.tier}
-                          </span>
-                        )}
-                        {shop && (
+                  {/* Shop Summary & Quick Link to Settings Tab */}
+                  {shop && (
+                    <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center font-black text-slate-900 overflow-hidden shrink-0">
+                            {shop.logo_url ? (
+                              <img src={shop.logo_url} alt={shop.shop_name} className="w-full h-full object-cover" />
+                            ) : (
+                              shop.shop_name.slice(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-sm font-black text-slate-950 truncate">{shop.shop_name}</h3>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  shop.operational_mode === 'VACATION'
+                                    ? 'bg-amber-100 text-amber-900'
+                                    : 'bg-emerald-100 text-emerald-900'
+                                }`}
+                              >
+                                {shop.operational_mode === 'VACATION'
+                                  ? t('shopPortal.statusVacation')
+                                  : t('shopPortal.statusActive')}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 truncate mt-0.5">
+                              {shop.tagline || t('shopPortal.noTagline')}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap shrink-0">
                           <Link
                             to={`/stores/${encodeURIComponent(shop.brand_slug || shop.shop_name)}`}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1 rounded-full"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3.5 py-2 rounded-xl transition-colors"
                           >
-                            <ExternalLink size={12} /> Xem Gian Hàng Công Khai
+                            <ExternalLink size={13} /> {t('shopPortal.viewStorefront')}
                           </Link>
-                        )}
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('SETTINGS')}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#14171C] hover:bg-slate-800 px-4 py-2 rounded-xl cursor-pointer transition-colors"
+                          >
+                            <Settings size={13} /> {t('shopPortal.openSettings')}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                          <p className="text-[11px] text-slate-500">{t('shopPortal.summaryContact')}</p>
+                          <p className="font-bold text-slate-900 mt-1 font-mono">{shop.phone_number}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            {t('shopPortal.summarySla')}: {formatPrepTimeLabel(shop.prep_time_days, locale)}
+                          </p>
+                        </div>
+                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                          <p className="text-[11px] text-slate-500">{t('shopPortal.summaryTax')}</p>
+                          <p className="font-bold text-slate-900 mt-1">
+                            {shop.entity_type || 'INDIVIDUAL'} • <span className="font-mono">{shop.tax_code || 'CCCD'}</span>
+                          </p>
+                          <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">{shop.tax_status}</p>
+                        </div>
+                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                          <p className="text-[11px] text-slate-500">{t('shopPortal.summaryBank')}</p>
+                          {bankAccount ? (
+                            <>
+                              <p className="font-bold text-slate-900 mt-1 truncate">{bankAccount.bank_name}</p>
+                              <p className="text-[11px] font-mono text-slate-600 mt-0.5">
+                                {bankAccount.account_number} ({bankAccount.verification_status})
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-[11px] text-amber-700 font-semibold mt-1">
+                              {t('shopPortal.summaryBankMissing')}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
-                          <Store size={12} /> Tên Thương Hiệu / Shop *
-                        </label>
-                        <input
-                          required
-                          value={profileName}
-                          onChange={(e) => setProfileName(e.target.value)}
-                          placeholder="VD: Torano Studio"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
-                          <Phone size={12} /> Hotline CSKH Shop
-                        </label>
-                        <input
-                          value={profilePhone}
-                          onChange={(e) => setProfilePhone(e.target.value)}
-                          placeholder="VD: 0901 234 567"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
-                          <MapPin size={12} /> Địa Chỉ Kho / Cửa Hàng
-                        </label>
-                        <input
-                          value={profileAddress}
-                          onChange={(e) => setProfileAddress(e.target.value)}
-                          placeholder="VD: Quận 1, TP. Hồ Chí Minh"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-semibold text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-800 block mb-1.5">
-                          Khẩu hiệu Thương hiệu (Tagline)
-                        </label>
-                        <input
-                          value={profileTagline}
-                          onChange={(e) => setProfileTagline(e.target.value)}
-                          placeholder="VD: May đo Vest & Sơ mi AI 3D chuẩn số đo"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 mb-1.5">
-                          <PauseCircle size={12} /> Trạng thái Gian hàng (Shopee/Lazada)
-                        </label>
-                        <select
-                          value={operationalMode}
-                          onChange={(e) => setOperationalMode(e.target.value as 'ACTIVE' | 'VACATION')}
-                          className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-bold outline-none ${
-                            operationalMode === 'VACATION'
-                              ? 'border-amber-400 bg-amber-50 text-amber-900'
-                              : 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                          }`}
-                        >
-                          <option value="ACTIVE">Đang hoạt động (Nhận đơn bình thường)</option>
-                          <option value="VACATION">Chế độ Tạm nghỉ (Tạm ngừng nhận đơn mới)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-800 block mb-1.5">
-                          Thông báo Tạm nghỉ (nếu bật Vacation)
-                        </label>
-                        <input
-                          disabled={operationalMode !== 'VACATION'}
-                          value={vacationNote}
-                          onChange={(e) => setVacationNote(e.target.value)}
-                          placeholder="VD: Xưởng nghỉ kiểm kê đến thứ 2"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 disabled:bg-slate-100 text-xs outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {shop && (
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                        <span>
-                          Pháp lý Thuế: <b>{shop.entity_type || 'INDIVIDUAL'}</b> • MST:{' '}
-                          <b className="font-mono text-slate-900">{shop.tax_code || 'CCCD tạm thời'}</b> ({shop.tax_status})
-                        </span>
-                        {bankAccount && (
-                          <span>
-                            Ngân hàng chi trả: <b>{bankAccount.bank_name}</b> •{' '}
-                            <b className="font-mono">{bankAccount.account_number}</b> ({bankAccount.verification_status})
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={isSavingProfile}
-                        className="px-5 py-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 disabled:opacity-60 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                      >
-                        <Save size={14} /> {isSavingProfile ? 'Đang lưu...' : 'Lưu Thông Tin Shop'}
-                      </button>
-                    </div>
-                  </form>
+                  )}
                 </div>
               )}
 
@@ -1409,10 +1443,8 @@ export const ShopPortal: React.FC = () => {
                 <div className="space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-lg font-black text-slate-950">Kho Sản Phẩm &amp; Video Review</h2>
-                      <p className="text-xs text-slate-500">
-                        Đăng ảnh + video giới thiệu trang phục để khách xem trực tiếp trên trang chủ.
-                      </p>
+                      <h2 className="text-lg font-black text-slate-950">{t('shopPortal.productsTitle')}</h2>
+                      <p className="text-xs text-slate-500">{t('shopPortal.productsSubtitle')}</p>
                     </div>
                     <button
                       type="button"
@@ -1420,7 +1452,7 @@ export const ShopPortal: React.FC = () => {
                       className="px-4 py-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors self-start"
                     >
                       {showAddForm ? <X size={14} /> : <Plus size={14} />}
-                      {showAddForm ? 'Đóng Biểu Mẫu' : 'Đăng Sản Phẩm Mới'}
+                      {showAddForm ? t('shopPortal.closeFormBtn') : t('shopPortal.addProductBtn')}
                     </button>
                   </div>
 
@@ -1431,15 +1463,17 @@ export const ShopPortal: React.FC = () => {
                       className="bg-white rounded-3xl border-2 border-slate-300 p-6 space-y-5 shadow-md"
                     >
                       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                        <h3 className="text-sm font-black text-slate-950">Đăng Bán Sản Phẩm Mới Lên Sàn</h3>
+                        <h3 className="text-sm font-black text-slate-950">{t('shopPortal.addFormTitle')}</h3>
                         <span className="text-[11px] font-semibold text-slate-500">
-                          Thương hiệu gắn tự động: <b className="text-slate-950">{shop?.shop_name}</b>
+                          {t('shopPortal.autoBrandLabel')} <b className="text-slate-950">{shop?.shop_name}</b>
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="md:col-span-2">
-                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Tên Sản Phẩm *</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">
+                            {t('shopPortal.fieldProductName')}
+                          </label>
                           <input
                             ref={nameInputRef}
                             value={newName}
@@ -1447,7 +1481,7 @@ export const ShopPortal: React.FC = () => {
                               setNewName(e.target.value);
                               if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
                             }}
-                            placeholder="VD: Áo Sơ Mi Bamboo Dáng Regular Fit"
+                            placeholder={t('shopPortal.fieldProductNamePlaceholder')}
                             className={`w-full px-3.5 py-2.5 rounded-xl border bg-white text-xs font-medium text-slate-950 placeholder:text-slate-400 outline-none focus:ring-2 ${
                               fieldErrors.name
                                 ? 'border-rose-500 ring-2 ring-rose-500/20 focus:border-rose-600'
@@ -1459,41 +1493,47 @@ export const ShopPortal: React.FC = () => {
                           )}
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Danh Mục</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">
+                            {t('shopPortal.fieldCategory')}
+                          </label>
                           <select
                             value={newCategory}
                             onChange={(e) => setNewCategory(e.target.value as typeof newCategory)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-medium text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           >
-                            <option value="shirt">Áo Sơ Mi</option>
-                            <option value="polo">Áo Polo &amp; Thun</option>
-                            <option value="pants">Quần Tây &amp; Jeans</option>
-                            <option value="dress">Đầm / Váy</option>
-                            <option value="tailored">Vest &amp; Blazer</option>
+                            <option value="shirt">{t('shopPortal.sizeCatShirt')}</option>
+                            <option value="polo">{t('shopPortal.sizeCatPolo')}</option>
+                            <option value="pants">{t('shopPortal.sizeCatPants')}</option>
+                            <option value="dress">{t('shopPortal.sizeCatDress')}</option>
+                            <option value="tailored">{t('shopPortal.sizeCatTailored')}</option>
                           </select>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Giới Tính</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">
+                            {t('shopPortal.fieldGender')}
+                          </label>
                           <select
                             value={newGender}
                             onChange={(e) => setNewGender(e.target.value as typeof newGender)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-400 bg-white text-xs font-medium text-slate-950 outline-none focus:border-slate-950 focus:ring-2 focus:ring-slate-900/10"
                           >
-                            <option value="male">Nam</option>
-                            <option value="female">Nữ</option>
-                            <option value="unisex">Unisex</option>
+                            <option value="male">{t('shopPortal.genderMale')}</option>
+                            <option value="female">{t('shopPortal.genderFemale')}</option>
+                            <option value="unisex">{t('shopPortal.genderUnisex')}</option>
                           </select>
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Giá Gốc (VNĐ) *</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">
+                            {t('shopPortal.fieldBasePrice')}
+                          </label>
                           <input
                             ref={priceInputRef}
                             type="number"
                             min={1000}
-                            placeholder="VD: 590000"
+                            placeholder="590000"
                             value={newPrice}
                             onChange={(e) => {
                               setNewPrice(e.target.value);
@@ -1512,7 +1552,9 @@ export const ShopPortal: React.FC = () => {
                         <div>
                           <div className="flex items-center justify-between gap-1 mb-1">
                             <label className="text-[11px] font-bold text-slate-800">
-                              {discountMode === 'discount_amount' ? 'Tiền Giảm Giá (VNĐ)' : 'Giá Sau Giảm (VNĐ)'}
+                              {discountMode === 'discount_amount'
+                                ? t('shopPortal.fieldDiscountAmount')
+                                : t('shopPortal.fieldFinalPrice')}
                             </label>
                             <div className="inline-flex rounded-lg bg-slate-200 p-0.5 text-[9px] font-bold">
                               <button
@@ -1522,7 +1564,7 @@ export const ShopPortal: React.FC = () => {
                                   discountMode === 'discount_amount' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-600'
                                 }`}
                               >
-                                Giảm đi (₫)
+                                {t('shopPortal.discountModeOff')}
                               </button>
                               <button
                                 type="button"
@@ -1610,7 +1652,9 @@ export const ShopPortal: React.FC = () => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="text-[11px] font-bold text-slate-800 block mb-1">Chất Liệu Vải</label>
+                          <label className="text-[11px] font-bold text-slate-800 block mb-1">
+                            {t('shopPortal.fabricLabel')}
+                          </label>
                           <input
                             value={newFabric}
                             onChange={(e) => setNewFabric(e.target.value)}
@@ -1622,7 +1666,7 @@ export const ShopPortal: React.FC = () => {
                         {/* All Garment Sizes Selection (XS -> XXL) */}
                         <div>
                           <label className="text-[11px] font-bold text-slate-800 block mb-1">
-                            Kích Cỡ Mở Bán (Chọn nhiều size) *
+                            {t('shopPortal.sizesLabel')}
                           </label>
                           <div className="flex flex-wrap gap-1.5">
                             {ALL_GARMENT_SIZES.map((sz) => {
@@ -1643,169 +1687,288 @@ export const ShopPortal: React.FC = () => {
                               );
                             })}
                           </div>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {selectedSizes.map((sz) => (
-                              <label key={sz} className="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-300">
-                                <span className="font-bold text-slate-800">{sz}:</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={999}
-                                  value={sizeStockMap[sz] ?? 20}
-                                  onChange={(e) =>
-                                    setSizeStockMap((prev) => ({
-                                      ...prev,
-                                      [sz]: Math.max(1, Number(e.target.value) || 1),
-                                    }))
-                                  }
-                                  className="w-11 bg-transparent font-mono font-semibold text-slate-950 outline-none"
-                                />
-                              </label>
-                            ))}
+                          {/* Clear Stock-Per-Size Box with 1-Click Quick Fill */}
+                          <div className="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-[11px] font-bold text-slate-700">
+                                {t('shopPortal.stockPerSizeLabel')}{' '}
+                                <span className="font-mono font-semibold text-emerald-700">
+                                  ({t('shopPortal.stockTotalPrefix')}{' '}
+                                  {selectedSizes.reduce((sum, sz) => sum + parseStockDraft(sizeStockMap[sz], 0), 0)}{' '}
+                                  {t('shopPortal.stockUnit')} {t('shopPortal.stockPerColorSuffix')})
+                                </span>
+                              </span>
+                              <div className="inline-flex items-center gap-1">
+                                <span className="text-[10px] text-slate-500">{t('shopPortal.stockApplyAllLabel')}</span>
+                                {[0, 10, 20, 50].map((presetQty) => (
+                                  <button
+                                    key={presetQty}
+                                    type="button"
+                                    onClick={() =>
+                                      setSizeStockMap((prev) => {
+                                        const next = { ...prev };
+                                        selectedSizes.forEach((sz) => {
+                                          next[sz] = String(presetQty);
+                                        });
+                                        return next;
+                                      })
+                                    }
+                                    className="px-2 py-0.5 rounded-md bg-white hover:bg-[#14171C] hover:text-white border border-slate-300 text-[10px] font-mono font-bold text-slate-700 cursor-pointer transition-colors"
+                                  >
+                                    {presetQty}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {selectedSizes.map((sz) => (
+                                <label
+                                  key={sz}
+                                  className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 focus-within:border-slate-950"
+                                >
+                                  <span className="text-[11px] font-mono font-black text-slate-900">Size {sz}</span>
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={sizeStockMap[sz] ?? ''}
+                                      onChange={(e) =>
+                                        setSizeStockMap((prev) => ({
+                                          ...prev,
+                                          [sz]: sanitizeStockInput(e.target.value),
+                                        }))
+                                      }
+                                      onBlur={() =>
+                                        setSizeStockMap((prev) => ({
+                                          ...prev,
+                                          [sz]: String(parseStockDraft(prev[sz], 0)),
+                                        }))
+                                      }
+                                      className="w-12 text-right bg-transparent font-mono text-xs font-bold text-slate-950 outline-none"
+                                    />
+                                    <span className="text-[10px] text-slate-400">{t('shopPortal.stockUnit')}</span>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Multi-Color Variants + Per-Color Image Upload & Instant Clickable Thumbnail Preview */}
-                      <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-300 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <label className="text-[11px] font-bold text-slate-950 flex items-center gap-1.5">
-                              <Palette size={14} className="text-blue-600" />
-                              Màu Sắc &amp; Ảnh Theo Từng Màu ({colorVariants.length}/6 màu)
-                            </label>
-                            <p className="text-[10px] text-slate-600 mt-0.5">
-                              Chọn màu từ bảng màu sẽ tự đồng bộ tên màu. Bấm trực tiếp vào <b>ảnh mẫu</b> hoặc nút <b>Ảnh</b> để tải ảnh cho từng màu.
-                            </p>
-                          </div>
-                          {colorVariants.length < 6 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setColorVariants((prev) => [
-                                  ...prev,
-                                  {
-                                    colorName: FASHION_COLOR_PALETTE[(prev.length * 3) % FASHION_COLOR_PALETTE.length].name,
-                                    colorHex: FASHION_COLOR_PALETTE[(prev.length * 3) % FASHION_COLOR_PALETTE.length].hex,
-                                    imageUrl: prev[0]?.imageUrl || DEFAULT_SAMPLE_IMG,
-                                  },
-                                ])
-                              }
-                              className="px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
-                            >
-                              <Plus size={12} /> Thêm màu khác
-                            </button>
-                          )}
+                      {/* 2-Layer Multi-Select Colors + Main Image + Optional Per-Color Thumbnails */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                        <div>
+                          <label className="text-xs font-black text-slate-950 flex items-center gap-1.5">
+                            <Palette size={14} className="text-blue-600" />
+                            {t('shopPortal.colorsSectionTitle')} ({colorVariants.length}/6)
+                          </label>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            {t('shopPortal.colorsQuickHint')}
+                          </p>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                          {colorVariants.map((cv, idx) => (
-                            <div
-                              key={idx}
-                              className="bg-white rounded-2xl border border-slate-300 p-3 flex gap-3 items-start shadow-xs"
-                            >
-                              {/* Clickable Instant Thumbnail Preview */}
-                              <label
-                                className="relative flex-shrink-0 cursor-pointer group"
-                                title="Bấm vào ảnh này để chọn ảnh sản phẩm từ máy"
-                              >
-                                <img
-                                  src={cv.imageUrl || DEFAULT_SAMPLE_IMG}
-                                  alt={cv.colorName}
-                                  className="w-20 h-24 rounded-xl object-cover border-2 border-slate-300 group-hover:border-blue-600 bg-slate-100 transition-colors"
-                                />
-                                <span className="absolute inset-x-1 bottom-1 py-0.5 rounded-md bg-black/70 text-white text-[9px] font-bold text-center opacity-85 group-hover:opacity-100 transition-opacity">
-                                  Đổi ảnh
-                                </span>
-                                {idx === 0 && (
-                                  <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded bg-[#14171C] text-white text-[9px] font-bold shadow-xs">
-                                    Ảnh chính
-                                  </span>
-                                )}
+                        {/* Main Product Image (Required Cover — auto-inherited by colors without custom photo) */}
+                        <div className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3.5">
+                          <label className="relative flex-shrink-0 cursor-pointer group self-start">
+                            <img
+                              src={primaryProductImage || DEFAULT_SAMPLE_IMG}
+                              alt="Main product"
+                              className="w-20 h-24 rounded-xl object-cover border border-slate-300 group-hover:border-slate-950 bg-slate-100 transition-colors"
+                            />
+                            <span className="absolute inset-x-1 bottom-1 py-0.5 rounded bg-black/75 text-white text-[9px] font-bold text-center">
+                              {t('shopPortal.changeImageBtn')}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePrimaryImageUpload}
+                              className="hidden"
+                            />
+                          </label>
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <p className="text-xs font-bold text-slate-900">{t('shopPortal.mainImageLabel')}</p>
+                            <p className="text-[11px] text-slate-500">{t('shopPortal.mainImageHint')}</p>
+                            <div className="flex gap-2 pt-0.5">
+                              <input
+                                value={primaryProductImage.startsWith('data:image') ? '' : primaryProductImage}
+                                onChange={(e) => setPrimaryProductImage(e.target.value)}
+                                placeholder={
+                                  primaryProductImage.startsWith('data:image')
+                                    ? '✓ Local photo selected'
+                                    : t('shopPortal.pasteImageUrl')
+                                }
+                                className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-[11px] text-slate-900 outline-none focus:border-slate-950"
+                              />
+                              <label className="px-3 py-1.5 rounded-lg bg-[#14171C] hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0">
+                                <Upload size={12} /> {t('shopPortal.changeImageBtn')}
                                 <input
                                   type="file"
                                   accept="image/*"
-                                  onChange={(e) => handleVariantImageUpload(idx, e)}
+                                  onChange={handlePrimaryImageUpload}
                                   className="hidden"
                                 />
                               </label>
+                            </div>
+                          </div>
+                        </div>
 
-                              <div className="flex-1 min-w-0 space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="color"
-                                    value={cv.colorHex}
-                                    onChange={(e) => {
-                                      const nextHex = e.target.value;
-                                      const autoName = detectNearestColorName(nextHex);
-                                      setColorVariants((prev) =>
-                                        prev.map((item, i) =>
-                                          i === idx ? { ...item, colorHex: nextHex, colorName: autoName } : item
-                                        )
-                                      );
-                                    }}
-                                    className="w-8 h-8 rounded-lg border border-slate-400 cursor-pointer flex-shrink-0"
-                                    title="Bấm để chọn màu — Tự nhận diện tên màu"
+                        {/* Layer 1: 1-Click Multi-Select Color Chips (just like Size pills) */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-[11px] font-bold text-slate-800">
+                              {t('shopPortal.quickColorsLabel')}
+                            </span>
+                            {colorVariants.length < 6 && (
+                              <button
+                                type="button"
+                                onClick={() => setShowCustomColorForm((v) => !v)}
+                                className="text-[11px] font-bold text-blue-700 hover:underline cursor-pointer"
+                              >
+                                {t('shopPortal.customColorBtn')}
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              FASHION_COLOR_PALETTE[0],  // Đen Tuyền
+                              FASHION_COLOR_PALETTE[1],  // Trắng Tinh
+                              FASHION_COLOR_PALETTE[2],  // Trắng Kem
+                              FASHION_COLOR_PALETTE[3],  // Be Sữa
+                              FASHION_COLOR_PALETTE[19], // Xám Nhạt
+                              FASHION_COLOR_PALETTE[20], // Xám Khói
+                              FASHION_COLOR_PALETTE[13], // Xanh Navy
+                              FASHION_COLOR_PALETTE[15], // Xanh Da Trời
+                              FASHION_COLOR_PALETTE[18], // Xanh Rêu
+                              FASHION_COLOR_PALETTE[21], // Nâu Bò
+                              FASHION_COLOR_PALETTE[8],  // Đỏ Đô
+                              FASHION_COLOR_PALETTE[9],  // Hồng Phấn
+                            ].map((preset) => {
+                              const active = colorVariants.some(
+                                (c) =>
+                                  c.colorHex.toLowerCase() === preset.hex.toLowerCase() ||
+                                  c.colorName.toLowerCase() === preset.name.toLowerCase()
+                              );
+                              return (
+                                <button
+                                  key={preset.hex}
+                                  type="button"
+                                  onClick={() => handleToggleQuickColor(preset)}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                                    active
+                                      ? 'bg-[#14171C] text-white border-[#14171C] shadow-2xs'
+                                      : 'bg-white text-slate-700 border-slate-300 hover:border-slate-900'
+                                  }`}
+                                >
+                                  <span
+                                    className="w-3 h-3 rounded-full border border-slate-300 shrink-0"
+                                    style={{ backgroundColor: preset.hex }}
                                   />
-                                  <input
-                                    value={cv.colorName}
-                                    onChange={(e) => {
-                                      const nextName = e.target.value;
-                                      setColorVariants((prev) =>
-                                        prev.map((item, i) => (i === idx ? { ...item, colorName: nextName } : item))
-                                      );
-                                    }}
-                                    placeholder="Tên màu (VD: Xanh Navy)"
-                                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-400 bg-white text-xs font-bold text-slate-950 outline-none focus:border-slate-950"
-                                  />
+                                  <span>{preset.name}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Optional Custom Color Picker */}
+                          {showCustomColorForm && colorVariants.length < 6 && (
+                            <div className="p-2.5 rounded-xl bg-white border border-slate-300 flex flex-wrap items-center gap-2">
+                              <input
+                                type="color"
+                                value={customColorHex}
+                                onChange={(e) => {
+                                  const hx = e.target.value;
+                                  setCustomColorHex(hx);
+                                  setCustomColorName(detectNearestColorName(hx));
+                                }}
+                                className="w-8 h-8 rounded-lg border border-slate-300 cursor-pointer shrink-0"
+                              />
+                              <input
+                                value={customColorName}
+                                onChange={(e) => setCustomColorName(e.target.value)}
+                                placeholder={t('shopPortal.customColorNamePlaceholder')}
+                                className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs outline-none focus:border-slate-950"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const cleanName = customColorName.trim() || detectNearestColorName(customColorHex);
+                                  const result = addCustomColorWithoutToggle(colorVariants, {
+                                    name: cleanName,
+                                    hex: customColorHex,
+                                  });
+                                  if (result.status === 'duplicate') {
+                                    showGlobalToast({
+                                      type: 'warning',
+                                      title: locale === 'en' ? 'Color already exists' : 'Màu này đã có trong danh sách',
+                                      message: cleanName,
+                                    });
+                                    return;
+                                  }
+                                  if (result.status === 'max_reached') {
+                                    showGlobalToast({
+                                      type: 'warning',
+                                      title: t('shopPortal.maxColorsToast'),
+                                      message: '',
+                                    });
+                                    return;
+                                  }
+                                  setColorVariants(result.variants);
+                                  setShowCustomColorForm(false);
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-[#14171C] text-white text-xs font-bold cursor-pointer"
+                              >
+                                {t('shopPortal.addCustomColorBtn')}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Layer 2: Compact Optional Per-Color Thumbnail Strip */}
+                        <div className="space-y-2 pt-2 border-t border-slate-200">
+                          <span className="text-[11px] font-bold text-slate-700 block">
+                            {t('shopPortal.perColorImagesLabel')}
+                          </span>
+                          <div className="flex flex-wrap gap-2.5">
+                            {colorVariants.map((cv, idx) => {
+                              const hasCustomImg = Boolean(cv.imageUrl && cv.imageUrl.trim());
+                              const displayImg = hasCustomImg ? cv.imageUrl : primaryProductImage || DEFAULT_SAMPLE_IMG;
+                              return (
+                                <div
+                                  key={`${cv.colorHex}-${idx}`}
+                                  className="w-24 bg-white rounded-xl border border-slate-200 p-2 flex flex-col items-center gap-1.5 relative"
+                                >
                                   {colorVariants.length > 1 && (
                                     <button
                                       type="button"
                                       onClick={() =>
                                         setColorVariants((prev) => prev.filter((_, i) => i !== idx))
                                       }
-                                      className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer"
-                                      title="Xóa màu này"
+                                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-slate-300 text-slate-500 hover:text-rose-600 hover:border-rose-300 flex items-center justify-center cursor-pointer shadow-2xs"
+                                      title={t('shopPortal.productDelete')}
                                     >
-                                      <Trash2 size={13} />
+                                      <X size={11} />
                                     </button>
                                   )}
-                                </div>
 
-                                {/* Quick color swatches */}
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  {FASHION_COLOR_PALETTE.slice(0, 7).map((preset) => (
-                                    <button
-                                      key={preset.hex}
-                                      type="button"
-                                      onClick={() =>
-                                        setColorVariants((prev) =>
-                                          prev.map((item, i) =>
-                                            i === idx ? { ...item, colorHex: preset.hex, colorName: preset.name } : item
-                                          )
-                                        )
-                                      }
-                                      className="w-4 h-4 rounded-full border border-slate-400 cursor-pointer hover:scale-110 transition-transform"
-                                      style={{ backgroundColor: preset.hex }}
-                                      title={preset.name}
+                                  <label className="relative w-16 h-20 rounded-lg overflow-hidden border border-slate-200 cursor-pointer group">
+                                    <img
+                                      src={displayImg}
+                                      alt={cv.colorName}
+                                      className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                                     />
-                                  ))}
-                                </div>
-
-                                <div className="flex gap-1.5">
-                                  <input
-                                    value={cv.imageUrl.startsWith('data:image') ? '✓ Đã chọn ảnh từ máy (bấm ảnh trái để đổi)' : cv.imageUrl}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setColorVariants((prev) =>
-                                        prev.map((item, i) => (i === idx ? { ...item, imageUrl: val } : item))
-                                      );
-                                    }}
-                                    placeholder="Dán link ảnh URL..."
-                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-slate-400 bg-white text-[11px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-950"
-                                  />
-                                  <label className="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-900 border border-slate-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer flex-shrink-0">
-                                    <Upload size={12} /> Ảnh
+                                    <span
+                                      className={`absolute inset-x-0.5 bottom-0.5 py-0.5 rounded text-[8px] font-bold text-center ${
+                                        hasCustomImg
+                                          ? 'bg-emerald-600/90 text-white'
+                                          : 'bg-black/65 text-white'
+                                      }`}
+                                    >
+                                      {hasCustomImg
+                                        ? t('shopPortal.customImageBadge')
+                                        : t('shopPortal.sharedImageBadge')}
+                                    </span>
                                     <input
                                       type="file"
                                       accept="image/*"
@@ -1813,10 +1976,34 @@ export const ShopPortal: React.FC = () => {
                                       className="hidden"
                                     />
                                   </label>
+
+                                  <div className="flex items-center gap-1 w-full justify-center">
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0"
+                                      style={{ backgroundColor: cv.colorHex }}
+                                    />
+                                    <span className="text-[10px] font-bold text-slate-800 truncate" title={cv.colorName}>
+                                      {cv.colorName}
+                                    </span>
+                                  </div>
+
+                                  {hasCustomImg && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setColorVariants((prev) =>
+                                          prev.map((item, i) => (i === idx ? { ...item, imageUrl: '' } : item))
+                                        )
+                                      }
+                                      className="text-[9px] font-semibold text-slate-400 hover:text-slate-700 cursor-pointer"
+                                    >
+                                      {t('shopPortal.resetToMainImage')}
+                                    </button>
+                                  )}
                                 </div>
-                              </div>
-                            </div>
-                          ))}
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
@@ -1907,7 +2094,7 @@ export const ShopPortal: React.FC = () => {
                           disabled={isCreating}
                           className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                         >
-                          <CheckCircle2 size={14} /> {isCreating ? 'Đang đăng lên sàn...' : 'Đăng Lên Sàn Ngay'}
+                          <CheckCircle2 size={14} /> {isCreating ? t('shopPortal.publishingBtn') : t('shopPortal.publishBtn')}
                         </button>
                       </div>
                     </form>
@@ -1915,14 +2102,32 @@ export const ShopPortal: React.FC = () => {
 
                   {products.length === 0 ? (
                     <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-xs text-slate-500">
-                      Shop bạn chưa có sản phẩm nào. Hãy bấm <b>Đăng Sản Phẩm Mới</b> ở góc trên để mở bán!
+                      {t('shopPortal.emptyProducts')}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {products.map((p) => (
+                      {products.map((p) => {
+                        const uniqueColors = Array.from(
+                          new Map(
+                            (p.variants || [])
+                              .filter((v) => v.color_name || v.color_hex)
+                              .map((v) => [
+                                `${(v.color_hex || '').toLowerCase()}|${(v.color_name || '').toLowerCase()}`,
+                                {
+                                  name: v.color_name || 'Mặc định',
+                                  hex: v.color_hex || '#CBD5E1',
+                                },
+                              ])
+                          ).values()
+                        );
+                        const uniqueSizes = Array.from(
+                          new Set((p.variants || []).map((v) => v.size_label).filter(Boolean))
+                        );
+                        return (
                         <div
                           key={p.id}
-                          className={`bg-white rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-opacity ${
+                          onClick={() => setEditingProduct(p)}
+                          className={`bg-white rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all cursor-pointer hover:border-slate-400 hover:shadow-sm ${
                             p.is_hidden ? 'border-slate-200 opacity-60' : 'border-slate-200'
                           }`}
                         >
@@ -1952,38 +2157,83 @@ export const ShopPortal: React.FC = () => {
                               <p className="text-xs font-mono font-black text-emerald-700 mt-1.5">
                                 {formatCurrency(p.sale_price ?? p.price)}
                               </p>
-                              <p className="text-[10px] text-slate-400 mt-0.5">
-                                ★ {Number(p.rating || 5).toFixed(1)} ({p.reviews_count || 0} đánh giá)
+                              <p className="text-[10px] text-slate-400 mt-0.5 font-mono tabular-nums">
+                                ★ {(p.reviews_count || 0) > 0 ? Number(p.rating ?? 0).toFixed(1) : '0.0'} ({p.reviews_count || 0} {t('shopPortal.reviewsCountUnit')})
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
+                          {(uniqueColors.length > 0 || uniqueSizes.length > 0) && (
+                            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                              {uniqueColors.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {uniqueColors.map((col, ci) => (
+                                    <span
+                                      key={`${col.hex}-${ci}`}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-700"
+                                    >
+                                      <span
+                                        className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0"
+                                        style={{ backgroundColor: col.hex }}
+                                      />
+                                      <span className="truncate max-w-[90px]">{col.name}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {uniqueSizes.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 text-[10px] font-mono text-slate-500">
+                                  <span className="font-sans font-semibold text-slate-400">Size:</span>
+                                  {uniqueSizes.map((sz) => (
+                                    <span
+                                      key={sz}
+                                      className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold"
+                                    >
+                                      {sz}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div
+                            className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setEditingProduct(p)}
+                              className="flex-1 py-1.5 rounded-lg bg-[#14171C] hover:bg-slate-800 text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Pencil size={12} /> {t('shopPortal.productEdit')}
+                            </button>
                             <button
                               type="button"
                               onClick={() => void handleToggleHide(p)}
-                              className="flex-1 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer"
                             >
                               {p.is_hidden ? (
                                 <>
-                                  <Eye size={12} /> Hiện lại
+                                  <Eye size={12} /> {t('shopPortal.productShow')}
                                 </>
                               ) : (
                                 <>
-                                  <EyeOff size={12} /> Tạm ẩn
+                                  <EyeOff size={12} /> {t('shopPortal.productHide')}
                                 </>
                               )}
                             </button>
                             <button
                               type="button"
                               onClick={() => void handleDeleteProduct(p)}
-                              className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-bold flex items-center gap-1 hover:bg-rose-50 cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-bold flex items-center gap-1 hover:bg-rose-50 cursor-pointer"
                             >
-                              <Trash2 size={12} /> Xóa
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1995,14 +2245,12 @@ export const ShopPortal: React.FC = () => {
                   {/* Orders Section */}
                   <div className="space-y-3">
                     <div>
-                      <h2 className="text-lg font-black text-slate-950">Đơn Đặt Hàng &amp; Liên Hệ Khách Mua</h2>
-                      <p className="text-xs text-slate-500">
-                        Hiển thị đầy đủ số điện thoại và địa chỉ người đặt để Shop chủ động xác nhận giao hàng.
-                      </p>
+                      <h2 className="text-lg font-black text-slate-950">{t('shopPortal.ordersTitle')}</h2>
+                      <p className="text-xs text-slate-500">{t('shopPortal.ordersSubtitle')}</p>
                     </div>
                     {orders.length === 0 ? (
                       <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center text-xs text-slate-500">
-                        Chưa có đơn hàng nào chứa sản phẩm của Shop bạn.
+                        {t('shopPortal.emptyOrders')}
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -2026,22 +2274,22 @@ export const ShopPortal: React.FC = () => {
                                   onChange={(e) =>
                                     void handleUpdateOrderStatus(order.id, e.target.value as Order['status'])
                                   }
-                                  aria-label={`Trạng thái đơn ${order.id}`}
+                                  aria-label={`Order ${order.id}`}
                                   className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 cursor-pointer"
                                 >
-                                  <option value="pending">Chờ duyệt (pending)</option>
-                                  <option value="confirmed">Đã xác nhận (confirmed)</option>
-                                  <option value="tailoring">Đang cắt may (tailoring)</option>
-                                  <option value="shipping">Đang giao (shipping)</option>
-                                  <option value="completed">Hoàn tất (completed)</option>
-                                  <option value="cancelled">Đã hủy (cancelled)</option>
+                                  <option value="pending">{t('shopPortal.orderStatusPending')}</option>
+                                  <option value="confirmed">{t('shopPortal.orderStatusConfirmed')}</option>
+                                  <option value="tailoring">{t('shopPortal.orderStatusTailoring')}</option>
+                                  <option value="shipping">{t('shopPortal.orderStatusShipping')}</option>
+                                  <option value="completed">{t('shopPortal.orderStatusCompleted')}</option>
+                                  <option value="cancelled">{t('shopPortal.orderStatusCancelled')}</option>
                                 </select>
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                   order.payment_status === 'paid'
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                     : 'bg-amber-50 text-amber-700 border border-amber-200'
                                 }`}>
-                                  {order.payment_status === 'paid' ? 'Đã TT' : 'Chưa TT'}
+                                  {order.payment_status === 'paid' ? t('shopPortal.paidBadge') : t('shopPortal.unpaidBadge')}
                                 </span>
                                 <span className="text-xs font-mono font-black text-emerald-700">
                                   {formatCurrency(order.total_amount)}
@@ -2049,34 +2297,34 @@ export const ShopPortal: React.FC = () => {
                               </div>
                             </div>
                             <p className="text-xs text-slate-500">
-                              Địa chỉ giao: {order.recipient?.address}
+                              {t('shopPortal.shippingAddressLabel')} {order.recipient?.address}
                               {order.recipient?.city ? `, ${order.recipient.city}` : ''}
                             </p>
                             {order.recipient?.note && (
                               <p className="text-[11px] text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg">
-                                Ghi chú khách: {order.recipient.note}
+                                {t('shopPortal.customerNoteLabel')} {order.recipient.note}
                               </p>
                             )}
                             {order.measurement_snapshot && (
                               <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3 space-y-1.5">
                                 <div className="flex items-center justify-between text-[11px] font-black text-blue-900 uppercase">
-                                  <span>📏 Bản sao 13 số đo 3D đính kèm (ISO 8559-1)</span>
+                                  <span>📏 {t('shopPortal.attached3dMeasurements')}</span>
                                   <span className="font-mono font-semibold text-blue-700">
                                     {order.measurement_snapshot.stature_cm}cm · {order.measurement_snapshot.weight_kg}kg
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-[11px] font-mono text-slate-800">
-                                  <span>Ngực: <b>{order.measurement_snapshot.chest_circ_cm}</b></span>
-                                  <span>Eo: <b>{order.measurement_snapshot.waist_circ_cm}</b></span>
-                                  <span>Hông: <b>{order.measurement_snapshot.hip_circ_cm}</b></span>
+                                  <span>{t('shopPortal.chestShort')}: <b>{order.measurement_snapshot.chest_circ_cm}</b></span>
+                                  <span>{t('shopPortal.waistShort')}: <b>{order.measurement_snapshot.waist_circ_cm}</b></span>
+                                  <span>{t('shopPortal.hipShort')}: <b>{order.measurement_snapshot.hip_circ_cm}</b></span>
                                   {order.measurement_snapshot.shoulder_breadth_cm != null && (
-                                    <span>Vai: <b>{order.measurement_snapshot.shoulder_breadth_cm}</b></span>
+                                    <span>{t('shopPortal.shoulderShort')}: <b>{order.measurement_snapshot.shoulder_breadth_cm}</b></span>
                                   )}
                                   {order.measurement_snapshot.arm_length_cm != null && (
-                                    <span>Tay: <b>{order.measurement_snapshot.arm_length_cm}</b></span>
+                                    <span>{t('shopPortal.armShort')}: <b>{order.measurement_snapshot.arm_length_cm}</b></span>
                                   )}
                                   {order.measurement_snapshot.inseam_cm != null && (
-                                    <span>Inseam: <b>{order.measurement_snapshot.inseam_cm}</b></span>
+                                    <span>{t('shopPortal.inseamShort')}: <b>{order.measurement_snapshot.inseam_cm}</b></span>
                                   )}
                                 </div>
                                 <div className="pt-2 border-t border-blue-200/70 flex justify-end">
@@ -2085,7 +2333,7 @@ export const ShopPortal: React.FC = () => {
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14171C] hover:bg-blue-700 text-white text-[11px] font-extrabold transition-colors"
                                   >
                                     <Scissors size={12} />
-                                    <span>Mở Xưởng May 3D</span>
+                                    <span>{t('shopPortal.openTailor3d')}</span>
                                   </Link>
                                 </div>
                               </div>
@@ -2097,7 +2345,7 @@ export const ShopPortal: React.FC = () => {
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-[#14171C] text-[11px] font-extrabold transition-colors"
                                 >
                                   <Scissors size={12} />
-                                  <span>Mở Xưởng May 3D</span>
+                                  <span>{t('shopPortal.openTailor3d')}</span>
                                 </Link>
                               </div>
                             )}
@@ -2112,15 +2360,13 @@ export const ShopPortal: React.FC = () => {
                     <div>
                       <h3 className="text-base font-black text-slate-950 flex items-center gap-2">
                         <MessageSquare size={17} className="text-blue-600" />
-                        Đánh Giá &amp; Bình Luận Từ Khách Hàng ({reviews.length})
+                        {t('shopPortal.reviewsTitle')} ({reviews.length})
                       </h3>
-                      <p className="text-xs text-slate-500">
-                        Phản hồi trực tiếp dưới nhận xét của khách hàng giúp tăng độ uy tín cho gian hàng.
-                      </p>
+                      <p className="text-xs text-slate-500">{t('shopPortal.ordersSubtitle')}</p>
                     </div>
                     {reviews.length === 0 ? (
                       <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center text-xs text-slate-500">
-                        Chưa có đánh giá nào trên sản phẩm của Shop bạn.
+                        {t('shopPortal.emptyReviews')}
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -2147,35 +2393,46 @@ export const ShopPortal: React.FC = () => {
 
                             {rev.shop_reply ? (
                               <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-100 text-xs text-slate-800">
-                                <span className="font-bold text-blue-700">Phản hồi của Shop: </span>
+                                <span className="font-bold text-blue-700">{t('shopPortal.shopReplyLabel')} </span>
                                 {rev.shop_reply}
                               </div>
                             ) : replyingReviewId === rev.id ? (
-                              <div className="flex gap-2 pt-1">
-                                <input
-                                  value={replyDraft}
-                                  onChange={(e) => setReplyDraft(e.target.value)}
-                                  placeholder="Cảm ơn bạn đã ủng hộ Shop..."
-                                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-slate-900"
-                                />
-                                <button
-                                  type="button"
-                                  disabled={isSendingReply}
-                                  onClick={() => void handleSendReply(rev.id)}
-                                  className="px-3.5 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-                                >
-                                  <Send size={12} /> Gửi
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setReplyingReviewId(null);
-                                    setReplyDraft('');
-                                  }}
-                                  className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold cursor-pointer"
-                                >
-                                  Hủy
-                                </button>
+                              <div className="space-y-2 pt-1">
+                                <div className="flex gap-2">
+                                  <input
+                                    value={replyDraft}
+                                    onChange={(e) => setReplyDraft(e.target.value)}
+                                    placeholder={t('shopPortal.replyPlaceholder')}
+                                    className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-slate-900"
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={isSendingReply}
+                                    onClick={() => void handleSendReply(rev.id)}
+                                    className="px-3.5 py-2 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Send size={12} /> {t('shopPortal.replySend')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setReplyingReviewId(null);
+                                      setReplyDraft('');
+                                    }}
+                                    className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold cursor-pointer"
+                                  >
+                                    {t('shopPortal.replyCancel')}
+                                  </button>
+                                </div>
+                                {shop?.quick_reply_template && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setReplyDraft(shop.quick_reply_template || '')}
+                                    className="text-[11px] font-bold text-amber-700 hover:text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Sparkles size={11} /> {t('shopPortal.insertQuickReply')}
+                                  </button>
+                                )}
                               </div>
                             ) : (
                               <button
@@ -2186,7 +2443,7 @@ export const ShopPortal: React.FC = () => {
                                 }}
                                 className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
                               >
-                                + Trả lời khách hàng
+                                {t('shopPortal.replyAction')}
                               </button>
                             )}
                           </div>
@@ -2202,34 +2459,32 @@ export const ShopPortal: React.FC = () => {
                 <div className="space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-lg font-black text-slate-950">Bảng Size Chuẩn 3D Theo Sản Phẩm (S / M / L / XL)</h2>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Thiết lập thông số kích cỡ quần áo may sẵn của Shop để AI tự khớp với số đo quét 3D của người mua.
-                      </p>
+                      <h2 className="text-lg font-black text-slate-950">{t('shopPortal.sizeChartTitle')}</h2>
+                      <p className="text-xs text-slate-500 mt-0.5">{t('shopPortal.sizeChartSubtitle')}</p>
                     </div>
                     <button
                       type="button"
                       onClick={handleSaveSizeSpecs}
                       className="px-4 py-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start"
                     >
-                      <Save size={14} /> Lưu Bảng Size
+                      <Save size={14} /> {t('shopPortal.saveSizeChart')}
                     </button>
                   </div>
 
                   {/* Explanation Banner */}
                   <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-4 text-xs text-slate-700 leading-relaxed">
-                    <b className="text-blue-900">Tại sao Shop TMĐT chỉ cần Bảng Size Chuẩn 3D mà không cần Hồ sơ may đo?</b>{' '}
-                    Shop bán quần áo thời trang may sẵn theo size cố định (S, M, L, XL). Khi bạn nhập đúng số đo Ngực / Eo / Vai / Dài áo ở bảng dưới, khách mua chỉ việc dùng camera <b>Quét AI 3D</b> ở trang chủ — hệ thống sẽ tự đối chiếu và gợi ý chính xác size nào của Shop bạn mặc vừa đẹp nhất, giảm tối đa tỷ lệ đổi trả hàng!
+                    <b className="text-blue-900">{t('shopPortal.sizeExplainTitle')}</b>{' '}
+                    {t('shopPortal.sizeExplainDesc')}
                   </div>
 
                   <div className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4 shadow-2xs">
                     <div className="flex flex-wrap items-center gap-2">
                       {(
                         [
-                          { id: 'shirt', label: 'Áo Sơ Mi' },
-                          { id: 'polo', label: 'Áo Polo & Thun' },
-                          { id: 'pants', label: 'Quần Tây & Jeans' },
-                          { id: 'dress', label: 'Đầm & Váy' },
+                          { id: 'shirt', label: t('shopPortal.sizeCatShirt') },
+                          { id: 'polo', label: t('shopPortal.sizeCatPolo') },
+                          { id: 'pants', label: t('shopPortal.sizeCatPants') },
+                          { id: 'dress', label: t('shopPortal.sizeCatDress') },
                         ] as { id: GarmentCategoryKey; label: string }[]
                       ).map((cat) => (
                         <button
@@ -2251,18 +2506,18 @@ export const ShopPortal: React.FC = () => {
                       <table className="w-full text-left border-collapse text-xs">
                         <thead>
                           <tr className="border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500">
-                            <th className="py-3 px-3">Size</th>
+                            <th className="py-3 px-3">{t('shopPortal.colSize')}</th>
                             {selectedSizeCategory !== 'pants' && (
                               <>
-                                <th className="py-3 px-3">Ngực Min (cm)</th>
-                                <th className="py-3 px-3">Ngực Max (cm)</th>
-                                <th className="py-3 px-3">Rộng Vai (cm)</th>
+                                <th className="py-3 px-3">{t('shopPortal.colChestMin')}</th>
+                                <th className="py-3 px-3">{t('shopPortal.colChestMax')}</th>
+                                <th className="py-3 px-3">{t('shopPortal.colShoulder')}</th>
                               </>
                             )}
-                            <th className="py-3 px-3">Eo Min (cm)</th>
-                            <th className="py-3 px-3">Eo Max (cm)</th>
-                            <th className="py-3 px-3">Hông Max (cm)</th>
-                            <th className="py-3 px-3">Dài SP (cm)</th>
+                            <th className="py-3 px-3">{t('shopPortal.colWaistMin')}</th>
+                            <th className="py-3 px-3">{t('shopPortal.colWaistMax')}</th>
+                            <th className="py-3 px-3">{t('shopPortal.colHipMax')}</th>
+                            <th className="py-3 px-3">{t('shopPortal.colLength')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -2337,11 +2592,35 @@ export const ShopPortal: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* TAB 5: SHOP SETTINGS (CHUẨN SHOPEE SELLER CENTRE) */}
+              {activeTab === 'SETTINGS' && shop && (
+                <ShopSettingsTab
+                  shop={shop}
+                  bankAccount={bankAccount}
+                  reputation={reputation}
+                  userEmail={currentUser?.email}
+                  authProvider={dashboardAuthProvider ?? authProvider}
+                  onShopUpdated={(updated) => setShop(updated)}
+                  onBankUpdated={(updated) => setBankAccount(updated)}
+                  onReloadDashboard={loadShopData}
+                  onSignedOutAll={async () => {
+                    await signOut();
+                  }}
+                />
+              )}
             </>
           )}
         </main>
       </div>
       <AuthModal />
+      <ShopProductEditModal
+        product={editingProduct}
+        onClose={() => setEditingProduct(null)}
+        onUpdated={(updated) => {
+          setProducts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        }}
+      />
       {isAuthenticated && userRole === 'store' && (
         <GeminiAssistantWidget
           botId="shop"

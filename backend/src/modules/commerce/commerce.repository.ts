@@ -1,7 +1,12 @@
+import crypto from 'crypto';
 import { pool, query } from '../../config/database.js';
 import { ensureCommerceTablesAndSeed } from './commerce.bootstrap.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
+import { verifyPassword, isGoogleOAuthHash, resolveAuthProvider } from '../../utils/password.js';
+import { authRepository } from '../auth/auth.repository.js';
+import { emailService } from '../../services/email.service.js';
+import { compareVietnameseAccountNames } from '../shop/kycVerification.js';
 
 export type MembershipTierId = 'member' | 'silver' | 'gold' | 'vip';
 
@@ -56,6 +61,155 @@ export function assertShopAntiSpam(userId: string): void {
   }
   prev.push(now);
   shopPostTimestamps.set(userId, prev);
+}
+
+const MAX_SHOP_IMAGE_DATA_URL_CHARS = 700_000; // ~500KB decoded
+const MAX_PRODUCT_VIDEO_DATA_URL_CHARS = 22_000_000; // ~15MB decoded
+const ALLOWED_SIZE_SPEC_CATEGORIES = ['shirt', 'polo', 'pants', 'dress'] as const;
+const ALLOWED_SIZE_LABELS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
+
+export function isValidShopImageUrl(raw: string): boolean {
+  if (!raw) return true; // empty = cleared
+  if (raw.length > MAX_SHOP_IMAGE_DATA_URL_CHARS) return false;
+  if (/^https?:\/\/[^\s"'<>]+$/i.test(raw)) return true;
+  if (/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(raw)) return true;
+  return false;
+}
+
+export function isValidProductVideoUrl(raw: string): boolean {
+  if (!raw) return true;
+  if (/^https?:\/\/[^\s"'<>]+$/i.test(raw)) return raw.length <= 2048;
+  if (/^data:video\/(mp4|webm|ogg);base64,[A-Za-z0-9+/=]+$/i.test(raw)) {
+    return raw.length <= MAX_PRODUCT_VIDEO_DATA_URL_CHARS;
+  }
+  return false;
+}
+
+export function parseStockValue(raw: unknown, fallback = 20): number {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(999, Math.trunc(n)));
+}
+
+export function buildStableColorToken(colorHex: string, colorName: string): string {
+  const cleanHex = String(colorHex || '')
+    .replace(/[^0-9a-fA-F]/g, '')
+    .toLowerCase()
+    .slice(0, 6);
+  if (cleanHex.length >= 3) return cleanHex;
+  const slug = String(colorName || 'default')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 8);
+  return slug || 'def';
+}
+
+export function sanitizeAndValidateSizeSpecs(
+  rawSpecs: unknown
+): Record<string, any[]> | null {
+  if (rawSpecs === null || rawSpecs === undefined) return null;
+  if (typeof rawSpecs !== 'object' || Array.isArray(rawSpecs)) {
+    throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Dữ liệu bảng thông số size (sizeSpecs) không hợp lệ.');
+  }
+
+  const cleaned: Record<string, any[]> = {};
+  const numericFields = ['chest_min', 'chest_max', 'waist_min', 'waist_max', 'hip_max', 'shoulder', 'length'] as const;
+
+  for (const [cat, rows] of Object.entries(rawSpecs as Record<string, unknown>)) {
+    if (!ALLOWED_SIZE_SPEC_CATEGORIES.includes(cat as any)) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Danh mục thông số size không hợp lệ: ${cat}`);
+    }
+    if (!Array.isArray(rows) || rows.length > 10) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Danh sách size cho danh mục "${cat}" không hợp lệ.`);
+    }
+
+    cleaned[cat] = rows.map((row: any) => {
+      const size = String(row?.size || '').trim().toUpperCase();
+      if (!ALLOWED_SIZE_LABELS.includes(size as any)) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Mã size không hợp lệ: "${size}"`);
+      }
+      const nextRow: Record<string, any> = { size };
+      for (const field of numericFields) {
+        const val = row?.[field];
+        if (val === undefined || val === null || val === '') continue;
+        const num = Number(val);
+        if (!Number.isFinite(num) || num < 0 || num > 250) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Thông số "${field}" của size ${size} (${cat}) phải nằm trong khoảng 0–250 cm.`
+          );
+        }
+        nextRow[field] = Math.round(num * 10) / 10;
+      }
+      if (
+        nextRow.chest_min !== undefined &&
+        nextRow.chest_max !== undefined &&
+        nextRow.chest_min > nextRow.chest_max
+      ) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Ngực min phải ≤ Ngực max ở size ${size} (${cat}).`);
+      }
+      if (
+        nextRow.waist_min !== undefined &&
+        nextRow.waist_max !== undefined &&
+        nextRow.waist_min > nextRow.waist_max
+      ) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Eo min phải ≤ Eo max ở size ${size} (${cat}).`);
+      }
+      return nextRow;
+    });
+  }
+
+  return cleaned;
+}
+
+function normalizePrepTimeCode(raw?: string | null): string {
+  const val = String(raw || '').trim();
+  if (!val) return '1_2_DAYS';
+  const upper = val.toUpperCase();
+  if (['SAME_DAY', '1_2_DAYS', '2_3_DAYS', '3_5_DAYS'].includes(upper)) return upper;
+  const lower = val.toLowerCase();
+  if (lower.includes('24h') || lower.includes('trong ngày') || lower.includes('same day')) return 'SAME_DAY';
+  if (lower.includes('2–3') || lower.includes('2-3')) return '2_3_DAYS';
+  if (lower.includes('3–5') || lower.includes('3-5') || lower.includes('5–7') || lower.includes('5-7')) return '3_5_DAYS';
+  return '1_2_DAYS';
+}
+
+function resolveShopSizeSpec(
+  shopSizeSpecs: Record<string, any[]> | null | undefined,
+  category: string,
+  sizeLabel: string,
+  fallbackSpec: Record<string, any>
+): Record<string, any> {
+  if (!shopSizeSpecs || typeof shopSizeSpecs !== 'object') return fallbackSpec;
+  const catKey =
+    category === 'tailored' ? 'shirt' : ['shirt', 'polo', 'pants', 'dress'].includes(category) ? category : 'shirt';
+  const rows = shopSizeSpecs[catKey];
+  if (!Array.isArray(rows)) return fallbackSpec;
+  const matched = rows.find((r: any) => String(r?.size || '').toUpperCase() === sizeLabel.toUpperCase());
+  if (!matched) return fallbackSpec;
+
+  const isPants = catKey === 'pants';
+  const chestAvg =
+    !isPants && matched.chest_min && matched.chest_max
+      ? Math.round((Number(matched.chest_min) + Number(matched.chest_max)) / 2)
+      : fallbackSpec.chest_cm;
+  const waistAvg =
+    matched.waist_min && matched.waist_max
+      ? Math.round((Number(matched.waist_min) + Number(matched.waist_max)) / 2)
+      : fallbackSpec.waist_cm;
+
+  return {
+    ...fallbackSpec,
+    chest_cm: isPants ? 0 : Number(chestAvg) || fallbackSpec.chest_cm,
+    waist_cm: Number(waistAvg) || fallbackSpec.waist_cm,
+    shoulder_cm: isPants ? 0 : Number(matched.shoulder) || fallbackSpec.shoulder_cm,
+    hip_cm: Number(matched.hip_max) || fallbackSpec.hip_cm,
+    length_cm: Number(matched.length) || fallbackSpec.length_cm,
+  };
 }
 
 export const commerceRepository = {
@@ -984,12 +1138,20 @@ export const commerceRepository = {
   async ensureShopForUser(userId: string) {
     await ensureCommerceTablesAndSeed();
     const shopRows = await query(
-      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address,
+      `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address, contact_email,
               entity_type, tax_code, tax_status, business_license_no,
               legal_representative_name, national_id_last4,
               status, rejection_reason, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
               vacation_note, vacation_until, banner_url, logo_url, tagline, description,
+              COALESCE(prep_time_days, '1–2 ngày làm việc') AS prep_time_days,
+              COALESCE(pickup_address, shop_address) AS pickup_address,
+              COALESCE(return_address, shop_address) AS return_address,
+              COALESCE(return_same_as_pickup, TRUE) AS return_same_as_pickup,
+              quick_reply_template,
+              COALESCE(notify_new_order_email, TRUE) AS notify_new_order_email,
+              COALESCE(notify_low_stock_email, TRUE) AS notify_low_stock_email,
+              size_specs,
               approved_at, created_at
        FROM shops
        WHERE owner_id = $1
@@ -1017,8 +1179,8 @@ export const commerceRepository = {
     const row = revStats[0];
     const totalReviews = parseInt(row?.total_reviews || '0', 10);
     const repliedReviews = parseInt(row?.replied_reviews || '0', 10);
-    const avgRating = totalReviews > 0 ? parseFloat(row?.avg_rating || '5.0') : 5.0;
-    const responseRate = totalReviews > 0 ? Math.round((repliedReviews / totalReviews) * 100) : 100;
+    const avgRating = totalReviews > 0 ? parseFloat(row?.avg_rating || '0') : 0;
+    const responseRate = totalReviews > 0 ? Math.round((repliedReviews / totalReviews) * 100) : 0;
 
     const prodStats = await query<{ cnt: string }>(
       `SELECT COUNT(*)::text AS cnt
@@ -1068,10 +1230,13 @@ export const commerceRepository = {
     await ensureCommerceTablesAndSeed();
     const target = String(slugOrBrand || '').trim();
     const shops = await query<any>(
-      `SELECT id, shop_name, brand_slug, phone_number, shop_address, city, entity_type,
+      `SELECT id, shop_name, brand_slug, phone_number, shop_address, contact_email, city, entity_type,
               COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
-              vacation_note, vacation_until, banner_url, logo_url, tagline, description, created_at
+              vacation_note, vacation_until, banner_url, logo_url, tagline, description,
+              COALESCE(prep_time_days, '1_2_DAYS') AS prep_time_days,
+              size_specs,
+              created_at
        FROM shops
        WHERE status = 'APPROVED'
          AND (LOWER(brand_slug) = LOWER($1) OR LOWER(shop_name) = LOWER($1) OR id::text = $1)
@@ -1144,27 +1309,54 @@ export const commerceRepository = {
     payload: {
       shopName?: string;
       phoneNumber?: string;
+      contactEmail?: string | null;
       shopAddress?: string;
+      pickupAddress?: string;
+      returnAddress?: string;
+      returnSameAsPickup?: boolean;
       tagline?: string;
       description?: string;
-      bannerUrl?: string;
-      logoUrl?: string;
+      bannerUrl?: string | null;
+      logoUrl?: string | null;
       operationalMode?: 'ACTIVE' | 'VACATION';
       vacationNote?: string;
       vacationUntil?: string | null;
+      prepTimeDays?: string;
+      quickReplyTemplate?: string | null;
+      notifyNewOrderEmail?: boolean;
+      notifyLowStockEmail?: boolean;
+      sizeSpecs?: Record<string, any[]> | null;
     }
   ) {
     const shop = await this.ensureShopForUser(userId);
     if (!shop) {
       throw new Error('Không tìm thấy hồ sơ Shop.');
     }
-    const cleanName = String(payload.shopName || shop.shop_name).trim();
-    const cleanPhone = String(payload.phoneNumber || shop.phone_number).trim().slice(0, 15);
-    const cleanAddr = String(payload.shopAddress || shop.shop_address).trim().slice(0, 255);
+    const cleanName = String(payload.shopName ?? shop.shop_name).trim();
+    const cleanPhone = String(payload.phoneNumber ?? shop.phone_number).trim().slice(0, 15);
+    const cleanContactEmail =
+      payload.contactEmail !== undefined
+        ? String(payload.contactEmail || '').trim().slice(0, 255)
+        : shop.contact_email || '';
+    const cleanPickup = String(
+      payload.pickupAddress ?? payload.shopAddress ?? shop.pickup_address ?? shop.shop_address
+    )
+      .trim()
+      .slice(0, 255);
+    const returnSame =
+      payload.returnSameAsPickup !== undefined
+        ? Boolean(payload.returnSameAsPickup)
+        : Boolean(shop.return_same_as_pickup ?? true);
+    const cleanReturn = returnSame
+      ? cleanPickup
+      : String(payload.returnAddress ?? shop.return_address ?? cleanPickup).trim().slice(0, 255);
+    const cleanAddr = String(payload.shopAddress ?? cleanPickup ?? shop.shop_address).trim().slice(0, 255);
     const cleanTagline = payload.tagline !== undefined ? String(payload.tagline).trim().slice(0, 255) : shop.tagline;
     const cleanDesc = payload.description !== undefined ? String(payload.description).trim() : shop.description;
-    const cleanBanner = payload.bannerUrl !== undefined ? String(payload.bannerUrl).trim() : shop.banner_url;
-    const cleanLogo = payload.logoUrl !== undefined ? String(payload.logoUrl).trim() : shop.logo_url;
+    const cleanBanner =
+      payload.bannerUrl !== undefined ? String(payload.bannerUrl || '').trim() : shop.banner_url;
+    const cleanLogo =
+      payload.logoUrl !== undefined ? String(payload.logoUrl || '').trim() : shop.logo_url;
     const opMode =
       payload.operationalMode === 'VACATION' || payload.operationalMode === 'ACTIVE'
         ? payload.operationalMode
@@ -1177,50 +1369,275 @@ export const commerceRepository = {
           ? new Date(payload.vacationUntil)
           : null
         : shop.vacation_until;
+    const prepTime =
+      payload.prepTimeDays !== undefined
+        ? normalizePrepTimeCode(payload.prepTimeDays)
+        : normalizePrepTimeCode(shop.prep_time_days);
+    const quickReply =
+      payload.quickReplyTemplate !== undefined
+        ? String(payload.quickReplyTemplate || '').trim()
+        : shop.quick_reply_template;
+    const notifyNewOrder =
+      payload.notifyNewOrderEmail !== undefined
+        ? Boolean(payload.notifyNewOrderEmail)
+        : Boolean(shop.notify_new_order_email ?? true);
+    const notifyLowStock =
+      payload.notifyLowStockEmail !== undefined
+        ? Boolean(payload.notifyLowStockEmail)
+        : Boolean(shop.notify_low_stock_email ?? true);
+    const nextSizeSpecs =
+      payload.sizeSpecs !== undefined
+        ? sanitizeAndValidateSizeSpecs(payload.sizeSpecs)
+        : shop.size_specs || null;
 
     if (cleanName.length < 2) throw new Error('Tên Shop phải có tối thiểu 2 ký tự.');
     if (cleanPhone.length < 8) throw new Error('Số điện thoại Shop không hợp lệ.');
-
-    const updated = await query(
-      `UPDATE shops
-       SET shop_name = $2, phone_number = $3, shop_address = $4,
-           tagline = $5, description = $6, banner_url = $7, logo_url = $8,
-           operational_mode = $9, vacation_note = $10, vacation_until = $11,
-           updated_at = NOW()
-       WHERE id = $1
-       RETURNING id, owner_id, shop_name, brand_slug, phone_number, shop_address,
-                 entity_type, tax_code, tax_status, status, is_verified,
-                 COALESCE(is_mall, FALSE) AS is_mall,
-                 COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
-                 vacation_note, vacation_until, banner_url, logo_url, tagline, description`,
-      [
-        shop.id,
-        cleanName,
-        cleanPhone,
-        cleanAddr,
-        cleanTagline || null,
-        cleanDesc || null,
-        cleanBanner || null,
-        cleanLogo || null,
-        opMode,
-        vacNote || null,
-        vacUntil,
-      ]
-    );
-    if (cleanName !== shop.shop_name) {
-      await query(
-        `UPDATE products SET brand_name = $2, updated_at = NOW() WHERE shop_id = $1`,
-        [shop.id, cleanName]
-      ).catch(() => undefined);
+    if (cleanContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanContactEmail)) {
+      throw new Error('Email liên hệ gian hàng không đúng định dạng.');
     }
-    return updated[0];
+    if (cleanLogo && !isValidShopImageUrl(cleanLogo)) {
+      throw new Error('Ảnh Logo không hợp lệ (chỉ chấp nhận URL http/https hoặc ảnh JPG/PNG/WebP tối đa 500KB).');
+    }
+    if (cleanBanner && !isValidShopImageUrl(cleanBanner)) {
+      throw new Error('Ảnh bìa Banner không hợp lệ (chỉ chấp nhận URL http/https hoặc ảnh JPG/PNG/WebP tối đa 500KB).');
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updatedRes = await client.query(
+        `UPDATE shops
+         SET shop_name = $2, phone_number = $3, contact_email = $4, shop_address = $5,
+             pickup_address = $6, return_address = $7, return_same_as_pickup = $8,
+             tagline = $9, description = $10, banner_url = $11, logo_url = $12,
+             operational_mode = $13, vacation_note = $14, vacation_until = $15,
+             prep_time_days = $16, quick_reply_template = $17,
+             notify_new_order_email = $18, notify_low_stock_email = $19,
+             size_specs = $20::jsonb,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, owner_id, shop_name, brand_slug, phone_number, contact_email, shop_address,
+                   pickup_address, return_address, return_same_as_pickup,
+                   entity_type, tax_code, tax_status, business_license_no,
+                   legal_representative_name, national_id_last4,
+                   status, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
+                   COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
+                   vacation_note, vacation_until, banner_url, logo_url, tagline, description,
+                   prep_time_days, quick_reply_template, notify_new_order_email, notify_low_stock_email, size_specs`,
+        [
+          shop.id,
+          cleanName,
+          cleanPhone,
+          cleanContactEmail || null,
+          cleanAddr,
+          cleanPickup || cleanAddr,
+          cleanReturn || cleanAddr,
+          returnSame,
+          cleanTagline || null,
+          cleanDesc || null,
+          cleanBanner || null,
+          cleanLogo || null,
+          opMode,
+          vacNote || null,
+          vacUntil,
+          prepTime,
+          quickReply || null,
+          notifyNewOrder,
+          notifyLowStock,
+          nextSizeSpecs ? JSON.stringify(nextSizeSpecs) : null,
+        ]
+      );
+
+      if (payload.sizeSpecs !== undefined && nextSizeSpecs) {
+        const shopProductsRes = await client.query<any>(
+          `SELECT id, category, variants FROM products WHERE shop_id = $1 OR LOWER(brand_name) = LOWER($2)`,
+          [shop.id, cleanName]
+        );
+        for (const prod of shopProductsRes.rows) {
+          const syncedVariants = (prod.variants || []).map((v: any) => ({
+            ...v,
+            spec: resolveShopSizeSpec(nextSizeSpecs, prod.category, v.size_label, v.spec || {}),
+          }));
+          await client.query(`UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`, [
+            prod.id,
+            JSON.stringify(syncedVariants),
+          ]);
+        }
+      }
+
+      if (cleanName !== shop.shop_name) {
+        await client.query(
+          `UPDATE products SET brand_name = $2, updated_at = NOW() WHERE shop_id = $1`,
+          [shop.id, cleanName]
+        );
+      }
+
+      await client.query('COMMIT');
+      return updatedRes.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  async requestShopBankChangeOtp(userId: string) {
+    const shop = await this.ensureShopForUser(userId);
+    if (!shop) {
+      throw new AppError(404, ErrorCode.VALIDATION_FAILED, 'Không tìm thấy hồ sơ Shop.');
+    }
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản chủ Shop.');
+    }
+    const otpCode = String(crypto.randomInt(100000, 1000000));
+    emailService.saveOtp(user.email, otpCode, 'BANK_CHANGE', 5 * 60 * 1000);
+    await emailService.sendShopBankChangeOtpEmail(user.email, user.full_name, otpCode);
+
+    const [localPart, domainPart] = user.email.split('@');
+    const maskedLocal =
+      localPart.length <= 2 ? `${localPart[0] || '*'}*` : `${localPart.slice(0, 2)}***${localPart.slice(-1)}`;
+    const maskedEmail = `${maskedLocal}@${domainPart || '***'}`;
+
+    const isDevMock = process.env.NODE_ENV !== 'production' && !emailService.isSmtpConfigured();
+    return {
+      sent: true,
+      maskedEmail,
+      expiresInSeconds: 300,
+      ...(isDevMock ? { devOtp: otpCode } : {}),
+    };
+  },
+
+  async updateShopBankAccount(
+    userId: string,
+    payload: {
+      bankCode?: string;
+      bankName?: string;
+      accountNumber?: string;
+      accountHolderName?: string;
+      currentPassword?: string;
+      otpCode?: string;
+    }
+  ) {
+    const shop = await this.ensureShopForUser(userId);
+    if (!shop) {
+      throw new AppError(404, ErrorCode.VALIDATION_FAILED, 'Không tìm thấy hồ sơ Shop.');
+    }
+
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản chủ Shop.');
+    }
+
+    // Xác thực danh tính: tài khoản mật khẩu xác thực bằng password, tài khoản Google xác thực bằng OTP 6 số gửi qua Email
+    if (isGoogleOAuthHash(user.password_hash)) {
+      const cleanOtp = String(payload.otpCode || '').trim();
+      if (!/^\d{6}$/.test(cleanOtp)) {
+        throw new AppError(
+          400,
+          ErrorCode.AUTH_OTP_INVALID,
+          'Tài khoản Google: vui lòng bấm "Gửi mã OTP" và nhập mã xác nhận 6 chữ số đã gửi về Email của bạn.'
+        );
+      }
+      const isOtpValid = emailService.verifyOtp(user.email, cleanOtp, 'BANK_CHANGE');
+      if (!isOtpValid) {
+        throw new AppError(
+          400,
+          ErrorCode.AUTH_OTP_INVALID,
+          'Mã OTP xác nhận không chính xác hoặc đã hết hạn (5 phút). Vui lòng yêu cầu mã mới.'
+        );
+      }
+    } else {
+      const pwd = String(payload.currentPassword || '');
+      if (!pwd) {
+        throw new AppError(
+          400,
+          ErrorCode.AUTH_INVALID_CREDENTIALS,
+          'Bắt buộc nhập mật khẩu tài khoản để xác thực khi thay đổi tài khoản ngân hàng chi trả.'
+        );
+      }
+      const isPasswordValid = await verifyPassword(pwd, user.password_hash);
+      if (!isPasswordValid) {
+        throw new AppError(
+          400,
+          ErrorCode.AUTH_INVALID_CREDENTIALS,
+          'Mật khẩu xác thực không chính xác. Không thể cập nhật tài khoản ngân hàng.'
+        );
+      }
+    }
+
+    const bankCode = String(payload.bankCode || '').trim().toUpperCase().slice(0, 30);
+    const bankName = String(payload.bankName || '').trim().slice(0, 120);
+    const accountNumber = String(payload.accountNumber || '').replace(/\s+/g, '').slice(0, 40);
+    const accountHolderName = String(payload.accountHolderName || '').trim().slice(0, 150);
+
+    if (!bankCode || !bankName) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Vui lòng chọn ngân hàng nhận thanh toán.');
+    }
+    if (!/^[0-9A-Za-z]{6,25}$/.test(accountNumber)) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Số tài khoản ngân hàng phải gồm 6–25 ký tự hợp lệ.');
+    }
+    if (accountHolderName.length < 3) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Vui lòng nhập đầy đủ tên chủ tài khoản ngân hàng.');
+    }
+
+    const expectedLegalName =
+      shop.legal_representative_name || user.full_name || shop.shop_name;
+    const matchResult = compareVietnameseAccountNames(accountHolderName, expectedLegalName);
+    if (!matchResult.matched) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        `Tên chủ tài khoản ngân hàng ("${accountHolderName}") chưa khớp với tên pháp lý/chủ Shop đã xác minh ("${expectedLegalName}", độ khớp ${Math.round(matchResult.score)}%). Theo quy tắc KYC, chủ tài khoản chi trả phải khớp tên đại diện.`
+      );
+    }
+
+    // Bọc transaction để tránh mất tài khoản mặc định nếu câu lệnh thứ 2 gặp lỗi
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE shop_bank_accounts SET is_primary = FALSE, updated_at = NOW() WHERE shop_id = $1`,
+        [shop.id]
+      );
+      const savedRes = await client.query(
+        `INSERT INTO shop_bank_accounts (
+           shop_id, bank_code, bank_name, account_number, account_holder_name,
+           is_primary, name_match_score, verification_status, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, TRUE, $6, 'MATCHED', NOW())
+         ON CONFLICT (shop_id, account_number) DO UPDATE
+         SET bank_code = EXCLUDED.bank_code,
+             bank_name = EXCLUDED.bank_name,
+             account_holder_name = EXCLUDED.account_holder_name,
+             is_primary = TRUE,
+             name_match_score = EXCLUDED.name_match_score,
+             verification_status = 'MATCHED',
+             updated_at = NOW()
+         RETURNING id, bank_code, bank_name, account_number, account_holder_name,
+                   is_primary, name_match_score::float, verification_status`,
+        [shop.id, bankCode, bankName, accountNumber, accountHolderName, matchResult.score]
+      );
+      await client.query('COMMIT');
+      return savedRes.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async getShopDashboard(userId: string) {
-    const shop = await this.ensureShopForUser(userId);
+    const [shop, user] = await Promise.all([
+      this.ensureShopForUser(userId),
+      authRepository.findUserById(userId),
+    ]);
+    const authProvider = resolveAuthProvider(user?.password_hash);
     if (!shop) {
       return {
         shop: null,
+        authProvider,
         documents: [],
         bankAccount: null,
         reputation: null,
@@ -1252,6 +1669,7 @@ export const commerceRepository = {
     if (shop.status !== 'APPROVED') {
       return {
         shop,
+        authProvider,
         documents,
         bankAccount: bankRows[0] || null,
         reputation,
@@ -1302,6 +1720,7 @@ export const commerceRepository = {
 
     return {
       shop,
+      authProvider,
       documents,
       bankAccount: bankRows[0] || null,
       reputation,
@@ -1327,19 +1746,20 @@ export const commerceRepository = {
     }
 
     const rawImg = String(payload.imageUrl || '').trim();
-    if (rawImg.startsWith('data:image/') && rawImg.length > 4_200_000) {
-      throw new Error('Ảnh tải lên quá nặng (> 3MB). Vui lòng nén ảnh hoặc dùng link URL.');
+    if (rawImg && !isValidShopImageUrl(rawImg)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Ảnh đại diện sản phẩm không hợp lệ (chỉ chấp nhận URL http/https hoặc ảnh JPG/PNG/WebP tối đa 500KB).'
+      );
     }
     const rawVideo = String(payload.videoUrl || '').trim();
-    if (rawVideo) {
-      if (rawVideo.startsWith('data:video/') && rawVideo.length > 22_000_000) {
-        throw new Error('Video tải lên vượt quá giới hạn 15MB để bảo vệ máy chủ. Hãy dùng link MP4/YouTube hoặc video ngắn hơn.');
-      }
-      const isHttpVideo = rawVideo.startsWith('http://') || rawVideo.startsWith('https://');
-      const isBase64Video = rawVideo.startsWith('data:video/');
-      if (!isHttpVideo && !isBase64Video) {
-        throw new Error('Định dạng video không hợp lệ (chỉ hỗ trợ link HTTP/HTTPS hoặc file MP4/WebM).');
-      }
+    if (rawVideo && !isValidProductVideoUrl(rawVideo)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Định dạng hoặc dung lượng video không hợp lệ (chỉ hỗ trợ URL http/https hoặc video MP4/WebM tối đa 15MB).'
+      );
     }
 
     // Anti-Spam Rate Limiter & Shop Quota Enforcement (only count valid submissions)
@@ -1405,26 +1825,43 @@ export const commerceRepository = {
           ];
 
     for (const c of rawColors) {
-      if (c.imageUrl && c.imageUrl.startsWith('data:image/') && c.imageUrl.length > 4_200_000) {
-        throw new Error(`Ảnh của màu "${c.colorName}" quá nặng (> 3MB). Vui lòng nén ảnh hoặc dùng link URL.`);
+      if (c.imageUrl && !isValidShopImageUrl(c.imageUrl)) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_FAILED,
+          `Ảnh của màu "${c.colorName}" không hợp lệ hoặc quá dung lượng tối đa 500KB.`
+        );
       }
     }
 
     const id = `prod-${Date.now()}`;
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`;
 
-    const variants = rawColors.flatMap((c, colorIdx) =>
-      selectedSizes.map((sz) => ({
-        id: `${id}-c${colorIdx}-${sz.toLowerCase()}`,
+    const usedTokens = new Set<string>();
+    const variants = rawColors.flatMap((c) => {
+      let colorToken = buildStableColorToken(c.colorHex, c.colorName);
+      let suffix = 1;
+      while (usedTokens.has(colorToken)) {
+        colorToken = `${buildStableColorToken(c.colorHex, c.colorName)}${suffix++}`;
+      }
+      usedTokens.add(colorToken);
+      const colorKey = `${c.colorHex.toLowerCase()}|${c.colorName.toLowerCase()}`;
+      return selectedSizes.map((sz) => ({
+        id: `${id}-${colorToken}-${sz.toLowerCase()}`,
         size_label: sz,
         color_name: c.colorName,
         color_hex: c.colorHex,
         image_url: c.imageUrl || fallbackImg,
-        sku: `${id.toUpperCase()}-C${colorIdx + 1}-${sz}`,
-        stock: Number(stockMap[sz]) || 20,
-        spec: isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz],
-      }))
-    );
+        sku: `${id.toUpperCase()}-${colorToken.toUpperCase()}-${sz}`,
+        stock: parseStockValue(stockMap[`${colorKey}|${sz}`] ?? stockMap[sz], 20),
+        spec: resolveShopSizeSpec(
+          shop.size_specs,
+          category,
+          sz,
+          isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz]
+        ),
+      }));
+    });
 
     const imageUrl = rawColors[0]?.imageUrl || fallbackImg;
     const secondaryImageUrl =
@@ -1439,7 +1876,7 @@ export const commerceRepository = {
          stretch_type, image_url, secondary_image_url, video_url, description, description_en, is_bestseller, is_bespoke, is_hidden, variants
        ) VALUES (
          $1, $2, $3, $4, $5, $5, $6, $7, $8,
-         $9, $10, 5.0, 0, $11, $11,
+         $9, $10, 0.0, 0, $11, $11,
          $12, $13, $14, $15, $16, $16, TRUE, $18, FALSE, $17::jsonb
        ) RETURNING *, rating::float`,
       [
@@ -1505,37 +1942,261 @@ export const commerceRepository = {
 
   async updateShopProduct(userId: string, isAdmin: boolean, productId: string, patch: any) {
     await ensureCommerceTablesAndSeed();
-    const shopRows = await query('SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
+    const shopRows = await query('SELECT id, shop_name, size_specs FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
     const shop = shopRows[0];
     if (!shop && !isAdmin) return null;
 
-    const ownerFilter = isAdmin ? 'TRUE' : '(shop_id = $5 OR LOWER(brand_name) = LOWER($6))';
-    const hasSale = patch.salePrice !== undefined;
-    const params: any[] = [
-      productId,
-      typeof patch.isHidden === 'boolean' ? patch.isHidden : null,
-      hasSale,
-      hasSale ? (patch.salePrice ? Number(patch.salePrice) : null) : null,
-    ];
-    if (!isAdmin) {
-      params.push(shop.id, shop.shop_name);
+    const ownerFilter = isAdmin ? 'TRUE' : '(shop_id = $2 OR LOWER(brand_name) = LOWER($3))';
+    const lookupParams: any[] = isAdmin ? [productId] : [productId, shop.id, shop.shop_name];
+    const existingRows = await query<any>(
+      `SELECT * FROM products WHERE id = $1 AND ${ownerFilter} LIMIT 1`,
+      lookupParams
+    );
+    const existing = existingRows[0];
+    if (!existing) return null;
+
+    const nextName =
+      patch.name !== undefined ? String(patch.name).trim() : existing.name;
+    if (nextName.length < 3) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Tên sản phẩm phải có tối thiểu 3 ký tự.');
+    }
+    const nextNameEn =
+      patch.nameEn !== undefined
+        ? String(patch.nameEn).trim() || existing.name_en || nextName
+        : existing.name_en || nextName;
+
+    const nextCategory =
+      ['shirt', 'polo', 'pants', 'dress', 'tailored'].includes(patch.category)
+        ? patch.category
+        : existing.category;
+    const nextGender =
+      ['male', 'female', 'unisex'].includes(patch.genderTarget)
+        ? patch.genderTarget
+        : existing.gender_target;
+    const nextPrice =
+      patch.price !== undefined ? Math.max(1000, Number(patch.price) || existing.price) : existing.price;
+    const nextSalePrice =
+      patch.salePrice !== undefined
+        ? patch.salePrice !== null && Number(patch.salePrice) >= 1000 && Number(patch.salePrice) < nextPrice
+          ? Number(patch.salePrice)
+          : null
+        : existing.sale_price;
+    const nextHidden =
+      typeof patch.isHidden === 'boolean' ? patch.isHidden : Boolean(existing.is_hidden);
+    const nextBespoke =
+      typeof patch.isBespoke === 'boolean' ? patch.isBespoke : Boolean(existing.is_bespoke);
+    const nextFabric =
+      patch.fabricMaterial !== undefined
+        ? String(patch.fabricMaterial).trim() || existing.fabric_material
+        : existing.fabric_material;
+    const nextFabricEn =
+      patch.fabricMaterialEn !== undefined
+        ? String(patch.fabricMaterialEn).trim() || existing.fabric_material_en || nextFabric
+        : existing.fabric_material_en || nextFabric;
+    const nextStretch =
+      patch.stretchType !== undefined
+        ? String(patch.stretchType).trim() || existing.stretch_type
+        : existing.stretch_type;
+    const nextDesc =
+      patch.description !== undefined ? String(patch.description).trim() : existing.description;
+    const nextDescEn =
+      patch.descriptionEn !== undefined
+        ? String(patch.descriptionEn).trim() || existing.description_en || nextDesc
+        : existing.description_en || nextDesc;
+    const nextVideoUrl =
+      patch.videoUrl !== undefined ? (String(patch.videoUrl || '').trim() || null) : existing.video_url;
+    if (nextVideoUrl && !isValidProductVideoUrl(nextVideoUrl)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Đường dẫn hoặc định dạng video sản phẩm không hợp lệ.'
+      );
+    }
+
+    let nextVariants = existing.variants || [];
+    let nextImageUrl =
+      patch.imageUrl !== undefined
+        ? String(patch.imageUrl || '').trim() || existing.image_url
+        : existing.image_url;
+    if (patch.imageUrl !== undefined && nextImageUrl && !isValidShopImageUrl(nextImageUrl)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Ảnh đại diện sản phẩm không hợp lệ hoặc vượt quá 500KB.'
+      );
+    }
+    let nextSecondaryImageUrl = existing.secondary_image_url;
+
+    const hasVariantRebuild =
+      Array.isArray(patch.colorVariants) ||
+      Array.isArray(patch.sizes) ||
+      (patch.stockMap && typeof patch.stockMap === 'object');
+
+    if (hasVariantRebuild) {
+      const isPants = nextCategory === 'pants';
+      const defaultTopSpecs: Record<string, any> = {
+        XS: { chest_cm: 92, waist_cm: 78, shoulder_cm: 40.5, length_cm: 68, ease_min_cm: 3, ease_max_cm: 6 },
+        S: { chest_cm: 96, waist_cm: 82, shoulder_cm: 42, length_cm: 70, ease_min_cm: 3, ease_max_cm: 7 },
+        M: { chest_cm: 100, waist_cm: 86, shoulder_cm: 43.5, length_cm: 72, ease_min_cm: 4, ease_max_cm: 8 },
+        L: { chest_cm: 104, waist_cm: 90, shoulder_cm: 45, length_cm: 74, ease_min_cm: 4, ease_max_cm: 8 },
+        XL: { chest_cm: 108, waist_cm: 94, shoulder_cm: 46.5, length_cm: 76, ease_min_cm: 5, ease_max_cm: 9 },
+        XXL: { chest_cm: 114, waist_cm: 100, shoulder_cm: 48.5, length_cm: 78, ease_min_cm: 5, ease_max_cm: 10 },
+      };
+      const defaultPantSpecs: Record<string, any> = {
+        XS: { chest_cm: 0, waist_cm: 72, hip_cm: 90, shoulder_cm: 0, length_cm: 94, ease_min_cm: 1, ease_max_cm: 4 },
+        S: { chest_cm: 0, waist_cm: 76, hip_cm: 94, shoulder_cm: 0, length_cm: 96, ease_min_cm: 1, ease_max_cm: 4 },
+        M: { chest_cm: 0, waist_cm: 80, hip_cm: 98, shoulder_cm: 0, length_cm: 98, ease_min_cm: 1, ease_max_cm: 4 },
+        L: { chest_cm: 0, waist_cm: 84, hip_cm: 102, shoulder_cm: 0, length_cm: 100, ease_min_cm: 2, ease_max_cm: 5 },
+        XL: { chest_cm: 0, waist_cm: 88, hip_cm: 106, shoulder_cm: 0, length_cm: 102, ease_min_cm: 2, ease_max_cm: 5 },
+        XXL: { chest_cm: 0, waist_cm: 94, hip_cm: 112, shoulder_cm: 0, length_cm: 104, ease_min_cm: 2, ease_max_cm: 5 },
+      };
+
+      const rawColors =
+        Array.isArray(patch.colorVariants) && patch.colorVariants.length > 0
+          ? patch.colorVariants.slice(0, 6).map((c: any) => ({
+              colorName: String(c?.colorName || 'Default').trim(),
+              colorHex: String(c?.colorHex || '#14171C').trim(),
+              imageUrl: String(c?.imageUrl || nextImageUrl).trim(),
+            }))
+          : Array.from(
+              new Map(
+                (existing.variants || []).map((v: any) => [
+                  `${String(v.color_hex || '#14171C').toLowerCase()}|${String(v.color_name || '').toLowerCase()}`,
+                  {
+                    colorName: v.color_name || 'Default',
+                    colorHex: v.color_hex || '#14171C',
+                    imageUrl: v.image_url || nextImageUrl,
+                  },
+                ])
+              ).values()
+            );
+
+      for (const c of rawColors) {
+        if (c.imageUrl && !isValidShopImageUrl(c.imageUrl)) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Ảnh của màu "${c.colorName}" không hợp lệ hoặc vượt quá 500KB.`
+          );
+        }
+      }
+
+      const validSizes: string[] =
+        Array.isArray(patch.sizes) && patch.sizes.length > 0
+          ? patch.sizes.filter((s: string) => ['XS', 'S', 'M', 'L', 'XL', 'XXL'].includes(s))
+          : Array.from(new Set((existing.variants || []).map((v: any) => v.size_label).filter(Boolean)));
+      const finalSizes = validSizes.length > 0 ? validSizes : ['S', 'M', 'L', 'XL'];
+      const stockMap: Record<string, unknown> = patch.stockMap || {};
+
+      // Index existing variants by (color_hex|color_name|size) and (color_hex|size) to preserve stable IDs, SKUs & stocks
+      const existingByExact = new Map<string, any>();
+      const existingByHexSize = new Map<string, any>();
+      for (const v of existing.variants || []) {
+        const hex = String(v.color_hex || '#14171C').toLowerCase();
+        const cname = String(v.color_name || '').toLowerCase();
+        const sz = String(v.size_label || '').toUpperCase();
+        existingByExact.set(`${hex}|${cname}|${sz}`, v);
+        if (!existingByHexSize.has(`${hex}|${sz}`)) {
+          existingByHexSize.set(`${hex}|${sz}`, v);
+        }
+      }
+
+      const usedTokens = new Set<string>();
+      nextVariants = rawColors.flatMap((c: any) => {
+        const baseToken = buildStableColorToken(c.colorHex, c.colorName);
+        let colorToken = baseToken;
+        let suffix = 1;
+        while (usedTokens.has(colorToken)) {
+          colorToken = `${baseToken}${suffix++}`;
+        }
+        usedTokens.add(colorToken);
+        const colorKey = `${c.colorHex.toLowerCase()}|${c.colorName.toLowerCase()}`;
+
+        return finalSizes.map((sz) => {
+          const prevVariant =
+            existingByExact.get(`${colorKey}|${sz}`) ||
+            existingByHexSize.get(`${c.colorHex.toLowerCase()}|${sz}`);
+          const prevStock =
+            prevVariant && typeof prevVariant.stock === 'number' ? prevVariant.stock : 20;
+          const explicitStock =
+            stockMap[`${colorKey}|${sz}`] !== undefined
+              ? stockMap[`${colorKey}|${sz}`]
+              : stockMap[sz];
+
+          return {
+            id: prevVariant?.id || `${productId}-${colorToken}-${sz.toLowerCase()}`,
+            size_label: sz,
+            color_name: c.colorName,
+            color_hex: c.colorHex,
+            image_url: c.imageUrl || nextImageUrl,
+            sku: prevVariant?.sku || `${productId.toUpperCase()}-${colorToken.toUpperCase()}-${sz}`,
+            stock: parseStockValue(explicitStock, prevStock),
+            spec: resolveShopSizeSpec(
+              shop?.size_specs,
+              nextCategory,
+              sz,
+              isPants ? defaultPantSpecs[sz] : defaultTopSpecs[sz]
+            ),
+          };
+        });
+      });
+
+      if (rawColors[1]?.imageUrl && rawColors[1].imageUrl !== nextImageUrl) {
+        nextSecondaryImageUrl = rawColors[1].imageUrl;
+      } else {
+        nextSecondaryImageUrl = null;
+      }
     }
 
     const rows = await query(
       `UPDATE products SET
-         is_hidden = COALESCE($2, is_hidden),
-         sale_price = CASE WHEN $3 THEN $4::integer ELSE sale_price END,
+         name = $2,
+         name_en = $3,
+         category = $4,
+         gender_target = $5,
+         price = $6,
+         sale_price = $7,
+         is_hidden = $8,
+         is_bespoke = $9,
+         fabric_material = $10,
+         fabric_material_en = $11,
+         stretch_type = $12,
+         image_url = $13,
+         secondary_image_url = $14,
+         video_url = $15,
+         description = $16,
+         description_en = $17,
+         variants = $18::jsonb,
          updated_at = NOW()
-       WHERE id = $1 AND ${ownerFilter}
+       WHERE id = $1
        RETURNING *, rating::float`,
-      params
+      [
+        productId,
+        nextName,
+        nextNameEn,
+        nextCategory,
+        nextGender,
+        nextPrice,
+        nextSalePrice,
+        nextHidden,
+        nextBespoke,
+        nextFabric,
+        nextFabricEn,
+        nextStretch,
+        nextImageUrl,
+        nextSecondaryImageUrl,
+        nextVideoUrl,
+        nextDesc,
+        nextDescEn,
+        JSON.stringify(nextVariants),
+      ]
     );
     return rows[0] || null;
   },
 
   async deleteShopProduct(userId: string, isAdmin: boolean, productId: string) {
     await ensureCommerceTablesAndSeed();
-    const shopRows = await query('SELECT id, shop_name FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
+    const shopRows = await query('SELECT id, shop_name, size_specs FROM shops WHERE owner_id = $1 LIMIT 1', [userId]);
     const shop = shopRows[0];
     if (!shop && !isAdmin) return false;
 

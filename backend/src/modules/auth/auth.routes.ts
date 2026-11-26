@@ -45,6 +45,10 @@ authRouter.post('/logout', authController.logout);
 // 6. Lấy thông tin phiên hiện tại
 authRouter.get('/me', requireAuth, authController.getMe);
 
+// 6b. Đổi / Tạo mật khẩu & Đăng xuất khỏi tất cả thiết bị (bảo vệ bằng Rate Limiter)
+authRouter.post('/change-password', requireAuth, registerRateLimiter, authController.changePassword);
+authRouter.post('/logout-all', requireAuth, registerRateLimiter, authController.logoutAll);
+
 // 7. Endpoint Demo kiểm tra phân quyền ADMIN
 authRouter.get('/admin-dashboard', requireAuth, requireRole('ADMIN'), (req, res) => {
   sendSuccess(res, {

@@ -173,6 +173,7 @@ export const authApi = {
         fullName: string;
         role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
         status: string;
+        authProvider?: 'google' | 'password';
       };
     }>('/login', {
       method: 'POST',
@@ -229,6 +230,7 @@ export const authApi = {
       fullName: string;
       role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
       status: string;
+      authProvider?: 'google' | 'password';
       createdAt: string;
     }>('/me', { method: 'GET' });
   },
@@ -273,6 +275,7 @@ export const authApi = {
         fullName: string;
         role: 'USER' | 'SHOP_OWNER' | 'ADMIN';
         status: string;
+        authProvider?: 'google' | 'password';
       };
     }>('/google', {
       method: 'POST',
@@ -281,6 +284,28 @@ export const authApi = {
 
     if (res.success && res.data?.accessToken) {
       setAccessToken(res.data.accessToken);
+    }
+    return res;
+  },
+
+  // 11. Đổi / Tạo mật khẩu cho tài khoản đang đăng nhập
+  async changePassword(data: { currentPassword?: string; newPassword: string; confirmNewPassword: string }) {
+    return request<{ message: string; createdFirstPassword?: boolean; authProvider?: 'google' | 'password' }>(
+      '/change-password',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  // 12. Đăng xuất khỏi tất cả thiết bị
+  async logoutAll() {
+    const res = await request<{ revokedSessions: number; message: string }>('/logout-all', {
+      method: 'POST',
+    });
+    if (res.success) {
+      setAccessToken(null);
     }
     return res;
   },

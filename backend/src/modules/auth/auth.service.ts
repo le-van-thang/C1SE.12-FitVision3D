@@ -14,7 +14,7 @@ import {
   isDisposableEmail,
   validateEmailDomainAndGmailPolicy,
 } from '../../constants/disposableEmails.js';
-import { hashPassword, verifyPassword } from '../../utils/password.js';
+import { hashPassword, verifyPassword, isGoogleOAuthHash, resolveAuthProvider } from '../../utils/password.js';
 import {
   generateAccessToken,
   generateRefreshTokenString,
@@ -414,6 +414,7 @@ export const authService = {
         fullName: user.full_name,
         role: user.role,
         status: user.status,
+        authProvider: resolveAuthProvider(user.password_hash),
         shopStatus: shopRecord?.status || (user.role === 'SHOP_OWNER' ? 'PENDING' : undefined),
         rejectionReason: shopRecord?.rejection_reason || null,
       },
@@ -499,6 +500,58 @@ export const authService = {
   },
 
   /**
+   * Đăng xuất khỏi tất cả thiết bị (Thu hồi toàn bộ Refresh Token của user)
+   */
+  async logoutAll(userId: string) {
+    const revokedCount = await authRepository.revokeAllUserTokens(userId);
+    return {
+      revokedSessions: revokedCount,
+      message: 'Đã đăng xuất khỏi tất cả thiết bị và thu hồi toàn bộ phiên đăng nhập.',
+    };
+  },
+
+  /**
+   * Đổi mật khẩu hoặc tạo mật khẩu lần đầu cho tài khoản Google (tự động thu hồi toàn bộ phiên cũ)
+   */
+  async changePassword(
+    userId: string,
+    dto: { currentPassword?: string; newPassword: string; confirmNewPassword: string }
+  ) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(404, ErrorCode.AUTH_UNAUTHORIZED, 'Không tìm thấy tài khoản.');
+    }
+
+    const isFirstTimeGooglePassword = isGoogleOAuthHash(user.password_hash);
+
+    if (!isFirstTimeGooglePassword) {
+      if (!dto.currentPassword || !dto.currentPassword.trim()) {
+        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Vui lòng nhập mật khẩu hiện tại.');
+      }
+      const isMatch = await verifyPassword(dto.currentPassword, user.password_hash);
+      if (!isMatch) {
+        throw new AppError(400, ErrorCode.AUTH_INVALID_CREDENTIALS, 'Mật khẩu hiện tại không chính xác.');
+      }
+      if (dto.currentPassword === dto.newPassword) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mật khẩu mới phải khác mật khẩu hiện tại.');
+      }
+    }
+
+    const newHash = await hashPassword(dto.newPassword);
+    await authRepository.updatePassword(user.email, newHash);
+    // Thu hồi toàn bộ Refresh Token cũ trên các thiết bị khác sau khi đổi/tạo mật khẩu
+    const revokedSessions = await authRepository.revokeAllUserTokens(user.id);
+    return {
+      revokedSessions,
+      createdFirstPassword: isFirstTimeGooglePassword,
+      authProvider: 'password' as const,
+      message: isFirstTimeGooglePassword
+        ? 'Thiết lập mật khẩu đăng nhập thành công! Bạn có thể dùng mật khẩu này cho các lần đăng nhập và xác thực bảo mật tiếp theo.'
+        : 'Đổi mật khẩu thành công! Các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi.',
+    };
+  },
+
+  /**
    * Xác thực Email / Kích hoạt tài khoản qua OTP / Link (Mục 3.3 Contract)
    */
   async verifyEmail(dto: { email: string; otp?: string; verificationToken?: string }) {
@@ -570,6 +623,7 @@ export const authService = {
       fullName: user.full_name,
       role: user.role,
       status: user.status,
+      authProvider: resolveAuthProvider(user.password_hash),
       shopStatus: shopRecord?.status || (user.role === 'SHOP_OWNER' ? 'PENDING' : undefined),
       rejectionReason: shopRecord?.rejection_reason || null,
       createdAt: user.created_at,
@@ -732,6 +786,7 @@ export const authService = {
         fullName: user.full_name,
         role: user.role,
         status: user.status,
+        authProvider: resolveAuthProvider(user.password_hash),
       },
     };
   },
