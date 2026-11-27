@@ -110,8 +110,9 @@ describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Securit
 
     assert.match(dashSrc, /resetScanState/);
     assert.match(authSrc, /clearTransientStudioPrivacyState/);
-    assert.match(checkoutSrc, /await createOrder\(/);
-    assert.match(checkoutSrc, /14 ngày/);
+    assert.match(checkoutSrc, /await commerceApi\.createPayPalOrder\(/);
+    assert.match(checkoutSrc, /await commerceApi\.capturePayPalOrder\(/);
+    assert.match(checkoutSrc, /PayPal Escrow/);
     assert.doesNotMatch(checkoutSrc, /trong 7 ngày/);
     assert.match(captureSrc, /finalHeight < 3\.0/);
     assert.match(storeHomeSrc, /searchParams\.get\('product'\)/);
@@ -122,5 +123,32 @@ describe('E-Commerce Hardening — Cart Persistence, Voucher Math & RBAC Securit
     assert.doesNotMatch(adminSrc, /Cổng Đăng Nhập Quản Trị Viên/);
     assert.match(adminSrc, /onClick=\{openSignIn\}/);
     assert.match(authModalSrc, /adminOtpRequired/);
+  });
+
+  it('TC-COM-08: disburseShopPayouts uses Two-Phase DB Lock and resolves item-level FAILED/BLOCKED without batchStatus override', () => {
+    const repoSrc = fs.readFileSync(
+      path.join(REPO_ROOT, 'backend', 'src', 'modules', 'commerce', 'commerce.repository.ts'),
+      'utf8'
+    );
+    const ppSrc = fs.readFileSync(
+      path.join(REPO_ROOT, 'backend', 'src', 'modules', 'commerce', 'paypal.service.ts'),
+      'utf8'
+    );
+    const adminSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'pages', 'AdminPortal.tsx'), 'utf8');
+    const shopSrc = fs.readFileSync(path.join(REPO_ROOT, 'src', 'pages', 'ShopPortal.tsx'), 'utf8');
+
+    const fnStart = repoSrc.indexOf('async disburseShopPayouts(');
+    const fnEnd = repoSrc.indexOf('async syncAdminPayoutStatus(', fnStart);
+    const disburseBody = repoSrc.slice(fnStart, fnEnd);
+
+    const lockPos = disburseBody.indexOf('FOR UPDATE');
+    const processingPos = disburseBody.indexOf("SET payout_status = 'PROCESSING'");
+    const apiPos = disburseBody.indexOf('paypalService.createBatchPayout(');
+    assert.ok(lockPos > 0 && processingPos > lockPos && apiPos > processingPos);
+
+    assert.match(repoSrc, /resolvePayPalPayoutItemOutcome\(/);
+    assert.match(ppSrc, /itemError/);
+    assert.match(adminSrc, /Lỗi PayPal:/);
+    assert.match(shopSrc, /Đang xử lý PayPal/);
   });
 });

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { validateVietnamCCCD, validateVietnamTaxCode } from '../shop/kycVerification.js';
 
 const PASSWORD_REGEX = /^(?=.*[!@#$%^&*()_+\-=[\]{}|;:,.<>?]).{6,32}$/;
 const VIETNAM_PHONE_REGEX = /^(84|0)[35789][0-9]{8}$/;
@@ -38,20 +37,7 @@ export const RegisterDto = z
 
 export type RegisterDtoType = z.infer<typeof RegisterDto>;
 
-// 2. DTO Đăng ký Chủ Shop (Shop Owner - KYC, Thuế & Ngân hàng chuẩn TMĐT)
-export const KycDocumentInputDto = z.object({
-  docType: z.enum([
-    'CCCD_FRONT',
-    'CCCD_BACK',
-    'BUSINESS_LICENSE',
-    'TAX_REGISTRATION',
-    'BRAND_AUTHORIZATION',
-  ]),
-  fileUrl: z.string().min(1),
-  fileName: z.string().max(255).optional(),
-  qrParsedPayload: z.record(z.any()).optional().nullable(),
-});
-
+// 2. DTO Đăng ký Chủ Shop (Gọn nhẹ: Thông tin cửa hàng + Email PayPal nhận tiền)
 export const RegisterShopDto = RegisterDto.innerType()
   .extend({
     shopName: z
@@ -68,16 +54,14 @@ export const RegisterShopDto = RegisterDto.innerType()
       .trim()
       .min(10, 'Vui lòng nhập địa chỉ kinh doanh rõ ràng.')
       .max(255, 'Địa chỉ tối đa 255 ký tự.'),
-    entityType: z.enum(['INDIVIDUAL', 'HOUSEHOLD', 'ENTERPRISE']).optional().default('INDIVIDUAL'),
-    nationalId: z.string().trim().optional().default(''),
-    taxCode: z.string().trim().optional().default(''),
-    businessLicenseNo: z.string().trim().max(255).optional().default(''),
-    bankCode: z.string().trim().max(30).optional().default(''),
-    bankName: z.string().trim().max(120).optional().default(''),
-    bankAccountNumber: z.string().trim().max(40).optional().default(''),
-    bankAccountHolder: z.string().trim().max(150).optional().default(''),
+    paypalPayoutEmail: z
+      .string()
+      .trim()
+      .email('Email PayPal nhận tiền không đúng định dạng.')
+      .max(160)
+      .optional()
+      .or(z.literal('')),
     tagline: z.string().trim().max(255).optional().default(''),
-    kycDocuments: z.array(KycDocumentInputDto).optional().default([]),
   })
   .superRefine((data, ctx) => {
     if (data.password !== data.confirmPassword) {
@@ -86,65 +70,6 @@ export const RegisterShopDto = RegisterDto.innerType()
         message: 'Mật khẩu xác nhận không khớp.',
         path: ['confirmPassword'],
       });
-    }
-
-    if (data.nationalId) {
-      const cccdCheck = validateVietnamCCCD(data.nationalId);
-      if (!cccdCheck.valid) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: cccdCheck.reason || 'Số CCCD 12 số không hợp lệ.',
-          path: ['nationalId'],
-        });
-      }
-    }
-
-    if (data.taxCode) {
-      const mstCheck = validateVietnamTaxCode(data.taxCode);
-      if (!mstCheck.valid) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: mstCheck.reason || 'Mã số thuế không đúng chuẩn VN.',
-          path: ['taxCode'],
-        });
-      }
-    } else if (data.entityType === 'HOUSEHOLD' || data.entityType === 'ENTERPRISE') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message:
-          data.entityType === 'ENTERPRISE'
-            ? 'Doanh nghiệp bắt buộc kê khai Mã số thuế hợp lệ.'
-            : 'Hộ kinh doanh bắt buộc kê khai Mã số thuế (10 số, 12 số hoặc -888).',
-        path: ['taxCode'],
-      });
-    }
-
-    if (
-      (data.entityType === 'HOUSEHOLD' || data.entityType === 'ENTERPRISE') &&
-      (!data.businessLicenseNo || data.businessLicenseNo.trim().length < 5)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Hộ kinh doanh / Doanh nghiệp bắt buộc nhập số Giấy phép kinh doanh.',
-        path: ['businessLicenseNo'],
-      });
-    }
-
-    if (data.bankAccountNumber) {
-      if (!/^[0-9]{6,25}$/.test(data.bankAccountNumber.replace(/\s+/g, ''))) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Số tài khoản ngân hàng phải gồm từ 6 đến 25 chữ số.',
-          path: ['bankAccountNumber'],
-        });
-      }
-      if (!data.bankName || !data.bankAccountHolder) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Vui lòng cung cấp đầy đủ Tên ngân hàng và Tên chủ tài khoản.',
-          path: ['bankAccountHolder'],
-        });
-      }
     }
   });
 

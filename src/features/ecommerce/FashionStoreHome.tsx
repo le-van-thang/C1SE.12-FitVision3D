@@ -3112,7 +3112,7 @@ export const FashionStoreHome: React.FC = () => {
 
               {/* Payment Method Badges */}
               <div className="flex items-center gap-2 pt-1 flex-wrap">
-                {['COD', 'VietQR', 'SePay', 'ATM / Visa'].map((pm) => (
+                {['PayPal Checkout', 'Escrow Bảo Chứng', 'USD / VND'].map((pm) => (
                   <span
                     key={pm}
                     className="px-2.5 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-slate-300"

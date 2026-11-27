@@ -13,6 +13,7 @@ export interface CreateOrderResult {
 interface OrderContextType {
   orders: Order[];
   createOrder: (input: CreateOrderInput) => Promise<CreateOrderResult>;
+  recordCapturedOrders: (capturedOrders: Order[]) => void;
   refreshOrders: () => Promise<Order[]>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   cancelOrder: (orderId: string) => void;
@@ -209,6 +210,15 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   }, []);
 
+  const recordCapturedOrders = useCallback((capturedOrders: Order[]) => {
+    if (!Array.isArray(capturedOrders) || capturedOrders.length === 0) return;
+    setOrders((prev) => {
+      const capturedIds = new Set(capturedOrders.map((o) => o.id));
+      return [...capturedOrders, ...prev.filter((o) => !capturedIds.has(o.id))];
+    });
+    window.dispatchEvent(new Event('fv3d-membership-updated'));
+  }, []);
+
   const getUserOrders = useCallback(
     (customerId?: string) => {
       if (!isAuthenticated || !customerId) return [];
@@ -233,6 +243,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         orders,
         createOrder,
+        recordCapturedOrders,
         refreshOrders,
         updateOrderStatus,
         cancelOrder,
@@ -252,6 +263,7 @@ export const useOrders = (): OrderContextType => {
     return {
       orders: [],
       createOrder: async () => ({ success: false, error: 'OrderProvider missing' }),
+      recordCapturedOrders: () => {},
       refreshOrders: async () => [],
       updateOrderStatus: () => {},
       cancelOrder: () => {},

@@ -238,9 +238,9 @@ export const StoreStatusModal: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ color: '#94A3B8', flexShrink: 0 }}>{t('storeStatus.verification')}</span>
+            <span style={{ color: '#94A3B8', flexShrink: 0 }}>Ví PayPal:</span>
             <span style={{ color: '#4FD1C5', fontFamily: 'var(--font-mono)', fontSize: 11, textAlign: 'right', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentStore.verification_doc}
+              {currentStore.paypal_payout_email || 'Chưa cấu hình'}
             </span>
           </div>
 

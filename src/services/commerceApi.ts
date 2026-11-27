@@ -101,6 +101,108 @@ export interface ShopReputationSummary {
   tier: 'MALL' | 'PREFERRED' | 'REGULAR';
 }
 
+export interface PayPalPublicConfig {
+  configured: boolean;
+  mode: 'sandbox' | 'live';
+  clientId: string;
+  vndRate: number;
+  platformFeeRate: number;
+  holdDays: number;
+}
+
+export interface ShopOrderLedgerItem {
+  orderId: string;
+  shopId: string | null;
+  storeName: string;
+  grossVnd: number;
+  exchangeRateVnd: number;
+  grossUsd: number;
+  paypalFeeUsd: number;
+  paypalFeeVnd: number;
+  platformFeeRate: number;
+  platformFeeVnd: number;
+  netPayoutVnd: number;
+  netPayoutUsd: number;
+  orderStatus: string;
+  payoutStatus: string;
+  paypalCaptureId?: string | null;
+  completedAt?: string | null;
+  eligibleForPayout: boolean;
+  ineligibleReason: string | null;
+  eligibleAt: string | null;
+  itemsCount: number;
+  itemsSummary: Array<{ name: string; size: string; qty: number; unitPriceVnd: number }>;
+  createdAt: string;
+}
+
+export interface ShopPayoutBatchRecord {
+  id: string;
+  shop_id: string;
+  shop_name: string;
+  recipient_paypal_email: string;
+  order_ids: string[];
+  exchange_rate_vnd: number;
+  platform_fee_rate: number;
+  gross_vnd: number;
+  paypal_fee_vnd: number;
+  platform_fee_vnd: number;
+  net_payout_vnd: number;
+  net_payout_usd: number;
+  paypal_payout_batch_id: string | null;
+  paypal_payout_item_id: string | null;
+  status: string;
+  note?: string;
+  created_at: string;
+  paid_at?: string | null;
+}
+
+export interface ShopPayoutLedgerResponse {
+  shop: {
+    id: string;
+    shopName: string;
+    status: string;
+    paypalPayoutEmail: string | null;
+  };
+  policy: {
+    exchangeRateVnd: number;
+    platformFeeRate: number;
+    holdDays: number;
+    mode: 'sandbox' | 'live';
+  };
+  summary: {
+    readyVnd: number;
+    readyUsd: number;
+    escrowHoldVnd: number;
+    paidOutVnd: number;
+    totalPlatformFeeVnd: number;
+    totalPaypalFeeVnd: number;
+  };
+  orderLedgers: ShopOrderLedgerItem[];
+  payoutBatches: ShopPayoutBatchRecord[];
+}
+
+export interface AdminPayoutOverviewResponse {
+  policy: PayPalPublicConfig;
+  summary: {
+    totalEscrowHoldVnd: number;
+    totalReadyDisburseVnd: number;
+    totalPlatformCommissionVnd: number;
+    totalPaidOutVnd: number;
+  };
+  shops: Array<{
+    shop: DbShopProfile;
+    readyOrders: any[];
+    holdingOrders: any[];
+    paidOutOrders: any[];
+    readyNetVnd: number;
+    readyNetUsd: number;
+    holdingNetVnd: number;
+    paidOutNetVnd: number;
+    platformCommissionVnd: number;
+  }>;
+  payoutHistory: ShopPayoutBatchRecord[];
+}
+
 export interface DbShopProfile {
   id: string;
   owner_id: string;
@@ -108,12 +210,7 @@ export interface DbShopProfile {
   brand_slug?: string | null;
   phone_number: string;
   shop_address: string;
-  entity_type?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
-  tax_code?: string | null;
-  tax_status?: string | null;
-  legal_representative_name?: string | null;
-  national_id_last4?: string | null;
-  business_license_no?: string | null;
+  paypal_payout_email?: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | string;
   rejection_reason?: string | null;
   is_verified: boolean;
@@ -162,7 +259,56 @@ export const commerceApi = {
       settings: DbPlatformSettings | null;
       vouchers: DbVoucher[];
       products: DbProduct[];
+      paypal?: PayPalPublicConfig;
     }>(`/bootstrap${includeHidden ? '?includeHidden=1' : ''}`);
+  },
+
+  getPayPalConfig() {
+    return commerceRequest<PayPalPublicConfig>('/paypal/config');
+  },
+
+  createPayPalOrder(payload: {
+    customer_name: string;
+    recipient: any;
+    items: any[];
+    coupon_code?: string;
+    estimated_delivery?: string;
+    measurement_snapshot?: any;
+  }) {
+    return commerceRequest<{
+      paypalOrderId: string;
+      approveUrl: string | null;
+      paymentGroupId: string;
+      totalVnd: number;
+      totalUsd: number;
+      exchangeRateVnd: number;
+      orders: Order[];
+    }>('/paypal/create-order', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  capturePayPalOrder(paypalOrderId: string) {
+    return commerceRequest<{
+      alreadyPaid: boolean;
+      paypalOrderId: string;
+      captureId: string;
+      grossUsd?: number;
+      paypalFeeUsd?: number;
+      payerEmail?: string | null;
+      orders: Order[];
+    }>('/paypal/capture-order', {
+      method: 'POST',
+      body: JSON.stringify({ paypalOrderId }),
+    });
+  },
+
+  cancelPendingPayPalOrder(paypalOrderId: string) {
+    return commerceRequest<{ cancelledIds: string[] }>('/paypal/cancel-pending', {
+      method: 'POST',
+      body: JSON.stringify({ paypalOrderId }),
+    });
   },
 
   getOrders() {
@@ -270,24 +416,6 @@ export const commerceApi = {
   getShopDashboard() {
     return commerceRequest<{
       shop: DbShopProfile | null;
-      documents?: Array<{
-        id: string;
-        doc_type: string;
-        file_url: string;
-        file_name?: string;
-        qr_parsed_payload?: any;
-        verification_status: string;
-        reviewer_note?: string;
-      }>;
-      bankAccount?: {
-        id: string;
-        bank_code: string;
-        bank_name: string;
-        account_number: string;
-        account_holder_name: string;
-        name_match_score: number;
-        verification_status: string;
-      } | null;
       reputation?: ShopReputationSummary | null;
       products: DbProduct[];
       orders: Order[];
@@ -295,10 +423,47 @@ export const commerceApi = {
     }>('/shop/dashboard');
   },
 
+  getShopPayouts() {
+    return commerceRequest<ShopPayoutLedgerResponse>('/shop/payouts');
+  },
+
+  updateShopPayPalAccount(paypalPayoutEmail: string) {
+    return commerceRequest<{ id: string; shop_name: string; paypal_payout_email: string }>(
+      '/shop/paypal-account',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ paypalPayoutEmail }),
+      }
+    );
+  },
+
+  getAdminPayouts() {
+    return commerceRequest<AdminPayoutOverviewResponse>('/admin/payouts');
+  },
+
+  disburseAdminPayouts(shopIds?: string[]) {
+    return commerceRequest<{
+      batchId: string;
+      batchStatus: string;
+      payouts: ShopPayoutBatchRecord[];
+    }>('/admin/payouts/disburse', {
+      method: 'POST',
+      body: JSON.stringify({ shopIds }),
+    });
+  },
+
+  syncAdminPayoutBatch(payoutId: string) {
+    return commerceRequest<ShopPayoutBatchRecord>(
+      `/admin/payouts/${encodeURIComponent(payoutId)}/sync`,
+      { method: 'POST' }
+    );
+  },
+
   updateShopProfile(payload: {
     shopName: string;
     phoneNumber: string;
     shopAddress: string;
+    paypalPayoutEmail?: string;
     tagline?: string;
     description?: string;
     bannerUrl?: string;

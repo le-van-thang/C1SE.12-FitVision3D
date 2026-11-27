@@ -6,25 +6,23 @@ import {
   Phone,
   User,
   CreditCard,
-  Banknote,
-  QrCode,
   ShieldCheck,
   CheckCircle2,
   Copy,
   Check,
-  ArrowRight,
-  ExternalLink,
   Sparkles,
   Truck,
   Tag,
+  Globe,
 } from 'lucide-react';
-import type { CartItem, PaymentMethod, UserBodyProfile, Order, OrderMeasurementSnapshot } from './types';
+import type { CartItem, UserBodyProfile, Order, OrderMeasurementSnapshot } from './types';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
 import { useI18n } from '@/i18n';
 import { loadPlatformConfig } from '@/services/platformConfig';
-import { commerceApi } from '@/services/commerceApi';
+import { commerceApi, type PayPalPublicConfig } from '@/services/commerceApi';
 import { loadFullScanSnapshot } from '@/utils/bodyProfileStorage';
+import { PayPalSmartButton } from './PayPalSmartButton';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -48,14 +46,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onBackToCart,
 }) => {
   const { currentUser, isAuthenticated, getUserProfileDetails, openSignIn } = useAuth();
-  const { createOrder, refreshOrders } = useOrders();
+  const { recordCapturedOrders } = useOrders();
   const { t, locale } = useI18n();
 
   const [step, setStep] = useState<'checkout' | 'success'>('checkout');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [createdOrders, setCreatedOrders] = useState<Order[]>([]);
-  const [checkingPayment, setCheckingPayment] = useState(false);
-  const [paymentCheckMessage, setPaymentCheckMessage] = useState<string | null>(null);
+  const [paypalConfig, setPaypalConfig] = useState<PayPalPublicConfig | null>(null);
+  const [captureMeta, setCaptureMeta] = useState<{
+    paypalOrderId?: string;
+    captureId?: string;
+    totalUsd?: number;
+    exchangeRateVnd?: number;
+    payerEmail?: string | null;
+  } | null>(null);
 
   const savedDetails = getUserProfileDetails(currentUser?.id);
 
@@ -65,10 +69,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [city, setCity] = useState(savedDetails?.city || '');
   const [address, setAddress] = useState(savedDetails?.address || '');
   const [note, setNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr_sepay');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [qrImgFailed, setQrImgFailed] = useState(false);
 
   // Coupon code
   const [couponCode, setCouponCode] = useState('');
@@ -78,9 +80,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Copy states
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [hasConfirmedTransfer, setHasConfirmedTransfer] = useState(false);
 
-  // Sync recipient PII strictly per signed-in user & clear stale voucher/discount when opening or closing
+  // Sync recipient PII strictly per signed-in user & load PayPal gateway config
   useEffect(() => {
     if (isOpen) {
       const details = getUserProfileDetails(currentUser?.id);
@@ -97,10 +98,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setStep('checkout');
       setCreatedOrder(null);
       setCreatedOrders([]);
-      setHasConfirmedTransfer(false);
-      setPaymentCheckMessage(null);
+      setCaptureMeta(null);
       setIsSubmitting(false);
-      setQrImgFailed(false);
+
+      let active = true;
+      void commerceApi.getPayPalConfig().then((res) => {
+        if (!active) return;
+        const envClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined) || '';
+        if (res.success && res.data) {
+          setPaypalConfig({
+            ...res.data,
+            clientId: res.data.clientId || envClientId,
+          });
+        } else {
+          setPaypalConfig({
+            configured: Boolean(envClientId),
+            mode: 'sandbox',
+            clientId: envClientId,
+            vndRate: 25400,
+            platformFeeRate: 0.05,
+            holdDays: 0,
+          });
+        }
+      });
+      return () => {
+        active = false;
+      };
     } else {
       setCouponCode('');
       setAppliedDiscount(0);
@@ -110,10 +133,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setStep('checkout');
       setCreatedOrder(null);
       setCreatedOrders([]);
-      setHasConfirmedTransfer(false);
-      setPaymentCheckMessage(null);
+      setCaptureMeta(null);
       setIsSubmitting(false);
-      setQrImgFailed(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, currentUser?.id]);
@@ -129,36 +150,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, isSubmitting, onClose]);
 
-  // Real-time SePay Webhook polling when awaiting VietQR payment
-  useEffect(() => {
-    if (
-      !isOpen ||
-      step !== 'success' ||
-      !createdOrder ||
-      createdOrder.payment_method !== 'vietqr_sepay' ||
-      createdOrder.payment_status === 'paid' ||
-      hasConfirmedTransfer
-    ) {
-      return;
-    }
-
-    let active = true;
-    const timer = setInterval(async () => {
-      const res = await commerceApi.getOrders();
-      if (!active || !res.success || !Array.isArray(res.data)) return;
-      const fresh = res.data.find((o) => o.id === createdOrder.id);
-      if (fresh && fresh.payment_status === 'paid') {
-        setCreatedOrder(fresh);
-        setHasConfirmedTransfer(true);
-      }
-    }, 3000);
-
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, [isOpen, step, createdOrder, hasConfirmedTransfer]);
-
   if (!isOpen) return null;
 
   const subtotal = items.reduce(
@@ -166,9 +157,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     0
   );
   const normalizedAppliedCoupon = appliedDiscount > 0 ? couponCode.trim().toUpperCase() : '';
-  const isFreeShipping = subtotal >= 1_000_000 || normalizedAppliedCoupon === 'FREESHIP3D';
-  const shippingFee = items.length === 0 || isFreeShipping ? 0 : 30_000;
-  const totalAmount = Math.max(0, subtotal - appliedDiscount + shippingFee);
 
   const shopGroups = items.reduce<Record<string, { storeName: string; items: CartItem[] }>>((acc, item) => {
     const key = item.product.shop_id
@@ -181,6 +169,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     return acc;
   }, {});
   const shopGroupList = Object.values(shopGroups);
+
+  // Match backend per-sub-order shipping rule so UI VND/USD matches PayPal Popup 100%
+  const shippingFee =
+    items.length === 0
+      ? 0
+      : shopGroupList.reduce((totalShip, group) => {
+          const groupSubtotal = group.items.reduce(
+            (sum, item) => sum + (item.product.sale_price || item.product.price) * item.quantity,
+            0
+          );
+          const groupFreeShip = groupSubtotal >= 1_000_000 || normalizedAppliedCoupon === 'FREESHIP3D';
+          return totalShip + (groupFreeShip ? 0 : 30_000);
+        }, 0);
+  const totalAmount = Math.max(0, subtotal - appliedDiscount + shippingFee);
 
   const availableVouchers = loadPlatformConfig().vouchers.filter((v) => v.active);
 
@@ -248,37 +250,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleSubmitOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setFormError(null);
+  const vndRate = paypalConfig?.vndRate || 25400;
+  const estimatedUsd = Math.max(0.01, Math.round((totalAmount / vndRate) * 100) / 100);
+  const resolvedPayPalClientId =
+    paypalConfig?.clientId || (import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined) || '';
 
-    if (!isAuthenticated || !currentUser?.id) {
-      openSignIn();
-      return;
-    }
-    if (items.length === 0) {
-      setFormError(
-        locale === 'en'
-          ? 'No products selected for checkout.'
-          : 'Không có sản phẩm nào được chọn để thanh toán.'
-      );
-      return;
-    }
-    if (!fullName.trim() || !phone.trim() || !address.trim() || !city.trim()) {
-      setFormError(
-        locale === 'en'
-          ? 'Please enter full recipient name, phone number, city, and delivery address.'
-          : 'Vui lòng điền đầy đủ họ tên, số điện thoại, tỉnh/thành phố và địa chỉ nhận hàng.'
-      );
-      return;
-    }
-
+  const buildMeasurementSnapshot = (): OrderMeasurementSnapshot | null => {
+    if (!currentUser?.id) return null;
     const fullScan = loadFullScanSnapshot(currentUser.id);
-    let measurementSnapshot: OrderMeasurementSnapshot | null = null;
-
     if (fullScan) {
-      measurementSnapshot = {
+      return {
         stature_cm: fullScan.biometric.stature_cm,
         weight_kg: fullScan.biometric.weight_kg,
         gender: fullScan.biometric.gender,
@@ -297,9 +278,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         source: 'scan',
         captured_at: fullScan.updatedAt,
       };
-    } else if (hasBodyProfile && userBody && userBody.height_cm > 0 && userBody.chest_cm > 0) {
+    }
+    if (hasBodyProfile && userBody && userBody.height_cm > 0 && userBody.chest_cm > 0) {
       const hM = userBody.height_cm / 100;
-      measurementSnapshot = {
+      return {
         stature_cm: userBody.height_cm,
         weight_kg: userBody.weight_kg,
         gender: userBody.gender,
@@ -314,112 +296,136 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         captured_at: userBody.updated_at || new Date().toISOString(),
       };
     }
+    return null;
+  };
 
+  const validateCheckoutBeforePayPal = (): string | null => {
+    setFormError(null);
+    if (!isAuthenticated || !currentUser?.id) {
+      openSignIn();
+      return locale === 'en' ? 'Please sign in before paying with PayPal.' : 'Vui lòng đăng nhập trước khi thanh toán PayPal.';
+    }
+    if (items.length === 0) {
+      const msg = locale === 'en' ? 'No products selected for checkout.' : 'Không có sản phẩm nào được chọn để thanh toán.';
+      setFormError(msg);
+      return msg;
+    }
+    if (!fullName.trim() || !phone.trim() || !address.trim() || !city.trim()) {
+      const msg =
+        locale === 'en'
+          ? 'Please enter full recipient name, phone number, city, and delivery address.'
+          : 'Vui lòng điền đầy đủ họ tên, số điện thoại, tỉnh/thành phố và địa chỉ nhận hàng.';
+      setFormError(msg);
+      return msg;
+    }
+    return null;
+  };
+
+  const handleCreatePayPalServerOrder = async (): Promise<string | null> => {
     setIsSubmitting(true);
+    setFormError(null);
     try {
-      const placedOrders: Order[] = [];
-      let lastResult: { success: boolean; order?: Order; error?: string } = {
-        success: false,
-      };
-      for (let idx = 0; idx < shopGroupList.length; idx++) {
-        const group = shopGroupList[idx];
-        const groupSubtotal = group.items.reduce(
-          (sum, item) => sum + (item.product.sale_price || item.product.price) * item.quantity,
-          0
+      const hasBespoke = items.some((it) => Boolean(it.product?.is_bespoke));
+      const estimatedDelivery = hasBespoke
+        ? locale === 'en'
+          ? '5 - 7 days (Bespoke 3D Tailoring)'
+          : '5 - 7 ngày (May đo 3D)'
+        : locale === 'en'
+        ? '2 - 4 days'
+        : '2 - 4 ngày';
+
+      const res = await commerceApi.createPayPalOrder({
+        customer_name: fullName.trim(),
+        recipient: {
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          city: city.trim(),
+          note: note.trim(),
+        },
+        items: items.map((item) => ({
+          product_id: item.product.id,
+          size_label: item.variant.size_label,
+          quantity: item.quantity,
+        })),
+        coupon_code: normalizedAppliedCoupon || undefined,
+        estimated_delivery: estimatedDelivery,
+        measurement_snapshot: buildMeasurementSnapshot(),
+      });
+
+      if (!res.success || !res.data?.paypalOrderId) {
+        const msg =
+          res.error?.message ||
+          (locale === 'en' ? 'Unable to create PayPal payment session.' : 'Không thể khởi tạo phiên thanh toán PayPal.');
+        setFormError(msg);
+        setIsSubmitting(false);
+        throw new Error(msg);
+      }
+
+      setCaptureMeta({
+        paypalOrderId: res.data.paypalOrderId,
+        totalUsd: res.data.totalUsd,
+        exchangeRateVnd: res.data.exchangeRateVnd,
+      });
+      return res.data.paypalOrderId;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'PayPal create order error';
+      setFormError(msg);
+      setIsSubmitting(false);
+      throw err instanceof Error ? err : new Error(msg);
+    }
+  };
+
+  const handleApprovePayPalCapture = async (paypalOrderId: string) => {
+    setIsSubmitting(true);
+    setFormError(null);
+    try {
+      const res = await commerceApi.capturePayPalOrder(paypalOrderId);
+      if (!res.success || !res.data?.orders?.length) {
+        setFormError(
+          res.error?.message ||
+            (locale === 'en' ? 'PayPal capture failed. Please check your account balance.' : 'Xác nhận trừ tiền PayPal thất bại.')
         );
-        const groupHasBespoke = group.items.some((it) => Boolean(it.product?.is_bespoke));
-        const applyCouponHere = idx === 0 && normalizedAppliedCoupon ? normalizedAppliedCoupon : undefined;
-        const groupShipping = groupSubtotal >= 1_000_000 || applyCouponHere === 'FREESHIP3D' ? 0 : 30_000;
-        const groupDiscount = idx === 0 ? Math.min(groupSubtotal, appliedDiscount) : 0;
-
-        const result = await createOrder({
-          customer_id: currentUser.id,
-          customer_name: fullName.trim(),
-          recipient: {
-            full_name: fullName.trim(),
-            phone: phone.trim(),
-            address: address.trim(),
-            city: city.trim(),
-            note: note.trim(),
-          },
-          items: [...group.items],
-          coupon_code: applyCouponHere,
-          subtotal: groupSubtotal,
-          shipping_fee: groupShipping,
-          discount_amount: groupDiscount,
-          total_amount: Math.max(0, groupSubtotal - groupDiscount + groupShipping),
-          payment_method: paymentMethod,
-          store_name: group.storeName,
-          has_bespoke_items: groupHasBespoke,
-          measurement_snapshot: groupHasBespoke ? measurementSnapshot : null,
-        });
-
-        lastResult = result;
-        if (!result.success || !result.order) {
-          setFormError(
-            result.error ||
-              (locale === 'en'
-                ? 'Could not place order. Please review stock availability and try again.'
-                : 'Đặt hàng thất bại. Vui lòng kiểm tra tồn kho hoặc thông tin thanh toán.')
-          );
-          return;
-        }
-        placedOrders.push(result.order);
+        return;
       }
-
-      const result = {
-        success: placedOrders.length > 0 && lastResult.success,
-        order: placedOrders[0],
-      };
-      if (result.success && result.order) {
-        setCreatedOrders(placedOrders);
-        setCreatedOrder(result.order);
-        onClearCart();
-        setStep('success');
-      }
+      setCaptureMeta((prev) => ({
+        ...prev,
+        paypalOrderId: res.data!.paypalOrderId,
+        captureId: res.data!.captureId,
+        totalUsd: res.data!.grossUsd || prev?.totalUsd,
+        payerEmail: res.data!.payerEmail,
+      }));
+      recordCapturedOrders(res.data.orders);
+      setCreatedOrders(res.data.orders);
+      setCreatedOrder(res.data.orders[0]);
+      onClearCart();
+      setStep('success');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleConfirmTransfer = async () => {
-    if (!createdOrder) return;
-    setCheckingPayment(true);
-    setPaymentCheckMessage(null);
-    try {
-      const freshList = await refreshOrders();
-      const fresh = freshList.find((o) => o.id === createdOrder.id);
-      if (fresh && fresh.payment_status === 'paid') {
-        setCreatedOrder(fresh);
-        setHasConfirmedTransfer(true);
-        setPaymentCheckMessage('Hệ thống đã ghi nhận thanh toán thành công!');
-      } else {
-        setPaymentCheckMessage(
-          'Chưa thấy giao dịch SePay về hệ thống. Hệ thống tự kiểm tra mỗi 3 giây hoặc bạn có thể xem trạng thái trong Lịch sử đơn hàng.'
-        );
-      }
-    } finally {
-      setCheckingPayment(false);
+  const handlePayPalCancelOrError = (paypalOrderId: string | null, reason?: string) => {
+    setIsSubmitting(false);
+    if (paypalOrderId) {
+      void commerceApi.cancelPendingPayPalOrder(paypalOrderId);
+    }
+    if (reason) {
+      setFormError(reason);
     }
   };
 
   const handleCloseAll = () => {
     setStep('checkout');
     setCreatedOrder(null);
-    setHasConfirmedTransfer(false);
+    setCreatedOrders([]);
+    setCaptureMeta(null);
     setCouponCode('');
     setAppliedDiscount(0);
     setCouponError(null);
     setCouponSuccess(null);
     setFormError(null);
     onClose();
-  };
-
-  const bankAccount = {
-    bankName: locale === 'en' ? 'MB Bank (Merchant Escrow)' : 'MB Bank (Tài khoản Thu Hộ FitVision)',
-    accountNumber: import.meta.env.VITE_SEPAY_ACCOUNT_NO || '33822222622222',
-    accountHolder: import.meta.env.VITE_SEPAY_ACCOUNT_NAME || 'FITVISION 3D ATELIER',
-    transferContent: createdOrder ? `FV3D ${createdOrder.id.replace('FV3D-', '')}` : 'FV3D DH',
   };
 
   return (
@@ -465,7 +471,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           
           {/* STEP 1: CHECKOUT FORM */}
           {step === 'checkout' && (
-            <form onSubmit={handleSubmitOrder} className="space-y-6">
+            <div className="space-y-6">
               {shopGroupList.length > 1 && (
                 <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-semibold">
                   Giỏ hàng gồm {shopGroupList.length} gian hàng khác nhau — hệ thống sẽ tự tách thành {shopGroupList.length} mã đơn riêng để mỗi Shop xử lý độc lập.
@@ -593,77 +599,38 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* 3. Phương thức thanh toán */}
+              {/* 3. Phương thức thanh toán (PayPal-Only Marketplace Escrow) */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-900 tracking-wider">
-                  <CreditCard size={15} className="text-blue-600" />
-                  <span>{t('ecommerce.checkout.paymentMethod', 'Phương Thức Thanh Toán')}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase text-slate-900 tracking-wider">
+                    <CreditCard size={15} className="text-blue-600" />
+                    <span>{t('ecommerce.checkout.paymentMethod', 'Cổng Thanh Toán Trực Tuyến PayPal')}</span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[10px] font-bold text-blue-800">
+                    <Globe size={11} /> {paypalConfig?.mode === 'live' ? 'PayPal Live' : 'PayPal Sandbox'}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* VietQR SePay */}
-                  <div
-                    onClick={() => setPaymentMethod('vietqr_sepay')}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
-                      paymentMethod === 'vietqr_sepay'
-                        ? 'border-blue-600 bg-blue-50/70 shadow-xs'
-                        : 'border-slate-300 bg-white hover:border-slate-400'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment_method"
-                      checked={paymentMethod === 'vietqr_sepay'}
-                      onChange={() => setPaymentMethod('vietqr_sepay')}
-                      className="mt-1"
-                    />
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <QrCode size={16} className="text-blue-700" />
-                        <strong className="text-xs font-black text-slate-900">
-                          {t('ecommerce.checkout.vietqrTitle', 'Chuyển Khoản VietQR / SePay')}
-                        </strong>
-                      </div>
-                      <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        {t('ecommerce.checkout.vietqrDesc', 'Quét mã QR tự động điền số tiền & nội dung qua App Ngân Hàng.')}
-                      </p>
-                      <span className="inline-block mt-1 text-[10px] font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded">
-                        {t('ecommerce.checkout.vietqrBadge', '⚡ Khuyên dùng · Miễn phí giao dịch')}
+                <div className="p-4 rounded-2xl border-2 border-blue-600 bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/70 space-y-2.5 shadow-2xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-lg bg-[#003087] text-white font-black text-xs tracking-wide">
+                        PayPal
                       </span>
+                      <strong className="text-xs font-black text-slate-900">
+                        Thanh toán quốc tế qua PayPal (Ví PayPal / Visa / Mastercard)
+                      </strong>
                     </div>
+                    <span className="font-mono text-xs font-black text-blue-800 bg-blue-100/80 px-2.5 py-1 rounded-lg">
+                      ≈ ${estimatedUsd.toFixed(2)} USD
+                    </span>
                   </div>
 
-                  {/* COD */}
-                  <div
-                    onClick={() => setPaymentMethod('cod')}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
-                      paymentMethod === 'cod'
-                        ? 'border-blue-600 bg-blue-50/70 shadow-xs'
-                        : 'border-slate-300 bg-white hover:border-slate-400'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment_method"
-                      checked={paymentMethod === 'cod'}
-                      onChange={() => setPaymentMethod('cod')}
-                      className="mt-1"
-                    />
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <Banknote size={16} className="text-emerald-700" />
-                        <strong className="text-xs font-black text-slate-900">
-                          {t('ecommerce.checkout.codTitle', 'Thanh Toán Khi Nhận Hàng (COD)')}
-                        </strong>
-                      </div>
-                      <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        {t('ecommerce.checkout.codDesc', 'Thanh toán tiền mặt cho shipper khi nhận được trang phục.')}
-                      </p>
-                      <span className="inline-block mt-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded">
-                        {t('ecommerce.checkout.codBadge', '✓ Kiểm tra hàng trước khi thanh toán')}
-                      </span>
-                    </div>
-                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Tiền của bạn được thanh toán trực tiếp qua PayPal Checkout bằng USD theo tỷ giá cố định trên server (
+                    <b className="font-mono text-slate-800">1 USD = {vndRate.toLocaleString('vi-VN')} ₫</b>). Tiền được{' '}
+                    <b>Tài khoản Sàn FitVision giữ hộ (Escrow)</b> và chỉ giải ngân cho Shop sau khi đơn hàng được giao thành công.
+                  </p>
                 </div>
               </div>
 
@@ -771,42 +738,59 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-2">
+              {/* Action Buttons & PayPal Smart Checkout */}
+              <div className="space-y-3 pt-2">
+                {!isAuthenticated ? (
+                  <button
+                    type="button"
+                    onClick={openSignIn}
+                    className="w-full py-3 px-5 rounded-xl bg-[#003087] hover:bg-[#002366] text-white font-black text-xs cursor-pointer"
+                  >
+                    Đăng Nhập Để Thanh Toán Với PayPal
+                  </button>
+                ) : !resolvedPayPalClientId ? (
+                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-semibold">
+                    Chưa cấu hình <code>PAYPAL_CLIENT_ID</code> / <code>VITE_PAYPAL_CLIENT_ID</code>. Vui lòng cập nhật file <code>.env</code> và khởi động lại server.
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold">
+                      <span>Tổng thanh toán quy đổi:</span>
+                      <span className="font-mono font-black text-slate-900">
+                        {totalAmount.toLocaleString('vi-VN')} ₫ ≈ ${estimatedUsd.toFixed(2)} USD
+                      </span>
+                    </div>
+                    <PayPalSmartButton
+                      clientId={resolvedPayPalClientId}
+                      disabled={isSubmitting || items.length === 0}
+                      onValidateBeforeCreate={validateCheckoutBeforePayPal}
+                      onCreateServerOrder={handleCreatePayPalServerOrder}
+                      onApproveServerCapture={handleApprovePayPalCapture}
+                      onCancelOrError={handlePayPalCancelOrError}
+                    />
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
                     handleCloseAll();
                     if (onBackToCart) onBackToCart();
                   }}
-                  className="flex-1 py-3 px-4 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-black text-xs transition-colors cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-black text-xs transition-colors cursor-pointer"
                 >
                   {t('ecommerce.checkout.backToCart', 'Quay Lại Giỏ Hàng')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || items.length === 0}
-                  className="flex-2 py-3 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
-                >
-                  <span>
-                    {isSubmitting
-                      ? locale === 'en'
-                        ? 'Processing Order...'
-                        : 'Đang Tạo Đơn Hàng...'
-                      : t('ecommerce.checkout.confirmOrder', 'Xác Nhận Đặt Hàng Ngay')}
-                  </span>
-                  <ArrowRight size={16} />
                 </button>
               </div>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium">
                 <ShieldCheck size={13} className="text-emerald-600" />
-                <span>{t('ecommerce.checkout.guarantee', 'Bảo chứng độ vừa vặn AI 100% · Đổi trả miễn phí trong 14 ngày')}</span>
+                <span>{t('ecommerce.checkout.guarantee', 'Bảo chứng độ vừa vặn AI 100% · Thanh toán bảo vệ bởi PayPal Escrow')}</span>
               </div>
-            </form>
+            </div>
           )}
 
-          {/* STEP 2: ORDER PLACED SUCCESSFULLY & VIETQR PAYMENT */}
+          {/* STEP 2: PAYPAL CAPTURED SUCCESSFULLY */}
           {step === 'success' && createdOrder && (
             <div className="space-y-6 text-center animate-in fade-in">
               <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm border-2 border-emerald-300">
@@ -815,37 +799,86 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <div>
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                  {t('ecommerce.checkout.successTitle', 'Đặt Hàng Thành Công!')}
+                  Thanh Toán PayPal Thành Công!
                 </h3>
                 <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
-                  {t('ecommerce.checkout.successMessage', 'Cảm ơn bạn đã đặt may tại {store}. Đơn hàng đã được lưu trữ trên hệ thống FitVision 3D.').replace('{store}', createdOrder.store_name || 'FitVision Atelier')}
+                  Giao dịch đã được PayPal xác nhận (Captured). Tiền được giữ an toàn trên hệ thống FitVision 3D và đã gửi đơn hàng tới từng Shop.
                 </p>
               </div>
 
-              {/* Order Quick Details Card */}
-              {createdOrders.length > 1 && (
-                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-left text-xs text-blue-900">
-                  <b>Đã tách thành {createdOrders.length} đơn theo từng gian hàng:</b>{' '}
-                  {createdOrders.map((o) => `${o.id} (${o.store_name})`).join(' · ')}
-                </div>
-              )}
-              <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-left space-y-2 text-xs">
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                  <span className="font-bold text-slate-600">{t('ecommerce.checkout.orderCode', 'Mã đơn hàng:')}</span>
-                  <div className="flex items-center gap-1.5 font-mono font-black text-blue-700 text-sm">
-                    <span>{createdOrder.id}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(createdOrder.id, 'orderId')}
-                      className="p-1 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer"
-                      title={t('ecommerce.checkout.copySuccess', 'Sao chép mã đơn')}
-                    >
-                      {copiedField === 'orderId' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                    </button>
+              {/* PayPal Receipt Details */}
+              <div className="bg-gradient-to-br from-emerald-50/80 to-blue-50/80 border-2 border-emerald-200 rounded-2xl p-4 text-left space-y-2 text-xs">
+                <div className="flex justify-between items-center pb-2 border-b border-emerald-200/70">
+                  <span className="font-bold text-slate-700">PayPal Capture ID:</span>
+                  <div className="flex items-center gap-1.5 font-mono font-black text-emerald-800">
+                    <span>{captureMeta?.captureId || createdOrder.paypal_capture_id || 'CAPTURED'}</span>
+                    {(captureMeta?.captureId || createdOrder.paypal_capture_id) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCopy(captureMeta?.captureId || createdOrder.paypal_capture_id || '', 'captureId')
+                        }
+                        className="p-1 rounded bg-white border border-emerald-200 text-slate-700 cursor-pointer"
+                      >
+                        {copiedField === 'captureId' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                      </button>
+                    )}
                   </div>
                 </div>
+                <div className="flex justify-between text-slate-700">
+                  <span>Số tiền đã thanh toán (USD):</span>
+                  <span className="font-mono font-black text-blue-800">
+                    ${(captureMeta?.totalUsd ?? createdOrders.reduce((s, o) => s + Number(o.paid_amount_usd || 0), 0)).toFixed(2)} USD
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-700">
+                  <span>Tổng quy đổi (VND):</span>
+                  <span className="font-mono font-black text-slate-900">
+                    {createdOrders.reduce((s, o) => s + o.total_amount, 0).toLocaleString('vi-VN')} ₫
+                  </span>
+                </div>
+                {captureMeta?.payerEmail && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Tài khoản PayPal người mua:</span>
+                    <span className="font-mono font-semibold text-slate-900">{captureMeta.payerEmail}</span>
+                  </div>
+                )}
+              </div>
 
-                <div className="flex justify-between text-slate-600">
+              {/* Sub-orders breakdown (multi-shop support) */}
+              <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-left space-y-2.5 text-xs">
+                <div className="font-black text-slate-800 uppercase text-[11px] tracking-wider">
+                  {createdOrders.length > 1
+                    ? `Đã tách thành ${createdOrders.length} đơn theo từng Shop:`
+                    : 'Thông Tin Đơn Hàng:'}
+                </div>
+                {createdOrders.map((sub) => (
+                  <div key={sub.id} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-black text-blue-700">{sub.id}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(sub.id, `order-${sub.id}`)}
+                          className="p-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                        >
+                          {copiedField === `order-${sub.id}` ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-600 truncate">
+                        Shop: <b>{sub.store_name}</b> · Giao dự kiến: {sub.estimated_delivery}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-mono font-black text-slate-900">{sub.total_amount.toLocaleString('vi-VN')} ₫</div>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                        ✓ Đã thanh toán
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex justify-between text-slate-600 pt-1 border-t border-slate-200">
                   <span>{t('ecommerce.checkout.recipient', 'Người nhận:')}</span>
                   <span className="font-bold text-slate-900">{createdOrder.recipient.full_name} ({createdOrder.recipient.phone})</span>
                 </div>
@@ -853,156 +886,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>{t('ecommerce.checkout.deliveryTo', 'Địa chỉ giao hàng:')}</span>
                   <span className="font-bold text-slate-900 text-right max-w-xs">{createdOrder.recipient.address}, {createdOrder.recipient.city}</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>{t('ecommerce.checkout.estDelivery', 'Dự kiến giao hàng:')}</span>
-                  <span className="font-bold text-emerald-700">{createdOrder.estimated_delivery}</span>
-                </div>
-                <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-200">
-                  <span>{t('ecommerce.checkout.paymentType', 'Hình thức thanh toán:')}</span>
-                  <span className="font-bold text-slate-900">
-                    {createdOrder.payment_method === 'vietqr_sepay' ? t('ecommerce.checkout.paymentVietqr', 'Chuyển khoản VietQR / SePay') : t('ecommerce.checkout.paymentCod', 'Thanh toán tiền mặt khi nhận hàng (COD)')}
-                  </span>
-                </div>
-                <div className="flex justify-between text-slate-900 font-black text-sm pt-1">
-                  <span>{t('ecommerce.checkout.totalPayment', 'Tổng thanh toán:')}</span>
-                  <span className="text-blue-700 font-mono font-black text-base">
-                    {createdOrder.total_amount.toLocaleString('vi-VN')} ₫
-                  </span>
-                </div>
               </div>
-
-              {/* IF VIETQR / SEPAY: Show Bank Transfer Details & QR Code */}
-              {createdOrder.payment_method === 'vietqr_sepay' && (
-                <div className="bg-gradient-to-b from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-3xl p-5 space-y-4 text-left shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
-                        MB
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black text-slate-900 uppercase">
-                          {t('ecommerce.checkout.vietqrScanTitle', 'Thanh Toán Qua Quét Mã VietQR')}
-                        </h4>
-                        <span className="text-[10px] text-blue-700 font-semibold">{t('ecommerce.checkout.vietqrAutoDetect', 'Tự động nhận diện giao dịch')}</span>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                      hasConfirmedTransfer || createdOrder.payment_status === 'paid'
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                        : 'bg-amber-100 text-amber-800 border-amber-300'
-                    }`}>
-                      {hasConfirmedTransfer || createdOrder.payment_status === 'paid' ? t('ecommerce.checkout.vietqrPaid', '✓ Đã xác nhận chuyển khoản') : t('ecommerce.checkout.vietqrPending', '⏳ Chờ thanh toán')}
-                    </span>
-                  </div>
-
-                  {/* QR Image and Bank Info Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                    {/* QR Code */}
-                    <div className="bg-white p-3 rounded-2xl border-2 border-blue-200 text-center shadow-xs flex flex-col items-center">
-                      {qrImgFailed ? (
-                        <div className="w-48 h-48 rounded-xl border border-amber-200 bg-amber-50 flex flex-col items-center justify-center p-3 text-center gap-1.5">
-                          <QrCode size={28} className="text-amber-600" />
-                          <span className="text-[11px] font-bold text-amber-900">
-                            {locale === 'en' ? 'Could not load VietQR image' : 'Không tải được ảnh VietQR'}
-                          </span>
-                          <span className="text-[10px] text-amber-700">
-                            {locale === 'en'
-                              ? 'Please copy the account number & transfer memo on the right.'
-                              : 'Vui lòng sao chép STK & nội dung chuyển khoản bên cạnh.'}
-                          </span>
-                        </div>
-                      ) : (
-                        <img
-                          src={`https://img.vietqr.io/image/MB-${encodeURIComponent(bankAccount.accountNumber)}-compact2.png?amount=${createdOrder.total_amount}&addInfo=${encodeURIComponent(bankAccount.transferContent)}&accountName=${encodeURIComponent(bankAccount.accountHolder)}`}
-                          alt={t('ecommerce.checkout.vietqrScanTitle', 'Mã QR Chuyển Khoản Ngân Hàng VietQR')}
-                          className="w-48 h-48 object-contain rounded-xl border border-slate-100"
-                          onError={() => setQrImgFailed(true)}
-                        />
-                      )}
-                      <span className="text-[10px] text-slate-500 font-mono mt-2 block">
-                        {t('ecommerce.checkout.vietqrScanInstruction', 'Quét bằng app ngân hàng bất kỳ (Vietcombank, MB, Techcombank...)')}
-                      </span>
-                    </div>
-
-                    {/* Bank Info Fields */}
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-500 block font-bold uppercase">{t('ecommerce.checkout.bankBeneficiary', 'Ngân hàng thụ hưởng')}</span>
-                        <strong className="text-xs text-slate-900 font-extrabold">{bankAccount.bankName}</strong>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] text-slate-500 block font-bold uppercase">{t('ecommerce.checkout.accountNumber', 'Số tài khoản')}</span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <strong className="text-sm font-mono font-black text-blue-700">{bankAccount.accountNumber}</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(bankAccount.accountNumber, 'accountNumber')}
-                            className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer"
-                            title={t('ecommerce.checkout.accountNumber', 'Sao chép STK')}
-                          >
-                            {copiedField === 'accountNumber' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] text-slate-500 block font-bold uppercase">{t('ecommerce.checkout.accountName', 'Chủ tài khoản')}</span>
-                        <strong className="text-xs text-slate-900 font-extrabold">{bankAccount.accountHolder}</strong>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] text-slate-500 block font-bold uppercase">{t('ecommerce.checkout.transferMemo', 'Nội dung chuyển khoản (Bắt buộc)')}</span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <strong className="text-sm font-mono font-black text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
-                            {bankAccount.transferContent}
-                          </strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(bankAccount.transferContent, 'content')}
-                            className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer"
-                            title={t('ecommerce.checkout.transferMemo', 'Sao chép nội dung')}
-                          >
-                            {copiedField === 'content' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 space-y-1.5">
-                        <button
-                          type="button"
-                          onClick={handleConfirmTransfer}
-                          disabled={hasConfirmedTransfer || checkingPayment}
-                          className={`w-full py-2.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                            hasConfirmedTransfer
-                              ? 'bg-emerald-600 text-white cursor-default'
-                              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs disabled:opacity-60'
-                          }`}
-                        >
-                          {hasConfirmedTransfer ? (
-                            <>
-                              <Check size={14} />
-                              <span>{t('ecommerce.checkout.iHavePaid', 'Đã Ghi Nhận Thanh Toán')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <QrCode size={14} />
-                              <span>
-                                {checkingPayment
-                                  ? 'Đang kiểm tra SePay...'
-                                  : t('ecommerce.checkout.confirmPaid', 'Tôi Đã Chuyển Khoản — Kiểm Tra Giao Dịch')}
-                              </span>
-                            </>
-                          )}
-                        </button>
-                        {paymentCheckMessage && (
-                          <p className="text-[10px] text-slate-600 leading-snug">{paymentCheckMessage}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">

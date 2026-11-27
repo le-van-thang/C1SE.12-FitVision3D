@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { commerceRepository } from './commerce.repository.js';
+import { paypalService } from './paypal.service.js';
 import { AppError, sendSuccess } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
 
@@ -12,7 +13,85 @@ export const commerceController = {
         commerceRepository.listVouchers(),
         commerceRepository.listProducts(includeHidden),
       ]);
-      sendSuccess(res, { settings, vouchers, products });
+      sendSuccess(res, {
+        settings,
+        vouchers,
+        products,
+        paypal: paypalService.getPublicConfig(),
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getPayPalConfig(_req: Request, res: Response) {
+    sendSuccess(res, paypalService.getPublicConfig());
+  },
+
+  async createPayPalOrder(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập để thanh toán PayPal.');
+      }
+      if (req.user.role === 'SHOP_OWNER') {
+        throw new AppError(
+          403,
+          ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS,
+          'Tài khoản Chủ Shop không dùng để đặt hàng cá nhân. Vui lòng dùng tài khoản Khách hàng (USER).'
+        );
+      }
+      const b = req.body || {};
+      if (!b.recipient?.full_name || !b.recipient?.phone || !b.recipient?.address) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Vui lòng cung cấp đầy đủ thông tin người nhận hàng.');
+      }
+      const result = await commerceRepository.createPayPalCheckoutGroup({
+        customerId: req.user.sub,
+        customerName: b.customer_name || b.recipient?.full_name || 'Khách FitVision 3D',
+        recipient: b.recipient,
+        items: Array.isArray(b.items) ? b.items : [],
+        couponCode: b.coupon_code || b.voucherCode ? String(b.coupon_code || b.voucherCode).trim().toUpperCase() : undefined,
+        estimatedDelivery: b.estimated_delivery ? String(b.estimated_delivery) : undefined,
+        measurementSnapshot: b.measurement_snapshot ?? null,
+      });
+      sendSuccess(res, result, 201);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async capturePayPalOrder(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập để xác nhận thanh toán.');
+      }
+      const paypalOrderId = String(req.body?.paypalOrderId || '').trim();
+      if (!paypalOrderId) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Thiếu paypalOrderId để đối soát.');
+      }
+      const result = await commerceRepository.capturePayPalOrderForActor(paypalOrderId, {
+        sub: req.user.sub,
+        role: req.user.role,
+      });
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async cancelPendingPayPalOrder(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập.');
+      }
+      const paypalOrderId = String(req.body?.paypalOrderId || '').trim();
+      if (!paypalOrderId) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Thiếu paypalOrderId.');
+      }
+      const result = await commerceRepository.cancelPendingPayPalGroup(paypalOrderId, {
+        sub: req.user.sub,
+        role: req.user.role,
+      });
+      sendSuccess(res, result);
     } catch (err) {
       next(err);
     }
@@ -67,7 +146,7 @@ export const commerceController = {
         shipping_fee: Number(body.shipping_fee) || 0,
         discount_amount: Number(body.discount_amount) || 0,
         total_amount: Number(body.total_amount) || 0,
-        payment_method: body.payment_method === 'vietqr_sepay' ? 'vietqr_sepay' : 'cod',
+        payment_method: 'paypal',
         payment_status: 'unpaid',
         status: 'pending',
         store_name: body.store_name || '',
@@ -150,35 +229,73 @@ export const commerceController = {
     }
   },
 
-  async handleSePayWebhook(req: Request, res: Response, next: NextFunction) {
+  async handlePayPalWebhook(req: Request, res: Response, next: NextFunction) {
     try {
-      const configuredSecret = process.env.SEPAY_WEBHOOK_SECRET || '';
-      if (process.env.NODE_ENV === 'production' && !configuredSecret) {
-        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'SEPAY_WEBHOOK_SECRET chưa được cấu hình ở môi trường Production.');
+      const verified = await paypalService.verifyWebhookSignature(req.headers, req.body);
+      if (!verified) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chữ ký PayPal Webhook không hợp lệ.');
       }
-      if (configuredSecret) {
-        const authHeader = String(req.headers.authorization || '');
-        const customHeader = String(req.headers['x-sepay-secret'] || '');
-        const validAuth =
-          authHeader === `Apikey ${configuredSecret}` ||
-          authHeader === `Bearer ${configuredSecret}` ||
-          customHeader === configuredSecret;
-        if (!validAuth) {
-          throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Chữ ký Webhook SePay không hợp lệ.');
-        }
-      }
-      const b = req.body || {};
-      const content = String(b.content || b.code || b.orderId || '');
-      const transferAmount = Number(b.transferAmount ?? b.amount ?? 0);
-      const result = await commerceRepository.confirmOrderPaidBySePayWebhook({
-        content,
-        transferAmount,
-        referenceCode: b.referenceCode ? String(b.referenceCode) : undefined,
-      });
-      if (!result.matched) {
-        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Không thể đối soát giao dịch SePay (${result.reason}).`);
-      }
+      const result = await commerceRepository.handlePayPalWebhookEvent(req.body);
       sendSuccess(res, { acknowledged: true, ...result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getShopPayouts(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập tài khoản Shop.');
+      }
+      const data = await commerceRepository.getShopPayoutLedger(userId);
+      sendSuccess(res, data);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async updateShopPayPalAccount(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        throw new AppError(401, ErrorCode.AUTH_UNAUTHORIZED, 'Vui lòng đăng nhập tài khoản Shop.');
+      }
+      const updated = await commerceRepository.updateShopPayPalAccount(
+        userId,
+        String(req.body?.paypalPayoutEmail || '')
+      );
+      sendSuccess(res, updated);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getAdminPayouts(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await commerceRepository.getAdminPayoutOverview();
+      sendSuccess(res, data);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async disburseAdminPayouts(req: Request, res: Response, next: NextFunction) {
+    try {
+      const adminUserId = req.user?.sub || 'system';
+      const shopIds = Array.isArray(req.body?.shopIds) ? req.body.shopIds.map(String) : undefined;
+      const result = await commerceRepository.disburseShopPayouts(shopIds, adminUserId);
+      sendSuccess(res, result, 201);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async syncAdminPayoutBatch(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const updated = await commerceRepository.syncAdminPayoutStatus(id);
+      sendSuccess(res, updated);
     } catch (err) {
       next(err);
     }

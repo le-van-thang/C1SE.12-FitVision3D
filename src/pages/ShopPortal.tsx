@@ -32,10 +32,10 @@ import {
   ShieldCheck,
   Clock,
   AlertTriangle,
-  Building2,
   CreditCard,
   PauseCircle,
   ExternalLink,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -47,14 +47,9 @@ import {
   type DbShopProfile,
   type DbShopReview,
   type ShopReputationSummary,
+  type ShopPayoutLedgerResponse,
 } from '@/services/commerceApi';
 import { adminApi } from '@/services/adminApi';
-import {
-  VIETNAM_BANKS,
-  validateVietnamCCCD,
-  validateVietnamTaxCode,
-  type ShopEntityType,
-} from '@/utils/shopKycValidation';
 import type { Order } from '@/features/ecommerce/types';
 import { showGlobalToast } from '@/components/common/GlobalToastHost';
 
@@ -154,7 +149,7 @@ async function analyzeImageVisualTone(src: string): Promise<{ dominantColor?: st
   });
 }
 
-type ShopTab = 'OVERVIEW' | 'PRODUCTS' | 'ORDERS' | 'SIZE_CHART';
+type ShopTab = 'OVERVIEW' | 'PRODUCTS' | 'ORDERS' | 'PAYOUTS' | 'SIZE_CHART';
 
 type GarmentCategoryKey = 'shirt' | 'polo' | 'pants' | 'dress';
 
@@ -208,34 +203,27 @@ export const ShopPortal: React.FC = () => {
   const { locale, setLocale } = useI18n();
   const [activeTab, setActiveTab] = useState<ShopTab>('OVERVIEW');
   const [shop, setShop] = useState<DbShopProfile | null>(null);
-  const [kycDocuments, setKycDocuments] = useState<any[]>([]);
-  const [bankAccount, setBankAccount] = useState<any | null>(null);
   const [reputation, setReputation] = useState<ShopReputationSummary | null>(null);
+  const [payoutData, setPayoutData] = useState<ShopPayoutLedgerResponse | null>(null);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<DbShopReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Shop profile & operational mode editable state
+  // Shop profile, PayPal payout email & operational mode editable state
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [profileAddress, setProfileAddress] = useState('');
   const [profileTagline, setProfileTagline] = useState('');
+  const [profilePaypalEmail, setProfilePaypalEmail] = useState('');
   const [operationalMode, setOperationalMode] = useState<'ACTIVE' | 'VACATION'>('ACTIVE');
   const [vacationNote, setVacationNote] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPaypalEmail, setIsSavingPaypalEmail] = useState(false);
 
-  // KYC Resubmission state (when shop status is PENDING or REJECTED)
-  const [resubmitEntityType, setResubmitEntityType] = useState<ShopEntityType>('INDIVIDUAL');
-  const [resubmitTaxCode, setResubmitTaxCode] = useState('');
-  const [resubmitNationalId, setResubmitNationalId] = useState('');
-  const [resubmitLicenseNo, setResubmitLicenseNo] = useState('');
-  const [resubmitBankCode, setResubmitBankCode] = useState('VCB');
-  const [resubmitBankName, setResubmitBankName] = useState('Vietcombank');
-  const [resubmitBankAcc, setResubmitBankAcc] = useState('');
-  const [resubmitBankHolder, setResubmitBankHolder] = useState('');
-  const [isResubmittingKyc, setIsResubmittingKyc] = useState(false);
+  // Resubmission state when shop status is PENDING or REJECTED
+  const [isResubmittingProfile, setIsResubmittingProfile] = useState(false);
 
   // Product creation form + Multi-Color & Size Variants + Anti-Spam guard
   const [newName, setNewName] = useState('');
@@ -298,12 +286,13 @@ export const ShopPortal: React.FC = () => {
       return;
     }
     setIsLoading(true);
-    const res = await commerceApi.getShopDashboard();
+    const [res, payoutRes] = await Promise.all([
+      commerceApi.getShopDashboard(),
+      commerceApi.getShopPayouts(),
+    ]);
     if (res.success && res.data) {
       setAuthNeedsRelogin(false);
       setShop(res.data.shop);
-      setKycDocuments(res.data.documents || []);
-      setBankAccount(res.data.bankAccount || null);
       setReputation(res.data.reputation || null);
       setProducts(res.data.products || []);
       setOrders(res.data.orders || []);
@@ -314,20 +303,18 @@ export const ShopPortal: React.FC = () => {
         setProfilePhone(s.phone_number || '');
         setProfileAddress(s.shop_address || '');
         setProfileTagline(s.tagline || '');
+        setProfilePaypalEmail(s.paypal_payout_email || '');
         setOperationalMode(s.operational_mode === 'VACATION' ? 'VACATION' : 'ACTIVE');
         setVacationNote(s.vacation_note || '');
-        setResubmitEntityType((s.entity_type as ShopEntityType) || 'INDIVIDUAL');
-        setResubmitTaxCode(s.tax_code || '');
-        setResubmitLicenseNo(s.business_license_no || '');
-      }
-      if (res.data.bankAccount) {
-        setResubmitBankCode(res.data.bankAccount.bank_code || 'VCB');
-        setResubmitBankName(res.data.bankAccount.bank_name || 'Vietcombank');
-        setResubmitBankAcc(res.data.bankAccount.account_number || '');
-        setResubmitBankHolder(res.data.bankAccount.account_holder_name || '');
       }
     } else if (res.error?.code === 'AUTH_UNAUTHORIZED') {
       setAuthNeedsRelogin(true);
+    }
+    if (payoutRes.success && payoutRes.data) {
+      setPayoutData(payoutRes.data);
+      if (payoutRes.data.shop?.paypalPayoutEmail) {
+        setProfilePaypalEmail(payoutRes.data.shop.paypalPayoutEmail);
+      }
     }
     setIsLoading(false);
   }, [isAuthenticated, userRole]);
@@ -341,6 +328,14 @@ export const ShopPortal: React.FC = () => {
       void loadShopData();
     }
   }, [isAuthModalOpen, authNeedsRelogin, loadShopData]);
+
+  useEffect(() => {
+    if (activeTab === 'PAYOUTS' && isAuthenticated && (userRole === 'store' || userRole === 'admin')) {
+      void commerceApi.getShopPayouts().then((r) => {
+        if (r.success && r.data) setPayoutData(r.data);
+      });
+    }
+  }, [activeTab, isAuthenticated, userRole]);
 
   const totalRevenue = useMemo(
     () => orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total_amount || 0), 0),
@@ -356,6 +351,9 @@ export const ShopPortal: React.FC = () => {
     const res = await commerceApi.updateOrderStatus(orderId, nextStatus);
     if (res.success && res.data) {
       setOrders((prev) => prev.map((o) => (o.id === orderId ? res.data! : o)));
+      void commerceApi.getShopPayouts().then((r) => {
+        if (r.success && r.data) setPayoutData(r.data);
+      });
       showGlobalToast({
         type: 'success',
         title: `Đã cập nhật đơn #${orderId}`,
@@ -407,50 +405,66 @@ export const ShopPortal: React.FC = () => {
     }
   };
 
-  const handleResubmitKyc = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (resubmitNationalId.trim()) {
-      const cccdCheck = validateVietnamCCCD(resubmitNationalId);
-      if (!cccdCheck.valid) {
-        showGlobalToast({ type: 'error', title: 'CCCD không hợp lệ', message: cccdCheck.reason || '' });
-        return;
-      }
+  const handleSavePayPalEmail = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleaned = profilePaypalEmail.trim().toLowerCase();
+    if (!cleaned || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) {
+      showGlobalToast({
+        type: 'warning',
+        title: 'Email PayPal không hợp lệ',
+        message: 'Vui lòng nhập đúng định dạng email tài khoản PayPal nhận giải ngân.',
+      });
+      return;
     }
-    if (resubmitTaxCode.trim()) {
-      const mstCheck = validateVietnamTaxCode(resubmitTaxCode);
-      if (!mstCheck.valid) {
-        showGlobalToast({ type: 'error', title: 'Mã số thuế không hợp lệ', message: mstCheck.reason || '' });
-        return;
-      }
-    }
-    setIsResubmittingKyc(true);
-    const res = await adminApi.applyStore({
-      shopName: profileName.trim() || shop?.shop_name || 'Gian hàng FitVision',
-      phoneNumber: profilePhone.trim() || shop?.phone_number || '0901234567',
-      shopAddress: profileAddress.trim() || shop?.shop_address || 'Việt Nam',
-      entityType: resubmitEntityType,
-      taxCode: resubmitTaxCode.trim() || undefined,
-      nationalId: resubmitNationalId.trim() || undefined,
-      legalRepresentativeName: shop?.legal_representative_name || currentUser?.full_name,
-      businessLicenseNo: resubmitLicenseNo.trim() || undefined,
-      bankCode: resubmitBankCode,
-      bankName: resubmitBankName,
-      bankAccountNumber: resubmitBankAcc.trim() || undefined,
-      bankAccountHolder: resubmitBankHolder.trim() || undefined,
-    });
-    setIsResubmittingKyc(false);
-    if (res.success) {
+    setIsSavingPaypalEmail(true);
+    const res = await commerceApi.updateShopPayPalAccount(cleaned);
+    setIsSavingPaypalEmail(false);
+    if (res.success && res.data) {
+      setProfilePaypalEmail(res.data.paypal_payout_email);
+      setShop((prev) => (prev ? { ...prev, paypal_payout_email: res.data!.paypal_payout_email } : prev));
       showGlobalToast({
         type: 'success',
-        title: 'Đã cập nhật & gửi lại hồ sơ KYC!',
-        message: 'Ban quản trị sẽ thẩm định lại hồ sơ thuế & định danh của bạn.',
+        title: 'Đã lưu Email PayPal giải ngân!',
+        message: `Admin sẽ chuyển tiền đối soát qua PayPal về ví ${res.data.paypal_payout_email}.`,
       });
       void loadShopData();
     } else {
       showGlobalToast({
         type: 'error',
-        title: 'Không thể nộp lại hồ sơ',
-        message: res.error?.message || 'Vui lòng kiểm tra lại các trường thông tin.',
+        title: 'Không thể lưu Email PayPal',
+        message: res.error?.message || 'Vui lòng thử lại.',
+      });
+    }
+  };
+
+  const handleResubmitShopApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanedEmail = profilePaypalEmail.trim().toLowerCase();
+    if (cleanedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanedEmail)) {
+      showGlobalToast({ type: 'error', title: 'Email PayPal không hợp lệ', message: 'Vui lòng kiểm tra lại email PayPal.' });
+      return;
+    }
+    setIsResubmittingProfile(true);
+    const res = await adminApi.applyStore({
+      shopName: profileName.trim() || shop?.shop_name || 'Gian hàng FitVision',
+      phoneNumber: profilePhone.trim() || shop?.phone_number || '0901234567',
+      shopAddress: profileAddress.trim() || shop?.shop_address || 'Việt Nam',
+      tagline: profileTagline.trim() || undefined,
+      paypalPayoutEmail: cleanedEmail || undefined,
+    });
+    setIsResubmittingProfile(false);
+    if (res.success) {
+      showGlobalToast({
+        type: 'success',
+        title: 'Đã cập nhật & gửi lại hồ sơ gian hàng!',
+        message: 'Quản trị viên sẽ kiểm tra và phê duyệt gian hàng của bạn sớm nhất.',
+      });
+      void loadShopData();
+    } else {
+      showGlobalToast({
+        type: 'error',
+        title: 'Không thể cập nhật hồ sơ',
+        message: res.error?.message || 'Vui lòng kiểm tra lại thông tin gian hàng.',
       });
     }
   };
@@ -910,6 +924,25 @@ export const ShopPortal: React.FC = () => {
               </span>
             </button>
 
+            <button
+              type="button"
+              onClick={() => setActiveTab('PAYOUTS')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'PAYOUTS'
+                  ? 'bg-[#14171C] text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <Wallet size={15} /> Ví &amp; Đối Soát PayPal
+              </span>
+              <span className="text-[10px] font-mono opacity-80">
+                {payoutData?.summary?.readyVnd
+                  ? `${Math.round(payoutData.summary.readyVnd / 1000)}k`
+                  : 'PayPal'}
+              </span>
+            </button>
+
             <div className="pt-3 mt-3 border-t border-slate-100 space-y-1">
               <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Hỗ Trợ AI Chọn Size
@@ -1052,17 +1085,17 @@ export const ShopPortal: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white border border-slate-200 text-slate-800">
-                        Trạng thái KYC Shop: {shop.status}
+                        Trạng thái Gian hàng: {shop.status}
                       </span>
                       <h2 className="text-lg font-black text-slate-950 mt-1.5">
                         {shop.status === 'PENDING'
-                          ? 'Hồ sơ KYC & Thuế đang chờ Quản trị viên thẩm định'
+                          ? 'Hồ sơ Gian hàng đang chờ Quản trị viên duyệt mở bán'
                           : shop.status === 'SUSPENDED'
                             ? 'Gian hàng hiện đang bị Tạm đình chỉ hoạt động'
-                            : 'Hồ sơ KYC cần chỉnh sửa và nộp lại'}
+                            : 'Hồ sơ Gian hàng cần chỉnh sửa và gửi lại'}
                       </h2>
                       <p className="text-xs text-slate-600 mt-0.5">
-                        Tính năng đăng sản phẩm &amp; xử lý đơn sẽ tự động mở khóa ngay sau khi Admin phê duyệt hồ sơ của bạn.
+                        Tính năng đăng sản phẩm &amp; xử lý đơn sẽ tự động mở khóa ngay sau khi Admin phê duyệt gian hàng của bạn.
                       </p>
                       {shop.rejection_reason && (
                         <div className="mt-2.5 px-3.5 py-2.5 rounded-xl bg-white border border-rose-200 text-xs text-rose-800 font-semibold">
@@ -1075,31 +1108,21 @@ export const ShopPortal: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs bg-white rounded-2xl border border-slate-200 p-4">
                   <div>
-                    <div className="text-[10px] font-bold uppercase text-slate-400">Loại hình &amp; Đại diện</div>
-                    <div className="font-bold text-slate-900 mt-1">{shop.entity_type || 'INDIVIDUAL'}</div>
-                    <div className="text-slate-600">CCCD: •••• •••• {shop.national_id_last4 || 'Chưa cập nhật'}</div>
-                    <div className="text-slate-600">Tài liệu đã nộp: {kycDocuments.length} tệp</div>
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Tên Gian Hàng</div>
+                    <div className="font-bold text-slate-900 mt-1">{shop.shop_name}</div>
+                    <div className="text-slate-600">Chủ shop: {currentUser?.full_name || currentUser?.email}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold uppercase text-slate-400">Thông tin Thuế &amp; GPKD</div>
-                    <div className="font-mono font-bold text-slate-900 mt-1">
-                      MST: {shop.tax_code || 'Dùng CCCD tạm thời'}
-                    </div>
-                    <div className="text-slate-600">Trạng thái thuế: {shop.tax_status || 'PENDING_REVIEW'}</div>
-                    {shop.business_license_no && <div className="text-slate-600">GPKD: {shop.business_license_no}</div>}
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Liên Hệ &amp; Địa Chỉ</div>
+                    <div className="font-mono font-bold text-slate-900 mt-1">{shop.phone_number}</div>
+                    <div className="text-slate-600">{shop.shop_address}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold uppercase text-slate-400">Tài khoản Ngân hàng</div>
-                    {bankAccount ? (
-                      <>
-                        <div className="font-bold text-slate-900 mt-1">{bankAccount.bank_name}</div>
-                        <div className="font-mono text-slate-700">{bankAccount.account_number}</div>
-                        <div className="text-slate-600">
-                          {bankAccount.account_holder_name} ({bankAccount.verification_status})
-                        </div>
-                      </>
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Email PayPal Nhận Tiền</div>
+                    {shop.paypal_payout_email ? (
+                      <div className="font-mono font-bold text-blue-700 mt-1">{shop.paypal_payout_email}</div>
                     ) : (
-                      <div className="text-slate-400 mt-1">Chưa liên kết ngân hàng</div>
+                      <div className="text-amber-700 font-semibold mt-1">Chưa gắn Email PayPal (cập nhật bên dưới)</div>
                     )}
                   </div>
                 </div>
@@ -1107,97 +1130,56 @@ export const ShopPortal: React.FC = () => {
 
               {shop.status !== 'SUSPENDED' && (
                 <form
-                  onSubmit={handleResubmitKyc}
+                  onSubmit={handleResubmitShopApplication}
                   className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs"
                 >
                   <div className="border-b border-slate-100 pb-3">
                     <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
-                      <ShieldCheck size={16} className="text-blue-600" /> Bổ Sung / Cập Nhật Lại Hồ Sơ KYC &amp; Thuế
+                      <ShieldCheck size={16} className="text-blue-600" /> Cập Nhật Thông Tin Gian Hàng &amp; Ví PayPal
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Cập nhật các thông tin còn thiếu hoặc sai sót để gửi lại cho Quản trị viên duyệt.
+                      Không yêu cầu MST hay giấy phép hộ kinh doanh — chỉ cần thông tin liên hệ chuẩn và Email PayPal nhận tiền đối soát.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                        <Building2 size={11} className="inline mr-1" /> Loại hình kinh doanh
-                      </label>
-                      <select
-                        value={resubmitEntityType}
-                        onChange={(e) => setResubmitEntityType(e.target.value as ShopEntityType)}
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Tên Thương Hiệu / Shop *</label>
+                      <input
+                        required
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold"
-                      >
-                        <option value="INDIVIDUAL">Cá nhân / Thợ may</option>
-                        <option value="HOUSEHOLD">Hộ kinh doanh</option>
-                        <option value="ENTERPRISE">Doanh nghiệp (Mall)</option>
-                      </select>
+                      />
                     </div>
                     <div>
-                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Mã số thuế (10 / 12 / -888)</label>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Hotline CSKH Shop *</label>
                       <input
-                        value={resubmitTaxCode}
-                        onChange={(e) => setResubmitTaxCode(e.target.value)}
-                        placeholder="0108928374 hoặc 0108928374-888"
+                        required
+                        value={profilePhone}
+                        onChange={(e) => setProfilePhone(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Cập nhật Số CCCD (12 số)</label>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Địa Chỉ Kho / Cửa Hàng *</label>
                       <input
-                        value={resubmitNationalId}
-                        onChange={(e) => setResubmitNationalId(e.target.value)}
-                        placeholder="Để trống nếu giữ CCCD cũ"
-                        maxLength={12}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Số GPKD (Hộ KD / DN)</label>
-                      <input
-                        value={resubmitLicenseNo}
-                        onChange={(e) => setResubmitLicenseNo(e.target.value)}
-                        placeholder="VD: 0108928374"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
+                        required
+                        value={profileAddress}
+                        onChange={(e) => setProfileAddress(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
                       />
                     </div>
                     <div>
                       <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                        <CreditCard size={11} className="inline mr-1" /> Ngân hàng &amp; STK
+                        <CreditCard size={11} className="inline mr-1" /> Email PayPal Nhận Giải Ngân
                       </label>
-                      <div className="flex gap-1.5">
-                        <select
-                          value={resubmitBankCode}
-                          onChange={(e) => {
-                            const code = e.target.value;
-                            setResubmitBankCode(code);
-                            setResubmitBankName(VIETNAM_BANKS.find((b) => b.code === code)?.name || code);
-                          }}
-                          className="w-24 px-2 py-2 rounded-xl border border-slate-300 text-xs font-bold"
-                        >
-                          {VIETNAM_BANKS.map((b) => (
-                            <option key={b.code} value={b.code}>{b.code}</option>
-                          ))}
-                        </select>
-                        <input
-                          value={resubmitBankAcc}
-                          onChange={(e) => setResubmitBankAcc(e.target.value)}
-                          placeholder="Số tài khoản"
-                          className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Tên Chủ TK Ngân hàng</label>
                       <input
-                        value={resubmitBankHolder}
-                        onChange={(e) => setResubmitBankHolder(e.target.value)}
-                        placeholder="NGUYEN VAN AN"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs uppercase"
+                        type="email"
+                        value={profilePaypalEmail}
+                        onChange={(e) => setProfilePaypalEmail(e.target.value)}
+                        placeholder="vd: shop1-sandbox@personal.example.com"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
                       />
                     </div>
                   </div>
@@ -1205,10 +1187,10 @@ export const ShopPortal: React.FC = () => {
                   <div className="flex justify-end">
                     <button
                       type="submit"
-                      disabled={isResubmittingKyc}
+                      disabled={isResubmittingProfile}
                       className="px-5 py-2.5 rounded-xl bg-[#14171C] hover:bg-blue-600 text-white text-xs font-bold cursor-pointer disabled:opacity-60"
                     >
-                      {isResubmittingKyc ? 'Đang gửi lại hồ sơ...' : 'Lưu & Gửi Lại Admin Duyệt'}
+                      {isResubmittingProfile ? 'Đang gửi lại...' : 'Lưu & Gửi Lại Admin Duyệt'}
                     </button>
                   </div>
                 </form>
@@ -1377,17 +1359,25 @@ export const ShopPortal: React.FC = () => {
                     </div>
 
                     {shop && (
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                        <span>
-                          Pháp lý Thuế: <b>{shop.entity_type || 'INDIVIDUAL'}</b> • MST:{' '}
-                          <b className="font-mono text-slate-900">{shop.tax_code || 'CCCD tạm thời'}</b> ({shop.tax_status})
-                        </span>
-                        {bankAccount && (
+                      <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-700">
+                        <div className="flex items-center gap-2">
+                          <Wallet size={14} className="text-blue-700" />
                           <span>
-                            Ngân hàng chi trả: <b>{bankAccount.bank_name}</b> •{' '}
-                            <b className="font-mono">{bankAccount.account_number}</b> ({bankAccount.verification_status})
+                            Ví PayPal nhận giải ngân:{' '}
+                            {shop.paypal_payout_email ? (
+                              <b className="font-mono text-blue-800">{shop.paypal_payout_email}</b>
+                            ) : (
+                              <b className="text-amber-700">Chưa cấu hình (Vui lòng cài đặt để Admin chuyển tiền)</b>
+                            )}
                           </span>
-                        )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('PAYOUTS')}
+                          className="px-3 py-1 rounded-lg bg-white border border-blue-300 hover:bg-blue-100 text-blue-800 font-bold cursor-pointer"
+                        >
+                          Mở Ví &amp; Đối Soát PayPal →
+                        </button>
                       </div>
                     )}
 
@@ -2193,6 +2183,249 @@ export const ShopPortal: React.FC = () => {
                         ))}
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3B: PAYPAL PAYOUTS & REVENUE LEDGER */}
+              {activeTab === 'PAYOUTS' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-black text-slate-950">Ví PayPal &amp; Đối Soát Doanh Thu Từng Đơn</h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Cấu hình Email PayPal Sandbox/Live nhận giải ngân và theo dõi chính xác tiền hàng sau phí sàn 5% &amp; phí PayPal.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* PayPal Payout Email Binding Box */}
+                  <form
+                    onSubmit={handleSavePayPalEmail}
+                    className="bg-white rounded-3xl border border-slate-200 p-5 space-y-3 shadow-2xs"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                          <Wallet size={16} className="text-blue-600" /> Email PayPal Nhận Giải Ngân Của Shop
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Khi đủ điều kiện giải ngân, Admin FitVision 3D sẽ chuyển USD qua <b>PayPal Payouts API</b> trực tiếp vào địa chỉ email này.
+                        </p>
+                      </div>
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                          shop?.paypal_payout_email
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}
+                      >
+                        {shop?.paypal_payout_email ? '✓ Đã liên kết ví PayPal' : '⏳ Chưa gắn ví PayPal'}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                      <input
+                        type="email"
+                        required
+                        value={profilePaypalEmail}
+                        onChange={(e) => setProfilePaypalEmail(e.target.value)}
+                        placeholder="Nhập Email PayPal nhận tiền (VD: sb-shop1@personal.example.com)"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-mono outline-none focus:border-blue-600"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSavingPaypalEmail}
+                        className="px-5 py-2.5 rounded-xl bg-[#003087] hover:bg-[#002366] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                      >
+                        <Save size={14} /> {isSavingPaypalEmail ? 'Đang lưu...' : 'Lưu Email PayPal'}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* 4 Financial KPIs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-2xs">
+                      <p className="text-[11px] font-bold uppercase text-slate-400">Sẵn sàng giải ngân</p>
+                      <p className="text-xl font-black text-emerald-700 mt-2">
+                        {formatCurrency(payoutData?.summary?.readyVnd || 0)}
+                      </p>
+                      <p className="text-[11px] font-mono text-emerald-600 mt-1">
+                        ≈ ${(payoutData?.summary?.readyUsd || 0).toFixed(2)} USD
+                      </p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-2xs">
+                      <p className="text-[11px] font-bold uppercase text-slate-400">Đang tạm giữ (Escrow)</p>
+                      <p className="text-xl font-black text-amber-700 mt-2">
+                        {formatCurrency(payoutData?.summary?.escrowHoldVnd || 0)}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Chờ giao hoàn tất + {payoutData?.policy?.holdDays ?? 0} ngày hold
+                      </p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-blue-200 shadow-2xs">
+                      <p className="text-[11px] font-bold uppercase text-slate-400">Đã giải ngân về PayPal</p>
+                      <p className="text-xl font-black text-blue-700 mt-2">
+                        {formatCurrency(payoutData?.summary?.paidOutVnd || 0)}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-1">Đã hoàn tất chuyển Payout</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+                      <p className="text-[11px] font-bold uppercase text-slate-400">Tổng Phí Sàn + PayPal</p>
+                      <p className="text-xl font-black text-slate-800 mt-2">
+                        {formatCurrency(
+                          (payoutData?.summary?.totalPlatformFeeVnd || 0) +
+                            (payoutData?.summary?.totalPaypalFeeVnd || 0)
+                        )}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Sàn {Math.round((payoutData?.policy?.platformFeeRate ?? 0.05) * 100)}% + Phí cổng PayPal
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Policy Explanation Box */}
+                  <div className="p-4 rounded-2xl bg-slate-900 text-slate-100 text-xs flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="font-black text-amber-300">
+                        Quy Tắc Đối Soát: Hoa hồng Sàn {Math.round((payoutData?.policy?.platformFeeRate ?? 0.05) * 100)}% · Tỷ giá quy đổi 1 USD ={' '}
+                        {(payoutData?.policy?.exchangeRateVnd ?? 25400).toLocaleString('vi-VN')} ₫
+                      </div>
+                      <p className="text-[11px] text-slate-300">
+                        Đủ 4 điều kiện giải ngân: (1) Khách đã thanh toán PayPal · (2) Đơn đã giao thành công (`completed`) · (3) Đã qua thời hạn hold ({payoutData?.policy?.holdDays ?? 0} ngày) · (4) Shop đã gắn Email PayPal. Phí sàn chưa bao gồm VAT của Shop (Shop tự kê khai).
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Itemized Order Revenue Ledger */}
+                  <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <h3 className="text-sm font-black text-slate-950">
+                        Sao Kê Chi Tiết Từng Đơn Hàng ({payoutData?.orderLedgers?.length || 0})
+                      </h3>
+                      <span className="text-[11px] text-slate-500">Minh bạch từng sản phẩm đã bán</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-slate-200">
+                          <tr>
+                            <th className="py-3 px-4">Mã Đơn &amp; Sản Phẩm</th>
+                            <th className="py-3 px-4">Doanh Thu Đơn</th>
+                            <th className="py-3 px-4">Phí Sàn (5%)</th>
+                            <th className="py-3 px-4">Phí PayPal</th>
+                            <th className="py-3 px-4">Shop Thực Nhận</th>
+                            <th className="py-3 px-4">Điều Kiện Giải Ngân</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {!payoutData?.orderLedgers?.length ? (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-slate-500">
+                                Chưa có giao dịch PayPal nào phát sinh cho gian hàng này.
+                              </td>
+                            </tr>
+                          ) : (
+                            payoutData.orderLedgers.map((item) => (
+                              <tr key={item.orderId} className="hover:bg-slate-50/70">
+                                <td className="py-3 px-4">
+                                  <div className="font-mono font-bold text-blue-700">{item.orderId}</div>
+                                  <div className="text-[11px] text-slate-600">
+                                    {item.itemsSummary.map((it) => `${it.name} (${it.size} ×${it.qty})`).join(', ')}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400">
+                                    Trạng thái đơn: {item.orderStatus} · Payout: {item.payoutStatus}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                                  {formatCurrency(item.grossVnd)}
+                                  <div className="text-[10px] text-slate-500">${item.grossUsd.toFixed(2)}</div>
+                                </td>
+                                <td className="py-3 px-4 font-mono text-rose-700">
+                                  -{formatCurrency(item.platformFeeVnd)}
+                                </td>
+                                <td className="py-3 px-4 font-mono text-rose-600">
+                                  -{formatCurrency(item.paypalFeeVnd)}
+                                </td>
+                                <td className="py-3 px-4 font-mono font-black text-emerald-700">
+                                  {formatCurrency(item.netPayoutVnd)}
+                                  <div className="text-[10px] text-emerald-600">${item.netPayoutUsd.toFixed(2)}</div>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {item.payoutStatus === 'PAID_OUT' ? (
+                                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold">
+                                      ✓ Đã giải ngân PayPal
+                                    </span>
+                                  ) : item.payoutStatus === 'PROCESSING' ? (
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                                      ⏳ Đang xử lý PayPal
+                                    </span>
+                                  ) : item.eligibleForPayout ? (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                                      ✓ Đủ điều kiện giải ngân
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
+                                      {item.ineligibleReason || 'Chưa đủ điều kiện'}
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Payout Batch History */}
+                  <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs">
+                    <div className="px-5 py-4 border-b border-slate-100">
+                      <h3 className="text-sm font-black text-slate-950">
+                        Lịch Sử Nhận Giải Ngân PayPal Payouts ({payoutData?.payoutBatches?.length || 0})
+                      </h3>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {!payoutData?.payoutBatches?.length ? (
+                        <div className="p-6 text-center text-xs text-slate-500">
+                          Chưa có đợt chi trả PayPal nào được thực hiện.
+                        </div>
+                      ) : (
+                        payoutData.payoutBatches.map((batch) => {
+                          const batchCls =
+                            batch.status === 'SUCCESS'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : batch.status === 'FAILED'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-amber-100 text-amber-800';
+                          return (
+                            <div key={batch.id} className="p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+                              <div>
+                                <div className="font-mono font-bold text-slate-900">
+                                  Batch #{batch.id} · PayPal: {batch.paypal_payout_batch_id || 'N/A'}
+                                </div>
+                                <div className="text-[11px] text-slate-500">
+                                  Gửi tới: <b className="font-mono">{batch.recipient_paypal_email}</b> ·{' '}
+                                  {new Date(batch.created_at).toLocaleString('vi-VN')}
+                                </div>
+                                {batch.status === 'FAILED' && batch.note && (
+                                  <div className="text-[11px] text-rose-700 font-semibold mt-1">
+                                    Lỗi PayPal: {batch.note} (Vui lòng kiểm tra lại Email PayPal nhận tiền)
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className="font-mono font-black text-emerald-700">
+                                  +{formatCurrency(batch.net_payout_vnd)} (${Number(batch.net_payout_usd || 0).toFixed(2)} USD)
+                                </div>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${batchCls}`}>
+                                  {batch.status}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

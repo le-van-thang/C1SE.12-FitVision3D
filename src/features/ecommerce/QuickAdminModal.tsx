@@ -444,7 +444,7 @@ export const QuickAdminModal: React.FC<QuickAdminModalProps> = ({ isOpen, onClos
                             </span>
                           </div>
                           <span className="text-[10px] font-bold text-blue-700">
-                            {order.payment_method === 'vietqr_sepay' ? '💳 VietQR Đã Trả' : '💵 COD'}
+                            {order.payment_status === 'paid' ? '🌐 PayPal Đã Trả' : '⏳ PayPal Chờ TT'}
                           </span>
                         </div>
 

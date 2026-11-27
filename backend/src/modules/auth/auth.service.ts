@@ -20,14 +20,6 @@ import {
   generateRefreshTokenString,
   hashToken,
 } from '../../utils/jwt.js';
-import {
-  cassoTaxAndLocalKycProvider,
-  compareVietnameseAccountNames,
-  evaluateCccdQrConsistency,
-  hashNationalId,
-  validateVietnamCCCD,
-  validateVietnamTaxCode,
-} from '../shop/kycVerification.js';
 
 export const authService = {
   /**
@@ -144,29 +136,13 @@ export const authService = {
       );
     }
 
-    // 3b. Kiểm tra Tầng 1-3: CCCD, Mã số thuế, trùng lặp pháp lý & Tài khoản ngân hàng
-    const cleanNationalId = (dto.nationalId || '').replace(/\s+/g, '');
-    const nationalIdHash = cleanNationalId ? hashNationalId(cleanNationalId) : undefined;
-    const taxValidation = dto.taxCode ? validateVietnamTaxCode(dto.taxCode) : null;
-    const normalizedTaxCode = taxValidation?.normalized || '';
-
-    if (cleanNationalId) {
-      const cccdCheck = validateVietnamCCCD(cleanNationalId);
-      if (!cccdCheck.valid) {
-        throw new AppError(400, ErrorCode.VALIDATION_FAILED, cccdCheck.reason || 'Số CCCD không hợp lệ.');
-      }
-    }
-
+    // 3b. Kiểm tra trùng lặp tên thương hiệu / SĐT cửa hàng
     const dupShop = await authRepository.findShopDuplicate({
-      taxCode: normalizedTaxCode || undefined,
-      nationalIdHash,
       shopName: dto.shopName,
       phoneNumber: dto.phoneNumber,
     });
     if (dupShop) {
       const dupLabels: Record<string, string> = {
-        taxCode: 'Mã số thuế này đã được đăng ký cho một cửa hàng khác.',
-        nationalId: 'Số CCCD này đã liên kết với một cửa hàng khác trên hệ thống.',
         shopName: 'Tên thương hiệu cửa hàng đã tồn tại. Vui lòng chọn tên khác.',
         phoneNumber: 'Số điện thoại kinh doanh này đã được sử dụng cho cửa hàng khác.',
       };
@@ -175,60 +151,6 @@ export const authService = {
         ErrorCode.VALIDATION_FAILED,
         dupLabels[dupShop.field] || 'Thông tin cửa hàng bị trùng lặp trên hệ thống.'
       );
-    }
-
-    // Tier 2: Check CCCD Front QR payload consistency if provided
-    const frontDoc = (dto.kycDocuments || []).find((d) => d.docType === 'CCCD_FRONT');
-    const qrConsistency = cleanNationalId
-      ? evaluateCccdQrConsistency(cleanNationalId, dto.fullName, (frontDoc?.qrParsedPayload as any) || null)
-      : { status: 'NOT_DETECTED' as const, notes: '' };
-
-    const kycDocumentsPrepared = (dto.kycDocuments || []).map((doc) =>
-      doc.docType === 'CCCD_FRONT'
-        ? {
-            ...doc,
-            verificationStatus: qrConsistency.status === 'MATCHED' ? 'VERIFIED' : 'PENDING',
-            reviewerNote: qrConsistency.notes,
-          }
-        : { ...doc, verificationStatus: 'PENDING' }
-    );
-
-    // Tier 3: Tax Code lookup via Casso Open Platform (if configured)
-    const taxLookup =
-      normalizedTaxCode
-        ? await cassoTaxAndLocalKycProvider.lookupTaxCode(normalizedTaxCode, dto.entityType)
-        : null;
-
-    const taxStatus =
-      dto.entityType === 'INDIVIDUAL' && !normalizedTaxCode
-        ? 'USING_NATIONAL_ID_TEMP'
-        : taxLookup?.lookupStatus === 'FOUND'
-          ? 'VERIFIED'
-          : 'PENDING_REVIEW';
-
-    // Bank Holder name match check
-    let bankPrepared: {
-      bankCode: string;
-      bankName: string;
-      accountNumber: string;
-      accountHolderName: string;
-      nameMatchScore: number;
-      verificationStatus: string;
-    } | null = null;
-    if (dto.bankAccountNumber && dto.bankName && dto.bankAccountHolder) {
-      const expectedLegalName =
-        dto.entityType === 'ENTERPRISE' && taxLookup?.businessName
-          ? taxLookup.businessName
-          : dto.fullName;
-      const bankCompare = compareVietnameseAccountNames(dto.bankAccountHolder, expectedLegalName);
-      bankPrepared = {
-        bankCode: dto.bankCode || 'BANK',
-        bankName: dto.bankName,
-        accountNumber: dto.bankAccountNumber.replace(/\s+/g, ''),
-        accountHolderName: dto.bankAccountHolder.trim(),
-        nameMatchScore: bankCompare.score,
-        verificationStatus: bankCompare.matched ? 'MATCHED' : 'MISMATCHED',
-      };
     }
 
     // 4. Hash password
@@ -243,23 +165,14 @@ export const authService = {
       status: 'PENDING_APPROVAL',
     });
 
-    // 6. Tạo hồ sơ cửa hàng + tài liệu KYC + tài khoản ngân hàng liên kết 1-1
+    // 6. Tạo hồ sơ cửa hàng gọn nhẹ (kèm Email PayPal nhận giải ngân nếu có)
     const shop = await authRepository.createShop({
       ownerId: user.id,
       shopName: dto.shopName,
       phoneNumber: dto.phoneNumber,
       shopAddress: dto.shopAddress,
-      entityType: dto.entityType,
-      taxCode: normalizedTaxCode || undefined,
-      taxStatus,
-      businessLicenseNo: dto.businessLicenseNo || undefined,
-      legalRepresentativeName: dto.fullName,
-      nationalIdLast4: cleanNationalId ? cleanNationalId.slice(-4) : undefined,
-      nationalIdHash,
+      paypalPayoutEmail: dto.paypalPayoutEmail || undefined,
       tagline: dto.tagline || undefined,
-      taxLookupSnapshot: taxLookup || undefined,
-      kycDocuments: kycDocumentsPrepared,
-      bankAccount: bankPrepared,
     });
 
     return {
@@ -270,11 +183,7 @@ export const authService = {
       role: user.role,
       status: user.status,
       shopStatus: shop.status || 'PENDING',
-      taxStatus,
-      qrConsistency,
-      taxLookup,
-      bankVerificationStatus: bankPrepared?.verificationStatus || 'PENDING',
-      message: 'Đăng ký tài khoản Chủ Shop thành công! Hồ sơ KYC & Thuế đang chờ Quản trị viên thẩm định.',
+      message: 'Đăng ký tài khoản Chủ Shop thành công! Hồ sơ gian hàng đang chờ Quản trị viên xét duyệt.',
     };
   },
 

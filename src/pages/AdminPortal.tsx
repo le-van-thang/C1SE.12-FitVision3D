@@ -34,6 +34,8 @@ import {
   ArrowLeft,
   KeyRound,
   Copy,
+  Wallet,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -59,14 +61,16 @@ import {
   AdminStats,
   AdminAuditLogItem,
 } from '@/services/adminApi';
+import { commerceApi, type AdminPayoutOverviewResponse } from '@/services/commerceApi';
 
 export type AdminMainTab =
   | 'OVERVIEW'
-  | 'STORES'
-  | 'USERS'
   | 'ORDERS'
+  | 'PAYOUTS'
   | 'CATALOG'
   | 'CMS'
+  | 'STORES'
+  | 'USERS'
   | 'AUDIT';
 type StoreFilterTab = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 type UserFilterRole = 'ALL' | 'ADMIN' | 'SHOP_OWNER' | 'USER';
@@ -117,9 +121,12 @@ export const AdminPortal: React.FC = () => {
   const [provShopName, setProvShopName] = useState('');
   const [provPhone, setProvPhone] = useState('0909123456');
   const [provAddress, setProvAddress] = useState('TP. Hồ Chí Minh, Việt Nam');
-  const [provEntityType, setProvEntityType] = useState<'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE'>('INDIVIDUAL');
-  const [provTaxCode, setProvTaxCode] = useState('');
+  const [provPaypalEmail, setProvPaypalEmail] = useState('');
   const [provSubmitting, setProvSubmitting] = useState(false);
+  const [payoutOverview, setPayoutOverview] = useState<AdminPayoutOverviewResponse | null>(null);
+  const [disbursingPayouts, setDisbursingPayouts] = useState(false);
+  const [syncingBatchId, setSyncingBatchId] = useState<string | null>(null);
+  const [payoutBannerError, setPayoutBannerError] = useState<string | null>(null);
   const [provisionedCreds, setProvisionedCreds] = useState<{
     loginUrl: string;
     shopEmail: string;
@@ -136,7 +143,6 @@ export const AdminPortal: React.FC = () => {
   // Modals & Action States
   const [rejectingStore, setRejectingStore] = useState<AdminStoreItem | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [viewProofImage, setViewProofImage] = useState<{ brand: string; url: string } | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -157,12 +163,13 @@ export const AdminPortal: React.FC = () => {
     if (!quiet) setIsLoading(true);
     setIsRefreshing(true);
     try {
-      const [statsRes, storesRes, usersRes, logsRes, commerceRes] = await Promise.all([
+      const [statsRes, storesRes, usersRes, logsRes, commerceRes, payoutsRes] = await Promise.all([
         adminApi.getStats(),
         adminApi.getStores(),
         adminApi.getUsers(),
         adminApi.getAuditLogs(30),
         syncPlatformConfigFromBackend(true),
+        commerceApi.getAdminPayouts(),
       ]);
 
       if (commerceRes?.config) {
@@ -180,6 +187,9 @@ export const AdminPortal: React.FC = () => {
       }
       if (logsRes.success && Array.isArray(logsRes.data)) {
         setAuditLogs(logsRes.data);
+      }
+      if (payoutsRes.success && payoutsRes.data) {
+        setPayoutOverview(payoutsRes.data);
       }
     } catch (err: any) {
       showToast('error', 'Không thể kết nối cơ sở dữ liệu PostgreSQL.');
@@ -266,7 +276,7 @@ export const AdminPortal: React.FC = () => {
   const handleSuspendStore = async (store: AdminStoreItem) => {
     const reason = window.prompt(
       `Nhập lý do tạm đình chỉ gian hàng "${store.shop_name}" (sản phẩm sẽ bị ẩn ngay):`,
-      'Vi phạm quy định KYC / Thuế hoặc chậm xử lý đơn hàng'
+      'Vi phạm quy định vận hành sàn hoặc chậm xử lý đơn hàng'
     );
     if (!reason || !reason.trim()) return;
     setActionLoadingId(store.id);
@@ -283,25 +293,44 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // Live MST Lookup inside Admin review table
-  const handleQuickTaxLookup = async (store: AdminStoreItem) => {
-    if (!store.tax_code) {
-      showToast('error', 'Shop chưa cung cấp Mã số thuế (đang dùng CCCD tạm thời).');
-      return;
-    }
-    setActionLoadingId(store.id);
+  // Handle PayPal Batch Payout Disbursement
+  const handleDisburseShop = async (shopIds?: string[]) => {
+    setDisbursingPayouts(true);
+    setPayoutBannerError(null);
     try {
-      const res = await adminApi.lookupTaxCode(store.tax_code, store.entity_type || 'ENTERPRISE');
+      const res = await commerceApi.disburseAdminPayouts(shopIds);
       if (res.success && res.data) {
         showToast(
-          res.data.checksumValid ? 'success' : 'error',
-          `${res.data.taxCode}: ${res.data.message}`
+          'success',
+          `Đã gửi lệnh giải ngân PayPal (${res.data.payouts.length} Shop · Batch ${res.data.batchId}).`
         );
+        void fetchLiveData(true);
       } else {
-        showToast('error', res.error?.message || 'Không thể tra cứu MST.');
+        const msg = res.error?.message || 'Chưa có đơn hàng đủ điều kiện giải ngân.';
+        setPayoutBannerError(msg);
+        showToast('error', msg);
+      }
+    } catch {
+      const msg = 'Lỗi kết nối khi gọi PayPal Payouts API.';
+      setPayoutBannerError(msg);
+      showToast('error', msg);
+    } finally {
+      setDisbursingPayouts(false);
+    }
+  };
+
+  const handleSyncBatchStatus = async (payoutId: string) => {
+    setSyncingBatchId(payoutId);
+    try {
+      const res = await commerceApi.syncAdminPayoutBatch(payoutId);
+      if (res.success && res.data) {
+        showToast('success', `Đã đồng bộ trạng thái PayPal Batch #${payoutId}: ${res.data.status || 'OK'}`);
+        void fetchLiveData(true);
+      } else {
+        showToast('error', res.error?.message || 'Không thể đồng bộ trạng thái Payout.');
       }
     } finally {
-      setActionLoadingId(null);
+      setSyncingBatchId(null);
     }
   };
 
@@ -339,8 +368,7 @@ export const AdminPortal: React.FC = () => {
     setProvShopName(`${user.full_name || local} Atelier`);
     setProvPhone(user.phone || '0909123456');
     setProvAddress('TP. Hồ Chí Minh, Việt Nam');
-    setProvEntityType('INDIVIDUAL');
-    setProvTaxCode('');
+    setProvPaypalEmail('');
   };
 
   const handleConfirmProvisionShop = async (e: React.FormEvent) => {
@@ -355,8 +383,7 @@ export const AdminPortal: React.FC = () => {
         shopName: provShopName.trim(),
         phoneNumber: provPhone.trim(),
         shopAddress: provAddress.trim(),
-        entityType: provEntityType,
-        taxCode: provTaxCode.trim() || undefined,
+        paypalPayoutEmail: provPaypalEmail.trim().toLowerCase() || undefined,
         autoApprove: true,
       });
       if (res.success && res.data?.credentials) {
@@ -409,7 +436,7 @@ export const AdminPortal: React.FC = () => {
         s.shop_name?.toLowerCase().includes(q) ||
         s.phone_number?.toLowerCase().includes(q) ||
         s.shop_address?.toLowerCase().includes(q) ||
-        s.business_license_no?.toLowerCase().includes(q) ||
+        s.paypal_payout_email?.toLowerCase().includes(q) ||
         s.owner_name?.toLowerCase().includes(q) ||
         s.owner_email?.toLowerCase().includes(q)
       );
@@ -454,6 +481,16 @@ export const AdminPortal: React.FC = () => {
           icon: <ShoppingBag size={16} />,
           badge: orders.filter((o) => o.status === 'pending' || o.status === 'tailoring').length || orders.length,
           badgeTone: orders.some((o) => o.status === 'pending') ? 'amber' : 'blue',
+        },
+        {
+          id: 'PAYOUTS',
+          label: 'Giải Ngân PayPal',
+          icon: <Wallet size={16} />,
+          badge:
+            (payoutOverview?.summary?.totalReadyDisburseVnd || 0) > 0
+              ? `${Math.round((payoutOverview?.summary?.totalReadyDisburseVnd || 0) / 1000)}k`
+              : '0đ',
+          badgeTone: (payoutOverview?.summary?.totalReadyDisburseVnd || 0) > 0 ? 'emerald' : 'blue',
         },
         {
           id: 'CATALOG',
@@ -508,6 +545,10 @@ export const AdminPortal: React.FC = () => {
       title: 'Điều Phối Đơn Hàng Toàn Sàn',
       subtitle: 'Giám sát mọi đơn hàng xuyên suốt các shop đối tác và cập nhật tiến độ xử lý theo thời gian thực.',
     },
+    PAYOUTS: {
+      title: 'Giải Ngân PayPal Escrow Cho Các Shop',
+      subtitle: 'Kiểm soát tiền giữ hộ trên tài khoản Business, khấu trừ 5% hoa hồng sàn và giải ngân hàng loạt qua PayPal Payouts API.',
+    },
     CATALOG: {
       title: 'Kiểm Duyệt Sản Phẩm & Giá Bán',
       subtitle: 'Ẩn/hiện sản phẩm vi phạm hoặc hết vải và điều chỉnh giá niêm yết đồng bộ tức thì lên trang Khách hàng.',
@@ -517,8 +558,8 @@ export const AdminPortal: React.FC = () => {
       subtitle: 'Chỉnh sửa thanh thông báo chạy, thông điệp Hero trang chủ và phát hành mã giảm giá cho Checkout.',
     },
     STORES: {
-      title: 'Thẩm Định & Xét Duyệt Shop Đối Tác',
-      subtitle: 'Kiểm tra ảnh minh chứng, GPKD và phê duyệt/từ chối hồ sơ đăng ký mở shop trên PostgreSQL.',
+      title: 'Quản Lý & Xét Duyệt Shop Đối Tác',
+      subtitle: 'Kiểm tra thông tin gian hàng, ví PayPal nhận giải ngân và phê duyệt/từ chối hồ sơ trên PostgreSQL.',
     },
     USERS: {
       title: 'Quản Lý Tài Khoản & Phân Quyền RBAC',
@@ -774,7 +815,7 @@ export const AdminPortal: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
           {/* Toast Notification */}
           {actionMessage && (
             <div
@@ -837,6 +878,235 @@ export const AdminPortal: React.FC = () => {
               onUpdateStatus={updateOrderStatus}
               onToast={showToast}
             />
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 4B: ADMIN PAYPAL PAYOUTS & ESCROW DISBURSEMENT */}
+          {/* ========================================================================= */}
+          {mainTab === 'PAYOUTS' && (
+            <div className="space-y-5">
+              {/* 4 KPI Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl border border-amber-200 p-4 shadow-2xs">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Đang Giữ Hộ (Escrow Hold)</p>
+                  <p className="text-xl font-black text-amber-700 mt-1.5 font-mono">
+                    {(payoutOverview?.summary?.totalEscrowHoldVnd || 0).toLocaleString('vi-VN')} ₫
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">Chờ giao xong + {payoutOverview?.policy?.holdDays ?? 0} ngày hold</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-emerald-200 p-4 shadow-2xs">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Sẵn Sàng Giải Ngân</p>
+                  <p className="text-xl font-black text-emerald-700 mt-1.5 font-mono">
+                    {(payoutOverview?.summary?.totalReadyDisburseVnd || 0).toLocaleString('vi-VN')} ₫
+                  </p>
+                  <p className="text-[11px] text-emerald-700 mt-1">Đã đủ 4 điều kiện Payout</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-indigo-200 p-4 shadow-2xs">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Hoa Hồng Sàn (5%)</p>
+                  <p className="text-xl font-black text-indigo-700 mt-1.5 font-mono">
+                    {(payoutOverview?.summary?.totalPlatformCommissionVnd || 0).toLocaleString('vi-VN')} ₫
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">Doanh thu nền tảng FitVision 3D</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-blue-200 p-4 shadow-2xs">
+                  <p className="text-[11px] font-bold uppercase text-slate-400">Đã Giải Ngân Cho Shop</p>
+                  <p className="text-xl font-black text-blue-700 mt-1.5 font-mono">
+                    {(payoutOverview?.summary?.totalPaidOutVnd || 0).toLocaleString('vi-VN')} ₫
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">Đã xuất qua PayPal Payouts</p>
+                </div>
+              </div>
+
+              {/* Escrow Policy & Bulk Disburse Action */}
+              <div className="p-4 rounded-2xl bg-[#14171C] text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="text-xs font-black text-amber-300">
+                    Chính sách Sàn: Tỷ giá 1 USD = {(payoutOverview?.policy?.vndRate ?? 25400).toLocaleString('vi-VN')} ₫ · Phí Sàn{' '}
+                    {Math.round((payoutOverview?.policy?.platformFeeRate ?? 0.05) * 100)}%
+                  </div>
+                  <p className="text-[11px] text-slate-300 max-w-3xl">
+                    Điều kiện giải ngân: (1) Đơn đã Capture tiền qua PayPal · (2) Đơn đã hoàn tất (`completed`) · (3) Đủ thời gian hold ({payoutOverview?.policy?.holdDays ?? 0} ngày) · (4) Shop đã gắn Email PayPal nhận tiền.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={disbursingPayouts || (payoutOverview?.summary?.totalReadyDisburseVnd || 0) <= 0}
+                  onClick={() => void handleDisburseShop()}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <Send size={14} />
+                  <span>{disbursingPayouts ? 'Đang gửi lệnh PayPal...' : 'Giải Ngân Tất Cả Shop Đủ Điều Kiện'}</span>
+                </button>
+              </div>
+
+              {payoutBannerError && (
+                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-800 flex items-center justify-between gap-2">
+                  <span>{payoutBannerError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPayoutBannerError(null)}
+                    className="text-rose-500 hover:text-rose-800 cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Per-Shop Disbursement Table */}
+              <div className="overflow-hidden rounded-2xl bg-white border border-slate-200/90 shadow-xs">
+                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-sm font-black text-slate-950">Bảng Đối Soát Giải Ngân Theo Từng Gian Hàng</h3>
+                  <span className="text-[11px] text-slate-500">Bấm Giải Ngân từng Shop hoặc hàng loạt</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] border-b border-slate-200">
+                      <tr>
+                        <th className="py-3 px-4 font-bold">Gian Hàng</th>
+                        <th className="py-3 px-4 font-bold">Ví PayPal Nhận Tiền</th>
+                        <th className="py-3 px-4 font-bold">Đang Hold (Escrow)</th>
+                        <th className="py-3 px-4 font-bold">Sẵn Sàng Giải Ngân</th>
+                        <th className="py-3 px-4 font-bold">Đã Giải Ngân</th>
+                        <th className="py-3 px-4 font-bold">Hoa Hồng Sàn</th>
+                        <th className="py-3 px-4 font-bold text-right">Hành Động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {!payoutOverview?.shops?.length ? (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-slate-500">
+                            Chưa có dữ liệu doanh thu gian hàng.
+                          </td>
+                        </tr>
+                      ) : (
+                        payoutOverview.shops.map((row) => (
+                          <tr key={row.shop.id} className="hover:bg-slate-50/70">
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-slate-950">{row.shop.shop_name}</div>
+                              <div className="text-[10px] text-slate-500">{row.shop.status}</div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-[11px]">
+                              {row.shop.paypal_payout_email ? (
+                                <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-bold">
+                                  {row.shop.paypal_payout_email}
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                                  Chưa cấu hình PayPal
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono">
+                              <div className="font-bold text-amber-700">{row.holdingNetVnd.toLocaleString('vi-VN')} ₫</div>
+                              <div className="text-[10px] text-slate-500">{row.holdingOrders.length} đơn</div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono">
+                              <div className="font-black text-emerald-700">{row.readyNetVnd.toLocaleString('vi-VN')} ₫</div>
+                              <div className="text-[10px] text-emerald-600">
+                                ≈ ${row.readyNetUsd.toFixed(2)} USD ({row.readyOrders.length} đơn)
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono">
+                              <div className="font-bold text-blue-700">{row.paidOutNetVnd.toLocaleString('vi-VN')} ₫</div>
+                              <div className="text-[10px] text-slate-500">{row.paidOutOrders.length} đơn</div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-indigo-700 font-bold">
+                              {row.platformCommissionVnd.toLocaleString('vi-VN')} ₫
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <button
+                                type="button"
+                                disabled={disbursingPayouts || row.readyOrders.length === 0 || !row.shop.paypal_payout_email}
+                                onClick={() => void handleDisburseShop([row.shop.id])}
+                                className="px-3 py-1.5 rounded-lg bg-[#003087] hover:bg-[#002366] disabled:opacity-40 text-white text-[11px] font-bold cursor-pointer"
+                              >
+                                Giải Ngân Shop
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Batch History */}
+              <div className="overflow-hidden rounded-2xl bg-white border border-slate-200/90 shadow-xs">
+                <div className="px-5 py-3.5 border-b border-slate-100">
+                  <h3 className="text-sm font-black text-slate-950">
+                    Lịch Sử Giao Dịch PayPal Payouts ({payoutOverview?.payoutHistory?.length || 0})
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] border-b border-slate-200">
+                      <tr>
+                        <th className="py-3 px-4">Batch / PayPal ID</th>
+                        <th className="py-3 px-4">Gian Hàng &amp; Ví Nhận</th>
+                        <th className="py-3 px-4">Thực Chuyển (Net)</th>
+                        <th className="py-3 px-4">Trạng Thái</th>
+                        <th className="py-3 px-4 text-right">Đồng Bộ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {!payoutOverview?.payoutHistory?.length ? (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-slate-500">
+                            Chưa có đợt giải ngân PayPal Payout nào.
+                          </td>
+                        </tr>
+                      ) : (
+                        payoutOverview.payoutHistory.map((b) => {
+                          const badgeCls =
+                            b.status === 'SUCCESS'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : b.status === 'FAILED'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-amber-100 text-amber-800';
+                          return (
+                            <tr key={b.id}>
+                              <td className="py-3 px-4 font-mono">
+                                <div className="font-bold text-slate-900">#{b.id}</div>
+                                <div className="text-[10px] text-slate-500">{b.paypal_payout_batch_id || 'Pending ID'}</div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="font-bold text-slate-800">{b.shop_name || b.shop_id}</div>
+                                <div className="font-mono text-[11px] text-blue-700">{b.recipient_paypal_email}</div>
+                                {b.status === 'FAILED' && b.note && (
+                                  <div className="text-[11px] text-rose-700 font-semibold mt-1">
+                                    Lỗi PayPal: {b.note}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 font-mono">
+                                <div className="font-black text-emerald-700">{Number(b.net_payout_vnd || 0).toLocaleString('vi-VN')} ₫</div>
+                                <div className="text-[10px] text-slate-500">${Number(b.net_payout_usd || 0).toFixed(2)} USD</div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeCls}`}>
+                                  {b.status}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  type="button"
+                                  disabled={syncingBatchId === b.id}
+                                  onClick={() => void handleSyncBatchStatus(b.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold cursor-pointer"
+                                >
+                                {syncingBatchId === b.id ? 'Đang kiểm tra...' : 'Đồng bộ PayPal'}
+                              </button>
+                            </td>
+                          </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* ========================================================================= */}
@@ -907,7 +1177,7 @@ export const AdminPortal: React.FC = () => {
                   type="text"
                   value={storeSearch}
                   onChange={(e) => setStoreSearch(e.target.value)}
-                  placeholder="Tìm theo tên xưởng, SĐT, GPKD..."
+                  placeholder="Tìm theo tên xưởng, SĐT, PayPal..."
                   className="w-full bg-[#F7F7F5] border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 transition"
                 />
                 {storeSearch && (
@@ -928,9 +1198,9 @@ export const AdminPortal: React.FC = () => {
                   <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[11px] border-b border-slate-200">
                     <tr>
                       <th className="py-3.5 px-4 font-bold">Thương hiệu / Cửa hàng</th>
-                      <th className="py-3.5 px-4 font-bold">Chủ sở hữu & Đại diện</th>
-                      <th className="py-3.5 px-4 font-bold">Địa chỉ & Liên hệ</th>
-                      <th className="py-3.5 px-4 font-bold">Hồ sơ Pháp lý / GPKD</th>
+                      <th className="py-3.5 px-4 font-bold">Chủ sở hữu &amp; Đại diện</th>
+                      <th className="py-3.5 px-4 font-bold">Địa chỉ &amp; Liên hệ</th>
+                      <th className="py-3.5 px-4 font-bold">Ví PayPal Giải Ngân</th>
                       <th className="py-3.5 px-4 font-bold">Trạng thái</th>
                       <th className="py-3.5 px-4 font-bold text-right">Thao tác duyệt</th>
                     </tr>
@@ -996,94 +1266,22 @@ export const AdminPortal: React.FC = () => {
                               </div>
                             </td>
 
-                            {/* Verification Doc / Tax Code / Image Proof */}
+                            {/* PayPal Payout Account */}
                             <td className="py-4 px-4 text-slate-700">
-                              {(() => {
-                                const raw = store.business_license_no || '';
-                                const hasImage = raw.includes('data:image') || raw.includes('http://') || raw.includes('https://');
-                                const textPart = raw.includes('|') ? raw.split('|')[0].trim() : (hasImage ? '' : raw);
-                                const imagePart = hasImage ? (raw.includes('|') ? raw.split('|')[1].trim() : raw) : null;
-
-                                return (
-                                  <div className="flex flex-col gap-1.5">
-                                    {textPart && (
-                                      <div className="flex items-center gap-1.5">
-                                        <FileCheck2 size={13} className="text-emerald-600 shrink-0" />
-                                        <span className="font-mono text-xs font-bold text-[#14161A]">
-                                          {textPart}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {imagePart && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setViewProofImage({ brand: store.shop_name, url: imagePart })}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-[#9A6E24] border border-amber-200 text-[11px] font-bold transition cursor-pointer w-fit whitespace-nowrap"
-                                      >
-                                        <span>Xem ảnh minh chứng</span>
-                                      </button>
-                                    )}
-                                    {!textPart && !imagePart && (!store.documents || store.documents.length === 0) && (
-                                      <span className="text-xs text-slate-400">Chưa có GPKD</span>
-                                    )}
-                                    <div className="flex flex-wrap items-center gap-1">
-                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[9px] font-bold text-slate-700">
-                                        {store.entity_type || 'INDIVIDUAL'}
-                                      </span>
-                                      {store.national_id_last4 && (
-                                        <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-[9px] font-mono font-bold text-blue-800">
-                                          CCCD: ••••{store.national_id_last4}
-                                        </span>
-                                      )}
-                                      {store.tax_status && (
-                                        <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[9px] font-bold text-emerald-800">
-                                          Thuế: {store.tax_status}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {store.tax_code && (
-                                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-700">
-                                        <span>MST: <b>{store.tax_code}</b></span>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleQuickTaxLookup(store)}
-                                          className="text-[10px] font-sans font-bold text-blue-600 hover:underline cursor-pointer bg-transparent border-0 p-0"
-                                        >
-                                          [Tra cứu]
-                                        </button>
-                                      </div>
-                                    )}
-                                    {Array.isArray(store.documents) && store.documents.length > 0 && (
-                                      <div className="flex flex-wrap gap-1">
-                                        {store.documents.map((doc: any) => (
-                                          <button
-                                            key={doc.id || doc.doc_type}
-                                            type="button"
-                                            onClick={() =>
-                                              setViewProofImage({
-                                                brand: `${store.shop_name} (${doc.doc_type})`,
-                                                url: doc.file_url,
-                                              })
-                                            }
-                                            className="px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[10px] font-bold text-amber-900 cursor-pointer"
-                                          >
-                                            {doc.doc_type}
-                                            {doc.verification_status === 'VERIFIED' ? ' ✓' : ''}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                    {store.bankAccount && (
-                                      <div className="text-[10px] text-slate-600">
-                                        Bank: <b>{store.bankAccount.bank_name}</b> • {store.bankAccount.account_number} ({store.bankAccount.account_holder_name} ·{' '}
-                                        <span className={store.bankAccount.verification_status === 'MATCHED' ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
-                                          {store.bankAccount.verification_status}
-                                        </span>)
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
+                              <div className="flex flex-col gap-1.5">
+                                {store.paypal_payout_email ? (
+                                  <span className="px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-[11px] font-mono font-bold text-blue-800 w-fit">
+                                    PayPal: {store.paypal_payout_email}
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-lg bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-800 w-fit">
+                                    Chưa gắn Email PayPal
+                                  </span>
+                                )}
+                                {store.tagline && (
+                                  <span className="text-[10px] text-slate-500 line-clamp-1">{store.tagline}</span>
+                                )}
+                              </div>
                             </td>
 
                             {/* Status */}
@@ -1591,21 +1789,6 @@ export const AdminPortal: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Loại hình Kinh doanh</label>
-                    <select
-                      value={provEntityType}
-                      onChange={(e) => setProvEntityType(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-semibold outline-none"
-                    >
-                      <option value="INDIVIDUAL">Cá nhân / Thợ may</option>
-                      <option value="HOUSEHOLD">Hộ kinh doanh</option>
-                      <option value="ENTERPRISE">Doanh nghiệp</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
                     <label className="block font-bold text-slate-700 mb-1">SĐT Shop *</label>
                     <input
                       required
@@ -1614,25 +1797,28 @@ export const AdminPortal: React.FC = () => {
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Mã số thuế (tùy chọn với Cá nhân)</label>
+                    <label className="block font-bold text-slate-700 mb-1">Địa chỉ Shop *</label>
                     <input
-                      value={provTaxCode}
-                      onChange={(e) => setProvTaxCode(e.target.value)}
-                      placeholder="VD: 0101248141 hoặc để trống"
+                      required
+                      value={provAddress}
+                      onChange={(e) => setProvAddress(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Email PayPal nhận tiền (tùy chọn)</label>
+                    <input
+                      type="email"
+                      value={provPaypalEmail}
+                      onChange={(e) => setProvPaypalEmail(e.target.value)}
+                      placeholder="vd: sb-shop@personal.example.com"
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono outline-none"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Địa chỉ Shop *</label>
-                  <input
-                    required
-                    value={provAddress}
-                    onChange={(e) => setProvAddress(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 outline-none"
-                  />
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
@@ -1775,41 +1961,6 @@ export const AdminPortal: React.FC = () => {
           </div>
         )}
 
-        {/* Modal Xem ảnh Minh chứng Pháp lý / GPKD */}
-        {viewProofImage && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
-            onClick={() => setViewProofImage(null)}
-          >
-            <div
-              className="relative max-w-2xl w-full bg-white border border-slate-200 rounded-2xl p-5 shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                <div className="flex items-center gap-2">
-                  <FileCheck2 className="text-[#C8963E]" size={20} />
-                  <h3 className="text-base font-bold text-[#14161A]">
-                    Ảnh minh chứng: {viewProofImage.brand}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setViewProofImage(null)}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="max-h-[70vh] overflow-auto rounded-xl bg-[#F7F7F5] border border-slate-200 p-2 flex items-center justify-center">
-                <img
-                  src={viewProofImage.url}
-                  alt={`Minh chứng ${viewProofImage.brand}`}
-                  className="max-h-[65vh] w-auto object-contain rounded"
-                />
-              </div>
-            </div>
-          </div>
-        )}
         </main>
       </div>
       {isAuthenticated && isAdmin && (
