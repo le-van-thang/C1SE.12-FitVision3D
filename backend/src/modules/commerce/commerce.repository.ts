@@ -1,9 +1,163 @@
 import { pool, query } from '../../config/database.js';
+import { env } from '../../config/env.js';
 import { ensureCommerceTablesAndSeed } from './commerce.bootstrap.js';
+import { convertVndToUsd, paypalService } from './paypal.service.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
 
 export type MembershipTierId = 'member' | 'silver' | 'gold' | 'vip';
+
+export interface OrderPayoutBreakdown {
+  orderId: string;
+  shopId: string | null;
+  storeName: string;
+  grossVnd: number;
+  exchangeRateVnd: number;
+  grossUsd: number;
+  paypalFeeUsd: number;
+  paypalFeeVnd: number;
+  platformFeeRate: number;
+  platformFeeVnd: number;
+  netPayoutVnd: number;
+  netPayoutUsd: number;
+}
+
+export function computeOrderPayoutBreakdown(
+  order: any,
+  defaultRateVnd = env.PAYPAL_VND_RATE,
+  defaultPlatformFeeRate = env.PAYPAL_PLATFORM_FEE_RATE
+): OrderPayoutBreakdown {
+  const grossVnd = Math.max(0, Math.round(Number(order.total_amount || 0)));
+  const exchangeRateVnd =
+    Number(order.exchange_rate_vnd) >= 1000 ? Number(order.exchange_rate_vnd) : defaultRateVnd;
+  const platformFeeRate =
+    order.platform_fee_rate !== undefined && order.platform_fee_rate !== null
+      ? Number(order.platform_fee_rate)
+      : defaultPlatformFeeRate;
+  const grossUsd =
+    order.paid_amount_usd != null && Number(order.paid_amount_usd) > 0
+      ? Number(order.paid_amount_usd)
+      : convertVndToUsd(grossVnd, exchangeRateVnd);
+  const paypalFeeUsd = Math.max(0, Number(order.paypal_fee_usd || 0));
+  const paypalFeeVnd = Math.round(paypalFeeUsd * exchangeRateVnd);
+  const platformFeeVnd = Math.round(grossVnd * platformFeeRate);
+  const netPayoutVnd = Math.max(0, grossVnd - paypalFeeVnd - platformFeeVnd);
+  const netPayoutUsd = netPayoutVnd > 0 ? convertVndToUsd(netPayoutVnd, exchangeRateVnd) : 0;
+
+  return {
+    orderId: String(order.id),
+    shopId: order.shop_id ? String(order.shop_id) : null,
+    storeName: String(order.store_name || ''),
+    grossVnd,
+    exchangeRateVnd,
+    grossUsd,
+    paypalFeeUsd,
+    paypalFeeVnd,
+    platformFeeRate,
+    platformFeeVnd,
+    netPayoutVnd,
+    netPayoutUsd,
+  };
+}
+
+const PAYPAL_PAYOUT_FAILED_STATUSES = new Set([
+  'FAILED',
+  'DENIED',
+  'BLOCKED',
+  'RETURNED',
+  'REFUNDED',
+  'CANCELED',
+]);
+
+function extractPayPalErrorReason(errors: any): string | null {
+  if (!errors || typeof errors !== 'object') return null;
+  const name = String(errors.name || '').trim();
+  const message = String(errors.message || '').trim();
+  if (name && message) return `${name}: ${message}`;
+  return name || message || null;
+}
+
+export function resolvePayPalPayoutItemOutcome(
+  transactionStatus: string | null | undefined,
+  batchStatus?: string | null,
+  itemError?: string | null
+): {
+  status: 'SUCCESS' | 'FAILED' | 'PROCESSING';
+  orderPayoutStatus: 'PAID_OUT' | 'READY_FOR_PAYOUT' | 'PROCESSING';
+  failureReason: string | null;
+} {
+  const normalizedItem = String(transactionStatus || '').trim().toUpperCase();
+  const normalizedBatch = String(batchStatus || '').trim().toUpperCase();
+  const cleanError = itemError ? String(itemError).trim() : null;
+
+  if (PAYPAL_PAYOUT_FAILED_STATUSES.has(normalizedItem) || (!normalizedItem && cleanError)) {
+    return {
+      status: 'FAILED',
+      orderPayoutStatus: 'READY_FOR_PAYOUT',
+      failureReason: cleanError || `PayPal item status: ${normalizedItem || 'FAILED'}`,
+    };
+  }
+  if (normalizedItem === 'SUCCESS') {
+    return {
+      status: 'SUCCESS',
+      orderPayoutStatus: 'PAID_OUT',
+      failureReason: null,
+    };
+  }
+  if (!normalizedItem && normalizedBatch === 'SUCCESS' && !cleanError) {
+    return {
+      status: 'SUCCESS',
+      orderPayoutStatus: 'PAID_OUT',
+      failureReason: null,
+    };
+  }
+  return {
+    status: 'PROCESSING',
+    orderPayoutStatus: 'PROCESSING',
+    failureReason: normalizedItem === 'UNCLAIMED'
+      ? cleanError || 'Chờ người nhận xác nhận tài khoản PayPal (UNCLAIMED).'
+      : null,
+  };
+}
+
+export function evaluateOrderPayoutEligibility(
+  order: any,
+  shop: { status?: string | null; paypal_payout_email?: string | null } | null,
+  holdDays = env.PAYPAL_HOLD_DAYS
+): { eligible: boolean; reason: string | null; eligibleAt: string | null } {
+  if (order.payment_status !== 'paid') {
+    return { eligible: false, reason: 'Chưa xác nhận thanh toán PayPal', eligibleAt: null };
+  }
+  if (order.status === 'cancelled') {
+    return { eligible: false, reason: 'Đơn hàng đã bị hủy', eligibleAt: null };
+  }
+  if (order.status !== 'completed') {
+    return { eligible: false, reason: 'Đơn hàng chưa hoàn tất giao', eligibleAt: null };
+  }
+  if (order.payout_status === 'PAID_OUT' || order.payout_status === 'PROCESSING') {
+    return { eligible: false, reason: `Đơn đang ở trạng thái ${order.payout_status}`, eligibleAt: null };
+  }
+  if (!shop || shop.status !== 'APPROVED') {
+    return { eligible: false, reason: 'Shop chưa ở trạng thái APPROVED', eligibleAt: null };
+  }
+  const email = String(shop.paypal_payout_email || '').trim();
+  if (!email || !email.includes('@')) {
+    return { eligible: false, reason: 'Shop chưa cấu hình Email PayPal nhận tiền', eligibleAt: null };
+  }
+  const completedRef = order.completed_at || order.updated_at || order.created_at;
+  const completedMs = completedRef ? new Date(completedRef).getTime() : Date.now();
+  const safeHoldDays = Math.max(0, Number(holdDays) || 0);
+  const eligibleMs = completedMs + safeHoldDays * 86_400_000;
+  const eligibleAt = new Date(eligibleMs).toISOString();
+  if (safeHoldDays > 0 && Date.now() < eligibleMs) {
+    return {
+      eligible: false,
+      reason: `Đang trong thời gian giữ tiền đối soát (${safeHoldDays} ngày)`,
+      eligibleAt,
+    };
+  }
+  return { eligible: true, reason: null, eligibleAt };
+}
 
 const OFFER_COST_MAP: Record<string, number> = {
   FITMEMBER50: 60,
@@ -205,13 +359,18 @@ export const commerceRepository = {
 
   async listOrdersForActor(actor: { sub: string; role: string }) {
     await ensureCommerceTablesAndSeed();
-    if (actor.role === 'ADMIN') {
-      return query(
-        `SELECT id, customer_id, customer_name, recipient, items,
+    const orderCols = `id, customer_id, customer_name, recipient, items,
                 subtotal, shipping_fee, discount_amount, total_amount,
                 payment_method, payment_status, status, store_name, shop_id,
                 has_bespoke_items, measurement_snapshot,
-                estimated_delivery, created_at, updated_at
+                payment_group_id, paypal_order_id, paypal_capture_id,
+                exchange_rate_vnd, paid_amount_usd::float, paypal_fee_usd::float,
+                platform_fee_rate::float, completed_at, payout_status,
+                estimated_delivery, created_at, updated_at`;
+
+    if (actor.role === 'ADMIN') {
+      return query(
+        `SELECT ${orderCols}
          FROM orders
          ORDER BY created_at DESC`
       );
@@ -225,11 +384,7 @@ export const commerceRepository = {
       const shop = shopRows[0];
       if (!shop) {
         return query(
-          `SELECT id, customer_id, customer_name, recipient, items,
-                  subtotal, shipping_fee, discount_amount, total_amount,
-                  payment_method, payment_status, status, store_name, shop_id,
-                  has_bespoke_items, measurement_snapshot,
-                  estimated_delivery, created_at, updated_at
+          `SELECT ${orderCols}
            FROM orders
            WHERE customer_id = $1
            ORDER BY created_at DESC`,
@@ -238,11 +393,7 @@ export const commerceRepository = {
       }
 
       return query(
-        `SELECT id, customer_id, customer_name, recipient, items,
-                subtotal, shipping_fee, discount_amount, total_amount,
-                payment_method, payment_status, status, store_name, shop_id,
-                has_bespoke_items, measurement_snapshot,
-                estimated_delivery, created_at, updated_at
+        `SELECT ${orderCols}
          FROM orders
          WHERE shop_id = $1
             OR LOWER(COALESCE(store_name, '')) = LOWER($2)
@@ -256,16 +407,292 @@ export const commerceRepository = {
     }
 
     return query(
-      `SELECT id, customer_id, customer_name, recipient, items,
-              subtotal, shipping_fee, discount_amount, total_amount,
-              payment_method, payment_status, status, store_name, shop_id,
-              has_bespoke_items, measurement_snapshot,
-              estimated_delivery, created_at, updated_at
+      `SELECT ${orderCols}
        FROM orders
        WHERE customer_id = $1
        ORDER BY created_at DESC`,
       [actor.sub]
     );
+  },
+
+  async insertValidatedSubOrder(
+    client: any,
+    order: {
+      id: string;
+      customer_id: string;
+      customer_name: string;
+      recipient: any;
+      items: any[];
+      coupon_code?: string;
+      store_name: string;
+      estimated_delivery: string;
+      measurement_snapshot?: any;
+      payment_group_id?: string | null;
+      paypal_order_id?: string | null;
+      exchange_rate_vnd?: number;
+      platform_fee_rate?: number;
+    }
+  ) {
+    if (!Array.isArray(order.items) || order.items.length === 0) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Đơn hàng phải có ít nhất 1 sản phẩm.');
+    }
+
+    let hasBespoke = false;
+    let resolvedShopId: string | null = null;
+    let resolvedStoreName = order.store_name || 'FitVision Atelier';
+    let computedSubtotal = 0;
+    const distinctShopKeys = new Set<string>();
+    const normalizedItems: any[] = [];
+
+    for (const item of order.items) {
+      const productId = item?.product_id || item?.product?.id;
+      const qty = Math.max(1, Math.floor(Number(item?.quantity) || 1));
+      if (!productId) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Thiếu mã sản phẩm trong đơn hàng.');
+      }
+
+      const prodRes = await client.query(
+        `SELECT id, name, price, sale_price, variants, is_bespoke, is_hidden, shop_id, brand_name
+         FROM products
+         WHERE id = $1
+         FOR UPDATE`,
+        [productId]
+      );
+
+      const dbProd = prodRes.rows[0];
+      if (!dbProd) {
+        throw new AppError(
+          404,
+          ErrorCode.RESOURCE_NOT_FOUND,
+          `Sản phẩm "${item?.product?.name || productId}" không tồn tại trong hệ thống.`
+        );
+      }
+      if (dbProd.is_hidden) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_FAILED,
+          `Sản phẩm "${dbProd.name}" hiện đang tạm ẩn hoặc ngừng kinh doanh.`
+        );
+      }
+
+      const shopKey = dbProd.shop_id ? `id:${dbProd.shop_id}` : `brand:${String(dbProd.brand_name || '').trim().toLowerCase()}`;
+      distinctShopKeys.add(shopKey);
+      if (distinctShopKeys.size > 1) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_FAILED,
+          'Mỗi đơn hàng chỉ áp dụng cho sản phẩm thuộc cùng một gian hàng. Vui lòng tách đơn riêng cho từng Shop.'
+        );
+      }
+
+      if (dbProd.is_bespoke || item?.product?.is_bespoke) {
+        hasBespoke = true;
+      }
+      if (!resolvedShopId && dbProd.shop_id) {
+        resolvedShopId = dbProd.shop_id;
+      }
+      if (dbProd.brand_name) {
+        resolvedStoreName = dbProd.brand_name;
+      }
+
+      const shopCheck = await client.query(
+        `SELECT id, shop_name, status, COALESCE(operational_mode, 'ACTIVE') AS operational_mode, vacation_note
+         FROM shops
+         WHERE id = $1 OR LOWER(shop_name) = LOWER($2)
+         LIMIT 1`,
+        [dbProd.shop_id, dbProd.brand_name]
+      );
+      const ownerShop = shopCheck.rows[0];
+      if (ownerShop) {
+        if (!resolvedShopId) resolvedShopId = ownerShop.id;
+        if (ownerShop.status === 'SUSPENDED') {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Gian hàng "${ownerShop.shop_name}" hiện đang tạm ngưng hoạt động.`);
+        }
+        if (ownerShop.status !== 'APPROVED') {
+          throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Gian hàng "${ownerShop.shop_name}" chưa hoàn tất phê duyệt để nhận đơn mới.`);
+        }
+        if (ownerShop.operational_mode === 'VACATION') {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            ownerShop.vacation_note
+              ? `Gian hàng "${ownerShop.shop_name}" đang ở chế độ Tạm nghỉ: ${ownerShop.vacation_note}`
+              : `Gian hàng "${ownerShop.shop_name}" hiện đang tạm nghỉ nhận đơn mới.`
+          );
+        }
+      }
+
+      const variants = Array.isArray(dbProd.variants) ? [...dbProd.variants] : [];
+      const targetVariantId = item?.variant_id || item?.variant?.id;
+      const targetSku = item?.sku || item?.variant?.sku;
+      const targetSize = item?.size_label || item?.variant?.size_label;
+
+      const vIdx = variants.findIndex(
+        (v: any) =>
+          (targetVariantId && v.id === targetVariantId) ||
+          (targetSku && v.sku === targetSku) ||
+          (targetSize && v.size_label === targetSize)
+      );
+
+      if (variants.length > 0 && vIdx < 0) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Biến thể/size của sản phẩm "${dbProd.name}" không hợp lệ.`);
+      }
+
+      let matchedVariant = item?.variant || {};
+      if (vIdx >= 0) {
+        const currentStock = Number(variants[vIdx].stock ?? 0);
+        if (currentStock < qty) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_FAILED,
+            `Sản phẩm "${dbProd.name}" (Size ${variants[vIdx].size_label}) chỉ còn ${currentStock} chiếc trong kho.`
+          );
+        }
+        variants[vIdx] = { ...variants[vIdx], stock: currentStock - qty };
+        matchedVariant = variants[vIdx];
+        await client.query(`UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`, [
+          dbProd.id,
+          JSON.stringify(variants),
+        ]);
+      }
+
+      const authoritativePrice = Number(dbProd.sale_price ?? dbProd.price ?? 0);
+      computedSubtotal += authoritativePrice * qty;
+      normalizedItems.push({
+        ...item,
+        quantity: qty,
+        variant: matchedVariant,
+        product: {
+          ...(item?.product || {}),
+          id: dbProd.id,
+          name: dbProd.name,
+          brand_name: dbProd.brand_name,
+          shop_id: dbProd.shop_id ?? item?.product?.shop_id ?? resolvedShopId ?? null,
+          price: Number(dbProd.price),
+          sale_price: dbProd.sale_price != null ? Number(dbProd.sale_price) : undefined,
+          is_bespoke: Boolean(dbProd.is_bespoke || item?.product?.is_bespoke),
+        },
+      });
+    }
+
+    const wallet = await this.getMembershipWallet(order.customer_id);
+    const cleanCoupon = order.coupon_code ? order.coupon_code.trim().toUpperCase() : '';
+    let computedDiscount = 0;
+
+    if (cleanCoupon) {
+      const voucherRes = await client.query(
+        `SELECT code, discount_type, discount_value, is_active FROM vouchers WHERE UPPER(code) = UPPER($1) LIMIT 1`,
+        [cleanCoupon]
+      );
+      const voucher = voucherRes.rows[0];
+      if (!voucher || !voucher.is_active) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Mã giảm giá "${cleanCoupon}" không hợp lệ hoặc đã hết hạn.`);
+      }
+      if (OFFER_COST_MAP[cleanCoupon] && !wallet.unlockedCodes.includes(cleanCoupon)) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Mã ${cleanCoupon} cần đổi bằng FitPoints trong mục Hội Viên trước khi sử dụng.`);
+      }
+      if (cleanCoupon === 'FITSILVER5' && wallet.tierId === 'member') {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã FITSILVER5 chỉ áp dụng từ hạng Hội Viên Bạc trở lên.');
+      }
+      if (cleanCoupon === 'FITVISION50' && computedSubtotal < 600_000) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã FITVISION50 yêu cầu đơn hàng tối thiểu 600.000₫.');
+      }
+      if (cleanCoupon === 'TAILOR100' && !hasBespoke) {
+        throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã TAILOR100 chỉ áp dụng cho đơn có sản phẩm May đo Bespoke.');
+      }
+      const val = Number(voucher.discount_value || 0);
+      computedDiscount =
+        voucher.discount_type === 'percent'
+          ? Math.min(computedSubtotal, Math.round((computedSubtotal * Math.min(100, Math.max(0, val))) / 100))
+          : Math.min(computedSubtotal, Math.max(0, val));
+    }
+
+    const isFreeShipping =
+      computedSubtotal >= FREESHIP_THRESHOLD_VND ||
+      wallet.tierId === 'gold' ||
+      wallet.tierId === 'vip' ||
+      cleanCoupon === 'FREESHIP3D';
+    const computedShippingFee = isFreeShipping ? 0 : STANDARD_SHIPPING_FEE_VND;
+    const computedTotal = Math.max(0, computedSubtotal - computedDiscount + computedShippingFee);
+
+    let finalSnapshot = order.measurement_snapshot ?? null;
+    if (hasBespoke && !finalSnapshot) {
+      const snapRes = await client.query(
+        `SELECT m.chest_circ_cm, m.waist_circ_cm, m.hip_circ_cm,
+                m.shoulder_breadth_cm, m.arm_length_cm, m.inseam_cm,
+                m.bicep_circ_cm, m.wrist_circ_cm, m.thigh_circ_cm, m.calf_circ_cm, m.ankle_circ_cm,
+                m.source, m.created_at, b.stature_cm, b.weight_kg, b.gender, b.calculated_bmi
+         FROM measurements m
+         JOIN biometric_inputs b ON b.id = m.input_id
+         WHERE m.user_id::text = $1
+         ORDER BY m.created_at DESC
+         LIMIT 1`,
+        [order.customer_id]
+      ).catch(() => ({ rows: [] as any[] }));
+
+      if (snapRes.rows.length > 0) {
+        const r = snapRes.rows[0];
+        finalSnapshot = {
+          stature_cm: Number(r.stature_cm),
+          weight_kg: Number(r.weight_kg),
+          gender: r.gender,
+          calculated_bmi: Number(r.calculated_bmi),
+          chest_circ_cm: Number(r.chest_circ_cm),
+          waist_circ_cm: Number(r.waist_circ_cm),
+          hip_circ_cm: Number(r.hip_circ_cm),
+          shoulder_breadth_cm: r.shoulder_breadth_cm != null ? Number(r.shoulder_breadth_cm) : null,
+          arm_length_cm: r.arm_length_cm != null ? Number(r.arm_length_cm) : null,
+          inseam_cm: r.inseam_cm != null ? Number(r.inseam_cm) : null,
+          bicep_circ_cm: r.bicep_circ_cm != null ? Number(r.bicep_circ_cm) : null,
+          wrist_circ_cm: r.wrist_circ_cm != null ? Number(r.wrist_circ_cm) : null,
+          thigh_circ_cm: r.thigh_circ_cm != null ? Number(r.thigh_circ_cm) : null,
+          calf_circ_cm: r.calf_circ_cm != null ? Number(r.calf_circ_cm) : null,
+          ankle_circ_cm: r.ankle_circ_cm != null ? Number(r.ankle_circ_cm) : null,
+          source: r.source || 'scan',
+          captured_at: new Date(r.created_at).toISOString(),
+        };
+      }
+    }
+
+    const rateVnd = order.exchange_rate_vnd || env.PAYPAL_VND_RATE;
+    const feeRate = order.platform_fee_rate ?? env.PAYPAL_PLATFORM_FEE_RATE;
+    const rows = await client.query(
+      `INSERT INTO orders (
+         id, customer_id, customer_name, recipient, items,
+         subtotal, shipping_fee, discount_amount, total_amount,
+         payment_method, payment_status, status, store_name, shop_id,
+         has_bespoke_items, measurement_snapshot, payment_group_id, paypal_order_id,
+         exchange_rate_vnd, platform_fee_rate, payout_status, estimated_delivery
+       ) VALUES (
+         $1,$2,$3,$4::jsonb,$5::jsonb,
+         $6,$7,$8,$9,
+         'paypal','unpaid','pending',$10,$11,
+         $12,$13::jsonb,$14,$15,
+         $16,$17,'PENDING_DELIVERY',$18
+       )
+       RETURNING *`,
+      [
+        order.id,
+        order.customer_id,
+        order.customer_name,
+        JSON.stringify(order.recipient),
+        JSON.stringify(normalizedItems),
+        computedSubtotal,
+        computedShippingFee,
+        computedDiscount,
+        computedTotal,
+        resolvedStoreName,
+        resolvedShopId,
+        hasBespoke,
+        finalSnapshot ? JSON.stringify(finalSnapshot) : null,
+        order.payment_group_id || null,
+        order.paypal_order_id || null,
+        rateVnd,
+        feeRate,
+        order.estimated_delivery,
+      ]
+    );
+    return rows.rows[0];
   },
 
   async createOrder(order: {
@@ -287,312 +714,263 @@ export const commerceRepository = {
     measurement_snapshot?: any;
   }) {
     await ensureCommerceTablesAndSeed();
-    if (!Array.isArray(order.items) || order.items.length === 0) {
-      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Đơn hàng phải có ít nhất 1 sản phẩm.');
-    }
-
     const client = await pool.connect();
-    let hasBespoke = false;
-    let resolvedShopId: string | null = null;
-    let resolvedStoreName = order.store_name || 'FitVision Atelier';
-    let computedSubtotal = 0;
-    const distinctShopKeys = new Set<string>();
-    const normalizedItems: any[] = [];
-
     try {
       await client.query('BEGIN');
-
-      // 1. Validate & deduct variant stock atomically for every item, recomputing authoritative price
-      for (const item of order.items) {
-        const productId = item?.product?.id;
-        const qty = Math.max(1, Math.floor(Number(item?.quantity) || 1));
-        if (!productId) {
-          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Thiếu mã sản phẩm trong đơn hàng.');
-        }
-
-        const prodRes = await client.query<{
-          id: string;
-          name: string;
-          price: number;
-          sale_price: number | null;
-          variants: any[];
-          is_bespoke: boolean;
-          is_hidden: boolean;
-          shop_id: string | null;
-          brand_name: string;
-        }>(
-          `SELECT id, name, price, sale_price, variants, is_bespoke, is_hidden, shop_id, brand_name
-           FROM products
-           WHERE id = $1
-           FOR UPDATE`,
-          [productId]
-        );
-
-        const dbProd = prodRes.rows[0];
-        if (!dbProd) {
-          throw new AppError(
-            404,
-            ErrorCode.RESOURCE_NOT_FOUND,
-            `Sản phẩm "${item?.product?.name || productId}" không tồn tại trong hệ thống.`
-          );
-        }
-        if (dbProd.is_hidden) {
-          throw new AppError(
-            400,
-            ErrorCode.VALIDATION_FAILED,
-            `Sản phẩm "${dbProd.name}" hiện đang tạm ẩn hoặc ngừng kinh doanh.`
-          );
-        }
-
-        const shopKey = dbProd.shop_id ? `id:${dbProd.shop_id}` : `brand:${String(dbProd.brand_name || '').trim().toLowerCase()}`;
-        distinctShopKeys.add(shopKey);
-        if (distinctShopKeys.size > 1) {
-          throw new AppError(
-            400,
-            ErrorCode.VALIDATION_FAILED,
-            'Mỗi đơn hàng chỉ áp dụng cho sản phẩm thuộc cùng một gian hàng. Vui lòng tách đơn riêng cho từng Shop.'
-          );
-        }
-
-        if (dbProd.is_bespoke || item?.product?.is_bespoke) {
-          hasBespoke = true;
-        }
-        if (!resolvedShopId && dbProd.shop_id) {
-          resolvedShopId = dbProd.shop_id;
-        }
-        if (dbProd.brand_name) {
-          resolvedStoreName = dbProd.brand_name;
-        }
-
-        // Check if target Shop is Approved and NOT in Vacation Mode
-        const shopCheck = await client.query<{
-          id: string;
-          shop_name: string;
-          status: string;
-          operational_mode: string;
-          vacation_note: string | null;
-        }>(
-          `SELECT id, shop_name, status, COALESCE(operational_mode, 'ACTIVE') AS operational_mode, vacation_note
-           FROM shops
-           WHERE id = $1 OR LOWER(shop_name) = LOWER($2)
-           LIMIT 1`,
-          [dbProd.shop_id, dbProd.brand_name]
-        );
-        const ownerShop = shopCheck.rows[0];
-        if (ownerShop) {
-          if (!resolvedShopId) resolvedShopId = ownerShop.id;
-          if (ownerShop.status === 'SUSPENDED') {
-            throw new AppError(
-              400,
-              ErrorCode.VALIDATION_FAILED,
-              `Gian hàng "${ownerShop.shop_name}" hiện đang tạm ngưng hoạt động.`
-            );
-          }
-          if (ownerShop.status !== 'APPROVED') {
-            throw new AppError(
-              400,
-              ErrorCode.VALIDATION_FAILED,
-              `Gian hàng "${ownerShop.shop_name}" chưa hoàn tất phê duyệt để nhận đơn mới.`
-            );
-          }
-          if (ownerShop.operational_mode === 'VACATION') {
-            throw new AppError(
-              400,
-              ErrorCode.VALIDATION_FAILED,
-              ownerShop.vacation_note
-                ? `Gian hàng "${ownerShop.shop_name}" đang ở chế độ Tạm nghỉ: ${ownerShop.vacation_note}`
-                : `Gian hàng "${ownerShop.shop_name}" hiện đang tạm nghỉ nhận đơn mới.`
-            );
-          }
-        }
-
-        const variants = Array.isArray(dbProd.variants) ? [...dbProd.variants] : [];
-        const targetVariantId = item?.variant?.id;
-        const targetSku = item?.variant?.sku;
-        const targetSize = item?.variant?.size_label;
-
-        const vIdx = variants.findIndex(
-          (v: any) =>
-            (targetVariantId && v.id === targetVariantId) ||
-            (targetSku && v.sku === targetSku) ||
-            (targetSize && v.size_label === targetSize)
-        );
-
-        if (variants.length > 0 && vIdx < 0) {
-          throw new AppError(
-            400,
-            ErrorCode.VALIDATION_FAILED,
-            `Biến thể/size của sản phẩm "${dbProd.name}" không hợp lệ.`
-          );
-        }
-
-        let matchedVariant = item?.variant || {};
-        if (vIdx >= 0) {
-          const currentStock = Number(variants[vIdx].stock ?? 0);
-          if (currentStock < qty) {
-            throw new AppError(
-              400,
-              ErrorCode.VALIDATION_FAILED,
-              `Sản phẩm "${dbProd.name}" (Size ${variants[vIdx].size_label}) chỉ còn ${currentStock} chiếc trong kho.`
-            );
-          }
-          variants[vIdx] = {
-            ...variants[vIdx],
-            stock: currentStock - qty,
-          };
-          matchedVariant = variants[vIdx];
-          await client.query(
-            `UPDATE products SET variants = $2::jsonb, updated_at = NOW() WHERE id = $1`,
-            [dbProd.id, JSON.stringify(variants)]
-          );
-        }
-
-        const authoritativePrice = Number(dbProd.sale_price ?? dbProd.price ?? 0);
-        computedSubtotal += authoritativePrice * qty;
-        normalizedItems.push({
-          ...item,
-          quantity: qty,
-          variant: matchedVariant,
-          product: {
-            ...(item?.product || {}),
-            id: dbProd.id,
-            name: dbProd.name,
-            brand_name: dbProd.brand_name,
-            shop_id: dbProd.shop_id ?? item?.product?.shop_id ?? null,
-            price: Number(dbProd.price),
-            sale_price: dbProd.sale_price != null ? Number(dbProd.sale_price) : undefined,
-            is_bespoke: Boolean(dbProd.is_bespoke || item?.product?.is_bespoke),
-          },
-        });
-      }
-
-      // 2. Recompute voucher discount & shipping fee strictly on server
-      const wallet = await this.getMembershipWallet(order.customer_id);
-      const cleanCoupon = order.coupon_code ? order.coupon_code.trim().toUpperCase() : '';
-      let computedDiscount = 0;
-
-      if (cleanCoupon) {
-        const voucherRes = await client.query<{
-          code: string;
-          discount_type: 'fixed' | 'percent';
-          discount_value: number;
-          is_active: boolean;
-        }>(
-          `SELECT code, discount_type, discount_value, is_active
-           FROM vouchers
-           WHERE UPPER(code) = UPPER($1)
-           LIMIT 1`,
-          [cleanCoupon]
-        );
-        const voucher = voucherRes.rows[0];
-        if (!voucher || !voucher.is_active) {
-          throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Mã giảm giá "${cleanCoupon}" không hợp lệ hoặc đã hết hạn.`);
-        }
-        if (OFFER_COST_MAP[cleanCoupon] && !wallet.unlockedCodes.includes(cleanCoupon)) {
-          throw new AppError(400, ErrorCode.VALIDATION_FAILED, `Mã ${cleanCoupon} cần đổi bằng FitPoints trong mục Hội Viên trước khi sử dụng.`);
-        }
-        if (cleanCoupon === 'FITSILVER5' && wallet.tierId === 'member') {
-          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã FITSILVER5 chỉ áp dụng từ hạng Hội Viên Bạc trở lên.');
-        }
-        if (cleanCoupon === 'FITVISION50' && computedSubtotal < 600_000) {
-          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã FITVISION50 yêu cầu đơn hàng tối thiểu 600.000₫.');
-        }
-        if (cleanCoupon === 'TAILOR100' && !hasBespoke) {
-          throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Mã TAILOR100 chỉ áp dụng cho đơn có sản phẩm May đo Bespoke.');
-        }
-
-        const val = Number(voucher.discount_value || 0);
-        computedDiscount =
-          voucher.discount_type === 'percent'
-            ? Math.min(computedSubtotal, Math.round((computedSubtotal * Math.min(100, Math.max(0, val))) / 100))
-            : Math.min(computedSubtotal, Math.max(0, val));
-      }
-
-      const isFreeShipping =
-        computedSubtotal >= FREESHIP_THRESHOLD_VND ||
-        wallet.tierId === 'gold' ||
-        wallet.tierId === 'vip' ||
-        cleanCoupon === 'FREESHIP3D';
-      const computedShippingFee = isFreeShipping ? 0 : STANDARD_SHIPPING_FEE_VND;
-      const computedTotal = Math.max(0, computedSubtotal - computedDiscount + computedShippingFee);
-
-      // 3. Auto-attach latest 13-metric 3D snapshot from PostgreSQL when placing bespoke order
-      let finalSnapshot = order.measurement_snapshot ?? null;
-      if (hasBespoke && !finalSnapshot) {
-        const snapRes = await client.query(
-          `SELECT
-             m.chest_circ_cm, m.waist_circ_cm, m.hip_circ_cm,
-             m.shoulder_breadth_cm, m.arm_length_cm, m.inseam_cm,
-             m.bicep_circ_cm, m.wrist_circ_cm, m.thigh_circ_cm, m.calf_circ_cm, m.ankle_circ_cm,
-             m.source, m.created_at,
-             b.stature_cm, b.weight_kg, b.gender, b.calculated_bmi
-           FROM measurements m
-           JOIN biometric_inputs b ON b.id = m.input_id
-           WHERE m.user_id::text = $1
-           ORDER BY m.created_at DESC
-           LIMIT 1`,
-          [order.customer_id]
-        ).catch(() => ({ rows: [] as any[] }));
-
-        if (snapRes.rows.length > 0) {
-          const r = snapRes.rows[0];
-          finalSnapshot = {
-            stature_cm: Number(r.stature_cm),
-            weight_kg: Number(r.weight_kg),
-            gender: r.gender,
-            calculated_bmi: Number(r.calculated_bmi),
-            chest_circ_cm: Number(r.chest_circ_cm),
-            waist_circ_cm: Number(r.waist_circ_cm),
-            hip_circ_cm: Number(r.hip_circ_cm),
-            shoulder_breadth_cm: r.shoulder_breadth_cm != null ? Number(r.shoulder_breadth_cm) : null,
-            arm_length_cm: r.arm_length_cm != null ? Number(r.arm_length_cm) : null,
-            inseam_cm: r.inseam_cm != null ? Number(r.inseam_cm) : null,
-            bicep_circ_cm: r.bicep_circ_cm != null ? Number(r.bicep_circ_cm) : null,
-            wrist_circ_cm: r.wrist_circ_cm != null ? Number(r.wrist_circ_cm) : null,
-            thigh_circ_cm: r.thigh_circ_cm != null ? Number(r.thigh_circ_cm) : null,
-            calf_circ_cm: r.calf_circ_cm != null ? Number(r.calf_circ_cm) : null,
-            ankle_circ_cm: r.ankle_circ_cm != null ? Number(r.ankle_circ_cm) : null,
-            source: r.source || 'scan',
-            captured_at: new Date(r.created_at).toISOString(),
-          };
-        }
-      }
-
-      const rows = await client.query(
-        `INSERT INTO orders (
-           id, customer_id, customer_name, recipient, items,
-           subtotal, shipping_fee, discount_amount, total_amount,
-           payment_method, payment_status, status, store_name, shop_id,
-           has_bespoke_items, measurement_snapshot, estimated_delivery
-         ) VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7,$8,$9,$10,'unpaid','pending',$11,$12,$13,$14::jsonb,$15)
-         RETURNING *`,
-        [
-          order.id,
-          order.customer_id,
-          order.customer_name,
-          JSON.stringify(order.recipient),
-          JSON.stringify(normalizedItems),
-          computedSubtotal,
-          computedShippingFee,
-          computedDiscount,
-          computedTotal,
-          order.payment_method,
-          resolvedStoreName,
-          resolvedShopId,
-          hasBespoke,
-          finalSnapshot ? JSON.stringify(finalSnapshot) : null,
-          order.estimated_delivery,
-        ]
-      );
-
+      const created = await this.insertValidatedSubOrder(client, order);
       await client.query('COMMIT');
-      return rows.rows[0];
+      return created;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
     } finally {
       client.release();
     }
+  },
+
+  async createPayPalCheckoutGroup(input: {
+    customerId: string;
+    customerName: string;
+    recipient: any;
+    items: any[];
+    couponCode?: string;
+    estimatedDelivery?: string;
+    measurementSnapshot?: any;
+  }) {
+    await ensureCommerceTablesAndSeed();
+    if (!Array.isArray(input.items) || input.items.length === 0) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Giỏ hàng thanh toán đang trống.');
+    }
+
+    // Lookup authoritative shop ownership from DB so multi-shop splitting works even with compact { product_id, size_label, quantity } payloads
+    const requestedProductIds = Array.from(
+      new Set(
+        input.items
+          .map((item) => item?.product_id || item?.product?.id)
+          .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+      )
+    );
+    const prodMetaRows =
+      requestedProductIds.length > 0
+        ? await query<{ id: string; shop_id: string | null; brand_name: string | null }>(
+            `SELECT id, shop_id, brand_name FROM products WHERE id = ANY($1::varchar[])`,
+            [requestedProductIds]
+          )
+        : [];
+    const prodMetaById = new Map(prodMetaRows.map((p) => [p.id, p]));
+
+    // Group cart items per Shop so multi-shop purchases automatically produce 1 PayPal checkout + N independent Sub-Orders
+    const groupedMap = new Map<string, { storeName: string; items: any[] }>();
+    for (const item of input.items) {
+      const pid = item?.product_id || item?.product?.id;
+      const dbMeta = pid ? prodMetaById.get(pid) : undefined;
+      const resolvedShopId = dbMeta?.shop_id || item?.product?.shop_id || null;
+      const resolvedBrand = String(
+        dbMeta?.brand_name || item?.product?.brand_name || 'FitVision Atelier'
+      ).trim();
+      const shopKey = resolvedShopId
+        ? `shop:${resolvedShopId}`
+        : `brand:${resolvedBrand.toLowerCase()}`;
+      const existingGroup = groupedMap.get(shopKey);
+      if (existingGroup) {
+        existingGroup.items.push(item);
+      } else {
+        groupedMap.set(shopKey, {
+          storeName: resolvedBrand || 'FitVision Atelier',
+          items: [item],
+        });
+      }
+    }
+
+    const groups = Array.from(groupedMap.values());
+    const paymentGroupId = `FV3DPAY-${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 89)}`;
+    const exchangeRateVnd = env.PAYPAL_VND_RATE;
+    const platformFeeRate = env.PAYPAL_PLATFORM_FEE_RATE;
+    const estDelivery =
+      input.estimatedDelivery ||
+      new Date(Date.now() + 5 * 86_400_000).toLocaleDateString('vi-VN');
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const createdSubOrders: any[] = [];
+
+      for (let i = 0; i < groups.length; i++) {
+        const g = groups[i];
+        const subOrderId = `FV3D-${Date.now().toString().slice(-5)}${i}${Math.floor(10 + Math.random() * 89)}`;
+        const created = await this.insertValidatedSubOrder(client, {
+          id: subOrderId,
+          customer_id: input.customerId,
+          customer_name: input.customerName,
+          recipient: input.recipient,
+          items: g.items,
+          coupon_code: i === 0 ? input.couponCode : undefined,
+          store_name: g.storeName,
+          estimated_delivery: estDelivery,
+          measurement_snapshot: input.measurementSnapshot ?? null,
+          payment_group_id: paymentGroupId,
+          exchange_rate_vnd: exchangeRateVnd,
+          platform_fee_rate: platformFeeRate,
+        });
+        createdSubOrders.push(created);
+      }
+
+      const totalVnd = createdSubOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+      const totalUsd = convertVndToUsd(totalVnd, exchangeRateVnd);
+      const storeNamesSummary = createdSubOrders.map((o) => o.store_name).join(', ');
+
+      const paypalOrder = await paypalService.createOrder({
+        referenceId: paymentGroupId,
+        totalUsd,
+        description: `FitVision3D (${createdSubOrders.length} don): ${storeNamesSummary}`,
+      });
+
+      await client.query(
+        `UPDATE orders SET paypal_order_id = $2, updated_at = NOW() WHERE payment_group_id = $1`,
+        [paymentGroupId, paypalOrder.id]
+      );
+
+      await client.query('COMMIT');
+      const updatedOrders = createdSubOrders.map((o) => ({
+        ...o,
+        paypal_order_id: paypalOrder.id,
+      }));
+
+      return {
+        paypalOrderId: paypalOrder.id,
+        approveUrl: paypalOrder.approveUrl,
+        paymentGroupId,
+        totalVnd,
+        totalUsd,
+        exchangeRateVnd,
+        orders: updatedOrders,
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  async finalizePayPalOrdersAsPaid(
+    paypalOrderId: string,
+    captureId: string,
+    totalPaypalFeeUsd: number
+  ) {
+    const orders = await query<any>(
+      `SELECT * FROM orders WHERE paypal_order_id = $1 ORDER BY created_at ASC`,
+      [paypalOrderId]
+    );
+    if (orders.length === 0) return [];
+
+    const totalGroupVnd = orders.reduce((s, o) => s + Math.max(0, Number(o.total_amount || 0)), 0);
+    let remainingFeeUsd = Math.max(0, Math.round(totalPaypalFeeUsd * 100) / 100);
+    const updatedList: any[] = [];
+
+    for (let idx = 0; idx < orders.length; idx++) {
+      const ord = orders[idx];
+      if (ord.payment_status === 'paid') {
+        updatedList.push(ord);
+        continue;
+      }
+      const rate = Number(ord.exchange_rate_vnd || env.PAYPAL_VND_RATE);
+      const orderUsd = convertVndToUsd(Number(ord.total_amount || 0), rate);
+
+      let shareFeeUsd = 0;
+      if (idx === orders.length - 1) {
+        shareFeeUsd = Math.max(0, Math.round(remainingFeeUsd * 100) / 100);
+      } else if (totalGroupVnd > 0) {
+        shareFeeUsd = Math.round(totalPaypalFeeUsd * (Number(ord.total_amount || 0) / totalGroupVnd) * 100) / 100;
+        remainingFeeUsd = Math.max(0, remainingFeeUsd - shareFeeUsd);
+      }
+
+      const updRows = await query(
+        `UPDATE orders
+         SET payment_status = 'paid',
+             paypal_capture_id = $2,
+             paid_amount_usd = $3,
+             paypal_fee_usd = $4,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
+        [ord.id, captureId || null, orderUsd, shareFeeUsd]
+      );
+      const updated = updRows[0] || ord;
+      updatedList.push(updated);
+
+      if (updated?.customer_id && updated?.status !== 'cancelled') {
+        await this.awardOrderEarnPointsIfNeeded(updated);
+        await this.syncMembershipSpend(updated.customer_id);
+      }
+    }
+    return updatedList;
+  },
+
+  async capturePayPalOrderForActor(
+    paypalOrderId: string,
+    actor: { sub: string; role: string }
+  ) {
+    await ensureCommerceTablesAndSeed();
+    const orders = await query<any>(
+      `SELECT * FROM orders WHERE paypal_order_id = $1 ORDER BY created_at ASC`,
+      [paypalOrderId]
+    );
+    if (orders.length === 0) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy phiên thanh toán PayPal tương ứng.');
+    }
+    if (actor.role !== 'ADMIN' && orders[0].customer_id !== actor.sub) {
+      throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Bạn không có quyền xác nhận đơn hàng này.');
+    }
+    if (orders.every((o) => o.payment_status === 'paid')) {
+      return {
+        alreadyPaid: true,
+        paypalOrderId,
+        captureId: orders[0].paypal_capture_id || '',
+        orders,
+      };
+    }
+
+    const capture = await paypalService.captureOrder(paypalOrderId);
+    if (capture.status !== 'COMPLETED') {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        `Giao dịch PayPal chưa hoàn tất (trạng thái: ${capture.status}).`
+      );
+    }
+
+    const updatedOrders = await this.finalizePayPalOrdersAsPaid(
+      paypalOrderId,
+      capture.captureId,
+      capture.paypalFeeUsd
+    );
+
+    return {
+      alreadyPaid: false,
+      paypalOrderId,
+      captureId: capture.captureId,
+      grossUsd: capture.grossUsd,
+      paypalFeeUsd: capture.paypalFeeUsd,
+      payerEmail: capture.payerEmail,
+      orders: updatedOrders,
+    };
+  },
+
+  async cancelPendingPayPalGroup(paypalOrderId: string, actor: { sub: string; role: string }) {
+    await ensureCommerceTablesAndSeed();
+    const orders = await query<any>(
+      `SELECT * FROM orders WHERE paypal_order_id = $1 AND payment_status = 'unpaid' AND status <> 'cancelled'`,
+      [paypalOrderId]
+    );
+    const cancelledIds: string[] = [];
+    for (const o of orders) {
+      if (actor.role === 'ADMIN' || o.customer_id === actor.sub) {
+        await this.updateOrderStatus(o.id, 'cancelled', actor);
+        cancelledIds.push(o.id);
+      }
+    }
+    return { cancelledIds };
   },
 
   async updateOrderStatus(
@@ -639,6 +1017,18 @@ export const commerceRepository = {
         if (!ownsOrder) {
           throw new AppError(403, ErrorCode.FORBIDDEN_INSUFFICIENT_PERMISSIONS, 'Bạn không có quyền cập nhật đơn hàng của gian hàng khác.');
         }
+      }
+
+      // Enforce PayPal payment guard before tailoring/shipping/completed
+      if (
+        existing.payment_status !== 'paid' &&
+        ['confirmed', 'tailoring', 'shipping', 'completed'].includes(nextStatus)
+      ) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_FAILED,
+          'Đơn hàng chưa hoàn tất thanh toán PayPal nên chưa thể xác nhận hoặc cắt may/giao hàng.'
+        );
       }
 
       // Enforce forward-only order state machine
@@ -694,7 +1084,13 @@ export const commerceRepository = {
       }
 
       const updRes = await client.query(
-        `UPDATE orders SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
+        `UPDATE orders
+         SET status = $2::varchar,
+             completed_at = CASE WHEN $2::varchar = 'completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END,
+             payout_status = CASE WHEN $2::varchar = 'completed' AND payment_status = 'paid' AND COALESCE(payout_status, 'PENDING_DELIVERY') = 'PENDING_DELIVERY' THEN 'READY_FOR_PAYOUT' ELSE payout_status END,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
         [orderId, nextStatus]
       );
 
@@ -764,46 +1160,66 @@ export const commerceRepository = {
     );
   },
 
-  async confirmOrderPaidBySePayWebhook(params: {
-    content: string;
-    transferAmount: number;
-    referenceCode?: string;
-  }) {
+  async handlePayPalWebhookEvent(event: any) {
     await ensureCommerceTablesAndSeed();
-    const rawContent = String(params.content || '').toUpperCase();
-    const match = rawContent.match(/FV3D[- ]?(\d{4,8})/);
-    if (!match) {
-      return { matched: false as const, reason: 'ORDER_CODE_NOT_FOUND' };
+    const eventType = String(event?.event_type || '');
+    const resource = event?.resource || {};
+
+    if (eventType === 'PAYMENT.CAPTURE.COMPLETED') {
+      const paypalOrderId =
+        resource?.supplementary_data?.related_ids?.order_id || resource?.invoice_id || '';
+      const captureId = String(resource?.id || '');
+      const feeUsd = Number(resource?.seller_receivable_breakdown?.paypal_fee?.value ?? 0) || 0;
+      if (paypalOrderId) {
+        const orders = await this.finalizePayPalOrdersAsPaid(String(paypalOrderId), captureId, feeUsd);
+        return { handled: true, eventType, updatedOrdersCount: orders.length };
+      }
     }
-    const normalizedOrderId = `FV3D-${match[1]}`;
-    const existingRows = await query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [normalizedOrderId]);
-    const existing = existingRows[0];
-    if (!existing) {
-      return { matched: false as const, reason: 'ORDER_NOT_FOUND', orderId: normalizedOrderId };
+
+    if (
+      eventType === 'PAYMENT.PAYOUTS-ITEM.SUCCEEDED' ||
+      eventType === 'PAYMENT.PAYOUTS-ITEM.FAILED' ||
+      eventType === 'PAYMENT.PAYOUTS-ITEM.DENIED'
+    ) {
+      const batchId = String(resource?.payout_batch_id || '');
+      const itemId = String(resource?.payout_item_id || '');
+      const receiver = String(resource?.payout_item?.receiver || '').toLowerCase();
+      const succeeded = eventType === 'PAYMENT.PAYOUTS-ITEM.SUCCEEDED';
+      const webhookReason = succeeded
+        ? null
+        : extractPayPalErrorReason(resource?.errors) ||
+          `PayPal Webhook: ${eventType.replace('PAYMENT.PAYOUTS-ITEM.', '')}`;
+      const outcome = resolvePayPalPayoutItemOutcome(
+        succeeded ? 'SUCCESS' : eventType === 'PAYMENT.PAYOUTS-ITEM.DENIED' ? 'DENIED' : 'FAILED',
+        null,
+        webhookReason
+      );
+      if (batchId || itemId) {
+        const updPayouts = await query<any>(
+          `UPDATE shop_payouts
+           SET status = $3::varchar,
+               paypal_payout_item_id = COALESCE(NULLIF($2, ''), paypal_payout_item_id),
+               note = CASE WHEN $5::text IS NOT NULL THEN $5 ELSE note END,
+               paid_at = CASE WHEN $3::varchar = 'SUCCESS' THEN COALESCE(paid_at, NOW()) ELSE NULL END
+           WHERE (paypal_payout_batch_id = $1 OR ($2 <> '' AND paypal_payout_item_id = $2))
+             AND ($4 = '' OR LOWER(recipient_paypal_email) = $4)
+           RETURNING id, order_ids`,
+          [batchId, itemId, outcome.status, receiver, outcome.failureReason]
+        );
+        for (const pRow of updPayouts) {
+          const orderIds = Array.isArray(pRow.order_ids) ? pRow.order_ids.map(String) : [];
+          if (orderIds.length > 0) {
+            await query(
+              `UPDATE orders SET payout_status = $2::varchar, updated_at = NOW() WHERE id = ANY($1::varchar[])`,
+              [orderIds, outcome.orderPayoutStatus]
+            );
+          }
+        }
+        return { handled: true, eventType, batchId, newStatus: outcome.status };
+      }
     }
-    const requiredAmount = Number(existing.total_amount || 0);
-    if (Number(params.transferAmount || 0) < requiredAmount) {
-      return {
-        matched: false as const,
-        reason: 'INSUFFICIENT_AMOUNT',
-        orderId: normalizedOrderId,
-        expected: requiredAmount,
-        received: Number(params.transferAmount || 0),
-      };
-    }
-    if (existing.payment_status === 'paid') {
-      return { matched: true as const, alreadyPaid: true, order: existing };
-    }
-    const rows = await query(
-      `UPDATE orders SET payment_status = 'paid', updated_at = NOW() WHERE id = $1 RETURNING *`,
-      [normalizedOrderId]
-    );
-    const updated = rows[0] || existing;
-    if (updated?.customer_id && updated?.status !== 'cancelled') {
-      await this.awardOrderEarnPointsIfNeeded(updated);
-      await this.syncMembershipSpend(updated.customer_id);
-    }
-    return { matched: true as const, alreadyPaid: false, order: updated };
+
+    return { handled: false, eventType };
   },
 
   async markOrderPaid(orderId: string, actor: { sub: string; role: string }) {
@@ -985,9 +1401,8 @@ export const commerceRepository = {
     await ensureCommerceTablesAndSeed();
     const shopRows = await query(
       `SELECT id, owner_id, shop_name, brand_slug, phone_number, shop_address,
-              entity_type, tax_code, tax_status, business_license_no,
-              legal_representative_name, national_id_last4,
-              status, rejection_reason, is_verified, COALESCE(is_mall, FALSE) AS is_mall,
+              paypal_payout_email, status, rejection_reason, is_verified,
+              COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
               vacation_note, vacation_until, banner_url, logo_url, tagline, description,
               approved_at, created_at
@@ -1046,7 +1461,7 @@ export const commerceRepository = {
   async listPublicStores() {
     await ensureCommerceTablesAndSeed();
     const shops = await query<any>(
-      `SELECT id, shop_name, brand_slug, shop_address, city, entity_type,
+      `SELECT id, shop_name, brand_slug, shop_address, city,
               COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
               vacation_note, vacation_until, banner_url, logo_url, tagline, description, created_at
@@ -1068,7 +1483,7 @@ export const commerceRepository = {
     await ensureCommerceTablesAndSeed();
     const target = String(slugOrBrand || '').trim();
     const shops = await query<any>(
-      `SELECT id, shop_name, brand_slug, phone_number, shop_address, city, entity_type,
+      `SELECT id, shop_name, brand_slug, phone_number, shop_address, city,
               COALESCE(is_mall, FALSE) AS is_mall,
               COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
               vacation_note, vacation_until, banner_url, logo_url, tagline, description, created_at
@@ -1081,7 +1496,6 @@ export const commerceRepository = {
 
     const shop = shops[0];
     if (!shop) {
-      // Check if pre-seeded brand exists on products without explicit shop row
       const seedProds = await query(
         `SELECT id, brand_name, shop_id, COALESCE(is_mall, FALSE) AS is_mall, name, name_en, slug, category, gender_target,
                 price, sale_price, rating::float, reviews_count, fabric_material, fabric_material_en,
@@ -1102,7 +1516,6 @@ export const commerceRepository = {
           shop_name: brandName,
           brand_slug: brandName.toLowerCase().replace(/\s+/g, '-'),
           shop_address: 'Việt Nam',
-          entity_type: seedProds[0].is_mall ? 'ENTERPRISE' : 'INDIVIDUAL',
           is_mall: Boolean(seedProds[0].is_mall),
           operational_mode: 'ACTIVE',
           tagline: 'Thương hiệu đối tác FitVision 3D Atelier',
@@ -1145,6 +1558,7 @@ export const commerceRepository = {
       shopName?: string;
       phoneNumber?: string;
       shopAddress?: string;
+      paypalPayoutEmail?: string;
       tagline?: string;
       description?: string;
       bannerUrl?: string;
@@ -1161,6 +1575,13 @@ export const commerceRepository = {
     const cleanName = String(payload.shopName || shop.shop_name).trim();
     const cleanPhone = String(payload.phoneNumber || shop.phone_number).trim().slice(0, 15);
     const cleanAddr = String(payload.shopAddress || shop.shop_address).trim().slice(0, 255);
+    const cleanPaypal =
+      payload.paypalPayoutEmail !== undefined
+        ? String(payload.paypalPayoutEmail || '').trim().toLowerCase()
+        : (shop.paypal_payout_email || '');
+    if (cleanPaypal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanPaypal)) {
+      throw new Error('Email PayPal nhận giải ngân không đúng định dạng.');
+    }
     const cleanTagline = payload.tagline !== undefined ? String(payload.tagline).trim().slice(0, 255) : shop.tagline;
     const cleanDesc = payload.description !== undefined ? String(payload.description).trim() : shop.description;
     const cleanBanner = payload.bannerUrl !== undefined ? String(payload.bannerUrl).trim() : shop.banner_url;
@@ -1184,12 +1605,13 @@ export const commerceRepository = {
     const updated = await query(
       `UPDATE shops
        SET shop_name = $2, phone_number = $3, shop_address = $4,
-           tagline = $5, description = $6, banner_url = $7, logo_url = $8,
-           operational_mode = $9, vacation_note = $10, vacation_until = $11,
+           paypal_payout_email = NULLIF($5, ''),
+           tagline = $6, description = $7, banner_url = $8, logo_url = $9,
+           operational_mode = $10, vacation_note = $11, vacation_until = $12,
            updated_at = NOW()
        WHERE id = $1
        RETURNING id, owner_id, shop_name, brand_slug, phone_number, shop_address,
-                 entity_type, tax_code, tax_status, status, is_verified,
+                 paypal_payout_email, status, is_verified,
                  COALESCE(is_mall, FALSE) AS is_mall,
                  COALESCE(operational_mode, 'ACTIVE') AS operational_mode,
                  vacation_note, vacation_until, banner_url, logo_url, tagline, description`,
@@ -1198,6 +1620,7 @@ export const commerceRepository = {
         cleanName,
         cleanPhone,
         cleanAddr,
+        cleanPaypal,
         cleanTagline || null,
         cleanDesc || null,
         cleanBanner || null,
@@ -1216,13 +1639,30 @@ export const commerceRepository = {
     return updated[0];
   },
 
+  async updateShopPayPalAccount(userId: string, paypalPayoutEmail: string) {
+    await ensureCommerceTablesAndSeed();
+    const shop = await this.ensureShopForUser(userId);
+    if (!shop) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy hồ sơ Shop.');
+    }
+    const cleanEmail = String(paypalPayoutEmail || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      throw new AppError(400, ErrorCode.VALIDATION_FAILED, 'Vui lòng nhập Email PayPal hợp lệ.');
+    }
+    const rows = await query(
+      `UPDATE shops SET paypal_payout_email = $2, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, shop_name, paypal_payout_email`,
+      [shop.id, cleanEmail]
+    );
+    return rows[0];
+  },
+
   async getShopDashboard(userId: string) {
     const shop = await this.ensureShopForUser(userId);
     if (!shop) {
       return {
         shop: null,
-        documents: [],
-        bankAccount: null,
         reputation: null,
         products: [],
         orders: [],
@@ -1230,30 +1670,11 @@ export const commerceRepository = {
       };
     }
 
-    const [documents, bankRows, reputation] = await Promise.all([
-      query(
-        `SELECT id, doc_type, file_url, file_name, qr_parsed_payload, verification_status, reviewer_note, updated_at
-         FROM shop_kyc_documents
-         WHERE shop_id = $1
-         ORDER BY created_at ASC`,
-        [shop.id]
-      ),
-      query(
-        `SELECT id, bank_code, bank_name, account_number, account_holder_name, is_primary, name_match_score::float, verification_status
-         FROM shop_bank_accounts
-         WHERE shop_id = $1
-         ORDER BY is_primary DESC, created_at ASC
-         LIMIT 1`,
-        [shop.id]
-      ),
-      this.computeShopReputation(shop.id, shop.shop_name, Boolean(shop.is_mall)),
-    ]);
+    const reputation = await this.computeShopReputation(shop.id, shop.shop_name, Boolean(shop.is_mall));
 
     if (shop.status !== 'APPROVED') {
       return {
         shop,
-        documents,
-        bankAccount: bankRows[0] || null,
         reputation,
         products: [],
         orders: [],
@@ -1276,7 +1697,11 @@ export const commerceRepository = {
       `SELECT id, customer_id, customer_name, recipient, items,
               subtotal, shipping_fee, discount_amount, total_amount,
               payment_method, payment_status, status, store_name, shop_id,
-              has_bespoke_items, measurement_snapshot, estimated_delivery, created_at, updated_at
+              has_bespoke_items, measurement_snapshot,
+              payment_group_id, paypal_order_id, paypal_capture_id,
+              exchange_rate_vnd, paid_amount_usd::float, paypal_fee_usd::float,
+              platform_fee_rate::float, completed_at, payout_status,
+              estimated_delivery, created_at, updated_at
        FROM orders
        WHERE shop_id = $1
           OR LOWER(COALESCE(store_name, '')) = LOWER($2)
@@ -1302,13 +1727,458 @@ export const commerceRepository = {
 
     return {
       shop,
-      documents,
-      bankAccount: bankRows[0] || null,
       reputation,
       products,
       orders,
       reviews,
     };
+  },
+
+  async getShopPayoutLedger(userId: string) {
+    await ensureCommerceTablesAndSeed();
+    const shop = await this.ensureShopForUser(userId);
+    if (!shop) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy hồ sơ Shop.');
+    }
+
+    const [orders, payouts] = await Promise.all([
+      query<any>(
+        `SELECT id, customer_name, items, subtotal, shipping_fee, discount_amount, total_amount,
+                payment_status, status, store_name, shop_id,
+                paypal_order_id, paypal_capture_id, exchange_rate_vnd,
+                paid_amount_usd::float, paypal_fee_usd::float, platform_fee_rate::float,
+                completed_at, payout_status, created_at, updated_at
+         FROM orders
+         WHERE (shop_id = $1 OR LOWER(COALESCE(store_name, '')) = LOWER($2))
+           AND payment_status = 'paid'
+           AND status <> 'cancelled'
+         ORDER BY created_at DESC`,
+        [shop.id, shop.shop_name]
+      ),
+      query<any>(
+        `SELECT * FROM shop_payouts WHERE shop_id = $1 ORDER BY created_at DESC LIMIT 50`,
+        [shop.id]
+      ),
+    ]);
+
+    let readyVnd = 0;
+    let readyUsd = 0;
+    let escrowHoldVnd = 0;
+    let paidOutVnd = 0;
+    let totalPlatformFeeVnd = 0;
+    let totalPaypalFeeVnd = 0;
+
+    const orderLedgers = orders.map((ord) => {
+      const bd = computeOrderPayoutBreakdown(ord);
+      const elig = evaluateOrderPayoutEligibility(ord, shop, env.PAYPAL_HOLD_DAYS);
+      totalPlatformFeeVnd += bd.platformFeeVnd;
+      totalPaypalFeeVnd += bd.paypalFeeVnd;
+
+      if (ord.payout_status === 'PAID_OUT') {
+        paidOutVnd += bd.netPayoutVnd;
+      } else if (elig.eligible) {
+        readyVnd += bd.netPayoutVnd;
+        readyUsd = Math.round((readyUsd + bd.netPayoutUsd) * 100) / 100;
+      } else {
+        escrowHoldVnd += bd.netPayoutVnd;
+      }
+
+      return {
+        ...bd,
+        orderStatus: ord.status,
+        payoutStatus: ord.payout_status,
+        paypalCaptureId: ord.paypal_capture_id,
+        completedAt: ord.completed_at,
+        eligibleForPayout: elig.eligible,
+        ineligibleReason: elig.reason,
+        eligibleAt: elig.eligibleAt,
+        itemsCount: Array.isArray(ord.items)
+          ? ord.items.reduce((s: number, it: any) => s + Number(it?.quantity || 1), 0)
+          : 0,
+        itemsSummary: Array.isArray(ord.items)
+          ? ord.items.map((it: any) => ({
+              name: it?.product?.name || 'Sản phẩm',
+              size: it?.variant?.size_label || 'M',
+              qty: Number(it?.quantity || 1),
+              unitPriceVnd: Number(it?.product?.sale_price ?? it?.product?.price ?? 0),
+            }))
+          : [],
+        createdAt: ord.created_at,
+      };
+    });
+
+    return {
+      shop: {
+        id: shop.id,
+        shopName: shop.shop_name,
+        status: shop.status,
+        paypalPayoutEmail: shop.paypal_payout_email || null,
+      },
+      policy: {
+        exchangeRateVnd: env.PAYPAL_VND_RATE,
+        platformFeeRate: env.PAYPAL_PLATFORM_FEE_RATE,
+        holdDays: env.PAYPAL_HOLD_DAYS,
+        mode: env.PAYPAL_MODE,
+      },
+      summary: {
+        readyVnd,
+        readyUsd,
+        escrowHoldVnd,
+        paidOutVnd,
+        totalPlatformFeeVnd,
+        totalPaypalFeeVnd,
+      },
+      orderLedgers,
+      payoutBatches: payouts,
+    };
+  },
+
+  async getAdminPayoutOverview() {
+    await ensureCommerceTablesAndSeed();
+    const [shops, orders, payoutHistory] = await Promise.all([
+      query<any>(
+        `SELECT id, owner_id, shop_name, brand_slug, status, paypal_payout_email, is_mall
+         FROM shops
+         ORDER BY created_at DESC`
+      ),
+      query<any>(
+        `SELECT id, customer_name, items, total_amount, payment_status, status, store_name, shop_id,
+                paypal_capture_id, exchange_rate_vnd, paid_amount_usd::float, paypal_fee_usd::float,
+                platform_fee_rate::float, completed_at, payout_status, created_at, updated_at
+         FROM orders
+         WHERE payment_status = 'paid' AND status <> 'cancelled'
+         ORDER BY created_at DESC`
+      ),
+      query<any>(`SELECT * FROM shop_payouts ORDER BY created_at DESC LIMIT 80`),
+    ]);
+
+    const shopBuckets = new Map<
+      string,
+      {
+        shop: any;
+        readyOrders: any[];
+        holdingOrders: any[];
+        paidOutOrders: any[];
+        readyNetVnd: number;
+        readyNetUsd: number;
+        holdingNetVnd: number;
+        paidOutNetVnd: number;
+        platformCommissionVnd: number;
+      }
+    >();
+
+    for (const s of shops) {
+      shopBuckets.set(String(s.id), {
+        shop: s,
+        readyOrders: [],
+        holdingOrders: [],
+        paidOutOrders: [],
+        readyNetVnd: 0,
+        readyNetUsd: 0,
+        holdingNetVnd: 0,
+        paidOutNetVnd: 0,
+        platformCommissionVnd: 0,
+      });
+    }
+
+    let totalEscrowHoldVnd = 0;
+    let totalReadyDisburseVnd = 0;
+    let totalPlatformCommissionVnd = 0;
+    let totalPaidOutVnd = 0;
+
+    for (const ord of orders) {
+      const matchedShop =
+        shops.find((s) => s.id && ord.shop_id && String(s.id) === String(ord.shop_id)) ||
+        shops.find(
+          (s) =>
+            String(s.shop_name || '').trim().toLowerCase() ===
+            String(ord.store_name || '').trim().toLowerCase()
+        ) ||
+        null;
+
+      if (!matchedShop) continue;
+      const bucket = shopBuckets.get(String(matchedShop.id))!;
+      const bd = computeOrderPayoutBreakdown(ord);
+      const elig = evaluateOrderPayoutEligibility(ord, matchedShop, env.PAYPAL_HOLD_DAYS);
+
+      bucket.platformCommissionVnd += bd.platformFeeVnd;
+      totalPlatformCommissionVnd += bd.platformFeeVnd;
+
+      if (ord.payout_status === 'PAID_OUT') {
+        bucket.paidOutOrders.push({ ...bd, orderStatus: ord.status });
+        bucket.paidOutNetVnd += bd.netPayoutVnd;
+        totalPaidOutVnd += bd.netPayoutVnd;
+      } else if (elig.eligible) {
+        bucket.readyOrders.push({ ...bd, orderStatus: ord.status, completedAt: ord.completed_at });
+        bucket.readyNetVnd += bd.netPayoutVnd;
+        bucket.readyNetUsd = Math.round((bucket.readyNetUsd + bd.netPayoutUsd) * 100) / 100;
+        totalReadyDisburseVnd += bd.netPayoutVnd;
+      } else {
+        bucket.holdingOrders.push({
+          ...bd,
+          orderStatus: ord.status,
+          ineligibleReason: elig.reason,
+          eligibleAt: elig.eligibleAt,
+        });
+        bucket.holdingNetVnd += bd.netPayoutVnd;
+        totalEscrowHoldVnd += bd.netPayoutVnd;
+      }
+    }
+
+    return {
+      policy: paypalService.getPublicConfig(),
+      summary: {
+        totalEscrowHoldVnd,
+        totalReadyDisburseVnd,
+        totalPlatformCommissionVnd,
+        totalPaidOutVnd,
+      },
+      shops: Array.from(shopBuckets.values()),
+      payoutHistory,
+    };
+  },
+
+  async disburseShopPayouts(shopIds: string[] | undefined, adminUserId: string) {
+    await ensureCommerceTablesAndSeed();
+    const overview = await this.getAdminPayoutOverview();
+    const targetBuckets = overview.shops.filter(
+      (b) =>
+        b.readyOrders.length > 0 &&
+        b.readyNetUsd > 0 &&
+        (!Array.isArray(shopIds) || shopIds.length === 0 || shopIds.includes(String(b.shop.id)))
+    );
+
+    if (targetBuckets.length === 0) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Không có Shop nào đủ cả 4 điều kiện giải ngân (Paid + Completed + Approved + Có Email PayPal + Hết thời hạn giữ tiền).'
+      );
+    }
+
+    const senderBatchId = `FV3DBATCH-${Date.now()}`;
+    const batchItems = targetBuckets.map((b, idx) => {
+      const rate = env.PAYPAL_VND_RATE;
+      const usdAmount = convertVndToUsd(b.readyNetVnd, rate);
+      const grossVnd = b.readyOrders.reduce((s, o) => s + o.grossVnd, 0);
+      const paypalFeeVnd = b.readyOrders.reduce((s, o) => s + o.paypalFeeVnd, 0);
+      const platformFeeVnd = b.readyOrders.reduce((s, o) => s + o.platformFeeVnd, 0);
+      const orderIds = b.readyOrders.map((o) => o.orderId);
+      return {
+        bucket: b,
+        usdAmount,
+        grossVnd,
+        paypalFeeVnd,
+        platformFeeVnd,
+        orderIds,
+        item: {
+          senderItemId: `${b.shop.id.slice(0, 8)}-${Date.now()}-${idx}`,
+          receiverEmail: String(b.shop.paypal_payout_email || '').trim(),
+          amountUsd: usdAmount,
+          note: `Giai ngan FitVision3D cho ${b.shop.shop_name} (${b.readyOrders.length} don)`,
+        },
+      };
+    });
+
+    const allOrderIds = batchItems.flatMap((x) => x.orderIds);
+    const lockedEntries: Array<{ entry: (typeof batchItems)[number]; payoutRow: any }> = [];
+
+    // Phase 1: Atomically lock orders & reserve PROCESSING payout rows BEFORE calling PayPal API
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const lockRes = await client.query(
+        `SELECT id, payment_status, status, payout_status
+         FROM orders
+         WHERE id = ANY($1::varchar[])
+         FOR UPDATE`,
+        [allOrderIds]
+      );
+      const allEligible =
+        lockRes.rows.length === allOrderIds.length &&
+        lockRes.rows.every(
+          (row: any) =>
+            row.payment_status === 'paid' &&
+            row.status === 'completed' &&
+            row.payout_status === 'READY_FOR_PAYOUT'
+        );
+      if (!allEligible) {
+        throw new AppError(
+          409,
+          ErrorCode.VALIDATION_FAILED,
+          'Một số đơn hàng đã được xử lý hoặc đang trong tiến trình giải ngân PayPal, vui lòng làm mới trang.'
+        );
+      }
+
+      await client.query(
+        `UPDATE orders SET payout_status = 'PROCESSING', updated_at = NOW() WHERE id = ANY($1::varchar[])`,
+        [allOrderIds]
+      );
+
+      for (const entry of batchItems) {
+        const b = entry.bucket;
+        const insRes = await client.query(
+          `INSERT INTO shop_payouts (
+             shop_id, shop_name, recipient_paypal_email, order_ids,
+             exchange_rate_vnd, platform_fee_rate,
+             gross_vnd, paypal_fee_vnd, platform_fee_vnd, net_payout_vnd, net_payout_usd,
+             paypal_payout_batch_id, paypal_payout_item_id, status, note, raw_response, created_by, paid_at
+           ) VALUES (
+             $1, $2, $3, $4::jsonb,
+             $5, $6,
+             $7, $8, $9, $10, $11,
+             NULL, NULL, 'PROCESSING'::varchar, $12, $13::jsonb, $14, NULL
+           )
+           RETURNING *`,
+          [
+            b.shop.id,
+            b.shop.shop_name,
+            entry.item.receiverEmail,
+            JSON.stringify(entry.orderIds),
+            env.PAYPAL_VND_RATE,
+            env.PAYPAL_PLATFORM_FEE_RATE,
+            entry.grossVnd,
+            entry.paypalFeeVnd,
+            entry.platformFeeVnd,
+            b.readyNetVnd,
+            entry.usdAmount,
+            entry.item.note,
+            JSON.stringify({ senderBatchId, phase: 'LOCKED_PROCESSING' }),
+            adminUserId !== 'system' ? adminUserId : null,
+          ]
+        );
+        lockedEntries.push({ entry, payoutRow: insRes.rows[0] });
+      }
+      await client.query('COMMIT');
+    } catch (lockErr) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw lockErr;
+    } finally {
+      client.release();
+    }
+
+    // Phase 2: Execute PayPal Batch Payout AFTER DB lock is safely committed
+    let paypalRes: Awaited<ReturnType<typeof paypalService.createBatchPayout>>;
+    try {
+      paypalRes = await paypalService.createBatchPayout({
+        senderBatchId,
+        emailSubject: 'FitVision 3D - Giai ngan doanh thu gian hang',
+        emailMessage: 'San FitVision 3D da giai ngan doanh thu don hang hoan tat ve vi PayPal cua Shop.',
+        items: batchItems.map((x) => x.item),
+      });
+    } catch (apiErr: any) {
+      const errMsg = String(apiErr?.message || 'PayPal Payouts API error').slice(0, 500);
+      for (const { entry, payoutRow } of lockedEntries) {
+        await query(
+          `UPDATE shop_payouts
+           SET status = 'FAILED'::varchar, note = $2, raw_response = $3::jsonb
+           WHERE id = $1`,
+          [payoutRow.id, errMsg, JSON.stringify({ senderBatchId, error: errMsg })]
+        );
+        await query(
+          `UPDATE orders SET payout_status = 'READY_FOR_PAYOUT', updated_at = NOW() WHERE id = ANY($1::varchar[])`,
+          [entry.orderIds]
+        );
+      }
+      throw apiErr;
+    }
+
+    const updatedPayouts: any[] = [];
+    for (const { entry, payoutRow } of lockedEntries) {
+      const b = entry.bucket;
+      const matchedPpItem = paypalRes.items.find(
+        (pi) =>
+          pi.senderItemId === entry.item.senderItemId ||
+          String(pi.receiver || '').toLowerCase() === entry.item.receiverEmail.toLowerCase()
+      );
+      const outcome = resolvePayPalPayoutItemOutcome(
+        matchedPpItem?.transactionStatus,
+        matchedPpItem ? null : paypalRes.batchStatus,
+        matchedPpItem?.itemError
+      );
+
+      const updRows = await query(
+        `UPDATE shop_payouts
+         SET paypal_payout_batch_id = $2,
+             paypal_payout_item_id = COALESCE($3, paypal_payout_item_id),
+             status = $4::varchar,
+             note = $5,
+             raw_response = $6::jsonb,
+             paid_at = CASE WHEN $4::varchar = 'SUCCESS' THEN COALESCE(paid_at, NOW()) ELSE NULL END
+         WHERE id = $1
+         RETURNING *`,
+        [
+          payoutRow.id,
+          paypalRes.batchId,
+          matchedPpItem?.payoutItemId || null,
+          outcome.status,
+          outcome.failureReason || entry.item.note,
+          JSON.stringify(paypalRes.raw),
+        ]
+      );
+      updatedPayouts.push(updRows[0]);
+
+      await query(
+        `UPDATE orders SET payout_status = $2::varchar, updated_at = NOW() WHERE id = ANY($1::varchar[])`,
+        [entry.orderIds, outcome.orderPayoutStatus]
+      );
+    }
+
+    return {
+      batchId: paypalRes.batchId,
+      batchStatus: paypalRes.batchStatus,
+      payouts: updatedPayouts,
+    };
+  },
+
+  async syncAdminPayoutStatus(payoutId: string) {
+    await ensureCommerceTablesAndSeed();
+    const rows = await query<any>(`SELECT * FROM shop_payouts WHERE id = $1 LIMIT 1`, [payoutId]);
+    const payout = rows[0];
+    if (!payout || !payout.paypal_payout_batch_id) {
+      throw new AppError(404, ErrorCode.RESOURCE_NOT_FOUND, 'Không tìm thấy đợt giải ngân PayPal.');
+    }
+
+    const pp = await paypalService.getBatchPayoutStatus(payout.paypal_payout_batch_id);
+    const matchedItem = pp.items.find(
+      (it) =>
+        (payout.paypal_payout_item_id && it.payoutItemId === payout.paypal_payout_item_id) ||
+        String(it.receiver || '').toLowerCase() ===
+          String(payout.recipient_paypal_email || '').toLowerCase()
+    );
+    const outcome = resolvePayPalPayoutItemOutcome(
+      matchedItem?.transactionStatus,
+      matchedItem ? null : pp.batchStatus,
+      matchedItem?.itemError
+    );
+
+    const upd = await query(
+      `UPDATE shop_payouts
+       SET status = $2::varchar,
+           paypal_payout_item_id = COALESCE($3, paypal_payout_item_id),
+           note = CASE WHEN $5::text IS NOT NULL THEN $5 ELSE note END,
+           paid_at = CASE WHEN $2::varchar = 'SUCCESS' THEN COALESCE(paid_at, NOW()) ELSE NULL END,
+           raw_response = $4::jsonb
+       WHERE id = $1
+       RETURNING *`,
+      [
+        payoutId,
+        outcome.status,
+        matchedItem?.payoutItemId || null,
+        JSON.stringify(pp.raw),
+        outcome.failureReason,
+      ]
+    );
+
+    const orderIds = Array.isArray(payout.order_ids) ? payout.order_ids.map(String) : [];
+    if (orderIds.length > 0) {
+      await query(
+        `UPDATE orders SET payout_status = $2::varchar, updated_at = NOW() WHERE id = ANY($1::varchar[])`,
+        [orderIds, outcome.orderPayoutStatus]
+      );
+    }
+
+    return upd[0];
   },
 
   async createShopProduct(userId: string, payload: any) {

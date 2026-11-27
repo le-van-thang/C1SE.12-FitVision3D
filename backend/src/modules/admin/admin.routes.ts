@@ -24,9 +24,6 @@ adminRouter.post('/stores/:id/suspend', requireAuth, requireRole('ADMIN'), admin
 // 4b. Cấp / thu hồi huy hiệu FitVision Mall chính hãng
 adminRouter.patch('/stores/:id/mall', requireAuth, requireRole('ADMIN'), adminController.toggleStoreMall);
 
-// 4c. Tra cứu & Kiểm tra Mã số thuế (Casso Open Platform + Mod-11)
-adminRouter.get('/tax-lookup/:taxCode', adminController.lookupTaxCode);
-
 // 5. Quản lý người dùng
 adminRouter.get('/users', requireAuth, requireRole('ADMIN'), adminController.getUsers);
 adminRouter.patch('/users/:id/status', requireAuth, requireRole('ADMIN'), adminController.updateUserStatus);
@@ -37,7 +34,7 @@ adminRouter.post('/users/:id/provision-shop', requireAuth, requireRole('ADMIN'),
 adminRouter.get('/audit-logs', requireAuth, requireRole('ADMIN'), adminController.getAuditLogs);
 
 // =============================================================================
-// SHOP KYC / TAX STATUS & RESUBMISSION (Tài khoản SHOP_OWNER xem trạng thái & nộp lại hồ sơ)
+// SHOP PROFILE STATUS & RESUBMISSION (Tài khoản SHOP_OWNER xem trạng thái & nộp lại hồ sơ)
 // =============================================================================
 adminRouter.get('/stores/my-shop', requireAuth, adminController.getMyShop);
 adminRouter.post('/stores/apply', requireAuth, adminController.applyShop);

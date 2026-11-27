@@ -39,10 +39,33 @@ export const env = {
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
 
-  // Shop Tax Lookup & eKYC Verification (Tier 3/4)
-  CASSO_OPENAPI_URL: process.env.CASSO_OPENAPI_URL || 'https://openapi.casso.vn',
-  CASSO_API_KEY: process.env.CASSO_API_KEY || '',
-  EKYC_PROVIDER: process.env.EKYC_PROVIDER || 'local_qr_casso',
+  // PayPal Marketplace (Orders v2 Checkout + Payouts v1 Disbursement)
+  PAYPAL_MODE:
+    (process.env.PAYPAL_MODE || process.env.PAYPAL_ENV || 'sandbox').trim().toLowerCase() === 'live'
+      ? ('live' as const)
+      : ('sandbox' as const),
+  PAYPAL_CLIENT_ID:
+    (process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || '').trim(),
+  PAYPAL_CLIENT_SECRET:
+    (process.env.PAYPAL_CLIENT_SECRET || process.env.PAYPAL_SECRET || '').trim(),
+  PAYPAL_WEBHOOK_ID: (process.env.PAYPAL_WEBHOOK_ID || '').trim(),
+  PAYPAL_VND_RATE: (() => {
+    const r = Number(process.env.PAYPAL_VND_RATE || process.env.PAYPAL_EXCHANGE_RATE || 25400);
+    return Number.isFinite(r) && r >= 1000 ? r : 25400;
+  })(),
+  PAYPAL_PLATFORM_FEE_RATE: (() => {
+    const f = Number(process.env.PAYPAL_PLATFORM_FEE_RATE?.trim() || 0.05);
+    return Number.isFinite(f) && f >= 0 && f <= 0.5 ? f : 0.05;
+  })(),
+  PAYPAL_HOLD_DAYS: (() => {
+    const d = Number(process.env.PAYPAL_HOLD_DAYS?.trim() || 0);
+    return Number.isFinite(d) && d >= 0 ? Math.floor(d) : 0;
+  })(),
+  get PAYPAL_API_BASE() {
+    return this.PAYPAL_MODE === 'live'
+      ? 'https://api-m.paypal.com'
+      : 'https://api-m.sandbox.paypal.com';
+  },
 
   isProduction: process.env.NODE_ENV === 'production',
 };

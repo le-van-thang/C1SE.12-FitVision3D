@@ -1,7 +1,6 @@
 import { adminRepository } from './admin.repository.js';
 import { AppError } from '../../utils/responseEnvelope.js';
 import { ErrorCode } from '../../constants/errorCodes.js';
-import { cassoTaxAndLocalKycProvider, type ShopEntityType } from '../shop/kycVerification.js';
 
 export const adminService = {
   async getDashboardStats() {
@@ -60,10 +59,6 @@ export const adminService = {
       executionTimeMs: 15,
     });
     return shop;
-  },
-
-  async lookupTaxCode(taxCode: string, entityType?: ShopEntityType) {
-    return await cassoTaxAndLocalKycProvider.lookupTaxCode(taxCode, entityType || 'ENTERPRISE');
   },
 
   async toggleShopMall(shopId: string, isMall: boolean, adminUserId?: string) {

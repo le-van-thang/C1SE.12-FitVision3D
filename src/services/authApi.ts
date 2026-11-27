@@ -110,7 +110,7 @@ export const authApi = {
     });
   },
 
-  // 2. Đăng ký Chủ Shop (SHOP_OWNER - tài khoản độc lập kèm KYC, Thuế & Ngân hàng)
+  // 2. Đăng ký Chủ Shop (SHOP_OWNER - gọn nhẹ kèm Email PayPal nhận tiền)
   async registerShop(data: {
     shopName: string;
     phoneNumber: string;
@@ -119,21 +119,8 @@ export const authApi = {
     email: string;
     password: string;
     confirmPassword?: string;
-    entityType?: 'INDIVIDUAL' | 'HOUSEHOLD' | 'ENTERPRISE';
-    nationalId?: string;
-    taxCode?: string;
-    businessLicenseNo?: string;
-    bankCode?: string;
-    bankName?: string;
-    bankAccountNumber?: string;
-    bankAccountHolder?: string;
+    paypalPayoutEmail?: string;
     tagline?: string;
-    kycDocuments?: Array<{
-      docType: 'CCCD_FRONT' | 'CCCD_BACK' | 'BUSINESS_LICENSE' | 'TAX_REGISTRATION' | 'BRAND_AUTHORIZATION';
-      fileUrl: string;
-      fileName?: string;
-      qrParsedPayload?: Record<string, any> | null;
-    }>;
   }) {
     return request<{
       userId: string;
@@ -143,10 +130,6 @@ export const authApi = {
       role: string;
       status: string;
       shopStatus: string;
-      taxStatus: string;
-      bankVerificationStatus: string;
-      qrConsistency?: { status: string; notes: string };
-      taxLookup?: any;
       message: string;
     }>('/register-shop', {
       method: 'POST',

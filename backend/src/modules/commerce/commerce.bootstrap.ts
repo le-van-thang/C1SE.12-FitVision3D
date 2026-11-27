@@ -1,4 +1,6 @@
+import crypto from 'crypto';
 import { query } from '../../config/database.js';
+import { hashPassword } from '../../utils/password.js';
 
 const SEED_MARQUEE_VI = [
   'Đo Size Chuẩn Nhân Trắc Học ISO 8559',
@@ -286,6 +288,75 @@ const SEED_PRODUCTS = [
       { id: 'var-06-xl', size_label: 'XL', color_name: 'Xanh Rêu Ôliu (Olive Drab)', color_hex: '#556B2F', sku: 'CHN-OLV-XL', stock: 14, spec: { chest_cm: 0, waist_cm: 88, hip_cm: 106, shoulder_cm: 0, length_cm: 101.5, ease_min_cm: 2, ease_max_cm: 5 } },
     ],
   },
+  {
+    id: 'prod-07',
+    brand_name: 'FitVision Tailor Atelier',
+    name: 'Bộ Suit Wool 120s May Đo 3D Signature',
+    name_en: 'Signature 3D Bespoke Wool 120s Suit Set',
+    slug: 'bo-suit-wool-120s-signature',
+    category: 'tailored',
+    gender_target: 'unisex',
+    price: 2540000,
+    sale_price: 2286000,
+    rating: 5.0,
+    reviews_count: 38,
+    fabric_material: '100% Super 120s Merino Wool Dệt Ý',
+    fabric_material_en: '100% Italian Super 120s Merino Wool',
+    stretch_type: 'Co giãn tự nhiên (2-way)',
+    image_url: 'https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?auto=format&fit=crop&w=800&q=80',
+    secondary_image_url: null,
+    description:
+      'Bộ Suit may đo 3D trực tiếp theo 13 chỉ số ISO 8559 từ xưởng FitVision Tailor Atelier. Dựng canh vải thủ công tôn phom vai và eo.',
+    description_en:
+      'Bespoke 3D suit tailored directly to your 13 ISO 8559 body metrics by FitVision Tailor Atelier with full canvas construction.',
+    is_bestseller: true,
+    is_bespoke: true,
+    variants: [
+      { id: 'var-07-s', size_label: 'S', color_name: 'Đen Tuyền Obsidian', color_hex: '#111827', sku: 'SUIT-OBS-S', stock: 10, spec: { chest_cm: 98, waist_cm: 82, shoulder_cm: 42.5, length_cm: 72, ease_min_cm: 3, ease_max_cm: 6 } },
+      { id: 'var-07-m', size_label: 'M', color_name: 'Đen Tuyền Obsidian', color_hex: '#111827', sku: 'SUIT-OBS-M', stock: 16, spec: { chest_cm: 102, waist_cm: 86, shoulder_cm: 44, length_cm: 74, ease_min_cm: 3, ease_max_cm: 7 } },
+      { id: 'var-07-l', size_label: 'L', color_name: 'Đen Tuyền Obsidian', color_hex: '#111827', sku: 'SUIT-OBS-L', stock: 18, spec: { chest_cm: 106, waist_cm: 90, shoulder_cm: 45.5, length_cm: 76, ease_min_cm: 4, ease_max_cm: 7 } },
+      { id: 'var-07-xl', size_label: 'XL', color_name: 'Đen Tuyền Obsidian', color_hex: '#111827', sku: 'SUIT-OBS-XL', stock: 8, spec: { chest_cm: 110, waist_cm: 94, shoulder_cm: 47, length_cm: 77.5, ease_min_cm: 4, ease_max_cm: 8 } },
+    ],
+  },
+];
+
+const SEED_ACTIVE_SHOPS = [
+  {
+    email: 'shop1.milan@fitvision3d.com',
+    fullName: 'Trần Minh Quân (Sartoria Milan)',
+    shopName: 'Sartoria Milan',
+    brandSlug: 'sartoria-milan',
+    phone: '0901112233',
+    address: '128 Đồng Khởi, Quận 1, TP. Hồ Chí Minh',
+    tagline: 'Sơ mi Ai Cập & Quần tây chuẩn Ý',
+    isMall: true,
+    defaultPaypalEmail: 'sb-shop1-milan@personal.example.com',
+    productIds: ['prod-01', 'prod-03'],
+  },
+  {
+    email: 'shop2.nordic@fitvision3d.com',
+    fullName: 'Nguyễn Hải Đăng (Nordic Thread)',
+    shopName: 'Nordic Thread',
+    brandSlug: 'nordic-thread',
+    phone: '0904445566',
+    address: '45 Lý Thường Kiệt, Hoàn Kiếm, Hà Nội',
+    tagline: 'Polo lụa Piqué & Chino co giãn Bắc Âu',
+    isMall: false,
+    defaultPaypalEmail: 'sb-shop2-nordic@personal.example.com',
+    productIds: ['prod-02', 'prod-06'],
+  },
+  {
+    email: 'shop@fitvision3d.com',
+    fullName: 'Lê Hoàng Atelier (FitVision Tailor)',
+    shopName: 'FitVision Tailor Atelier',
+    brandSlug: 'fitvision-tailor-atelier',
+    phone: '0907778899',
+    address: '88 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+    tagline: 'Xưởng may đo Bespoke 3D ISO 8559 chính hãng',
+    isMall: true,
+    defaultPaypalEmail: 'sb-shop3-atelier@personal.example.com',
+    productIds: ['prod-04', 'prod-05', 'prod-07'],
+  },
 ];
 
 let bootstrapPromise: Promise<void> | null = null;
@@ -359,7 +430,7 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
           shipping_fee INTEGER NOT NULL DEFAULT 0,
           discount_amount INTEGER NOT NULL DEFAULT 0,
           total_amount INTEGER NOT NULL,
-          payment_method VARCHAR(40) NOT NULL DEFAULT 'cod',
+          payment_method VARCHAR(40) NOT NULL DEFAULT 'paypal',
           payment_status VARCHAR(40) NOT NULL DEFAULT 'unpaid',
           status VARCHAR(40) NOT NULL DEFAULT 'pending',
           store_name VARCHAR(255),
@@ -389,59 +460,85 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
 
+        -- Clean legacy Entity Type / Tax / National ID / Domestic Bank & KYC tables
+        DROP INDEX IF EXISTS uq_shops_tax_code_nonempty;
+        DROP INDEX IF EXISTS uq_shops_national_id_hash_nonempty;
+        ALTER TABLE shops DROP CONSTRAINT IF EXISTS chk_shops_entity_type;
+        DROP TABLE IF EXISTS shop_kyc_documents;
+        DROP TABLE IF EXISTS shop_bank_accounts;
+        ALTER TABLE shops DROP COLUMN IF EXISTS entity_type;
+        ALTER TABLE shops DROP COLUMN IF EXISTS tax_code;
+        ALTER TABLE shops DROP COLUMN IF EXISTS tax_status;
+        ALTER TABLE shops DROP COLUMN IF EXISTS business_license_no;
+        ALTER TABLE shops DROP COLUMN IF EXISTS legal_representative_name;
+        ALTER TABLE shops DROP COLUMN IF EXISTS national_id_last4;
+        ALTER TABLE shops DROP COLUMN IF EXISTS national_id_hash;
+        ALTER TABLE shops DROP COLUMN IF EXISTS tax_lookup_snapshot;
+
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS paypal_payout_email VARCHAR(160);
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS brand_slug VARCHAR(160);
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255);
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS city VARCHAR(120);
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'PENDING';
+        ALTER TABLE shops ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_mall BOOLEAN NOT NULL DEFAULT FALSE;
-        ALTER TABLE shops ADD COLUMN IF NOT EXISTS entity_type VARCHAR(20) NOT NULL DEFAULT 'INDIVIDUAL';
-        ALTER TABLE shops ADD COLUMN IF NOT EXISTS tax_status VARCHAR(30) NOT NULL DEFAULT 'PENDING_REVIEW';
-        ALTER TABLE shops ADD COLUMN IF NOT EXISTS legal_representative_name VARCHAR(150);
-        ALTER TABLE shops ADD COLUMN IF NOT EXISTS national_id_last4 VARCHAR(4);
-        ALTER TABLE shops ADD COLUMN IF NOT EXISTS national_id_hash VARCHAR(128);
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS operational_mode VARCHAR(20) NOT NULL DEFAULT 'ACTIVE';
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS vacation_note TEXT;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS vacation_until TIMESTAMPTZ;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS banner_url TEXT;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS tagline VARCHAR(255);
-        ALTER TABLE shops ADD COLUMN IF NOT EXISTS tax_lookup_snapshot JSONB;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS reviewed_by UUID;
         ALTER TABLE shops ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
         ALTER TABLE shops DROP CONSTRAINT IF EXISTS chk_shops_status;
         ALTER TABLE shops ADD CONSTRAINT chk_shops_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'));
 
-        CREATE TABLE IF NOT EXISTS shop_kyc_documents (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
-          doc_type VARCHAR(40) NOT NULL,
-          file_url TEXT NOT NULL,
-          file_name VARCHAR(255),
-          qr_parsed_payload JSONB,
-          verification_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
-          reviewer_note TEXT,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          UNIQUE (shop_id, doc_type)
-        );
-
-        CREATE TABLE IF NOT EXISTS shop_bank_accounts (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
-          bank_code VARCHAR(30) NOT NULL,
-          bank_name VARCHAR(120) NOT NULL,
-          account_number VARCHAR(40) NOT NULL,
-          account_holder_name VARCHAR(150) NOT NULL,
-          is_primary BOOLEAN NOT NULL DEFAULT TRUE,
-          name_match_score NUMERIC(5,2) NOT NULL DEFAULT 0,
-          verification_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          UNIQUE (shop_id, account_number)
-        );
-
         ALTER TABLE products ADD COLUMN IF NOT EXISTS shop_id UUID;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS is_mall BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS video_url TEXT;
+
+        ALTER TABLE orders ALTER COLUMN payment_method SET DEFAULT 'paypal';
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS shop_id UUID;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS has_bespoke_items BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS measurement_snapshot JSONB;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_group_id VARCHAR(48);
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS paypal_order_id VARCHAR(64);
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS paypal_capture_id VARCHAR(64);
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS exchange_rate_vnd INTEGER NOT NULL DEFAULT 25400;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_amount_usd NUMERIC(12,2);
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS paypal_fee_usd NUMERIC(12,2) NOT NULL DEFAULT 0;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS platform_fee_rate NUMERIC(6,4) NOT NULL DEFAULT 0.05;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_status VARCHAR(30) NOT NULL DEFAULT 'PENDING_DELIVERY';
         CREATE INDEX IF NOT EXISTS idx_orders_shop_id ON orders (shop_id);
+        CREATE INDEX IF NOT EXISTS idx_orders_payment_group_id ON orders (payment_group_id);
+        CREATE INDEX IF NOT EXISTS idx_orders_paypal_order_id ON orders (paypal_order_id);
+        CREATE INDEX IF NOT EXISTS idx_orders_payout_status ON orders (payout_status);
+
+        CREATE TABLE IF NOT EXISTS shop_payouts (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+          shop_name VARCHAR(160) NOT NULL,
+          recipient_paypal_email VARCHAR(160) NOT NULL,
+          order_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+          exchange_rate_vnd INTEGER NOT NULL DEFAULT 25400,
+          platform_fee_rate NUMERIC(6,4) NOT NULL DEFAULT 0.05,
+          gross_vnd BIGINT NOT NULL,
+          paypal_fee_vnd BIGINT NOT NULL DEFAULT 0,
+          platform_fee_vnd BIGINT NOT NULL DEFAULT 0,
+          net_payout_vnd BIGINT NOT NULL,
+          net_payout_usd NUMERIC(12,2) NOT NULL,
+          paypal_payout_batch_id VARCHAR(80),
+          paypal_payout_item_id VARCHAR(80),
+          status VARCHAR(30) NOT NULL DEFAULT 'PROCESSING',
+          note TEXT,
+          raw_response JSONB,
+          created_by UUID,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          paid_at TIMESTAMPTZ
+        );
+        CREATE INDEX IF NOT EXISTS idx_shop_payouts_shop_id ON shop_payouts (shop_id);
+        CREATE INDEX IF NOT EXISTS idx_shop_payouts_batch_id ON shop_payouts (paypal_payout_batch_id);
 
         CREATE TABLE IF NOT EXISTS product_reviews (
           id SERIAL PRIMARY KEY,
@@ -456,10 +553,134 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
         );
       `);
 
+      // Seed 7 signature products first so shop ownership & is_mall updates apply cleanly on fresh DBs
+      for (const p of SEED_PRODUCTS) {
+        await query(
+          `INSERT INTO products (
+             id, brand_name, name, name_en, slug, category, gender_target,
+             price, sale_price, rating, reviews_count, fabric_material, fabric_material_en,
+             stretch_type, image_url, secondary_image_url, description, description_en,
+             is_bestseller, is_bespoke, is_hidden, variants
+           ) VALUES (
+             $1, $2, $3, $4, $5, $6, $7,
+             $8, $9, $10, $11, $12, $13,
+             $14, $15, $16, $17, $18,
+             $19, $20, FALSE, $21::jsonb
+           ) ON CONFLICT (id) DO NOTHING`,
+          [
+            p.id,
+            p.brand_name,
+            p.name,
+            p.name_en,
+            p.slug,
+            p.category,
+            p.gender_target,
+            p.price,
+            p.sale_price,
+            p.rating,
+            p.reviews_count,
+            p.fabric_material,
+            p.fabric_material_en,
+            p.stretch_type,
+            p.image_url,
+            p.secondary_image_url,
+            p.description,
+            p.description_en,
+            p.is_bestseller,
+            p.is_bespoke,
+            JSON.stringify(p.variants),
+          ]
+        );
+      }
+
       await query(`
         UPDATE products SET is_mall = TRUE
-        WHERE id IN ('prod-01', 'prod-03', 'prod-04', 'prod-05') AND is_mall = FALSE;
+        WHERE id IN ('prod-01', 'prod-03', 'prod-04', 'prod-05', 'prod-07') AND is_mall = FALSE;
       `).catch(() => undefined);
+
+      // Seed 3 active APPROVED Shops & link seeded products for multi-shop PayPal testing
+      const defaultShopPassHash = await hashPassword('ShopFitVision@2026').catch(() => '');
+      for (const s of SEED_ACTIVE_SHOPS) {
+        const existingUser = await query<{ id: string }>(
+          'SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+          [s.email]
+        ).catch(() => []);
+
+        let ownerId = existingUser[0]?.id;
+        if (!ownerId && defaultShopPassHash) {
+          ownerId = crypto.randomUUID();
+          await query(
+            `INSERT INTO users (id, email, password_hash, full_name, phone, role, status, failed_login_attempts, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, 'SHOP_OWNER', 'ACTIVE', 0, NOW(), NOW())`,
+            [ownerId, s.email, defaultShopPassHash, s.fullName, s.phone]
+          ).catch(() => undefined);
+        } else if (ownerId) {
+          await query(
+            `UPDATE users SET role = 'SHOP_OWNER', status = 'ACTIVE', updated_at = NOW()
+             WHERE id = $1 AND role <> 'ADMIN'`,
+            [ownerId]
+          ).catch(() => undefined);
+        }
+        if (!ownerId) continue;
+
+        const existingShop = await query<{ id: string }>(
+          'SELECT id FROM shops WHERE owner_id = $1 OR LOWER(shop_name) = LOWER($2) LIMIT 1',
+          [ownerId, s.shopName]
+        ).catch(() => []);
+
+        let shopId = existingShop[0]?.id;
+        if (!shopId) {
+          shopId = crypto.randomUUID();
+          await query(
+            `INSERT INTO shops (
+               id, owner_id, shop_name, brand_slug, phone_number, shop_address, contact_email,
+               tagline, paypal_payout_email, status, is_verified, is_mall, operational_mode,
+               approved_at, reviewed_at, created_at, updated_at
+             ) VALUES (
+               $1, $2, $3, $4, $5, $6, $7,
+               $8, $9, 'APPROVED', TRUE, $10, 'ACTIVE',
+               NOW(), NOW(), NOW(), NOW()
+             )`,
+            [
+              shopId,
+              ownerId,
+              s.shopName,
+              s.brandSlug,
+              s.phone,
+              s.address,
+              s.email,
+              s.tagline,
+              s.defaultPaypalEmail,
+              s.isMall,
+            ]
+          ).catch(() => undefined);
+        } else {
+          await query(
+            `UPDATE shops
+             SET status = 'APPROVED',
+                 is_verified = TRUE,
+                 brand_slug = COALESCE(NULLIF(brand_slug, ''), $2),
+                 contact_email = COALESCE(NULLIF(contact_email, ''), $3),
+                 tagline = COALESCE(NULLIF(tagline, ''), $4),
+                 paypal_payout_email = COALESCE(NULLIF(paypal_payout_email, ''), $5),
+                 is_mall = $6,
+                 operational_mode = COALESCE(NULLIF(operational_mode, ''), 'ACTIVE'),
+                 approved_at = COALESCE(approved_at, NOW()),
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [shopId, s.brandSlug, s.email, s.tagline, s.defaultPaypalEmail, s.isMall]
+          ).catch(() => undefined);
+        }
+
+        if (shopId && s.productIds.length > 0) {
+          await query(
+            `UPDATE products
+             SET shop_id = $1, is_mall = $2, updated_at = NOW()
+             WHERE id = ANY($3::varchar[]) AND shop_id IS NULL`,
+            [shopId, s.isMall, s.productIds]
+          ).catch(() => undefined);
+        }
+      }
 
       const reviewCountRes = await query<{ count: string }>('SELECT COUNT(*) as count FROM product_reviews');
       if (parseInt(reviewCountRes[0]?.count || '0', 10) === 0) {
@@ -525,46 +746,6 @@ export async function ensureCommerceTablesAndSeed(): Promise<void> {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT (code) DO NOTHING`,
           [v.code, v.discount_type, v.discount_value, v.title_vi, v.title_en, v.sub_vi, v.sub_en, v.is_active, v.show_on_storefront]
-        );
-      }
-
-      // Seed 6 signature products
-      for (const p of SEED_PRODUCTS) {
-        await query(
-          `INSERT INTO products (
-             id, brand_name, name, name_en, slug, category, gender_target,
-             price, sale_price, rating, reviews_count, fabric_material, fabric_material_en,
-             stretch_type, image_url, secondary_image_url, description, description_en,
-             is_bestseller, is_bespoke, is_hidden, variants
-           ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7,
-             $8, $9, $10, $11, $12, $13,
-             $14, $15, $16, $17, $18,
-             $19, $20, FALSE, $21::jsonb
-           ) ON CONFLICT (id) DO NOTHING`,
-          [
-            p.id,
-            p.brand_name,
-            p.name,
-            p.name_en,
-            p.slug,
-            p.category,
-            p.gender_target,
-            p.price,
-            p.sale_price,
-            p.rating,
-            p.reviews_count,
-            p.fabric_material,
-            p.fabric_material_en,
-            p.stretch_type,
-            p.image_url,
-            p.secondary_image_url,
-            p.description,
-            p.description_en,
-            p.is_bestseller,
-            p.is_bespoke,
-            JSON.stringify(p.variants),
-          ]
         );
       }
 

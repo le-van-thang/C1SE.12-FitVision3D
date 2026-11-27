@@ -101,7 +101,7 @@ export interface OrderRecipient {
   note?: string;
 }
 
-export type PaymentMethod = 'cod' | 'vietqr_sepay';
+export type PaymentMethod = 'paypal';
 
 export interface OrderMeasurementSnapshot {
   stature_cm: number;
@@ -142,6 +142,15 @@ export interface Order {
   has_bespoke_items?: boolean;
   measurement_snapshot?: OrderMeasurementSnapshot | null;
   estimated_delivery?: string;
+  payment_group_id?: string | null;
+  paypal_order_id?: string | null;
+  paypal_capture_id?: string | null;
+  exchange_rate_vnd?: number;
+  paid_amount_usd?: number | null;
+  paypal_fee_usd?: number | null;
+  platform_fee_rate?: number | null;
+  completed_at?: string | null;
+  payout_status?: 'PENDING_DELIVERY' | 'READY_FOR_PAYOUT' | 'PROCESSING' | 'PAID_OUT' | string;
 }
 
 export interface CreateOrderInput {

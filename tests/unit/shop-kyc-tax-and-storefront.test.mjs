@@ -2,13 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-  validateVietnamCCCD,
-  validateVietnamTaxCode,
-  isValidMst10Checksum,
-  compareVietnameseAccountNames,
-  evaluateCccdQrConsistency,
-} from '../../backend/src/modules/shop/kycRules.ts';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 
@@ -16,77 +9,58 @@ function readRepoFile(relPath) {
   return fs.readFileSync(path.join(REPO_ROOT, relPath), 'utf8');
 }
 
-test('TC-KYC-01: Tax Code Mod-11 checksum catches made-up 10-digit numbers and accepts valid enterprise/branch/-888/12-digit formats', () => {
-  // Real valid Mod-11 Vietnam tax codes (e.g. Vietcombank 0100112437, FPT 0101248141)
-  assert.equal(isValidMst10Checksum('0100112437'), true);
-  assert.equal(isValidMst10Checksum('0101248141'), true);
-  // Fake / sequential / repeated numbers rejected by Mod-11
-  assert.equal(isValidMst10Checksum('0123456789'), false);
-  assert.equal(isValidMst10Checksum('1111111111'), false);
-  assert.equal(isValidMst10Checksum('0101248142'), false); // off by 1 check digit
+test('TC-SHOP-01: Deprecated KYC, entity_type, Tax Code, CCCD and Bank tables/modules are cleanly removed', () => {
+  assert.equal(fs.existsSync(path.join(REPO_ROOT, 'backend/src/modules/shop/kycRules.ts')), false);
+  assert.equal(fs.existsSync(path.join(REPO_ROOT, 'backend/src/modules/shop/kycVerification.ts')), false);
+  assert.equal(fs.existsSync(path.join(REPO_ROOT, 'src/utils/shopKycValidation.ts')), false);
 
-  assert.equal(validateVietnamTaxCode('0101248141').kind, 'ENTERPRISE_10');
-  assert.equal(validateVietnamTaxCode('0101248141-001').kind, 'BRANCH_13');
-  assert.equal(validateVietnamTaxCode('0101248141-888').kind, 'ECOMMERCE_888');
-  assert.equal(validateVietnamTaxCode('079095001234').kind, 'PERSONAL_CCCD_12');
-  assert.equal(validateVietnamTaxCode('079095001234-888').kind, 'ECOMMERCE_888');
-  assert.equal(validateVietnamTaxCode('0123456789-888').valid, false);
+  const onboardingSrc = readRepoFile('src/components/store/MerchantOnboardingModal.tsx');
+  const shopPortalSrc = readRepoFile('src/pages/ShopPortal.tsx');
+  const adminPortalSrc = readRepoFile('src/pages/AdminPortal.tsx');
+  const authDtoSrc = readRepoFile('backend/src/modules/auth/auth.dto.ts');
+
+  assert.doesNotMatch(onboardingSrc, /entity_type|entityType|taxCode|nationalId|bankAccountNumber/);
+  assert.doesNotMatch(shopPortalSrc, /shopKycValidation|VIETNAM_BANKS|resubmitEntityType|resubmitNationalId/);
+  assert.doesNotMatch(adminPortalSrc, /provEntityType|provTaxCode|handleQuickTaxLookup/);
+  assert.doesNotMatch(authDtoSrc, /entity_type|tax_code|national_id|bank_account/);
+
+  assert.match(onboardingSrc, /paypalPayoutEmail/);
+  assert.match(shopPortalSrc, /updateShopPayPalAccount/);
+  assert.match(shopPortalSrc, /getShopPayouts/);
+  assert.match(adminPortalSrc, /getAdminPayouts/);
+  assert.match(adminPortalSrc, /disburseAdminPayouts/);
 });
 
-test('TC-KYC-02: CCCD 12-digit validator enforces 63 province codes, adult age >= 18, and rejects bogus strings', () => {
-  const hcm = validateVietnamCCCD('079095001234');
-  assert.equal(hcm.valid, true);
-  assert.equal(hcm.provinceName, 'TP. Hồ Chí Minh');
-  assert.equal(hcm.birthYear, 1995);
-  assert.equal(hcm.gender, 'MALE');
-
-  const hn = validateVietnamCCCD('001198004321');
-  assert.equal(hn.valid, true);
-  assert.equal(hn.provinceName, 'Hà Nội');
-  assert.equal(hn.birthYear, 1998);
-  assert.equal(hn.gender, 'FEMALE');
-
-  assert.equal(validateVietnamCCCD('999095001234').valid, false); // invalid province 999
-  assert.equal(validateVietnamCCCD('079220001234').valid, false); // born 2020 -> minor < 18
-  assert.equal(validateVietnamCCCD('111111111111').valid, false); // repeated digits
-});
-
-test('TC-KYC-03: Bank account holder name comparison and CCCD QR consistency detect mismatches', () => {
-  const exact = compareVietnameseAccountNames('NGUYEN VAN AN', 'Nguyễn Văn An');
-  assert.equal(exact.matched, true);
-  assert.equal(exact.score, 100);
-
-  const mismatch = compareVietnameseAccountNames('TRAN THI BINH', 'Nguyễn Văn An');
-  assert.equal(mismatch.matched, false);
-
-  const qrOk = evaluateCccdQrConsistency('079095001234', 'Nguyễn Văn An', {
-    cccd: '079095001234',
-    fullName: 'NGUYỄN VĂN AN',
-  });
-  assert.equal(qrOk.status, 'MATCHED');
-
-  const qrBad = evaluateCccdQrConsistency('079095001234', 'Nguyễn Văn An', {
-    cccd: '001090009999',
-    fullName: 'LÊ VĂN BÌNH',
-  });
-  assert.equal(qrBad.status, 'MISMATCHED');
-});
-
-test('TC-KYC-04: Security guards disable auto-approve in ensureShopForUser and enforce account & status isolation', () => {
+test('TC-SHOP-02: Marketplace PayPal config, Escrow breakdown, and 4 disbursement eligibility guards exist on Backend & Frontend', () => {
   const repoSrc = readRepoFile('backend/src/modules/commerce/commerce.repository.ts');
+  const bootstrapSrc = readRepoFile('backend/src/modules/commerce/commerce.bootstrap.ts');
   const routesSrc = readRepoFile('backend/src/modules/commerce/commerce.routes.ts');
   const ctrlSrc = readRepoFile('backend/src/modules/commerce/commerce.controller.ts');
   const appSrc = readRepoFile('src/App.tsx');
 
-  // Auto-approve backdoor removed
+  // Auto-approve backdoor does not exist; 3 active sample shops are seeded cleanly with paypal_payout_email
   assert.doesNotMatch(repoSrc, /VALUES \(\$1, \$2, \$3, \$4, 'Việt Nam', \$5, 'APPROVED', TRUE/);
-  // Shop product/profile/reply routes require APPROVED shop
+  assert.match(bootstrapSrc, /shop1\.milan@fitvision3d\.com/);
+  assert.match(bootstrapSrc, /shop2\.nordic@fitvision3d\.com/);
+  assert.match(bootstrapSrc, /shop@fitvision3d\.com/);
+  assert.match(bootstrapSrc, /CREATE TABLE IF NOT EXISTS shop_payouts/);
+
+  // PayPal breakdown & 4-condition eligibility checks
+  assert.match(repoSrc, /export function computeOrderPayoutBreakdown\(/);
+  assert.match(repoSrc, /export function evaluateOrderPayoutEligibility\(/);
+  assert.match(repoSrc, /order\.payment_status !== 'paid'/);
+  assert.match(repoSrc, /order\.status !== 'completed'/);
+  assert.match(repoSrc, /paypal_payout_email/);
+  assert.match(repoSrc, /safeHoldDays > 0 && Date\.now\(\) < eligibleMs/);
+
+  // RBAC & Approved Shop routes
   assert.match(routesSrc, /\/shop\/products'.*requireApprovedShop/);
-  assert.match(routesSrc, /\/shop\/profile'.*requireApprovedShop/);
+  assert.match(routesSrc, /\/shop\/paypal-account'.*requireApprovedShop/);
+  assert.match(routesSrc, /\/admin\/payouts'.*requireRole\('ADMIN'\)/);
   assert.match(routesSrc, /\/stores\/:slug/);
-  // Account separation: SHOP_OWNER cannot place personal orders or write reviews
   assert.match(ctrlSrc, /req\.user\.role === 'SHOP_OWNER'/);
-  // App redirects authenticated store role away from Home/Dashboard to /shop and exposes /stores/:slug
+
+  // Storefront & Admin provision route contracts
   assert.match(appSrc, /path="\/stores\/:slug"/);
   assert.match(appSrc, /if \(isAuthenticated && userRole === 'store'\)/);
 
@@ -95,4 +69,3 @@ test('TC-KYC-04: Security guards disable auto-approve in ensureShopForUser and e
   assert.match(adminRoutesSrc, /\/users\/:id\/provision-shop'.*requireRole\('ADMIN'\)/);
   assert.match(adminPortalSrc, /openProvisionShopModal/);
 });
-

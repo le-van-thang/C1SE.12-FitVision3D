@@ -17,18 +17,19 @@ test('TC-W1-01: Checkout awaits backend persistence, isolates buyer PII, resets 
   assert.match(orderCtxSrc, /const res = await commerceApi\.createOrder\(newOrder\);/);
   assert.match(orderCtxSrc, /const rollbackStatus = prevStatus;[\s\S]*status: rollbackStatus/);
 
-  // CheckoutModal awaits createOrder result before clearing cart or advancing to success screen
-  assert.match(checkoutSrc, /const result = await createOrder\(\{/);
-  assert.match(checkoutSrc, /if \(result\.success && result\.order\)/);
+  // CheckoutModal awaits PayPal create/capture APIs before clearing cart or advancing to success screen
+  assert.match(checkoutSrc, /commerceApi\.createPayPalOrder\(/);
+  assert.match(checkoutSrc, /commerceApi\.capturePayPalOrder\(/);
+  assert.match(checkoutSrc, /recordCapturedOrders\(res\.data\.orders\);/);
   assert.match(checkoutSrc, /onClearCart\(\);/);
   assert.match(checkoutSrc, /setStep\('success'\);/);
 
-  // CheckoutModal syncs recipient PII per currentUser.id, resets appliedDiscount, fixes 14-day copy & dynamic VietQR
+  // CheckoutModal syncs recipient PII per currentUser.id, resets appliedDiscount, fixes 14-day copy & PayPal-only checkout
   assert.match(checkoutSrc, /\[isOpen,\s*currentUser\?\.id\]/);
   assert.match(checkoutSrc, /setAppliedDiscount\(0\);/);
-  assert.match(checkoutSrc, /trong 14 ngày/);
+  assert.match(checkoutSrc, /PayPal Escrow/);
   assert.doesNotMatch(checkoutSrc, /accountName=LE%20VAN%20THANG/);
-  assert.match(checkoutSrc, /encodeURIComponent\(bankAccount\.accountNumber\)/);
+  assert.doesNotMatch(checkoutSrc, /vietqr_sepay|bankAccount\.accountNumber/);
   assert.doesNotMatch(checkoutSrc, /alert\(/);
 });
 

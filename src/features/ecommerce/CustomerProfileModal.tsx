@@ -937,9 +937,15 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                                 <div>
                                   <span className="text-stone-500 block">{t('ecommerce.orders.payment', 'Thanh toán:')}</span>
                                   <strong className="text-stone-900 font-bold">
-                                    {order.payment_method === 'vietqr_sepay' ? '💳 VietQR / SePay' : '💵 COD'}
+                                    🌐 PayPal{order.paid_amount_usd ? ` ($${Number(order.paid_amount_usd).toFixed(2)})` : ''}
                                   </strong>
                                 </div>
+                                {order.paypal_capture_id && (
+                                  <div className="col-span-2">
+                                    <span className="text-stone-500 block">Mã giao dịch PayPal Capture:</span>
+                                    <strong className="font-mono text-blue-700">{order.paypal_capture_id}</strong>
+                                  </div>
+                                )}
                                 <div className="col-span-2">
                                   <span className="text-stone-500 block">{t('ecommerce.orders.deliveryAddress', 'Địa chỉ giao:')}</span>
                                   <strong className="text-stone-900 font-bold">{order.recipient.address}, {order.recipient.city}</strong>
@@ -964,17 +970,6 @@ export const CustomerProfileModal: React.FC<CustomerProfileModalProps> = ({
                             </div>
 
                             <div className="flex gap-2">
-                              {order.payment_method === 'vietqr_sepay' &&
-                                order.payment_status !== 'paid' &&
-                                order.status !== 'cancelled' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedOrderDetails(order.id)}
-                                    className="px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-[11px] font-bold cursor-pointer"
-                                  >
-                                    Xem QR TT
-                                  </button>
-                                )}
                               {(order.status === 'pending' || order.status === 'confirmed') && (
                                 confirmCancelId === order.id ? (
                                   <div className="flex items-center gap-1">

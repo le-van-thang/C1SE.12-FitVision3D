@@ -31,7 +31,8 @@ export interface MerchantOnboardingPayload {
   brandName: string;
   phone: string;
   address: string;
-  verificationDoc: string;
+  paypalPayoutEmail?: string;
+  tagline?: string;
   website_trap?: string;
 }
 
@@ -177,10 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           brand_name: dbShop.shop_name,
           phone: dbShop.phone_number,
           address: dbShop.shop_address,
-          verification_doc: dbShop.business_license_no || '',
-          entity_type: dbShop.entity_type,
-          tax_code: dbShop.tax_code,
-          tax_status: dbShop.tax_status,
+          paypal_payout_email: dbShop.paypal_payout_email || null,
           status: dbShop.status,
           is_approved: dbShop.status === 'APPROVED',
           rejection_reason: dbShop.rejection_reason || null,
@@ -592,14 +590,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Địa chỉ xưởng/cửa hàng phải có ít nhất 5 ký tự.' };
       }
 
-      const verificationDoc = (payload.verificationDoc || '').trim();
-      if (verificationDoc.length < 3) {
-        return {
-          success: false,
-          error: 'Vui lòng cung cấp mã số GPKD, mã số thuế hoặc ảnh minh chứng giấy phép.',
-        };
-      }
-
       const existingStore = stores.find((s) => s.user_id === currentUser.id);
       const now = new Date().toISOString();
 
@@ -625,7 +615,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           shopName: brandName,
           phoneNumber: payload.phone.trim(),
           shopAddress: address,
-          businessLicenseNo: verificationDoc,
+          paypalPayoutEmail: payload.paypalPayoutEmail?.trim() || undefined,
+          tagline: payload.tagline?.trim() || undefined,
         });
         if (!apiRes.success) {
           const errCode = apiRes.error?.code;
@@ -651,7 +642,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 brand_name: brandName,
                 phone: payload.phone.trim(),
                 address,
-                verification_doc: verificationDoc,
+                paypal_payout_email: payload.paypalPayoutEmail?.trim() || s.paypal_payout_email || null,
                 status: 'PENDING' as const,
                 is_approved: false,
                 rejection_reason: null,
@@ -676,7 +667,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         brand_name: brandName,
         phone: payload.phone.trim(),
         address,
-        verification_doc: verificationDoc,
+        paypal_payout_email: payload.paypalPayoutEmail?.trim() || null,
         status: 'PENDING',
         is_approved: false,
         rejection_reason: null,

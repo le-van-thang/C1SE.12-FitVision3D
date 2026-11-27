@@ -51,13 +51,6 @@ export const adminController = {
     sendSuccess(res, store, 200);
   }),
 
-  lookupTaxCode: withAsync(async (req: Request, res: Response) => {
-    const taxCode = readSingleParam(req.params.taxCode);
-    const entityType = String(req.query.entityType || 'ENTERPRISE').toUpperCase() as any;
-    const result = await adminService.lookupTaxCode(taxCode, entityType);
-    sendSuccess(res, result, 200);
-  }),
-
   toggleStoreMall: withAsync(async (req: Request, res: Response) => {
     const id = readSingleParam(req.params.id);
     const isMall = Boolean(req.body?.isMall);
